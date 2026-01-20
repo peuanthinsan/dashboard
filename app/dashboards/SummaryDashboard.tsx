@@ -184,15 +184,15 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
     return baseFilteredRows.filter((row) => row.monthKey === previousMonthKey);
   }, [baseFilteredRows, previousMonthKey]);
 
-  const alertTypeSummary = useMemo(() => buildCounts(currentRows, ['alertType']), [currentRows]);
   const fleetSummary = useMemo(() => buildCounts(currentRows, ['fleet']), [currentRows]);
   const remarkSummary = useMemo(() => buildCounts(currentRows, ['remarks']), [currentRows]);
-  const topAlertTypes = alertTypeSummary.slice(0, 6);
+  const vehicleSummary = useMemo(() => buildCounts(currentRows, ['vehicle']), [currentRows]);
   const topFleets = fleetSummary.slice(0, 6);
   const topRemarks = remarkSummary.slice(0, 6);
-  const maxAlertTotal = topAlertTypes[0]?.total ?? 0;
+  const topVehicles = vehicleSummary.slice(0, 6);
   const maxFleetTotal = topFleets[0]?.total ?? 0;
   const maxRemarkTotal = topRemarks[0]?.total ?? 0;
+  const maxVehicleTotal = topVehicles[0]?.total ?? 0;
 
   const countMatches = (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {
     const normalizedTarget = normalizeLabel(targetLabel);
@@ -394,28 +394,6 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
 
             <div className="grid gap-6 lg:grid-cols-3">
               <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
-                <h2 className="text-lg font-medium">Alert type volume</h2>
-                <p className="text-sm text-slate-400">
-                  See which alert categories are appearing most frequently in the sheet.
-                </p>
-                <div className="mt-4 space-y-3">
-                  {topAlertTypes.length === 0 ? (
-                    <p className="text-sm text-slate-400">No alert types found.</p>
-                  ) : (
-                    topAlertTypes.map((row) => (
-                      <div key={row.label} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-200">{row.label}</span>
-                          <span className="text-slate-400">{row.total}</span>
-                        </div>
-                        <Bar value={row.total} max={maxAlertTotal} />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
                 <h2 className="text-lg font-medium">Fleet volume</h2>
                 <p className="text-sm text-slate-400">Fleet distribution based on alert activity.</p>
                 <div className="mt-4 space-y-3">
@@ -449,6 +427,26 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                           <span className="text-slate-400">{row.total}</span>
                         </div>
                         <Bar value={row.total} max={maxRemarkTotal} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+                <h2 className="text-lg font-medium">Vehicle volume</h2>
+                <p className="text-sm text-slate-400">Top vehicles based on alert activity.</p>
+                <div className="mt-4 space-y-3">
+                  {topVehicles.length === 0 ? (
+                    <p className="text-sm text-slate-400">No vehicle data available.</p>
+                  ) : (
+                    topVehicles.map((row) => (
+                      <div key={row.label} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-200">{row.label}</span>
+                          <span className="text-slate-400">{row.total}</span>
+                        </div>
+                        <Bar value={row.total} max={maxVehicleTotal} />
                       </div>
                     ))
                   )}
