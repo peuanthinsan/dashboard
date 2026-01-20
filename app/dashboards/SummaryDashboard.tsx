@@ -329,9 +329,11 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-medium">Filters</h2>
+                  <h2 className="text-lg font-medium">Alert remark highlights</h2>
                   <p className="text-sm text-slate-400">
-                    Narrow alerts by alert type, remark, month, fleet, or vehicle.
+                    {activeMonthKey
+                      ? `Showing ${activeMonthLabel} totals with change versus last month.`
+                      : `Showing ${activeMonthLabel} totals.`}
                   </p>
                 </div>
                 <button
@@ -648,15 +650,6 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                   ) : null}
                 </div>
               </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
-              <h2 className="text-lg font-medium">Alert remark highlights</h2>
-              <p className="text-sm text-slate-400">
-                {activeMonthKey
-                  ? `Showing ${activeMonthLabel} totals with change versus last month.`
-                  : `Showing ${activeMonthLabel} totals.`}
-              </p>
               <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {highlightItems.map((item) => {
                   const summary = buildDeltaSummary(item.current, item.previous);
