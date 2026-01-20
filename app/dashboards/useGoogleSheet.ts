@@ -46,7 +46,8 @@ const parseGoogleSheet = (payload: string) => {
     return record;
   });
   const isHeaderRow = (row: SheetRow) =>
-    columns.length > 0 && columns.every((column) => String(row[column.label] ?? '').trim() === column.label);
+    columns.length > 0 &&
+    columns.every((column: SheetColumn) => String(row[column.label] ?? '').trim() === column.label);
 
   const trimmedRows = rows.length > 0 && isHeaderRow(rows[0]) ? rows.slice(1) : rows;
   return { columns, rows: trimmedRows };
