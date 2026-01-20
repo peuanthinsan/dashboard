@@ -675,7 +675,8 @@ export default function DashboardClient({
         <Box sx={{ mt: 4 }}>
           {!vehicleColumn || !alertTypeColumn || !dateTimeColumn ? (
             <Alert severity="info">
-              Add columns labelled "Vehicle No", "Alert Type", and a date/time column to view alert trends.
+              Add columns labelled &quot;Vehicle No&quot;, &quot;Alert Type&quot;, and a date/time column to
+              view alert trends.
             </Alert>
           ) : (
             <>
@@ -804,7 +805,8 @@ export default function DashboardClient({
                     </Typography>
                     {!remarksColumn || !dateTimeColumn || !alertTypeColumn ? (
                       <Alert severity="info">
-                        Add "Remarks", "Alert Type", and a date/time column to compare remark totals month over month.
+                        Add &quot;Remarks&quot;, &quot;Alert Type&quot;, and a date/time column to compare
+                        remark totals month over month.
                       </Alert>
                     ) : !monthOverMonthSummary.currentMonth ? (
                       <Alert severity="info">No monthly remark totals are available yet.</Alert>
@@ -911,7 +913,7 @@ export default function DashboardClient({
                         </Typography>
                         {!fleetColumn || !remarksColumn ? (
                           <Alert severity="info">
-                            Add "Fleet" and "Remarks" columns to compare remark totals by fleet.
+                            Add &quot;Fleet&quot; and &quot;Remarks&quot; columns to compare remark totals by fleet.
                           </Alert>
                         ) : remarkFleetSummary.fleets.length === 0 ||
                           remarkFleetSummary.remarks.length === 0 ? (
