@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -76,6 +76,7 @@ const buildDeltaSummary = (current: number, previous: number) => {
 export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
 
+  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
   const [alertSearch, setAlertSearch] = useState('');
   const [alertFilters, setAlertFilters] = useState<string[]>([]);
   const [monthSearch, setMonthSearch] = useState('');
@@ -189,6 +190,13 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
     const normalizedSearch = normalizeLabel(trimmedSearch);
     return monthOptions.filter((option) => normalizeLabel(option.label).includes(normalizedSearch));
   }, [monthOptions, monthSearch]);
+
+  useEffect(() => {
+    if (monthFilters.length > 0) return;
+    if (monthOptions.some((option) => option.key === currentMonthKey)) {
+      setMonthFilters([currentMonthKey]);
+    }
+  }, [currentMonthKey, monthFilters.length, monthOptions]);
 
   const baseFilteredRows = useMemo(() => {
     const normalizedAlertFilters = alertFilters.map((alert) => normalizeLabel(alert));
