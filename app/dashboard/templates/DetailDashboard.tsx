@@ -26,7 +26,13 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { LineChart } from '@mui/x-charts/LineChart';
 import useGoogleSheet, { SheetColumn, SheetRecordValue } from '../hooks/useGoogleSheet';
-import { MULTI_SORT_HINT, buildMultiSortComparator, isMultiSortEvent, updateMultiSort } from '../utils/tableSort';
+import {
+  MULTI_SORT_HINT,
+  buildMultiSortComparator,
+  isMultiSortEvent,
+  type MultiSort,
+  updateMultiSort,
+} from '../utils/tableSort';
 
 const normalizeLabel = (label: string) => (label ? label.trim().toLowerCase() : '');
 const normalizeRemark = (value: SheetRecordValue) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
@@ -509,7 +515,7 @@ export default function DetailDashboard({ name, sheetUrl }: DetailDashboardProps
 
   const [alertsPage, setAlertsPage] = useState(0);
   const [alertsRowsPerPage, setAlertsRowsPerPage] = useState(25);
-  const [alertsSorts, setAlertsSorts] = useState([{ id: 'dateTime', direction: 'desc' }]);
+  const [alertsSorts, setAlertsSorts] = useState<MultiSort[]>([{ id: 'dateTime', direction: 'desc' }]);
 
   useEffect(() => {
     setAlertsPage(0);
