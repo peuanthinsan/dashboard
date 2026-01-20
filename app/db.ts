@@ -10,9 +10,23 @@ import { genSaltSync, hashSync } from 'bcrypt-ts';
 let client = postgres(`${process.env.POSTGRES_URL!}?sslmode=require`);
 let db = drizzle(client);
 
-export async function getUser(email: string) {
+type UserRecord = {
+  id: number;
+  email: string | null;
+  password: string | null;
+  isAdmin: boolean | null;
+  companyId: number | null;
+  organizationId: number | null;
+};
+
+export type UserWithAssignments = UserRecord & {
+  companyIds: number[];
+  organizationIds: number[];
+};
+
+export async function getUser(email: string): Promise<UserWithAssignments[]> {
   const { users, userCompanies, userOrganizations } = await ensureTablesExist();
-  const userRows = await db.select().from(users).where(eq(users.email, email));
+  const userRows = (await db.select().from(users).where(eq(users.email, email))) as UserRecord[];
   if (userRows.length === 0) {
     return userRows;
   }
@@ -57,7 +71,7 @@ export async function createUser(email: string, password: string) {
   });
 }
 
-export async function getUsers() {
+export async function getUsers(): Promise<UserWithAssignments[]> {
   const { users, userCompanies, userOrganizations } = await ensureTablesExist();
   const [userRows, companyRows, organizationRows] = await Promise.all([
     db.select().from(users).orderBy(users.id),
@@ -65,6 +79,7 @@ export async function getUsers() {
     db.select().from(userOrganizations),
   ]);
 
+  const typedUsers = userRows as UserRecord[];
   const companyMap = new Map<number, number[]>();
   for (const row of companyRows) {
     const list = companyMap.get(row.userId) ?? [];
@@ -79,7 +94,7 @@ export async function getUsers() {
     organizationMap.set(row.userId, list);
   }
 
-  return userRows.map((user) => ({
+  return typedUsers.map((user) => ({
     ...user,
     companyIds:
       companyMap.get(user.id) ?? (user.companyId !== null ? [user.companyId] : []),
