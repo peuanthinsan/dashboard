@@ -172,6 +172,7 @@ async function ensureTablesExist() {
       "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
     );
   `;
+  await client`ALTER TABLE "Dashboard" ALTER COLUMN "organizationId" DROP NOT NULL;`;
 
   const users = pgTable('User', {
     id: serial('id').primaryKey(),
