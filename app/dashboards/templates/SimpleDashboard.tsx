@@ -58,9 +58,9 @@ export default function SimpleDashboard({ name, sheetId, gid }: SimpleDashboardP
     return records.slice(0, 12).map((row, index) => ({
       id: `${index}`,
       dateTime: formattedRows[index]?.[dateTimeColumn.field] ?? String(row[dateTimeColumn.field] ?? ''),
-      vehicle: vehicleColumn ? row[vehicleColumn.field] : null,
-      alertType: row[alertTypeColumn.field],
-      remarks: remarksColumn ? row[remarksColumn.field] : null,
+      vehicle: vehicleColumn ? String(row[vehicleColumn.field] ?? '') : '',
+      alertType: String(row[alertTypeColumn.field] ?? ''),
+      remarks: remarksColumn ? String(row[remarksColumn.field] ?? '') : '',
     }));
   }, [alertTypeColumn, dateTimeColumn, formattedRows, records, remarksColumn, vehicleColumn]);
 
@@ -128,9 +128,9 @@ export default function SimpleDashboard({ name, sheetId, gid }: SimpleDashboardP
                   {rows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>{row.dateTime}</TableCell>
-                      <TableCell>{row.vehicle ?? '—'}</TableCell>
-                      <TableCell>{row.alertType ?? '—'}</TableCell>
-                      <TableCell>{row.remarks ?? '—'}</TableCell>
+                      <TableCell>{row.vehicle || '—'}</TableCell>
+                      <TableCell>{row.alertType || '—'}</TableCell>
+                      <TableCell>{row.remarks || '—'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
