@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import type { MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useFormState } from 'react-dom';
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video Samples'] as const;
@@ -412,8 +413,15 @@ export default function AdminPageClient({
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+      <div className="mx-auto flex w-full max-w-[1124px] flex-col gap-8">
         <header className="flex flex-col gap-2">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white"
+          >
+            <span aria-hidden="true">←</span>
+            Back to dashboards
+          </Link>
           <h1 className="text-3xl font-semibold">Administration</h1>
           <p className="text-sm text-slate-300">
             Assign users to one or more companies and organizations, and manage admin access.

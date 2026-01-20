@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -343,10 +344,17 @@ export default function SimpleDashboard({
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
+              <Link
+                href="/dashboard"
+                className="mb-2 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white"
+              >
+                <span aria-hidden="true">←</span>
+                Back to dashboards
+              </Link>
               <h1 className="text-3xl font-semibold">{dashboardName}</h1>
             </div>
             <button
