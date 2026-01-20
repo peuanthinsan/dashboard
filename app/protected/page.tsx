@@ -9,8 +9,8 @@ export default async function ProtectedPage() {
   let dashboards =
     user.length > 0
       ? await getDashboardsForUser({
-          companyId: user[0].companyId ?? null,
-          organizationId: user[0].organizationId ?? null,
+          companyIds: user[0].companyIds ?? [],
+          organizationIds: user[0].organizationIds ?? [],
         })
       : [];
 
