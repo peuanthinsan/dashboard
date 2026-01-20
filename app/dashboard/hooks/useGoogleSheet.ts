@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { parseSheetUrl } from '../../utils/googleSheet';
 
 export type SheetColumnType = 'string' | 'number' | 'date' | 'datetime';
 
@@ -133,14 +134,11 @@ const buildCsvUrl = (sheetUrl: string) => {
   if (sheetUrl.includes('export?format=csv')) {
     return sheetUrl;
   }
-  const match = sheetUrl.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (!match) {
+  const reference = parseSheetUrl(sheetUrl);
+  if (!reference) {
     return sheetUrl;
   }
-  const id = match[1];
-  const gidMatch = sheetUrl.match(/[?&#]gid=([0-9]+)/);
-  const gid = gidMatch ? gidMatch[1] : '0';
-  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+  return `https://docs.google.com/spreadsheets/d/${reference.id}/export?format=csv&gid=${reference.gid}`;
 };
 
 const parseSheetData = (csvText: string): SheetResponse => {
