@@ -58,7 +58,6 @@ const toDayKey = (date: Date) =>
 export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
   const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
-  const [pinnedPoint, setPinnedPoint] = useState<TrendPoint | null>(null);
   const defaultSortCriteria = useMemo<SortCriterion[]>(
     () => [{ field: 'date', direction: 'desc' }],
     [],
@@ -258,7 +257,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
     });
   }, [trendData]);
 
-  const activePoint = pinnedPoint ?? hoverPoint;
+  const activePoint = hoverPoint;
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
@@ -266,7 +265,6 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
         <header className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Simple dashboard</p>
               <h1 className="text-3xl font-semibold">{dashboardName}</h1>
             </div>
             <button
@@ -392,7 +390,6 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                           strokeWidth="3"
                           onMouseEnter={() => setHoverPoint(point)}
                           onMouseLeave={() => setHoverPoint(null)}
-                          onClick={() => setPinnedPoint((current) => (current?.x === point.x ? null : point))}
                           className="cursor-pointer"
                         />
                       ))}
