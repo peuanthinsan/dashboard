@@ -54,6 +54,25 @@ export default async function DashboardPage({ params }: { params: { dashboardId:
     );
   }
 
+  if (!dashboard.sheetId || !dashboard.sheetGid) {
+    return (
+      <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <h1 className="text-xl font-semibold">Dashboard setup incomplete</h1>
+          <p className="text-sm text-slate-300">
+            This dashboard is missing a Google Sheet reference. Ask an administrator to update the dashboard settings.
+          </p>
+          <Link
+            href="/dashboard"
+            className="w-fit rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500"
+          >
+            Back to dashboards
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
