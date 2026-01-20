@@ -252,6 +252,7 @@ export default async function AdminPage() {
                   const organizationName =
                     organizations.find((organization) => organization.id === dashboard.organizationId)?.name ??
                     'Unknown organization';
+                  const sheetUrl = dashboard.sheetUrl ?? '';
                   return (
                     <div
                       key={dashboard.id}
@@ -264,16 +265,20 @@ export default async function AdminPage() {
                             {companyName} · {organizationName}
                           </p>
                         </div>
-                        <a
-                          href={dashboard.sheetUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
-                        >
-                          Open sheet
-                        </a>
+                        {sheetUrl ? (
+                          <a
+                            href={sheetUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
+                          >
+                            Open sheet
+                          </a>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-500">Missing sheet link</span>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-500">{dashboard.sheetUrl}</p>
+                      <p className="text-xs text-slate-500">{sheetUrl || 'No sheet URL saved.'}</p>
                     </div>
                   );
                 })}
