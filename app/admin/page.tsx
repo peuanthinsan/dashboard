@@ -231,9 +231,10 @@ export default async function AdminPage() {
                   <div className="flex flex-col gap-1">
                     <span className="font-semibold text-white">{dashboard.name}</span>
                     <span className="text-xs text-slate-400">
-                      {dashboard.template} · {companyLookup.get(dashboard.companyId) ?? 'Unknown company'}
+                      {dashboard.template} ·{' '}
+                      {companyLookup.get(dashboard.companyId ?? -1) ?? 'Unknown company'}
                       {dashboard.organizationId
-                        ? ` · ${organizationLookup.get(dashboard.organizationId) ?? 'Unknown organization'}`
+                        ? ` · ${organizationLookup.get(dashboard.organizationId ?? -1) ?? 'Unknown organization'}`
                         : ' · All organizations'}
                     </span>
                   </div>
