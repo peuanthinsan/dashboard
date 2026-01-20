@@ -143,10 +143,26 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const theme = useTheme();
   const palette = theme.palette as typeof theme.palette & { appEngineLegend?: Record<string, string> };
-  const { columns, records, formattedRows, loading, error, lastUpdated, refresh } = useGoogleSheet({
+  const {
+    columns,
+    records,
+    formattedRows,
+    loading,
+    error,
+    lastUpdated,
+    refresh,
+  } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
-  });
+  }) as {
+    columns: Array<{ label: string; field: string; type?: string }>;
+    records: Array<Record<string, unknown>>;
+    formattedRows: Array<Record<string, unknown>>;
+    loading: boolean;
+    error: string;
+    lastUpdated: Date | null;
+    refresh: () => void;
+  };
 
   const findColumn = useMemo(() => buildColumnFinder(columns), [columns]);
 
