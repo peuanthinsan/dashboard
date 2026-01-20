@@ -205,6 +205,12 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
   };
 
   const highlightItems = useMemo(() => {
+    type HighlightItem = {
+      label: string;
+      field: 'remarks' | 'alertType';
+      current: number;
+      previous: number;
+    };
     const remarkTargets = [
       'Fatigue',
       'Yawning',
@@ -214,7 +220,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
       'Seatbelt',
       'Eating/Drinking',
     ];
-    const items = remarkTargets.map((label) => ({
+    const items: HighlightItem[] = remarkTargets.map((label) => ({
       label,
       field: 'remarks' as const,
       current: countMatches(label, 'remarks', currentRows),
