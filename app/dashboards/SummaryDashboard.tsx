@@ -78,8 +78,10 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
 
   const [alertSearch, setAlertSearch] = useState('');
   const [alertFilters, setAlertFilters] = useState<string[]>([]);
-  const [monthFilter, setMonthFilter] = useState('all');
-  const [fleetFilter, setFleetFilter] = useState('all');
+  const [monthSearch, setMonthSearch] = useState('');
+  const [monthFilters, setMonthFilters] = useState<string[]>([]);
+  const [fleetSearch, setFleetSearch] = useState('');
+  const [fleetFilters, setFleetFilters] = useState<string[]>([]);
   const [remarkSearch, setRemarkSearch] = useState('');
   const [remarkFilters, setRemarkFilters] = useState<string[]>([]);
   const [vehicleSearch, setVehicleSearch] = useState('');
@@ -132,6 +134,13 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
 
+  const filteredFleetOptions = useMemo(() => {
+    const trimmedSearch = fleetSearch.trim();
+    if (!trimmedSearch) return fleetOptions;
+    const normalizedSearch = normalizeLabel(trimmedSearch);
+    return fleetOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
+  }, [fleetOptions, fleetSearch]);
+
   const remarkOptions = useMemo(() => {
     const unique = new Set<string>();
     alertRows.forEach((row) => {
@@ -174,8 +183,16 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
       .sort((a, b) => b.key.localeCompare(a.key));
   }, [alertRows]);
 
+  const filteredMonthOptions = useMemo(() => {
+    const trimmedSearch = monthSearch.trim();
+    if (!trimmedSearch) return monthOptions;
+    const normalizedSearch = normalizeLabel(trimmedSearch);
+    return monthOptions.filter((option) => normalizeLabel(option.label).includes(normalizedSearch));
+  }, [monthOptions, monthSearch]);
+
   const baseFilteredRows = useMemo(() => {
     const normalizedAlertFilters = alertFilters.map((alert) => normalizeLabel(alert));
+    const normalizedFleetFilters = fleetFilters.map((fleet) => normalizeLabel(fleet));
     const normalizedRemarkFilters = remarkFilters.map((remark) => normalizeLabel(remark));
     const normalizedVehicleFilters = vehicleFilters.map((vehicle) => normalizeLabel(vehicle));
     return alertRows.filter((row) => {
@@ -183,7 +200,10 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
         const normalizedAlert = normalizeLabel(row.alertType);
         if (!normalizedAlertFilters.includes(normalizedAlert)) return false;
       }
-      if (fleetFilter !== 'all' && row.fleet !== fleetFilter) return false;
+      if (normalizedFleetFilters.length > 0) {
+        const normalizedFleet = normalizeLabel(row.fleet);
+        if (!normalizedFleetFilters.includes(normalizedFleet)) return false;
+      }
       if (normalizedRemarkFilters.length > 0) {
         const normalizedRemark = normalizeLabel(row.remarks);
         if (!normalizedRemarkFilters.includes(normalizedRemark)) return false;
@@ -194,19 +214,21 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
       }
       return true;
     });
-  }, [alertFilters, alertRows, fleetFilter, remarkFilters, vehicleFilters]);
+  }, [alertFilters, alertRows, fleetFilters, remarkFilters, vehicleFilters]);
 
-  const activeMonthKey = monthFilter === 'all' ? null : monthFilter;
+  const activeMonthKey = monthFilters.length === 1 ? monthFilters[0] : null;
 
   const activeMonthLabel =
     activeMonthKey
       ? monthOptions.find((option) => option.key === activeMonthKey)?.label ?? 'All months'
-      : 'All months';
+      : monthFilters.length > 1
+        ? 'Selected months'
+        : 'All months';
 
   const currentRows = useMemo(() => {
-    if (!activeMonthKey) return baseFilteredRows;
-    return baseFilteredRows.filter((row) => row.monthKey === activeMonthKey);
-  }, [activeMonthKey, baseFilteredRows]);
+    if (monthFilters.length === 0) return baseFilteredRows;
+    return baseFilteredRows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
+  }, [baseFilteredRows, monthFilters]);
 
   const previousMonthKey = useMemo(() => {
     if (!activeMonthKey) return null;
@@ -317,8 +339,10 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                   onClick={() => {
                     setAlertSearch('');
                     setAlertFilters([]);
-                    setMonthFilter('all');
-                    setFleetFilter('all');
+                    setMonthSearch('');
+                    setMonthFilters([]);
+                    setFleetSearch('');
+                    setFleetFilters([]);
                     setRemarkSearch('');
                     setRemarkFilters([]);
                     setVehicleSearch('');
@@ -386,34 +410,117 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                   ) : null}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Filter by month</label>
-                  <select
-                    value={monthFilter}
-                    onChange={(event) => setMonthFilter(event.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                  >
-                    <option value="all">All months</option>
-                    {monthOptions.map((option) => (
-                      <option key={option.key} value={option.key}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search months</label>
+                  <input
+                    type="text"
+                    value={monthSearch}
+                    onChange={(event) => setMonthSearch(event.target.value)}
+                    placeholder="Search months..."
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                  />
+                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
+                    {filteredMonthOptions.length === 0 ? (
+                      <p className="text-xs text-slate-500">No months found.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {filteredMonthOptions.map((option) => {
+                          const isSelected = monthFilters.includes(option.key);
+                          return (
+                            <li key={option.key}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMonthFilters((current) =>
+                                    isSelected ? current.filter((value) => value !== option.key) : [...current, option.key],
+                                  );
+                                }}
+                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
+                                  isSelected
+                                    ? 'bg-indigo-500/20 text-indigo-100'
+                                    : 'text-slate-200 hover:bg-slate-800'
+                                }`}
+                              >
+                                <span>{option.label}</span>
+                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                  {monthFilters.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {monthFilters.map((monthKey) => {
+                        const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
+                        return (
+                          <button
+                            key={monthKey}
+                            type="button"
+                            onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
+                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                          >
+                            {monthLabel} ×
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Filter by fleet</label>
-                  <select
-                    value={fleetFilter}
-                    onChange={(event) => setFleetFilter(event.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                  >
-                    <option value="all">All fleets</option>
-                    {fleetOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search fleets</label>
+                  <input
+                    type="text"
+                    value={fleetSearch}
+                    onChange={(event) => setFleetSearch(event.target.value)}
+                    placeholder="Search fleets..."
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                  />
+                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
+                    {filteredFleetOptions.length === 0 ? (
+                      <p className="text-xs text-slate-500">No fleets found.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {filteredFleetOptions.map((option) => {
+                          const isSelected = fleetFilters.includes(option);
+                          return (
+                            <li key={option}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFleetFilters((current) =>
+                                    isSelected ? current.filter((value) => value !== option) : [...current, option],
+                                  );
+                                }}
+                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
+                                  isSelected
+                                    ? 'bg-indigo-500/20 text-indigo-100'
+                                    : 'text-slate-200 hover:bg-slate-800'
+                                }`}
+                              >
+                                <span>{option}</span>
+                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                  {fleetFilters.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {fleetFilters.map((fleet) => (
+                        <button
+                          key={fleet}
+                          type="button"
+                          onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
+                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                        >
+                          {fleet} ×
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search remark types</label>
@@ -533,7 +640,9 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
               <h2 className="text-lg font-medium">Alert remark highlights</h2>
               <p className="text-sm text-slate-400">
-                Showing {activeMonthLabel} totals with change versus last month.
+                {activeMonthKey
+                  ? `Showing ${activeMonthLabel} totals with change versus last month.`
+                  : `Showing ${activeMonthLabel} totals.`}
               </p>
               <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {highlightItems.map((item) => {
@@ -542,12 +651,16 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     <div key={item.label} className="rounded-2xl border border-indigo-500/20 bg-slate-900/40 p-4">
                       <div className="text-sm text-slate-300">{item.label}</div>
                       <div className="mt-2 text-2xl font-semibold text-white">{item.current}</div>
-                      <div
-                        className={`mt-3 text-sm ${summary.isIncrease ? 'text-emerald-300' : 'text-rose-300'}`}
-                      >
-                        {summary.deltaLabel}
-                      </div>
-                      <div className="text-xs text-slate-400">{summary.percentLabel}</div>
+                      {activeMonthKey ? (
+                        <>
+                          <div
+                            className={`mt-3 text-sm ${summary.isIncrease ? 'text-emerald-300' : 'text-rose-300'}`}
+                          >
+                            {summary.deltaLabel}
+                          </div>
+                          <div className="text-xs text-slate-400">{summary.percentLabel}</div>
+                        </>
+                      ) : null}
                     </div>
                   );
                 })}
