@@ -71,13 +71,16 @@ export async function getDashboardsForUser({
   if (!companyId) {
     return [];
   }
+  const organizationFilter = organizationId
+    ? or(isNull(dashboards.organizationId), eq(dashboards.organizationId, organizationId))
+    : isNull(dashboards.organizationId);
   return await db
     .select()
     .from(dashboards)
     .where(
       and(
         eq(dashboards.companyId, companyId),
-        or(isNull(dashboards.organizationId), eq(dashboards.organizationId, organizationId)),
+        organizationFilter,
       ),
     )
     .orderBy(dashboards.name);
