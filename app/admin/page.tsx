@@ -89,15 +89,21 @@ export default async function AdminPage() {
       redirect('/protected');
     }
     const userId = Number(formData.get('userId'));
-    const companyValue = (formData.get('companyId') as string) ?? '';
-    const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const companyValues = formData.getAll('companyIds') as string[];
+    const organizationValues = formData.getAll('organizationIds') as string[];
     const isAdmin = formData.get('isAdmin') === 'on';
     if (currentUser[0].id === userId && !isAdmin) {
       return;
     }
+    const companyIds = companyValues
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value));
+    const organizationIds = organizationValues
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value));
     await updateUserAssignments(userId, {
-      companyId: companyValue ? Number(companyValue) : null,
-      organizationId: organizationValue ? Number(organizationValue) : null,
+      companyIds,
+      organizationIds,
       isAdmin,
     });
   }
@@ -193,7 +199,7 @@ export default async function AdminPage() {
         <header className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold">Administration</h1>
           <p className="text-sm text-slate-300">
-            Assign users to companies or organizations and manage admin access.
+            Assign users to companies and organizations and manage admin access.
           </p>
         </header>
 
@@ -239,6 +245,9 @@ export default async function AdminPage() {
 
         <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
           <h2 className="text-lg font-medium">User access</h2>
+          <p className="text-sm text-slate-400">
+            Select one or more companies and organizations for each user.
+          </p>
           <div className="grid gap-4">
             {users.map((user) => (
               <form
@@ -263,11 +272,11 @@ export default async function AdminPage() {
                 <label className="flex flex-col gap-2 text-xs text-slate-400">
                   Company
                   <select
-                    name="companyId"
-                    defaultValue={user.companyId ?? ''}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    name="companyIds"
+                    multiple
+                    defaultValue={user.companyIds?.map(String) ?? []}
+                    className="min-h-[4rem] rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                   >
-                    <option value="">No company</option>
                     {companies.map((company) => (
                       <option key={company.id} value={company.id}>
                         {company.name}
@@ -279,11 +288,11 @@ export default async function AdminPage() {
                 <label className="flex flex-col gap-2 text-xs text-slate-400">
                   Organization
                   <select
-                    name="organizationId"
-                    defaultValue={user.organizationId ?? ''}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    name="organizationIds"
+                    multiple
+                    defaultValue={user.organizationIds?.map(String) ?? []}
+                    className="min-h-[4rem] rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                   >
-                    <option value="">No organization</option>
                     {organizations.map((organization) => (
                       <option key={organization.id} value={organization.id}>
                         {organization.name}

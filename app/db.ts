@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { boolean, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { boolean, integer, pgTable, primaryKey, serial, varchar } from 'drizzle-orm/pg-core';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSaltSync, hashSync } from 'bcrypt-ts';
 
@@ -11,8 +11,35 @@ let client = postgres(`${process.env.POSTGRES_URL!}?sslmode=require`);
 let db = drizzle(client);
 
 export async function getUser(email: string) {
-  const { users } = await ensureTablesExist();
-  return await db.select().from(users).where(eq(users.email, email));
+  const { users, userCompanies, userOrganizations } = await ensureTablesExist();
+  const userRows = await db.select().from(users).where(eq(users.email, email));
+  if (userRows.length === 0) {
+    return userRows;
+  }
+  const userId = userRows[0].id;
+  const [companyRows, organizationRows] = await Promise.all([
+    db.select().from(userCompanies).where(eq(userCompanies.userId, userId)),
+    db.select().from(userOrganizations).where(eq(userOrganizations.userId, userId)),
+  ]);
+  const companyIds =
+    companyRows.length > 0
+      ? companyRows.map((row) => row.companyId)
+      : userRows[0].companyId
+        ? [userRows[0].companyId]
+        : [];
+  const organizationIds =
+    organizationRows.length > 0
+      ? organizationRows.map((row) => row.organizationId)
+      : userRows[0].organizationId
+        ? [userRows[0].organizationId]
+        : [];
+  return [
+    {
+      ...userRows[0],
+      companyIds,
+      organizationIds,
+    },
+  ];
 }
 
 export async function createUser(email: string, password: string) {
@@ -31,8 +58,34 @@ export async function createUser(email: string, password: string) {
 }
 
 export async function getUsers() {
-  const { users } = await ensureTablesExist();
-  return await db.select().from(users).orderBy(users.id);
+  const { users, userCompanies, userOrganizations } = await ensureTablesExist();
+  const [userRows, companyRows, organizationRows] = await Promise.all([
+    db.select().from(users).orderBy(users.id),
+    db.select().from(userCompanies),
+    db.select().from(userOrganizations),
+  ]);
+
+  const companyMap = new Map<number, number[]>();
+  for (const row of companyRows) {
+    const list = companyMap.get(row.userId) ?? [];
+    list.push(row.companyId);
+    companyMap.set(row.userId, list);
+  }
+
+  const organizationMap = new Map<number, number[]>();
+  for (const row of organizationRows) {
+    const list = organizationMap.get(row.userId) ?? [];
+    list.push(row.organizationId);
+    organizationMap.set(row.userId, list);
+  }
+
+  return userRows.map((user) => ({
+    ...user,
+    companyIds:
+      companyMap.get(user.id) ?? (user.companyId !== null ? [user.companyId] : []),
+    organizationIds:
+      organizationMap.get(user.id) ?? (user.organizationId !== null ? [user.organizationId] : []),
+  }));
 }
 
 export async function getCompanies() {
@@ -56,23 +109,23 @@ export async function getDashboardById(id: number) {
 }
 
 export async function getDashboardsForUser({
-  companyId,
-  organizationId,
+  companyIds,
+  organizationIds,
 }: {
-  companyId: number | null;
-  organizationId: number | null;
+  companyIds: number[];
+  organizationIds: number[];
 }) {
   const { dashboards } = await ensureTablesExist();
-  if (!companyId) {
+  if (!companyIds.length) {
     return [];
   }
-  const organizationFilter = organizationId
-    ? or(eq(dashboards.organizationId, organizationId), isNull(dashboards.organizationId))
+  const organizationFilter = organizationIds.length
+    ? or(inArray(dashboards.organizationId, organizationIds), isNull(dashboards.organizationId))
     : isNull(dashboards.organizationId);
   return await db
     .select()
     .from(dashboards)
-    .where(and(eq(dashboards.companyId, companyId), organizationFilter))
+    .where(and(inArray(dashboards.companyId, companyIds), organizationFilter))
     .orderBy(dashboards.name);
 }
 
@@ -157,24 +210,44 @@ export async function deleteDashboard(id: number) {
 export async function updateUserAssignments(
   userId: number,
   {
-    companyId,
-    organizationId,
+    companyIds,
+    organizationIds,
     isAdmin,
   }: {
-    companyId: number | null;
-    organizationId: number | null;
+    companyIds: number[];
+    organizationIds: number[];
     isAdmin: boolean;
   },
 ) {
-  const { users } = await ensureTablesExist();
-  return await db
-    .update(users)
-    .set({
-      companyId,
-      organizationId,
-      isAdmin,
-    })
-    .where(eq(users.id, userId));
+  const { users, userCompanies, userOrganizations } = await ensureTablesExist();
+  await db.transaction(async (tx) => {
+    await tx.delete(userCompanies).where(eq(userCompanies.userId, userId));
+    await tx.delete(userOrganizations).where(eq(userOrganizations.userId, userId));
+    if (companyIds.length > 0) {
+      await tx.insert(userCompanies).values(
+        companyIds.map((companyId) => ({
+          userId,
+          companyId,
+        })),
+      );
+    }
+    if (organizationIds.length > 0) {
+      await tx.insert(userOrganizations).values(
+        organizationIds.map((organizationId) => ({
+          userId,
+          organizationId,
+        })),
+      );
+    }
+    await tx
+      .update(users)
+      .set({
+        companyId: companyIds[0] ?? null,
+        organizationId: organizationIds[0] ?? null,
+        isAdmin,
+      })
+      .where(eq(users.id, userId));
+  });
 }
 
 async function ensureTablesExist() {
@@ -201,6 +274,20 @@ async function ensureTablesExist() {
     );
   `;
   await client`
+    CREATE TABLE IF NOT EXISTS "UserCompany" (
+      "userId" INTEGER REFERENCES "User"(id) ON DELETE CASCADE,
+      "companyId" INTEGER REFERENCES "Company"(id) ON DELETE CASCADE,
+      PRIMARY KEY ("userId", "companyId")
+    );
+  `;
+  await client`
+    CREATE TABLE IF NOT EXISTS "UserOrganization" (
+      "userId" INTEGER REFERENCES "User"(id) ON DELETE CASCADE,
+      "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE CASCADE,
+      PRIMARY KEY ("userId", "organizationId")
+    );
+  `;
+  await client`
     CREATE TABLE IF NOT EXISTS "Dashboard" (
       id SERIAL PRIMARY KEY,
       name VARCHAR(128) NOT NULL,
@@ -221,6 +308,28 @@ async function ensureTablesExist() {
     companyId: integer('companyId'),
     organizationId: integer('organizationId'),
   });
+
+  const userCompanies = pgTable(
+    'UserCompany',
+    {
+      userId: integer('userId').notNull(),
+      companyId: integer('companyId').notNull(),
+    },
+    (table) => ({
+      pk: primaryKey({ columns: [table.userId, table.companyId] }),
+    }),
+  );
+
+  const userOrganizations = pgTable(
+    'UserOrganization',
+    {
+      userId: integer('userId').notNull(),
+      organizationId: integer('organizationId').notNull(),
+    },
+    (table) => ({
+      pk: primaryKey({ columns: [table.userId, table.organizationId] }),
+    }),
+  );
 
   const companies = pgTable('Company', {
     id: serial('id').primaryKey(),
@@ -243,5 +352,5 @@ async function ensureTablesExist() {
     organizationId: integer('organizationId'),
   });
 
-  return { users, companies, organizations, dashboards };
+  return { users, companies, organizations, dashboards, userCompanies, userOrganizations };
 }
