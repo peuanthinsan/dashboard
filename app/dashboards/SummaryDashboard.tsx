@@ -80,7 +80,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
   const [monthFilter, setMonthFilter] = useState('all');
   const [fleetFilter, setFleetFilter] = useState('all');
   const [remarkFilter, setRemarkFilter] = useState('all');
-  const [vehicleFilter, setVehicleFilter] = useState('all');
+  const [vehicleSearch, setVehicleSearch] = useState('');
 
   const alertRows = useMemo(() => {
     return rows.map((row) => {
@@ -151,14 +151,19 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
   }, [alertRows]);
 
   const baseFilteredRows = useMemo(() => {
+    const trimmedVehicleSearch = vehicleSearch.trim();
+    const normalizedVehicleSearch = trimmedVehicleSearch ? normalizeLabel(trimmedVehicleSearch) : '';
     return alertRows.filter((row) => {
       if (alertFilter !== 'all' && row.alertType !== alertFilter) return false;
       if (fleetFilter !== 'all' && row.fleet !== fleetFilter) return false;
       if (remarkFilter !== 'all' && row.remarks !== remarkFilter) return false;
-      if (vehicleFilter !== 'all' && row.vehicle !== vehicleFilter) return false;
+      if (normalizedVehicleSearch) {
+        const normalizedVehicle = normalizeLabel(row.vehicle);
+        if (!normalizedVehicle.includes(normalizedVehicleSearch)) return false;
+      }
       return true;
     });
-  }, [alertFilter, alertRows, fleetFilter, remarkFilter, vehicleFilter]);
+  }, [alertFilter, alertRows, fleetFilter, remarkFilter, vehicleSearch]);
 
   const activeMonthKey = monthFilter === 'all' ? null : monthFilter;
 
@@ -283,7 +288,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     setMonthFilter('all');
                     setFleetFilter('all');
                     setRemarkFilter('all');
-                    setVehicleFilter('all');
+                    setVehicleSearch('');
                   }}
                   className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                 >
@@ -352,19 +357,20 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                   </select>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Filter by vehicle</label>
-                  <select
-                    value={vehicleFilter}
-                    onChange={(event) => setVehicleFilter(event.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                  >
-                    <option value="all">All vehicles</option>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search vehicle number</label>
+                  <input
+                    type="text"
+                    value={vehicleSearch}
+                    onChange={(event) => setVehicleSearch(event.target.value)}
+                    placeholder="Type vehicle number..."
+                    list="vehicle-search-options"
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                  />
+                  <datalist id="vehicle-search-options">
                     {vehicleOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
+                      <option key={option} value={option} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
               </div>
             </section>
