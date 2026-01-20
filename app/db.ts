@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSaltSync, hashSync } from 'bcrypt-ts';
 
@@ -12,7 +12,14 @@ let db = drizzle(client);
 
 export async function getUser(email: string) {
   const { users } = await ensureTablesExist();
-  return await db.select().from(users).where(eq(users.email, email));
+  const userRows = await db.select().from(users).where(eq(users.email, email));
+  const assignments = await Promise.all(
+    userRows.map(async (user) => ({
+      ...user,
+      ...(await getUserAssignments(user.id, user.companyId ?? null, user.organizationId ?? null)),
+    })),
+  );
+  return assignments;
 }
 
 export async function createUser(email: string, password: string) {
@@ -32,7 +39,14 @@ export async function createUser(email: string, password: string) {
 
 export async function getUsers() {
   const { users } = await ensureTablesExist();
-  return await db.select().from(users).orderBy(users.id);
+  const userRows = await db.select().from(users).orderBy(users.id);
+  const assignments = await Promise.all(
+    userRows.map(async (user) => ({
+      ...user,
+      ...(await getUserAssignments(user.id, user.companyId ?? null, user.organizationId ?? null)),
+    })),
+  );
+  return assignments;
 }
 
 export async function getCompanies() {
@@ -56,23 +70,25 @@ export async function getDashboardById(id: number) {
 }
 
 export async function getDashboardsForUser({
-  companyId,
-  organizationId,
+  companyIds,
+  organizationIds,
 }: {
-  companyId: number | null;
-  organizationId: number | null;
+  companyIds: number[];
+  organizationIds: number[];
 }) {
   const { dashboards } = await ensureTablesExist();
-  if (!companyId) {
+  if (companyIds.length === 0) {
     return [];
   }
-  const organizationFilter = organizationId
-    ? or(eq(dashboards.organizationId, organizationId), isNull(dashboards.organizationId))
-    : isNull(dashboards.organizationId);
+  const companyFilter = inArray(dashboards.companyId, companyIds);
+  const organizationFilter =
+    organizationIds.length > 0
+      ? or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, organizationIds))
+      : isNull(dashboards.organizationId);
   return await db
     .select()
     .from(dashboards)
-    .where(and(eq(dashboards.companyId, companyId), organizationFilter))
+    .where(and(companyFilter, organizationFilter))
     .orderBy(dashboards.name);
 }
 
@@ -157,24 +173,48 @@ export async function deleteDashboard(id: number) {
 export async function updateUserAssignments(
   userId: number,
   {
-    companyId,
-    organizationId,
+    companyIds,
+    organizationIds,
     isAdmin,
   }: {
-    companyId: number | null;
-    organizationId: number | null;
+    companyIds: number[];
+    organizationIds: number[];
     isAdmin: boolean;
   },
 ) {
-  const { users } = await ensureTablesExist();
-  return await db
+  const { users, userCompanies, userOrganizations } = await ensureTablesExist();
+  const uniqueCompanyIds = Array.from(new Set(companyIds));
+  const uniqueOrganizationIds = Array.from(new Set(organizationIds));
+
+  await db
     .update(users)
     .set({
-      companyId,
-      organizationId,
+      companyId: uniqueCompanyIds[0] ?? null,
+      organizationId: uniqueOrganizationIds[0] ?? null,
       isAdmin,
     })
     .where(eq(users.id, userId));
+
+  await db.delete(userCompanies).where(eq(userCompanies.userId, userId));
+  await db.delete(userOrganizations).where(eq(userOrganizations.userId, userId));
+
+  if (uniqueCompanyIds.length > 0) {
+    await db.insert(userCompanies).values(
+      uniqueCompanyIds.map((companyId) => ({
+        userId,
+        companyId,
+      })),
+    );
+  }
+
+  if (uniqueOrganizationIds.length > 0) {
+    await db.insert(userOrganizations).values(
+      uniqueOrganizationIds.map((organizationId) => ({
+        userId,
+        organizationId,
+      })),
+    );
+  }
 }
 
 async function ensureTablesExist() {
@@ -201,6 +241,20 @@ async function ensureTablesExist() {
     );
   `;
   await client`
+    CREATE TABLE IF NOT EXISTS "UserCompany" (
+      "userId" INTEGER REFERENCES "User"(id) ON DELETE CASCADE,
+      "companyId" INTEGER REFERENCES "Company"(id) ON DELETE CASCADE,
+      PRIMARY KEY ("userId", "companyId")
+    );
+  `;
+  await client`
+    CREATE TABLE IF NOT EXISTS "UserOrganization" (
+      "userId" INTEGER REFERENCES "User"(id) ON DELETE CASCADE,
+      "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE CASCADE,
+      PRIMARY KEY ("userId", "organizationId")
+    );
+  `;
+  await client`
     CREATE TABLE IF NOT EXISTS "Dashboard" (
       id SERIAL PRIMARY KEY,
       name VARCHAR(128) NOT NULL,
@@ -219,6 +273,16 @@ async function ensureTablesExist() {
     password: varchar('password', { length: 64 }),
     isAdmin: boolean('isAdmin').default(false),
     companyId: integer('companyId'),
+    organizationId: integer('organizationId'),
+  });
+
+  const userCompanies = pgTable('UserCompany', {
+    userId: integer('userId'),
+    companyId: integer('companyId'),
+  });
+
+  const userOrganizations = pgTable('UserOrganization', {
+    userId: integer('userId'),
     organizationId: integer('organizationId'),
   });
 
@@ -243,5 +307,39 @@ async function ensureTablesExist() {
     organizationId: integer('organizationId'),
   });
 
-  return { users, companies, organizations, dashboards };
+  return { users, companies, organizations, dashboards, userCompanies, userOrganizations };
+}
+
+async function getUserAssignments(
+  userId: number,
+  fallbackCompanyId: number | null,
+  fallbackOrganizationId: number | null,
+) {
+  const { userCompanies, userOrganizations } = await ensureTablesExist();
+  const [companyRows, organizationRows] = await Promise.all([
+    db
+      .select({ companyId: userCompanies.companyId })
+      .from(userCompanies)
+      .where(eq(userCompanies.userId, userId)),
+    db
+      .select({ organizationId: userOrganizations.organizationId })
+      .from(userOrganizations)
+      .where(eq(userOrganizations.userId, userId)),
+  ]);
+
+  const companyIds = companyRows
+    .map((row) => row.companyId)
+    .filter((value): value is number => !!value);
+  const organizationIds = organizationRows
+    .map((row) => row.organizationId)
+    .filter((value): value is number => !!value);
+
+  return {
+    companyIds:
+      companyIds.length === 0 && fallbackCompanyId ? [fallbackCompanyId] : companyIds,
+    organizationIds:
+      organizationIds.length === 0 && fallbackOrganizationId
+        ? [fallbackOrganizationId]
+        : organizationIds,
+  };
 }

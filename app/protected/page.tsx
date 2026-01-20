@@ -9,8 +9,8 @@ export default async function ProtectedPage() {
   let dashboards =
     user.length > 0
       ? await getDashboardsForUser({
-          companyId: user[0].companyId ?? null,
-          organizationId: user[0].organizationId ?? null,
+          companyIds: user[0].companyIds ?? [],
+          organizationIds: user[0].organizationIds ?? [],
         })
       : [];
 
@@ -34,7 +34,7 @@ export default async function ProtectedPage() {
           <h2 className="text-lg font-medium">Available dashboards</h2>
           {dashboards.length === 0 ? (
             <p className="text-sm text-slate-400">
-              No dashboards are assigned to your company yet. Ask an administrator to add one.
+              No dashboards are assigned to your companies yet. Ask an administrator to add one.
             </p>
           ) : (
             <div className="grid gap-3">
