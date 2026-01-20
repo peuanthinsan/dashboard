@@ -97,6 +97,22 @@ type DashboardClientProps = {
   gid: string;
 };
 
+type AlertRow = {
+  id: string;
+  dateKey: string;
+  dateValue: Date;
+  dateDisplay: string;
+  dateTimeDisplay: string;
+  monthKey: string;
+  vehicle: string;
+  driver: string | null;
+  alertType: string;
+  speed: unknown;
+  remarks: string | null;
+  fleet: unknown;
+  videoUrl: unknown;
+};
+
 export default function DashboardClient({ sheetId, gid }: DashboardClientProps) {
   const { columns, records, formattedRows, loading, error, lastUpdated, refresh } = useGoogleSheet({
     sheetId,
@@ -187,7 +203,7 @@ export default function DashboardClient({ sheetId, gid }: DashboardClientProps) 
     setSelectedRemark('all');
   };
 
-  const alertRows = useMemo(() => {
+  const alertRows = useMemo<AlertRow[]>(() => {
     if (!vehicleColumn || !alertTypeColumn || !dateTimeColumn) return [];
     return records
       .map((row, index) => {
@@ -221,7 +237,7 @@ export default function DashboardClient({ sheetId, gid }: DashboardClientProps) 
           videoUrl: videoColumn ? row[videoColumn.field] : null,
         };
       })
-      .filter((row) => {
+      .filter((row): row is AlertRow => {
         if (!row) return false;
         const remarkValue = normalizeRemark(row.remarks);
         if (remarkValue && EXCLUDED_REMARKS.has(remarkValue)) {
