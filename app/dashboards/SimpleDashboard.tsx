@@ -32,7 +32,8 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
     const drivers = new Set<string>();
-    let latest: Date | null = null;
+    let latestTimestamp = 0;
+    let latestLabel = '—';
 
     rows.forEach((row) => {
       const vehicle = findValue(row, ['Vehicle No']);
@@ -41,12 +42,14 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       if (driver) drivers.add(String(driver));
       const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
       const parsed = parseDate(dateValue);
-      if (parsed && (!latest || parsed > latest)) {
-        latest = parsed;
+      if (parsed) {
+        const timestamp = parsed.getTime();
+        if (timestamp > latestTimestamp) {
+          latestTimestamp = timestamp;
+          latestLabel = parsed.toLocaleString();
+        }
       }
     });
-
-    const latestLabel = latest ? latest.toLocaleString() : '—';
 
     return {
       total: rows.length,
