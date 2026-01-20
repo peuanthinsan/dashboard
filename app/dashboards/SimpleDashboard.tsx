@@ -65,6 +65,14 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>(defaultSortCriteria);
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const dateRange = useMemo(() => {
+    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+    const end = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+    return { start, end };
+  }, [startDate, endDate]);
 
   const filteredAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
@@ -86,8 +94,14 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
         if (normalizeLabel(row.alertType) !== normalizeLabel('Eye Closing-A2')) return false;
         return allowedRemarks.has(normalizeLabel(row.remarks));
       })
-      .filter((row) => row.parsedDate);
-  }, [rows]);
+      .filter((row) => row.parsedDate)
+      .filter((row) => {
+        if (!row.parsedDate) return false;
+        if (dateRange.start && row.parsedDate < dateRange.start) return false;
+        if (dateRange.end && row.parsedDate > dateRange.end) return false;
+        return true;
+      });
+  }, [dateRange.end, dateRange.start, rows]);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -286,9 +300,41 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
               Refresh data
             </button>
           </div>
-          {lastUpdated ? (
-            <p className="text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
-          ) : null}
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Start date</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1 text-sm text-slate-200"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs uppercase tracking-[0.2em] text-slate-500">End date</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1 text-sm text-slate-200"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+              >
+                Clear dates
+              </button>
+            </div>
+            {lastUpdated ? (
+              <p className="text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+            ) : null}
+          </div>
         </header>
 
         {error ? (
