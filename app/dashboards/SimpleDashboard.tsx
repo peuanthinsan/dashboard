@@ -26,17 +26,18 @@ type AlertSummaryRow = {
   distraction: number;
   fatigue: number;
   yawning: number;
+  overspeed: number;
   total: number;
   sortDate: number | null;
 };
 
-type SortField = 'date' | 'vehicle' | 'distraction' | 'fatigue' | 'yawning' | 'total';
+type SortField = 'date' | 'vehicle' | 'distraction' | 'fatigue' | 'yawning' | 'overspeed' | 'total';
 type SortDirection = 'asc' | 'desc';
 type SortCriterion = {
   field: SortField;
   direction: SortDirection;
 };
-type RemarkFilter = 'all' | 'fatigue' | 'yawning' | 'distraction';
+type RemarkFilter = 'all' | 'fatigue' | 'yawning' | 'distraction' | 'overspeed';
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
@@ -83,7 +84,7 @@ export default function SimpleDashboard({
   const [vehicleQuery, setVehicleQuery] = useState('');
 
   const baseAlerts = useMemo(() => {
-    const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
+    const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction', 'overspeed']);
     return rows
       .map((row) => {
         const alertType = String(findValue(row, ['Alert Type']) ?? '');
@@ -104,7 +105,6 @@ export default function SimpleDashboard({
         return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
       .filter((row) => {
-        if (normalizeLabel(row.alertType) !== normalizeLabel('Eye Closing-A2')) return false;
         return allowedRemarks.has(normalizeLabel(row.remarks));
       })
       .filter((row) => row.parsedDate);
@@ -168,6 +168,7 @@ export default function SimpleDashboard({
       fatigue: 0,
       yawning: 0,
       distraction: 0,
+      overspeed: 0,
     };
 
     filteredAlerts.forEach((row) => {
@@ -185,6 +186,7 @@ export default function SimpleDashboard({
       if (remark === 'fatigue') remarkTotals.fatigue += 1;
       if (remark === 'yawning') remarkTotals.yawning += 1;
       if (remark === 'distraction') remarkTotals.distraction += 1;
+      if (remark === 'overspeed') remarkTotals.overspeed += 1;
     });
 
     return {
@@ -210,6 +212,7 @@ export default function SimpleDashboard({
         distraction: 0,
         fatigue: 0,
         yawning: 0,
+        overspeed: 0,
         total: 0,
         sortDate: row.parsedDate ? row.parsedDate.getTime() : null,
       };
@@ -217,6 +220,7 @@ export default function SimpleDashboard({
       if (remark === 'fatigue') existing.fatigue += 1;
       if (remark === 'yawning') existing.yawning += 1;
       if (remark === 'distraction') existing.distraction += 1;
+      if (remark === 'overspeed') existing.overspeed += 1;
       existing.total += 1;
       grouped.set(groupKey, existing);
     });
@@ -238,6 +242,8 @@ export default function SimpleDashboard({
           return row.fatigue;
         case 'yawning':
           return row.yawning;
+        case 'overspeed':
+          return row.overspeed;
         case 'total':
           return row.total;
         default:
@@ -521,7 +527,9 @@ export default function SimpleDashboard({
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Daily alert trend</h2>
-                  <p className="text-sm text-slate-400">Eye Closing-A2 alerts for fatigue, yawning, and distraction.</p>
+                  <p className="text-sm text-slate-400">
+                    Alerts for fatigue, yawning, distraction, and overspeed remarks.
+                  </p>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-300">
@@ -532,6 +540,7 @@ export default function SimpleDashboard({
                     { label: 'Fatigue', value: 'fatigue' },
                     { label: 'Yawning', value: 'yawning' },
                     { label: 'Distraction', value: 'distraction' },
+                    { label: 'OverSpeed', value: 'overspeed' },
                   ] as const
                 ).map((option) => (
                   <button
@@ -662,15 +671,16 @@ export default function SimpleDashboard({
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Alert remark highlights</h2>
-                  <p className="text-sm text-slate-400">Eye Closing-A2 alerts by remark.</p>
+                  <p className="text-sm text-slate-400">Alerts by remark.</p>
                 </div>
               </div>
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {(
                   [
                     { label: 'Fatigue', value: stats.remarks.fatigue, accent: 'text-amber-200' },
                     { label: 'Yawning', value: stats.remarks.yawning, accent: 'text-emerald-200' },
                     { label: 'Distraction', value: stats.remarks.distraction, accent: 'text-indigo-200' },
+                    { label: 'OverSpeed', value: stats.remarks.overspeed, accent: 'text-rose-200' },
                   ] as const
                 ).map((card) => (
                   <div
@@ -692,7 +702,7 @@ export default function SimpleDashboard({
                 <div>
                   <h2 className="text-lg font-medium">Alerts by vehicle and date</h2>
                   <p className="text-sm text-slate-400">
-                    Eye Closing-A2 alerts with fatigue, yawning, and distraction remarks.
+                    Alerts with fatigue, yawning, distraction, and overspeed remarks.
                   </p>
                 </div>
               </div>
@@ -748,7 +758,7 @@ export default function SimpleDashboard({
                 </div>
               ) : null}
               <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+                <table className="w-full min-w-[980px] border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-800 text-xs uppercase tracking-[0.2em] text-slate-400">
                       {(
@@ -758,6 +768,7 @@ export default function SimpleDashboard({
                           { label: 'Fatigue', field: 'fatigue' },
                           { label: 'Yawning', field: 'yawning' },
                           { label: 'Distraction', field: 'distraction' },
+                          { label: 'OverSpeed', field: 'overspeed' },
                           { label: 'Total', field: 'total' },
                         ] as const
                       ).map((column) => {
@@ -819,6 +830,7 @@ export default function SimpleDashboard({
                         <td className="py-3 pr-4 text-amber-200">{row.fatigue}</td>
                         <td className="py-3 pr-4 text-emerald-200">{row.yawning}</td>
                         <td className="py-3 pr-4 text-indigo-200">{row.distraction}</td>
+                        <td className="py-3 pr-4 text-rose-200">{row.overspeed}</td>
                         <td className="py-3 pr-4 text-rose-200">{row.total}</td>
                       </tr>
                     ))}
