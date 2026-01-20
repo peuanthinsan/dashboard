@@ -339,7 +339,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     placeholder="Search alerts..."
                     className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
                   />
-                  <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
+                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
                     {filteredAlertOptions.length === 0 ? (
                       <p className="text-xs text-slate-500">No alert types found.</p>
                     ) : (
@@ -371,7 +371,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     )}
                   </div>
                   {alertFilters.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="mt-2 flex flex-wrap gap-2">
                       {alertFilters.map((alert) => (
                         <button
                           key={alert}
@@ -424,7 +424,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     placeholder="Search remarks..."
                     className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
                   />
-                  <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
+                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
                     {filteredRemarkOptions.length === 0 ? (
                       <p className="text-xs text-slate-500">No remarks found.</p>
                     ) : (
@@ -456,7 +456,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     )}
                   </div>
                   {remarkFilters.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="mt-2 flex flex-wrap gap-2">
                       {remarkFilters.map((remark) => (
                         <button
                           key={remark}
@@ -479,7 +479,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     placeholder="Search vehicles..."
                     className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
                   />
-                  <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
+                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
                     {filteredVehicleOptions.length === 0 ? (
                       <p className="text-xs text-slate-500">No vehicles found.</p>
                     ) : (
@@ -511,7 +511,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     )}
                   </div>
                   {vehicleFilters.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="mt-2 flex flex-wrap gap-2">
                       {vehicleFilters.map((vehicle) => (
                         <button
                           key={vehicle}
