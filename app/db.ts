@@ -183,6 +183,13 @@ async function ensureTablesExist() {
       "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
     );
   `;
+  await client`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS name VARCHAR(128);`;
+  await client`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS template VARCHAR(32);`;
+  await client`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "sheetUrl" VARCHAR(512);`;
+  await client`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "sheetId" VARCHAR(128);`;
+  await client`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "gid" VARCHAR(32);`;
+  await client`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "companyId" INTEGER REFERENCES "Company"(id) ON DELETE CASCADE;`;
+  await client`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL;`;
 
   const users = pgTable('User', {
     id: serial('id').primaryKey(),
