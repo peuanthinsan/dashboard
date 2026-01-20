@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { formatDate, formatDateValue } from 'app/utils/dateFormat';
 import useGoogleSheet from './useGoogleSheet';
 
@@ -43,8 +43,16 @@ type TableRow = {
   total: number;
 };
 
+type TrendPoint = {
+  x: number;
+  y: number;
+  count: number;
+  label: string;
+};
+
 export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -197,6 +205,8 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
     });
   }, [trendData]);
 
+  const activePoint = hoverPoint;
+
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -263,14 +273,21 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                   No alert trend data yet.
                 </div>
               ) : (
-                <div className="mt-6 overflow-x-auto">
-                  <svg viewBox={trendPoints.viewBox} className="min-w-[720px]">
+                <div className="relative mt-6 overflow-x-auto">
+                  <svg
+                    viewBox={trendPoints.viewBox}
+                    className="h-72 min-w-[720px] w-full"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Daily alert trend"
+                  >
                     <defs>
                       <linearGradient id="simple-trend-line" x1="0" x2="1" y1="0" y2="0">
-                        <stop offset="0%" stopColor="#c7b9ff" />
-                        <stop offset="100%" stopColor="#8b5cf6" />
+                        <stop offset="0%" stopColor="#a78bfa" />
+                        <stop offset="100%" stopColor="#c4b5fd" />
                       </linearGradient>
                     </defs>
+                    <rect x="0" y="0" width="100%" height="100%" fill="transparent" rx="16" />
                     {yAxisTicks.map((tick) => {
                       const y =
                         trendPoints.padding.top +
@@ -283,9 +300,15 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                             y1={y}
                             y2={y}
                             stroke="#1f2937"
-                            strokeDasharray="6 8"
+                            strokeDasharray="4 6"
                           />
-                          <text x={trendPoints.padding.left - 12} y={y + 4} fill="#94a3b8" fontSize="12" textAnchor="end">
+                          <text
+                            x={trendPoints.padding.left - 12}
+                            y={y + 4}
+                            textAnchor="end"
+                            fontSize="11"
+                            fill="#94a3b8"
+                          >
                             {tick.value}
                           </text>
                         </g>
@@ -307,7 +330,18 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                     />
                     <path d={trendPoints.path} fill="none" stroke="url(#simple-trend-line)" strokeWidth="3" />
                     {trendPoints.points.map((point, index) => (
-                      <circle key={`${point.label}-${index}`} cx={point.x} cy={point.y} r="6" fill="#0f172a" stroke="#c7b9ff" strokeWidth="2" />
+                      <circle
+                        key={`${point.label}-${index}`}
+                        cx={point.x}
+                        cy={point.y}
+                        r="5"
+                        fill="#0f172a"
+                        stroke="#c4b5fd"
+                        strokeWidth="2"
+                        className="cursor-pointer transition"
+                        onMouseEnter={() => setHoverPoint(point)}
+                        onMouseLeave={() => setHoverPoint(null)}
+                      />
                     ))}
                     {xAxisLabels.map((label) => {
                       const x =
@@ -318,15 +352,28 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                           key={`x-${label.label}`}
                           x={x}
                           y={trendPoints.height - trendPoints.padding.bottom + 24}
-                          fill="#94a3b8"
-                          fontSize="12"
                           textAnchor="middle"
+                          fontSize="11"
+                          fill="#94a3b8"
                         >
                           {label.label}
                         </text>
                       );
                     })}
                   </svg>
+                  {activePoint ? (
+                    <div
+                      className="pointer-events-none absolute rounded-lg border border-indigo-400/40 bg-slate-950/90 px-3 py-2 text-xs text-indigo-100 shadow-lg"
+                      style={{
+                        left: `${(activePoint.x / trendPoints.width) * 100}%`,
+                        top: `${(activePoint.y / trendPoints.height) * 100}%`,
+                        transform: 'translate(-50%, -120%)',
+                      }}
+                    >
+                      <div className="font-semibold">{activePoint.count} alerts</div>
+                      <div className="text-[11px] text-slate-300">{activePoint.label}</div>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </section>
