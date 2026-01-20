@@ -890,16 +890,6 @@ export default function DetailDashboard({ name, sheetId, gid }: DetailDashboardP
                               direction: 'row',
                               position: { vertical: 'bottom', horizontal: 'middle' },
                             }}
-                            slotProps={{
-                              legend: {
-                                sx: {
-                                  flexWrap: 'nowrap',
-                                  justifyContent: 'center',
-                                  overflowX: 'auto',
-                                  width: '100%',
-                                },
-                              },
-                            }}
                             margin={{ top: 20, bottom: 120, left: 40, right: 20 }}
                           />
                         )}
