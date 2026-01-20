@@ -30,7 +30,7 @@ const parseDate = (value: unknown) => {
 const toDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-const eyeClosingAlert = 'Eye Closing-A2';
+const eyeClosingAlert = normalizeLabel('Eye Closing-A2');
 
 type TableRow = {
   key: string;
@@ -103,7 +103,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       const dateKey = toDayKey(parsed);
       const date = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
       const vehicle = String(findValue(row, ['Vehicle No', 'Vehicle No TH']) ?? '—');
-      const alertType = String(findValue(row, ['Alert Type']) ?? '').trim();
+      const alertType = normalizeLabel(String(findValue(row, ['Alert Type']) ?? ''));
       if (alertType !== eyeClosingAlert) return;
       const key = `${dateKey}-${vehicle}`;
       const entry = grouped.get(key) ?? {
@@ -135,7 +135,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
       const parsed = parseDate(dateValue);
       if (!parsed) return;
-      const alertType = String(findValue(row, ['Alert Type']) ?? '').trim();
+      const alertType = normalizeLabel(String(findValue(row, ['Alert Type']) ?? ''));
       if (alertType !== eyeClosingAlert) return;
       const dayKey = toDayKey(parsed);
       const existing = counts.get(dayKey);
