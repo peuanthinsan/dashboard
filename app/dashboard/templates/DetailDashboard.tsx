@@ -156,7 +156,7 @@ export default function DetailDashboard({ name, sheetUrl }: DetailDashboardProps
     () =>
       findColumn({
         matches: ['driver name', 'driver'],
-        fallbackIndex: null,
+        fallbackIndex: undefined,
       }),
     [findColumn],
   );
@@ -184,7 +184,7 @@ export default function DetailDashboard({ name, sheetUrl }: DetailDashboardProps
     () =>
       findColumn({
         matches: ['speed'],
-        fallbackIndex: null,
+        fallbackIndex: undefined,
       }),
     [findColumn],
   );
@@ -192,7 +192,7 @@ export default function DetailDashboard({ name, sheetUrl }: DetailDashboardProps
     () =>
       findColumn({
         matches: ['remarks', 'remark'],
-        fallbackIndex: null,
+        fallbackIndex: undefined,
       }),
     [findColumn],
   );
@@ -200,7 +200,7 @@ export default function DetailDashboard({ name, sheetUrl }: DetailDashboardProps
     () =>
       findColumn({
         matches: ['fleet'],
-        fallbackIndex: null,
+        fallbackIndex: undefined,
       }),
     [findColumn],
   );
@@ -208,7 +208,7 @@ export default function DetailDashboard({ name, sheetUrl }: DetailDashboardProps
     () =>
       findColumn({
         matches: ['videourl', 'video url', 'video'],
-        fallbackIndex: null,
+        fallbackIndex: undefined,
       }),
     [findColumn],
   );
