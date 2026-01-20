@@ -58,7 +58,7 @@ export default async function AdminPage() {
 
   const currentUser = await getUser(session.user.email);
   if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-    redirect('/protected');
+    redirect('/dashboard');
   }
 
   const [users, companies, organizations, dashboards] = await Promise.all([
@@ -74,6 +74,14 @@ export default async function AdminPage() {
   ): Promise<ActionState> {
     'use server';
     await requireAdmin();
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
     const name = (formData.get('companyName') as string)?.trim();
     if (!name) {
       return { status: 'error', message: 'Enter a company name.' };
@@ -88,12 +96,32 @@ export default async function AdminPage() {
     }
   }
 
+  async function saveCompany(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
+  }
+
   async function manageCompanyAction(
     _prevState: ActionState,
     formData: FormData,
   ): Promise<ActionState> {
     'use server';
     await requireAdmin();
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
     const companyId = Number(formData.get('companyId'));
     const intent = (formData.get('intent') as string) ?? 'save';
     if (!companyId) {
@@ -124,6 +152,14 @@ export default async function AdminPage() {
   ): Promise<ActionState> {
     'use server';
     await requireAdmin();
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
     const name = (formData.get('organizationName') as string)?.trim();
     if (!name) {
       return { status: 'error', message: 'Enter an organization name.' };
@@ -135,6 +171,9 @@ export default async function AdminPage() {
     } catch (error) {
       console.error('Failed to create organization', error);
       return { status: 'error', message: 'Unable to create organization.' };
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
     }
   }
 
@@ -144,6 +183,14 @@ export default async function AdminPage() {
   ): Promise<ActionState> {
     'use server';
     await requireAdmin();
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
     const organizationId = Number(formData.get('organizationId'));
     const intent = (formData.get('intent') as string) ?? 'save';
     if (!organizationId) {
@@ -174,6 +221,14 @@ export default async function AdminPage() {
   ): Promise<ActionState> {
     'use server';
     await requireAdmin();
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
     const email = (formData.get('userEmail') as string)?.trim();
     const password = (formData.get('userPassword') as string)?.trim();
     const isAdmin = formData.get('isAdmin') === 'on';
@@ -200,6 +255,14 @@ export default async function AdminPage() {
   ): Promise<ActionState> {
     'use server';
     const adminUser = await requireAdmin();
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
     const userId = Number(formData.get('userId'));
     const intent = (formData.get('intent') as string) ?? 'save';
     if (!userId) {
@@ -253,12 +316,32 @@ export default async function AdminPage() {
     }
   }
 
+  async function removeUser(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
+  }
+
   async function addDashboardAction(
     _prevState: ActionState,
     formData: FormData,
   ): Promise<ActionState> {
     'use server';
     await requireAdmin();
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
     const name = (formData.get('dashboardName') as string)?.trim();
     const template = (formData.get('template') as string)?.trim();
     const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
@@ -295,6 +378,14 @@ export default async function AdminPage() {
   ): Promise<ActionState> {
     'use server';
     await requireAdmin();
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
     const dashboardId = Number(formData.get('dashboardId'));
     const intent = (formData.get('intent') as string) ?? 'save';
     if (!dashboardId) {
@@ -340,6 +431,23 @@ export default async function AdminPage() {
       console.error('Failed to update dashboard', error);
       return { status: 'error', message: 'Unable to update dashboard.' };
     }
+  }
+
+  async function removeDashboard(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/dashboard');
+    }
+    const dashboardId = Number(formData.get('dashboardId'));
+    if (!dashboardId) {
+      return;
+    }
+    await deleteDashboard(dashboardId);
   }
 
   return (
