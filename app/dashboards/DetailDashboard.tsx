@@ -637,7 +637,7 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                     </div>
                   ) : null}
                 </div>
-                <div className="flex w-full max-w-[240px] flex-col gap-2">
+                <div className="flex flex-col gap-2">
                   <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search vehicle number</label>
                   <input
                     type="text"
