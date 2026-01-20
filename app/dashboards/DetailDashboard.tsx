@@ -25,6 +25,13 @@ type AlertRow = {
   parsedDate: Date | null;
 };
 
+type TrendPoint = {
+  x: number;
+  y: number;
+  count: number;
+  label: string;
+};
+
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
 const findValue = (row: Record<string, any>, labels: string[]) => {
@@ -78,6 +85,8 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [remarkFilters, setRemarkFilters] = useState<string[]>([]);
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
+  const [pinnedPoint, setPinnedPoint] = useState<TrendPoint | null>(null);
 
   const alertRows = useMemo<AlertRow[]>(() => {
     return rows.map((row, index) => {
@@ -231,13 +240,13 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
 
   const maxTrendValue = trendData.reduce((max, item) => Math.max(max, item.count), 0);
   const trendPoints = useMemo(() => {
-    const width = 1000;
-    const height = 260;
-    const padding = { top: 24, right: 24, bottom: 36, left: 56 };
+    const width = 1200;
+    const height = 300;
+    const padding = { top: 28, right: 32, bottom: 48, left: 60 };
     const plotWidth = width - padding.left - padding.right;
     const plotHeight = height - padding.top - padding.bottom;
     if (trendData.length === 0) {
-      return { points: [], path: '', viewBox: `0 0 ${width} ${height}`, padding };
+      return { points: [], path: '', viewBox: `0 0 ${width} ${height}`, padding, width, height };
     }
     const maxValue = Math.max(1, maxTrendValue);
     const points = trendData.map((item, index) => {
@@ -246,12 +255,12 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count };
+      return { x, y, count: item.count, label: item.date.toLocaleDateString() };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
       .join(' ');
-    return { points, path, viewBox: `0 0 ${width} ${height}`, padding };
+    return { points, path, viewBox: `0 0 ${width} ${height}`, padding, width, height };
   }, [maxTrendValue, trendData]);
 
   const yAxisTicks = useMemo(() => {
@@ -277,6 +286,8 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
       };
     });
   }, [trendData]);
+
+  const activePoint = pinnedPoint ?? hoverPoint;
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
@@ -629,13 +640,14 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                 </div>
                 <span className="text-sm text-slate-400">{filteredAlerts.length} alerts</span>
               </div>
-              <div className="mt-4">
+              <div className="relative mt-4">
                 {trendData.length === 0 ? (
                   <p className="text-sm text-slate-400">No alert activity available for the selected filters.</p>
                 ) : (
                   <svg
                     viewBox={trendPoints.viewBox}
-                    className="h-64 w-full"
+                    className="h-72 w-full"
+                    preserveAspectRatio="none"
                     role="img"
                     aria-label="Daily alert trend"
                   >
@@ -656,12 +668,12 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                     {yAxisTicks.map((tick) => {
                       const y =
                         trendPoints.padding.top +
-                        tick.position * (260 - trendPoints.padding.top - trendPoints.padding.bottom);
+                        tick.position * (trendPoints.height - trendPoints.padding.top - trendPoints.padding.bottom);
                       return (
                         <g key={`tick-${tick.value}`}>
                           <line
                             x1={trendPoints.padding.left}
-                            x2={1000 - trendPoints.padding.right}
+                            x2={trendPoints.width - trendPoints.padding.right}
                             y1={y}
                             y2={y}
                             stroke="#1f2937"
@@ -683,14 +695,14 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                       x1={trendPoints.padding.left}
                       x2={trendPoints.padding.left}
                       y1={trendPoints.padding.top}
-                      y2={260 - trendPoints.padding.bottom}
+                      y2={trendPoints.height - trendPoints.padding.bottom}
                       stroke="#334155"
                     />
                     <line
                       x1={trendPoints.padding.left}
-                      x2={1000 - trendPoints.padding.right}
-                      y1={260 - trendPoints.padding.bottom}
-                      y2={260 - trendPoints.padding.bottom}
+                      x2={trendPoints.width - trendPoints.padding.right}
+                      y1={trendPoints.height - trendPoints.padding.bottom}
+                      y2={trendPoints.height - trendPoints.padding.bottom}
                       stroke="#334155"
                     />
                     <path d={trendPoints.path} fill="none" stroke="url(#trend-line)" strokeWidth="3" />
@@ -703,17 +715,28 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                         fill="#0f172a"
                         stroke="#c4b5fd"
                         strokeWidth="2"
+                        className="cursor-pointer transition"
+                        onMouseEnter={() => setHoverPoint(point)}
+                        onMouseLeave={() => {
+                          if (!pinnedPoint) {
+                            setHoverPoint(null);
+                          }
+                        }}
+                        onClick={() => {
+                          setPinnedPoint((current) => (current?.label === point.label ? null : point));
+                          setHoverPoint(point);
+                        }}
                       />
                     ))}
                     {xAxisLabels.map((label) => {
                       const x =
                         trendPoints.padding.left +
-                        label.position * (1000 - trendPoints.padding.left - trendPoints.padding.right);
+                        label.position * (trendPoints.width - trendPoints.padding.left - trendPoints.padding.right);
                       return (
                         <text
                           key={`label-${label.label}-${label.position}`}
                           x={x}
-                          y={260 - trendPoints.padding.bottom + 20}
+                          y={trendPoints.height - trendPoints.padding.bottom + 24}
                           textAnchor="middle"
                           fontSize="11"
                           fill="#94a3b8"
@@ -724,6 +747,19 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                     })}
                   </svg>
                 )}
+                {activePoint ? (
+                  <div
+                    className="pointer-events-none absolute rounded-lg border border-indigo-400/40 bg-slate-950/90 px-3 py-2 text-xs text-indigo-100 shadow-lg"
+                    style={{
+                      left: `${(activePoint.x / trendPoints.width) * 100}%`,
+                      top: `${(activePoint.y / trendPoints.height) * 100}%`,
+                      transform: 'translate(-50%, -120%)',
+                    }}
+                  >
+                    <div className="font-semibold">{activePoint.count} alerts</div>
+                    <div className="text-[11px] text-slate-300">{activePoint.label}</div>
+                  </div>
+                ) : null}
               </div>
             </section>
 
