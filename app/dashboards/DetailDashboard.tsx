@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -30,6 +30,13 @@ type TrendPoint = {
   y: number;
   count: number;
   label: string;
+};
+
+type SortField = 'time' | 'vehicle' | 'driver' | 'alertType' | 'speed' | 'fleet' | 'remarks';
+type SortDirection = 'asc' | 'desc';
+type SortCriterion = {
+  field: SortField;
+  direction: SortDirection;
 };
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
@@ -87,6 +94,9 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
   const [pinnedPoint, setPinnedPoint] = useState<TrendPoint | null>(null);
+  const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>([]);
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
 
   const alertRows = useMemo<AlertRow[]>(() => {
     return rows.map((row, index) => {
@@ -221,6 +231,61 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
     if (monthFilters.length === 0) return baseFilteredRows;
     return baseFilteredRows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
   }, [baseFilteredRows, monthFilters]);
+
+  const sortedAlerts = useMemo(() => {
+    if (sortCriteria.length === 0) return filteredAlerts;
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    const getSortValue = (row: AlertRow, field: SortField) => {
+      switch (field) {
+        case 'time':
+          return row.parsedDate ? row.parsedDate.getTime() : null;
+        case 'vehicle':
+          return row.vehicle;
+        case 'driver':
+          return row.driver;
+        case 'alertType':
+          return row.alertType;
+        case 'speed': {
+          const numeric = Number.parseFloat(String(row.speed).replace(/[^0-9.]/g, ''));
+          return Number.isNaN(numeric) ? null : numeric;
+        }
+        case 'fleet':
+          return row.fleet;
+        case 'remarks':
+          return row.remarks;
+        default:
+          return null;
+      }
+    };
+    const compareValues = (aValue: string | number | null, bValue: string | number | null) => {
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return aValue - bValue;
+      }
+      return collator.compare(String(aValue), String(bValue));
+    };
+    return [...filteredAlerts].sort((a, b) => {
+      for (const criterion of sortCriteria) {
+        const order = criterion.direction === 'asc' ? 1 : -1;
+        const comparison = compareValues(getSortValue(a, criterion.field), getSortValue(b, criterion.field));
+        if (comparison !== 0) return comparison * order;
+      }
+      return 0;
+    });
+  }, [filteredAlerts, sortCriteria]);
+
+  const totalAlerts = sortedAlerts.length;
+  const totalPages = Math.max(1, Math.ceil(totalAlerts / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = totalAlerts === 0 ? 0 : (currentPage - 1) * pageSize;
+  const endIndex = totalAlerts === 0 ? 0 : Math.min(startIndex + pageSize, totalAlerts);
+  const paginatedAlerts = sortedAlerts.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setPage(1);
+  }, [alertFilters, monthFilters, fleetFilters, remarkFilters, vehicleFilters]);
 
   const trendData = useMemo(() => {
     const counts = new Map<string, { key: string; date: Date; count: number }>();
@@ -766,24 +831,123 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Alerts</h2>
-                <span className="text-sm text-slate-400">{filteredAlerts.length} rows</span>
+                <span className="text-sm text-slate-400">{totalAlerts} rows</span>
               </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="uppercase tracking-[0.2em] text-slate-500">Rows</span>
+                    <select
+                      value={pageSize}
+                      onChange={(event) => {
+                        setPageSize(Number(event.target.value));
+                        setPage(1);
+                      }}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                    >
+                      {[25, 50, 100].map((size) => (
+                        <option key={size} value={size}>
+                          {size} per page
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <span>Shift-click column headers to add multiple sorts.</span>
+                </div>
+                <span>
+                  {totalAlerts === 0 ? 'No alerts to show.' : `Showing ${startIndex + 1}-${endIndex} of ${totalAlerts}`}
+                </span>
+              </div>
+              {sortCriteria.length > 0 ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Sorted by</span>
+                  {sortCriteria.map((criterion, index) => (
+                    <button
+                      key={`${criterion.field}-${criterion.direction}`}
+                      type="button"
+                      onClick={() =>
+                        setSortCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))
+                      }
+                      className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                    >
+                      {criterion.field} {criterion.direction} ×
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setSortCriteria([])}
+                    className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
+                  >
+                    Clear sorting
+                  </button>
+                </div>
+              ) : null}
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[860px] border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-800 text-xs uppercase tracking-[0.2em] text-slate-400">
-                      <th className="py-3 pr-4">Alert time</th>
-                      <th className="py-3 pr-4">Vehicle</th>
-                      <th className="py-3 pr-4">Driver</th>
-                      <th className="py-3 pr-4">Alert type</th>
-                      <th className="py-3 pr-4">Speed</th>
-                      <th className="py-3 pr-4">Fleet</th>
-                      <th className="py-3 pr-4">Remarks</th>
+                      {(
+                        [
+                          { label: 'Alert time', field: 'time' },
+                          { label: 'Vehicle', field: 'vehicle' },
+                          { label: 'Driver', field: 'driver' },
+                          { label: 'Alert type', field: 'alertType' },
+                          { label: 'Speed', field: 'speed' },
+                          { label: 'Fleet', field: 'fleet' },
+                          { label: 'Remarks', field: 'remarks' },
+                        ] as const
+                      ).map((column) => {
+                        const sortIndex = sortCriteria.findIndex((criterion) => criterion.field === column.field);
+                        const sortDirection =
+                          sortIndex >= 0 ? sortCriteria[sortIndex].direction : null;
+                        const sortBadge =
+                          sortIndex >= 0
+                            ? `${sortDirection === 'asc' ? 'Asc' : 'Desc'}${
+                                sortCriteria.length > 1 ? ` ${sortIndex + 1}` : ''
+                              }`
+                            : 'Sort';
+                        return (
+                          <th key={column.field} className="py-3 pr-4">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                setSortCriteria((current) => {
+                                  const existingIndex = current.findIndex(
+                                    (criterion) => criterion.field === column.field,
+                                  );
+                                  const multiSort = event.shiftKey;
+                                  const nextCriteria = multiSort ? [...current] : [];
+                                  if (existingIndex === -1) {
+                                    return [...nextCriteria, { field: column.field, direction: 'asc' }];
+                                  }
+                                  const existing = current[existingIndex];
+                                  if (multiSort) {
+                                    nextCriteria.splice(existingIndex, 1);
+                                  }
+                                  if (existing.direction === 'asc') {
+                                    if (multiSort) {
+                                      nextCriteria.splice(existingIndex, 0, { field: column.field, direction: 'desc' });
+                                      return nextCriteria;
+                                    }
+                                    return [{ field: column.field, direction: 'desc' }];
+                                  }
+                                  return nextCriteria;
+                                });
+                                setPage(1);
+                              }}
+                              className="flex items-center gap-2 text-left hover:text-slate-200"
+                            >
+                              <span>{column.label}</span>
+                              <span className="text-[11px] text-slate-500">{sortBadge}</span>
+                            </button>
+                          </th>
+                        );
+                      })}
                       <th className="py-3">Video</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAlerts.slice(0, 200).map((row) => (
+                    {paginatedAlerts.map((row) => (
                       <tr key={row.id} className="border-b border-slate-900/80 text-slate-200">
                         <td className="py-3 pr-4 text-slate-300">{row.time}</td>
                         <td className="py-3 pr-4 font-semibold text-white">{row.vehicle}</td>
@@ -811,9 +975,29 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                   </tbody>
                 </table>
               </div>
-              {filteredAlerts.length > 200 ? (
-                <p className="mt-3 text-xs text-slate-400">Showing the first 200 alerts.</p>
-              ) : null}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-md border border-slate-800 px-3 py-1 text-xs text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    disabled={currentPage === totalPages}
+                    className="rounded-md border border-slate-800 px-3 py-1 text-xs text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </section>
           </>
         )}
