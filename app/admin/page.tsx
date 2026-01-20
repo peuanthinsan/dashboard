@@ -21,7 +21,7 @@ import {
   updateUserProfile,
 } from 'app/db';
 
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video Samples'] as const;
 
 const parseSheetLink = (sheetUrl: string) => {
   const trimmed = sheetUrl.trim();
