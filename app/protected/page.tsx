@@ -19,6 +19,12 @@ export default async function ProtectedPage() {
             Go to administration
           </Link>
         ) : null}
+        <Link
+          href="/dashboard"
+          className="rounded-lg border border-white/40 px-4 py-2 text-sm font-semibold text-white hover:border-white"
+        >
+          View dashboards
+        </Link>
         <SignOut />
       </div>
     </div>
