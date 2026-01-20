@@ -130,11 +130,13 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       entry.total = entry.distraction + entry.fatigue + entry.yawning;
       grouped.set(key, entry);
     });
-    return Array.from(grouped.values()).sort((a, b) => {
-      const timeDiff = b.date.getTime() - a.date.getTime();
-      if (timeDiff !== 0) return timeDiff;
-      return a.vehicle.localeCompare(b.vehicle);
-    });
+    return Array.from(grouped.values())
+      .filter((entry) => entry.total > 0)
+      .sort((a, b) => {
+        const timeDiff = b.date.getTime() - a.date.getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return a.vehicle.localeCompare(b.vehicle);
+      });
   }, [rows]);
 
   const trendData = useMemo(() => {
