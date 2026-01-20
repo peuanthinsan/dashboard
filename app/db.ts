@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { pgTable, serial, varchar } from 'drizzle-orm/pg-core';
+import { boolean, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
 import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSaltSync, hashSync } from 'bcrypt-ts';
@@ -11,40 +11,115 @@ let client = postgres(`${process.env.POSTGRES_URL!}?sslmode=require`);
 let db = drizzle(client);
 
 export async function getUser(email: string) {
-  const users = await ensureTableExists();
+  const { users } = await ensureTablesExist();
   return await db.select().from(users).where(eq(users.email, email));
 }
 
 export async function createUser(email: string, password: string) {
-  const users = await ensureTableExists();
+  const { users } = await ensureTablesExist();
   let salt = genSaltSync(10);
   let hash = hashSync(password, salt);
+  const [{ count }] = await client`
+    SELECT COUNT(*)::int AS count FROM "User";
+  `;
 
-  return await db.insert(users).values({ email, password: hash });
+  return await db.insert(users).values({
+    email,
+    password: hash,
+    isAdmin: count === 0,
+  });
 }
 
-async function ensureTableExists() {
-  const result = await client`
-    SELECT EXISTS (
-      SELECT FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      AND table_name = 'User'
-    );`;
+export async function getUsers() {
+  const { users } = await ensureTablesExist();
+  return await db.select().from(users).orderBy(users.id);
+}
 
-  if (!result[0].exists) {
-    await client`
-      CREATE TABLE "User" (
-        id SERIAL PRIMARY KEY,
-        email VARCHAR(64),
-        password VARCHAR(64)
-      );`;
-  }
+export async function getCompanies() {
+  const { companies } = await ensureTablesExist();
+  return await db.select().from(companies).orderBy(companies.name);
+}
 
-  const table = pgTable('User', {
+export async function getOrganizations() {
+  const { organizations } = await ensureTablesExist();
+  return await db.select().from(organizations).orderBy(organizations.name);
+}
+
+export async function createCompany(name: string) {
+  const { companies } = await ensureTablesExist();
+  return await db.insert(companies).values({ name });
+}
+
+export async function createOrganization(name: string) {
+  const { organizations } = await ensureTablesExist();
+  return await db.insert(organizations).values({ name });
+}
+
+export async function updateUserAssignments(
+  userId: number,
+  {
+    companyId,
+    organizationId,
+    isAdmin,
+  }: {
+    companyId: number | null;
+    organizationId: number | null;
+    isAdmin: boolean;
+  },
+) {
+  const { users } = await ensureTablesExist();
+  return await db
+    .update(users)
+    .set({
+      companyId,
+      organizationId,
+      isAdmin,
+    })
+    .where(eq(users.id, userId));
+}
+
+async function ensureTablesExist() {
+  await client`
+    CREATE TABLE IF NOT EXISTS "Company" (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(128) UNIQUE NOT NULL
+    );
+  `;
+  await client`
+    CREATE TABLE IF NOT EXISTS "Organization" (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(128) UNIQUE NOT NULL
+    );
+  `;
+  await client`
+    CREATE TABLE IF NOT EXISTS "User" (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(64),
+      password VARCHAR(64),
+      "isAdmin" BOOLEAN DEFAULT FALSE,
+      "companyId" INTEGER REFERENCES "Company"(id) ON DELETE SET NULL,
+      "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
+    );
+  `;
+
+  const users = pgTable('User', {
     id: serial('id').primaryKey(),
     email: varchar('email', { length: 64 }),
     password: varchar('password', { length: 64 }),
+    isAdmin: boolean('isAdmin').default(false),
+    companyId: integer('companyId'),
+    organizationId: integer('organizationId'),
   });
 
-  return table;
+  const companies = pgTable('Company', {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 128 }),
+  });
+
+  const organizations = pgTable('Organization', {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 128 }),
+  });
+
+  return { users, companies, organizations };
 }
