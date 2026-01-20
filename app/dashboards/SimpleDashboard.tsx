@@ -416,15 +416,15 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                     </svg>
                     {activePoint ? (
                       <div
-                        className="pointer-events-none absolute rounded-xl border border-indigo-500/40 bg-slate-950/90 px-4 py-2 text-xs text-white shadow-lg"
+                        className="pointer-events-none absolute rounded-2xl border border-indigo-500/40 bg-slate-950/95 px-5 py-3 text-center text-white shadow-xl backdrop-blur"
                         style={{
                           left: `${(activePoint.x / trendPoints.width) * 100}%`,
                           top: `${(activePoint.y / trendPoints.height) * 100}%`,
                           transform: 'translate(-50%, -120%)',
                         }}
                       >
-                        <div className="font-semibold">{activePoint.count} alerts</div>
-                        <div className="text-[11px] text-slate-300">{activePoint.label}</div>
+                        <div className="text-lg font-semibold">{activePoint.count} alerts</div>
+                        <div className="text-sm text-slate-300">{activePoint.label}</div>
                       </div>
                     ) : null}
                   </div>
