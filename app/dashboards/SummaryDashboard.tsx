@@ -100,6 +100,34 @@ export default function SummaryDashboard({
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const didSetDefaultMonth = useRef(false);
 
+  const allowedAlertTypes = [
+    'Distraction-A2',
+    'Eye Closing-A2',
+    'OverSpeed',
+    'Harsh Acceleration',
+    'Harsh Brake',
+    'Forward Collision-A2',
+    'Seatbelt-A2',
+    'Camera Cover',
+  ];
+
+  const allowedRemarkTargets = [
+    'Fatigue',
+    'Yawning',
+    'Distraction',
+    'Smoking',
+    'Mobile Phone',
+    'Eating/Drinking',
+    'Seatbelt',
+    'Camera Cover',
+    'Harsh Brake',
+    'Harsh Acceleration',
+    'OverSpeed',
+    'Maintenance',
+    'Mirror Check',
+    'Speed Meter Check',
+  ];
+
   const alertRows = useMemo(() => {
     const mappedRows = rows.map((row) => {
       const alertType = toDisplayString(findValue(row, ['Alert Type']));
@@ -129,12 +157,18 @@ export default function SummaryDashboard({
   }, [normalizedOrganizationName, rows]);
 
   const alertOptions = useMemo(() => {
-    const unique = new Set<string>();
+    const normalizedAllowed = allowedAlertTypes.map((label) => normalizeLabel(label));
+    const matching = new Set<string>();
     alertRows.forEach((row) => {
-      if (row.alertType && row.alertType !== '—') unique.add(row.alertType);
+      if (!row.alertType || row.alertType === '—') return;
+      const normalizedValue = normalizeLabel(row.alertType);
+      const allowedIndex = normalizedAllowed.indexOf(normalizedValue);
+      if (allowedIndex >= 0) {
+        matching.add(allowedAlertTypes[allowedIndex]);
+      }
     });
-    return Array.from(unique).sort((a, b) => a.localeCompare(b));
-  }, [alertRows]);
+    return Array.from(matching).sort((a, b) => a.localeCompare(b));
+  }, [alertRows, allowedAlertTypes]);
 
   const filteredAlertOptions = useMemo(() => {
     const trimmedSearch = alertSearch.trim();
@@ -159,12 +193,19 @@ export default function SummaryDashboard({
   }, [fleetOptions, fleetSearch]);
 
   const remarkOptions = useMemo(() => {
-    const unique = new Set<string>();
+    const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
+    const matching = new Set<string>();
     alertRows.forEach((row) => {
-      if (row.remarks && row.remarks !== '—') unique.add(row.remarks);
+      if (!row.remarks || row.remarks === '—') return;
+      const normalizedValue = normalizeLabel(row.remarks);
+      normalizedTargets.forEach((target, index) => {
+        if (normalizedValue.includes(target)) {
+          matching.add(allowedRemarkTargets[index]);
+        }
+      });
     });
-    return Array.from(unique).sort((a, b) => a.localeCompare(b));
-  }, [alertRows]);
+    return Array.from(matching).sort((a, b) => a.localeCompare(b));
+  }, [alertRows, allowedRemarkTargets]);
 
   const filteredRemarkOptions = useMemo(() => {
     const trimmedSearch = remarkSearch.trim();
@@ -285,7 +326,10 @@ export default function SummaryDashboard({
       const value = field === 'remarks' ? row.remarks : row.alertType;
       if (!value || value === '—') return total;
       const normalizedValue = normalizeLabel(value);
-      return normalizedValue.includes(normalizedTarget) ? total + 1 : total;
+      if (field === 'remarks') {
+        return normalizedValue.includes(normalizedTarget) ? total + 1 : total;
+      }
+      return normalizedValue === normalizedTarget ? total + 1 : total;
     }, 0);
   };
 
@@ -296,28 +340,19 @@ export default function SummaryDashboard({
       current: number;
       previous: number;
     };
-    const remarkTargets = [
-      'Fatigue',
-      'Yawning',
-      'Distraction',
-      'Smoking',
-      'Mobile Phone',
-      'Seatbelt',
-      'Eating/Drinking',
-    ];
-    const items: HighlightItem[] = remarkTargets.map((label) => ({
+    const items: HighlightItem[] = allowedRemarkTargets.map((label) => ({
       label,
       field: 'remarks' as const,
       current: countMatches(label, 'remarks', currentRows),
       previous: countMatches(label, 'remarks', previousRows),
     }));
     items.push({
-      label: 'Forward collision',
+      label: 'Forward Collision-A2',
       field: 'alertType',
-      current: countMatches('Forward Collision', 'alertType', currentRows),
-      previous: countMatches('Forward Collision', 'alertType', previousRows),
+      current: countMatches('Forward Collision-A2', 'alertType', currentRows),
+      previous: countMatches('Forward Collision-A2', 'alertType', previousRows),
     });
-    return items;
+    return items.filter((item) => item.current > 0);
   }, [currentRows, previousRows]);
 
   return (
