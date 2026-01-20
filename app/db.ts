@@ -28,7 +28,7 @@ export async function getUser(email: string): Promise<UserWithAssignments[]> {
   const { users, userCompanies, userOrganizations } = await ensureTablesExist();
   const userRows = (await db.select().from(users).where(eq(users.email, email))) as UserRecord[];
   if (userRows.length === 0) {
-    return userRows;
+    return [];
   }
   const userId = userRows[0].id;
   const [companyRows, organizationRows] = await Promise.all([
