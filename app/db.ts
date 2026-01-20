@@ -71,6 +71,11 @@ export async function getOrganizations() {
   return await db.select().from(organizations).orderBy(organizations.name);
 }
 
+export async function getOrganizationById(id: number) {
+  const { organizations } = await ensureTablesExist();
+  return await db.select().from(organizations).where(eq(organizations.id, id));
+}
+
 export async function getDashboards() {
   const { dashboards } = await ensureTablesExist();
   return await db.select().from(dashboards).orderBy(dashboards.name);

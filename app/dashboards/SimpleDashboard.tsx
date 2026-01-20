@@ -7,6 +7,7 @@ type DashboardProps = {
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
+  organizationName?: string | null;
 };
 
 type TrendPoint = {
@@ -56,8 +57,17 @@ const parseDate = (value: unknown) => {
 const toDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
+export default function SimpleDashboard({
+  dashboardName,
+  sheetId,
+  sheetGid,
+  organizationName,
+}: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const normalizedOrganizationName = useMemo(
+    () => (organizationName ? normalizeLabel(organizationName) : null),
+    [organizationName],
+  );
   const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
   const defaultSortCriteria = useMemo<SortCriterion[]>(
     () => [{ field: 'date', direction: 'desc' }],
@@ -85,14 +95,19 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
           parsedDate,
           vehicle: String(findValue(row, ['Vehicle No', 'Vehicle No TH']) ?? '—'),
           driver: String(findValue(row, ['Driver Name']) ?? '—'),
+          fleet: String(findValue(row, ['Fleet']) ?? ''),
         };
+      })
+      .filter((row) => {
+        if (!normalizedOrganizationName) return true;
+        return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
       .filter((row) => {
         if (normalizeLabel(row.alertType) !== normalizeLabel('Eye Closing-A2')) return false;
         return allowedRemarks.has(normalizeLabel(row.remarks));
       })
       .filter((row) => row.parsedDate);
-  }, [rows]);
+  }, [normalizedOrganizationName, rows]);
 
   const dateBounds = useMemo(() => {
     let minDate: Date | null = null;

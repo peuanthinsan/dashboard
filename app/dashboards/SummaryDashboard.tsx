@@ -7,6 +7,7 @@ type DashboardProps = {
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
+  organizationName?: string | null;
 };
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
@@ -73,8 +74,17 @@ const buildDeltaSummary = (current: number, previous: number) => {
   return { delta, deltaLabel, percentLabel, isIncrease };
 };
 
-export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
+export default function SummaryDashboard({
+  dashboardName,
+  sheetId,
+  sheetGid,
+  organizationName,
+}: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const normalizedOrganizationName = useMemo(
+    () => (organizationName ? normalizeLabel(organizationName) : null),
+    [organizationName],
+  );
 
   const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
   const [alertSearch, setAlertSearch] = useState('');
@@ -89,7 +99,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
 
   const alertRows = useMemo(() => {
-    return rows.map((row) => {
+    const mappedRows = rows.map((row) => {
       const alertType = toDisplayString(findValue(row, ['Alert Type']));
       const driver = toDisplayString(findValue(row, ['Driver Name']));
       const fleet = toDisplayString(findValue(row, ['Fleet']));
@@ -110,7 +120,11 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
         dateValue,
       };
     });
-  }, [rows]);
+    if (!normalizedOrganizationName) {
+      return mappedRows;
+    }
+    return mappedRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
+  }, [normalizedOrganizationName, rows]);
 
   const alertOptions = useMemo(() => {
     const unique = new Set<string>();

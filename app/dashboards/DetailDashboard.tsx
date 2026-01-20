@@ -7,6 +7,7 @@ type DashboardProps = {
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
+  organizationName?: string | null;
 };
 
 type AlertRow = {
@@ -80,8 +81,17 @@ const toDateLabel = (value: unknown) => {
   return parsed.toLocaleString();
 };
 
-export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
+export default function DetailDashboard({
+  dashboardName,
+  sheetId,
+  sheetGid,
+  organizationName,
+}: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const normalizedOrganizationName = useMemo(
+    () => (organizationName ? normalizeLabel(organizationName) : null),
+    [organizationName],
+  );
   const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
   const [alertSearch, setAlertSearch] = useState('');
   const [alertFilters, setAlertFilters] = useState<string[]>([]);
@@ -100,7 +110,7 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [page, setPage] = useState(1);
 
   const alertRows = useMemo<AlertRow[]>(() => {
-    return rows.map((row, index) => {
+    const mappedRows = rows.map((row, index) => {
       const timeValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
       const parsedDate = parseDate(timeValue);
       const monthKey = parsedDate ? toMonthKey(parsedDate) : null;
@@ -121,7 +131,11 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
         parsedDate,
       };
     });
-  }, [rows]);
+    if (!normalizedOrganizationName) {
+      return mappedRows;
+    }
+    return mappedRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
+  }, [normalizedOrganizationName, rows]);
 
   const alertOptions = useMemo(() => {
     const unique = new Set<string>();
