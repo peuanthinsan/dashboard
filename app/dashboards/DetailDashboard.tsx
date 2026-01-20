@@ -882,7 +882,6 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                   </button>
                 </div>
               ) : null}
-              </div>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[860px] border-collapse text-left text-sm">
                   <thead>
