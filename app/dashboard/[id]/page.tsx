@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from 'app/auth';
-import { getDashboardById, getUser } from 'app/db';
+import { getDashboardById, getOrganizationById, getUser } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
@@ -53,6 +53,12 @@ export default async function DashboardPage({ params }: { params: { id: string }
     redirect('/protected');
   }
 
+  let organizationName: string | null = null;
+  if (dashboard.organizationId) {
+    const organizationResult = await getOrganizationById(dashboard.organizationId);
+    organizationName = organizationResult[0]?.name ?? null;
+  }
+
   const Template = resolveTemplate(dashboard.template ?? null);
 
   return (
@@ -60,6 +66,7 @@ export default async function DashboardPage({ params }: { params: { id: string }
       dashboardName={dashboard.name ?? 'Company dashboard'}
       sheetId={dashboard.sheetId ?? ''}
       sheetGid={dashboard.sheetGid ?? '0'}
+      organizationName={organizationName}
     />
   );
 }

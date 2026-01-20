@@ -7,6 +7,7 @@ type DashboardProps = {
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
+  organizationName?: string | null;
 };
 
 type VideoSample = {
@@ -17,6 +18,7 @@ type VideoSample = {
   timeLabel: string;
   timestamp: number;
   videoUrl: string;
+  fleet: string;
 };
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
@@ -39,8 +41,17 @@ const parseDate = (value: unknown) => {
   return parsed;
 };
 
-export default function VideoSamplesDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
+export default function VideoSamplesDashboard({
+  dashboardName,
+  sheetId,
+  sheetGid,
+  organizationName,
+}: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const normalizedOrganizationName = useMemo(
+    () => (organizationName ? normalizeLabel(organizationName) : null),
+    [organizationName],
+  );
 
   const samples = useMemo<VideoSample[]>(() => {
     return rows
@@ -55,11 +66,16 @@ export default function VideoSamplesDashboard({ dashboardName, sheetId, sheetGid
           timeLabel: parsedDate?.toLocaleString() ?? toDisplayString(timeValue),
           timestamp: parsedDate?.getTime() ?? 0,
           videoUrl: toDisplayString(findValue(row, ['videoURL', 'Videoit', 'Video URL'])),
+          fleet: toDisplayString(findValue(row, ['Fleet'])),
         };
+      })
+      .filter((row) => {
+        if (!normalizedOrganizationName) return true;
+        return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 9);
-  }, [rows]);
+  }, [normalizedOrganizationName, rows]);
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
