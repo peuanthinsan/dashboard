@@ -321,14 +321,14 @@ export default async function AdminPage() {
 
           <form
             action={addDashboard}
-            className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-2"
+            className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-2 xl:grid-cols-3"
           >
             <div className="flex flex-col gap-2">
               <label className="text-xs text-slate-400">Dashboard name</label>
               <input
                 name="dashboardName"
                 placeholder="Operations overview"
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -336,14 +336,14 @@ export default async function AdminPage() {
               <input
                 name="sheetUrl"
                 placeholder="https://docs.google.com/spreadsheets/d/..."
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
               />
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-xs text-slate-400">Company</label>
               <select
                 name="companyId"
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
               >
                 <option value="">Select company</option>
                 {companies.map((company) => (
@@ -357,7 +357,7 @@ export default async function AdminPage() {
               <label className="text-xs text-slate-400">Organization (optional)</label>
               <select
                 name="organizationId"
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
               >
                 <option value="">No organization</option>
                 {organizations.map((organization) => (
@@ -371,7 +371,7 @@ export default async function AdminPage() {
               <label className="text-xs text-slate-400">Template</label>
               <select
                 name="template"
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
               >
                 {DASHBOARD_TEMPLATES.map((template) => (
                   <option key={template} value={template}>
@@ -399,16 +399,16 @@ export default async function AdminPage() {
               dashboards.map((dashboard) => (
                 <div
                   key={dashboard.id}
-                  className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1.2fr_1.4fr_1fr_1fr_0.8fr_auto]"
+                  className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]"
                 >
-                  <form action={saveDashboard} className="contents">
+                  <form action={saveDashboard} className="contents min-w-0">
                     <input type="hidden" name="dashboardId" value={dashboard.id} />
                     <div className="flex flex-col gap-2">
                       <label className="text-xs text-slate-400">Dashboard name</label>
                       <input
                         name="dashboardName"
                         defaultValue={dashboard.name ?? ''}
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                        className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -416,7 +416,7 @@ export default async function AdminPage() {
                       <input
                         name="sheetUrl"
                         defaultValue={dashboard.sheetUrl ?? ''}
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                        className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -424,7 +424,7 @@ export default async function AdminPage() {
                       <select
                         name="companyId"
                         defaultValue={dashboard.companyId ?? ''}
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                        className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                       >
                         <option value="">Select company</option>
                         {companies.map((company) => (
@@ -439,7 +439,7 @@ export default async function AdminPage() {
                       <select
                         name="organizationId"
                         defaultValue={dashboard.organizationId ?? ''}
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                        className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                       >
                         <option value="">No organization</option>
                         {organizations.map((organization) => (
@@ -454,7 +454,7 @@ export default async function AdminPage() {
                       <select
                         name="template"
                         defaultValue={dashboard.template ?? 'Summary'}
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                        className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                       >
                         {DASHBOARD_TEMPLATES.map((template) => (
                           <option key={template} value={template}>
