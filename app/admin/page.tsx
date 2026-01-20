@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation';
 import { auth } from 'app/auth';
 import {
   createCompany,
+  createDashboard,
   createOrganization,
   getCompanies,
+  getDashboards,
   getOrganizations,
   getUser,
   getUsers,
@@ -26,6 +28,13 @@ export default async function AdminPage() {
     getCompanies(),
     getOrganizations(),
   ]);
+  const dashboards = await getDashboards();
+
+  const companyLookup = new Map(companies.map((company) => [company.id, company.name]));
+  const organizationLookup = new Map(
+    organizations.map((organization) => [organization.id, organization.name]),
+  );
+  const templates = ['Summary', 'Detail', 'Simple'];
 
   async function addCompany(formData: FormData) {
     'use server';
@@ -85,6 +94,41 @@ export default async function AdminPage() {
     });
   }
 
+  async function addDashboard(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/protected');
+    }
+    const name = (formData.get('dashboardName') as string)?.trim();
+    const template = (formData.get('template') as string)?.trim();
+    const companyValue = (formData.get('companyId') as string) ?? '';
+    const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
+    if (!name || !sheetUrl || !companyValue || !template || !templates.includes(template)) {
+      return;
+    }
+
+    const parsed = parseGoogleSheetUrl(sheetUrl);
+    if (!parsed) {
+      return;
+    }
+
+    await createDashboard({
+      name,
+      template,
+      sheetUrl,
+      sheetId: parsed.sheetId,
+      gid: parsed.gid,
+      companyId: Number(companyValue),
+      organizationId: organizationValue ? Number(organizationValue) : null,
+    });
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
@@ -94,6 +138,116 @@ export default async function AdminPage() {
             Assign users to companies or organizations and manage admin access.
           </p>
         </header>
+
+        <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-lg font-medium">Dashboards</h2>
+            <p className="text-sm text-slate-300">
+              Create dashboard records tied to a company, optional organization, and Google Sheet.
+            </p>
+          </div>
+          <form
+            action={addDashboard}
+            className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-2"
+          >
+            <label className="flex flex-col gap-2 text-xs text-slate-400">
+              Dashboard name
+              <input
+                name="dashboardName"
+                placeholder="Safety overview"
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-xs text-slate-400">
+              Template
+              <select
+                name="template"
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                defaultValue="Summary"
+              >
+                {templates.map((template) => (
+                  <option key={template} value={template}>
+                    {template}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-xs text-slate-400">
+              Company
+              <select
+                name="companyId"
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                defaultValue=""
+              >
+                <option value="">Select company</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-xs text-slate-400">
+              Organization (optional)
+              <select
+                name="organizationId"
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                defaultValue=""
+              >
+                <option value="">All organizations</option>
+                {organizations.map((organization) => (
+                  <option key={organization.id} value={organization.id}>
+                    {organization.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-xs text-slate-400 md:col-span-2">
+              Google Sheet link
+              <input
+                name="sheetUrl"
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+              />
+            </label>
+            <div className="md:col-span-2">
+              <button
+                type="submit"
+                className="rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+              >
+                Add dashboard
+              </button>
+            </div>
+          </form>
+          <div className="grid gap-3">
+            {dashboards.length === 0 ? (
+              <p className="text-sm text-slate-400">No dashboards created yet.</p>
+            ) : (
+              dashboards.map((dashboard) => (
+                <div
+                  key={dashboard.id}
+                  className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-200 md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="flex flex-col gap-1">
+                    <span className="font-semibold text-white">{dashboard.name}</span>
+                    <span className="text-xs text-slate-400">
+                      {dashboard.template} · {companyLookup.get(dashboard.companyId) ?? 'Unknown company'}
+                      {dashboard.organizationId
+                        ? ` · ${organizationLookup.get(dashboard.organizationId) ?? 'Unknown organization'}`
+                        : ' · All organizations'}
+                    </span>
+                  </div>
+                  <a
+                    href={`/dashboards/${dashboard.id}`}
+                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:border-slate-500"
+                  >
+                    Open dashboard
+                  </a>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
         <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
           <div className="grid gap-4 md:grid-cols-2">
@@ -205,4 +359,18 @@ export default async function AdminPage() {
       </div>
     </div>
   );
+}
+
+function parseGoogleSheetUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const match = parsed.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
+    if (!match) {
+      return null;
+    }
+    const gid = parsed.searchParams.get('gid') ?? '0';
+    return { sheetId: match[1], gid };
+  } catch {
+    return null;
+  }
 }
