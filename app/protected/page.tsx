@@ -6,11 +6,20 @@ export default async function ProtectedPage() {
   let session = await auth();
   let user = session?.user?.email ? await getUser(session.user.email) : [];
   let isAdmin = user.length > 0 && user[0].isAdmin;
+  let hasCompany = user.length > 0 && user[0].companyId;
 
   return (
     <div className="flex h-screen bg-black">
       <div className="w-screen h-screen flex flex-col space-y-5 justify-center items-center text-white">
         You are logged in as {session?.user?.email}
+        {hasCompany ? (
+          <Link
+            href="/dashboard"
+            className="rounded-lg border border-white/40 px-4 py-2 text-sm font-semibold text-white hover:border-white"
+          >
+            View dashboards
+          </Link>
+        ) : null}
         {isAdmin ? (
           <Link
             href="/admin"
