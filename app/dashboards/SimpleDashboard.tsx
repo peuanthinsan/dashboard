@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -26,8 +26,31 @@ const parseDate = (value: unknown) => {
   return parsed;
 };
 
+const toDayKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+type SortField = 'date' | 'vehicle' | 'distraction' | 'fatigue' | 'yawning' | 'total';
+type SortDirection = 'asc' | 'desc';
+type SortCriterion = {
+  field: SortField;
+  direction: SortDirection;
+};
+
+type TrendPoint = {
+  x: number;
+  y: number;
+  count: number;
+  label: string;
+};
+
 export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>([]);
+  const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
+  const [pinnedPoint, setPinnedPoint] = useState<TrendPoint | null>(null);
+
+  const allowedRemarks = useMemo(() => ['Fatigue', 'Yawning', 'Distraction'], []);
+  const allowedRemarkKeys = useMemo(() => allowedRemarks.map((remark) => normalizeLabel(remark)), [allowedRemarks]);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -58,6 +81,180 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       latest: latestLabel,
     };
   }, [rows]);
+
+  const alertRows = useMemo(() => {
+    return rows.map((row, index) => {
+      const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
+      const parsedDate = parseDate(dateValue);
+      return {
+        id: `${index}-${findValue(row, ['Vehicle No']) ?? 'vehicle'}`,
+        dateValue,
+        parsedDate,
+        dateLabel: parsedDate ? parsedDate.toLocaleDateString() : String(dateValue ?? '—'),
+        vehicle: String(findValue(row, ['Vehicle No']) ?? '—'),
+        alertType: String(findValue(row, ['Alert Type']) ?? '—'),
+        remarks: String(findValue(row, ['Remarks']) ?? '—'),
+      };
+    });
+  }, [rows]);
+
+  const filteredAlerts = useMemo(() => {
+    const targetAlert = normalizeLabel('Eye Closing-A2');
+    return alertRows.filter((row) => {
+      if (normalizeLabel(row.alertType) !== targetAlert) return false;
+      const remarkKey = normalizeLabel(row.remarks);
+      return allowedRemarkKeys.includes(remarkKey);
+    });
+  }, [alertRows, allowedRemarkKeys]);
+
+  const tableRows = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        id: string;
+        dateLabel: string;
+        parsedDate: Date | null;
+        vehicle: string;
+        distraction: number;
+        fatigue: number;
+        yawning: number;
+        total: number;
+      }
+    >();
+
+    filteredAlerts.forEach((row) => {
+      const dateKey = row.parsedDate ? toDayKey(row.parsedDate) : row.dateLabel;
+      const groupKey = `${dateKey}-${row.vehicle}`;
+      const existing = grouped.get(groupKey);
+      const entry =
+        existing ??
+        {
+          id: groupKey,
+          dateLabel: row.parsedDate ? row.parsedDate.toLocaleDateString() : row.dateLabel,
+          parsedDate: row.parsedDate,
+          vehicle: row.vehicle,
+          distraction: 0,
+          fatigue: 0,
+          yawning: 0,
+          total: 0,
+        };
+
+      const remarkKey = normalizeLabel(row.remarks);
+      if (remarkKey === 'distraction') entry.distraction += 1;
+      if (remarkKey === 'fatigue') entry.fatigue += 1;
+      if (remarkKey === 'yawning') entry.yawning += 1;
+      entry.total += 1;
+      grouped.set(groupKey, entry);
+    });
+
+    return Array.from(grouped.values());
+  }, [filteredAlerts]);
+
+  const sortedTableRows = useMemo(() => {
+    if (sortCriteria.length === 0) return tableRows;
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    const getSortValue = (row: (typeof tableRows)[number], field: SortField) => {
+      switch (field) {
+        case 'date':
+          return row.parsedDate ? row.parsedDate.getTime() : null;
+        case 'vehicle':
+          return row.vehicle;
+        case 'distraction':
+          return row.distraction;
+        case 'fatigue':
+          return row.fatigue;
+        case 'yawning':
+          return row.yawning;
+        case 'total':
+          return row.total;
+        default:
+          return null;
+      }
+    };
+    const compareValues = (aValue: string | number | null, bValue: string | number | null) => {
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return aValue - bValue;
+      }
+      return collator.compare(String(aValue), String(bValue));
+    };
+    return [...tableRows].sort((a, b) => {
+      for (const criterion of sortCriteria) {
+        const order = criterion.direction === 'asc' ? 1 : -1;
+        const comparison = compareValues(getSortValue(a, criterion.field), getSortValue(b, criterion.field));
+        if (comparison !== 0) return comparison * order;
+      }
+      return 0;
+    });
+  }, [sortCriteria, tableRows]);
+
+  const trendData = useMemo(() => {
+    const counts = new Map<string, { key: string; date: Date; count: number }>();
+    filteredAlerts.forEach((row) => {
+      if (!row.parsedDate) return;
+      const dayKey = toDayKey(row.parsedDate);
+      const existing = counts.get(dayKey);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        const dayDate = new Date(row.parsedDate.getFullYear(), row.parsedDate.getMonth(), row.parsedDate.getDate());
+        counts.set(dayKey, { key: dayKey, date: dayDate, count: 1 });
+      }
+    });
+    return Array.from(counts.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [filteredAlerts]);
+
+  const maxTrendValue = trendData.reduce((max, item) => Math.max(max, item.count), 0);
+  const trendPoints = useMemo(() => {
+    const width = 1200;
+    const height = 300;
+    const padding = { top: 28, right: 32, bottom: 48, left: 60 };
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
+    if (trendData.length === 0) {
+      return { points: [], path: '', viewBox: `0 0 ${width} ${height}`, padding, width, height };
+    }
+    const maxValue = Math.max(1, maxTrendValue);
+    const points = trendData.map((item, index) => {
+      const x =
+        trendData.length === 1
+          ? padding.left + plotWidth / 2
+          : padding.left + (index / (trendData.length - 1)) * plotWidth;
+      const y = padding.top + (1 - item.count / maxValue) * plotHeight;
+      return { x, y, count: item.count, label: item.date.toLocaleDateString() };
+    });
+    const path = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+      .join(' ');
+    return { points, path, viewBox: `0 0 ${width} ${height}`, padding, width, height };
+  }, [maxTrendValue, trendData]);
+
+  const yAxisTicks = useMemo(() => {
+    const ticks = 4;
+    const maxValue = Math.max(1, maxTrendValue);
+    return Array.from({ length: ticks + 1 }, (_, index) => {
+      const value = Math.round((maxValue / ticks) * (ticks - index));
+      return { value, position: index / ticks };
+    });
+  }, [maxTrendValue]);
+
+  const xAxisLabels = useMemo(() => {
+    if (trendData.length === 0) return [];
+    const labelCount = Math.min(6, trendData.length);
+    return Array.from({ length: labelCount }, (_, index) => {
+      const position = labelCount === 1 ? 0 : index / (labelCount - 1);
+      const dataIndex = labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
+      const item = trendData[dataIndex];
+      return {
+        label: item.date.toLocaleDateString(),
+        position,
+      };
+    });
+  }, [trendData]);
+
+  const activePoint = pinnedPoint ?? hoverPoint;
 
   const recentAlerts = useMemo(() => {
     return [...rows]
@@ -127,6 +324,253 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
               <div className="flex flex-col gap-1">
                 <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Latest alert</span>
                 <span className="text-base text-slate-200">{stats.latest}</span>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-medium">Daily alert trend</h2>
+                  <p className="text-sm text-slate-400">
+                    Eye Closing-A2 alerts with Fatigue, Yawning, and Distraction remarks.
+                  </p>
+                </div>
+                <span className="text-sm text-slate-400">{filteredAlerts.length} alerts</span>
+              </div>
+              <div className="relative mt-4">
+                {trendData.length === 0 ? (
+                  <p className="text-sm text-slate-400">No alert activity available for the selected filters.</p>
+                ) : (
+                  <svg
+                    viewBox={trendPoints.viewBox}
+                    className="h-72 w-full"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Daily alert trend"
+                  >
+                    <defs>
+                      <linearGradient id="simple-trend-line" x1="0" x2="1" y1="0" y2="0">
+                        <stop offset="0%" stopColor="#a78bfa" />
+                        <stop offset="100%" stopColor="#c4b5fd" />
+                      </linearGradient>
+                    </defs>
+                    <rect x="0" y="0" width="100%" height="100%" fill="transparent" rx="16" />
+                    {yAxisTicks.map((tick) => {
+                      const y =
+                        trendPoints.padding.top +
+                        tick.position * (trendPoints.height - trendPoints.padding.top - trendPoints.padding.bottom);
+                      return (
+                        <g key={`tick-${tick.value}`}>
+                          <line
+                            x1={trendPoints.padding.left}
+                            x2={trendPoints.width - trendPoints.padding.right}
+                            y1={y}
+                            y2={y}
+                            stroke="#1f2937"
+                            strokeDasharray="4 6"
+                          />
+                          <text
+                            x={trendPoints.padding.left - 12}
+                            y={y + 4}
+                            textAnchor="end"
+                            fontSize="11"
+                            fill="#94a3b8"
+                          >
+                            {tick.value}
+                          </text>
+                        </g>
+                      );
+                    })}
+                    <line
+                      x1={trendPoints.padding.left}
+                      x2={trendPoints.padding.left}
+                      y1={trendPoints.padding.top}
+                      y2={trendPoints.height - trendPoints.padding.bottom}
+                      stroke="#334155"
+                    />
+                    <line
+                      x1={trendPoints.padding.left}
+                      x2={trendPoints.width - trendPoints.padding.right}
+                      y1={trendPoints.height - trendPoints.padding.bottom}
+                      y2={trendPoints.height - trendPoints.padding.bottom}
+                      stroke="#334155"
+                    />
+                    <path d={trendPoints.path} fill="none" stroke="url(#simple-trend-line)" strokeWidth="3" />
+                    {trendPoints.points.map((point, index) => (
+                      <circle
+                        key={`point-${index}`}
+                        cx={point.x}
+                        cy={point.y}
+                        r="5"
+                        fill="#0f172a"
+                        stroke="#c4b5fd"
+                        strokeWidth="2"
+                        className="cursor-pointer transition"
+                        onMouseEnter={() => setHoverPoint(point)}
+                        onMouseLeave={() => {
+                          if (!pinnedPoint) {
+                            setHoverPoint(null);
+                          }
+                        }}
+                        onClick={() => {
+                          setPinnedPoint((current) => (current?.label === point.label ? null : point));
+                          setHoverPoint(point);
+                        }}
+                      />
+                    ))}
+                    {xAxisLabels.map((label) => {
+                      const x =
+                        trendPoints.padding.left +
+                        label.position * (trendPoints.width - trendPoints.padding.left - trendPoints.padding.right);
+                      return (
+                        <text
+                          key={`label-${label.label}-${label.position}`}
+                          x={x}
+                          y={trendPoints.height - trendPoints.padding.bottom + 24}
+                          textAnchor="middle"
+                          fontSize="11"
+                          fill="#94a3b8"
+                        >
+                          {label.label}
+                        </text>
+                      );
+                    })}
+                  </svg>
+                )}
+                {activePoint ? (
+                  <div
+                    className="pointer-events-none absolute rounded-lg border border-indigo-400/40 bg-slate-950/90 px-3 py-2 text-xs text-indigo-100 shadow-lg"
+                    style={{
+                      left: `${(activePoint.x / trendPoints.width) * 100}%`,
+                      top: `${(activePoint.y / trendPoints.height) * 100}%`,
+                      transform: 'translate(-50%, -120%)',
+                    }}
+                  >
+                    <div className="font-semibold">{activePoint.count} alerts</div>
+                    <div className="text-[11px] text-slate-300">{activePoint.label}</div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-medium">Alerts by vehicle and date</h2>
+                  <p className="text-sm text-slate-400">
+                    Eye Closing-A2 alert counts by remark, grouped per vehicle and day.
+                  </p>
+                </div>
+                <span className="text-sm text-slate-400">{sortedTableRows.length} rows</span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+                <span>Shift-click column headers to sort by multiple columns.</span>
+                {sortCriteria.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setSortCriteria([])}
+                    className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
+                  >
+                    Clear sorting
+                  </button>
+                ) : null}
+              </div>
+              {sortCriteria.length > 0 ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Sorted by</span>
+                  {sortCriteria.map((criterion, index) => (
+                    <button
+                      key={`${criterion.field}-${criterion.direction}`}
+                      type="button"
+                      onClick={() =>
+                        setSortCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))
+                      }
+                      className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                    >
+                      {criterion.field} {criterion.direction} ×
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-xs uppercase tracking-[0.2em] text-slate-300">
+                      {(
+                        [
+                          { label: 'Date', field: 'date', className: 'bg-slate-900/70 text-slate-100' },
+                          { label: 'Vehicle number', field: 'vehicle', className: 'bg-slate-900/60 text-slate-100' },
+                          { label: 'Distraction', field: 'distraction', className: 'bg-amber-500/10 text-amber-200' },
+                          { label: 'Fatigue', field: 'fatigue', className: 'bg-rose-500/10 text-rose-200' },
+                          { label: 'Yawning', field: 'yawning', className: 'bg-emerald-500/10 text-emerald-200' },
+                          { label: 'Total', field: 'total', className: 'bg-indigo-500/10 text-indigo-200' },
+                        ] as const
+                      ).map((column) => {
+                        const sortIndex = sortCriteria.findIndex((criterion) => criterion.field === column.field);
+                        const sortDirection = sortIndex >= 0 ? sortCriteria[sortIndex].direction : null;
+                        const sortBadge =
+                          sortIndex >= 0
+                            ? `${sortDirection === 'asc' ? 'Asc' : 'Desc'}${sortCriteria.length > 1 ? ` ${sortIndex + 1}` : ''}`
+                            : 'Sort';
+                        return (
+                          <th key={column.field} className={`py-3 pr-4 ${column.className ?? ''}`}>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                setSortCriteria((current) => {
+                                  const existingIndex = current.findIndex(
+                                    (criterion) => criterion.field === column.field,
+                                  );
+                                  const multiSort = event.shiftKey;
+                                  const nextCriteria = multiSort ? [...current] : [];
+                                  if (existingIndex === -1) {
+                                    return [...nextCriteria, { field: column.field, direction: 'asc' }];
+                                  }
+                                  const existing = current[existingIndex];
+                                  if (multiSort) {
+                                    nextCriteria.splice(existingIndex, 1);
+                                  }
+                                  if (existing.direction === 'asc') {
+                                    if (multiSort) {
+                                      nextCriteria.splice(existingIndex, 0, { field: column.field, direction: 'desc' });
+                                      return nextCriteria;
+                                    }
+                                    return [{ field: column.field, direction: 'desc' }];
+                                  }
+                                  return nextCriteria;
+                                });
+                              }}
+                              className="flex items-center gap-2 text-left hover:text-white"
+                            >
+                              <span>{column.label}</span>
+                              <span className="text-[11px] text-slate-400">{sortBadge}</span>
+                            </button>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedTableRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-sm text-slate-400">
+                          No Eye Closing-A2 alerts with the selected remarks.
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedTableRows.map((row) => (
+                        <tr key={row.id} className="border-b border-slate-900/80 text-slate-200">
+                          <td className="py-3 pr-4 text-slate-300">{row.dateLabel}</td>
+                          <td className="py-3 pr-4 font-semibold text-white">{row.vehicle}</td>
+                          <td className="py-3 pr-4 text-amber-200">{row.distraction}</td>
+                          <td className="py-3 pr-4 text-rose-200">{row.fatigue}</td>
+                          <td className="py-3 pr-4 text-emerald-200">{row.yawning}</td>
+                          <td className="py-3 pr-4 text-indigo-200">{row.total}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </section>
 
