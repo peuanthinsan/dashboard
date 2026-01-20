@@ -520,9 +520,9 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                         [
                           { label: 'Date', field: 'date' },
                           { label: 'Vehicle number', field: 'vehicle' },
-                          { label: 'Distraction', field: 'distraction' },
                           { label: 'Fatigue', field: 'fatigue' },
                           { label: 'Yawning', field: 'yawning' },
+                          { label: 'Distraction', field: 'distraction' },
                           { label: 'Total', field: 'total' },
                         ] as const
                       ).map((column) => {
@@ -581,9 +581,9 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                       <tr key={row.id} className="border-b border-slate-900/80 text-slate-200">
                         <td className="py-3 pr-4 text-slate-300">{row.dateLabel}</td>
                         <td className="py-3 pr-4 font-semibold text-white">{row.vehicle}</td>
-                        <td className="py-3 pr-4 text-indigo-200">{row.distraction}</td>
                         <td className="py-3 pr-4 text-amber-200">{row.fatigue}</td>
                         <td className="py-3 pr-4 text-emerald-200">{row.yawning}</td>
+                        <td className="py-3 pr-4 text-indigo-200">{row.distraction}</td>
                         <td className="py-3 pr-4 text-rose-200">{row.total}</td>
                       </tr>
                     ))}
