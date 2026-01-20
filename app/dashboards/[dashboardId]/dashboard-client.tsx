@@ -132,6 +132,24 @@ type DashboardClientProps = {
   organizationName?: string | null;
 };
 
+type AlertRow = {
+  id: string;
+  dateKey: string;
+  dateValue: Date;
+  dateDisplay: string;
+  dateTimeDisplay: string;
+  monthKey: string;
+  vehicle: string;
+  driver: unknown;
+  alertType: string;
+  speed: unknown;
+  remarks: string | null;
+  fleet: unknown;
+  videoUrl: unknown;
+};
+
+const isAlertRow = (row: AlertRow | null): row is AlertRow => Boolean(row);
+
 export default function DashboardClient({
   title,
   description,
@@ -258,10 +276,10 @@ export default function DashboardClient({
     setSelectedRemark('all');
   };
 
-  const alertRows = useMemo(() => {
+  const alertRows = useMemo<AlertRow[]>(() => {
     if (!vehicleColumn || !alertTypeColumn || !dateTimeColumn) return [];
     return records
-      .map((row: Record<string, unknown>, index: number) => {
+      .map((row: Record<string, unknown>, index: number): AlertRow | null => {
         const dateValue = row[dateTimeColumn.field];
         if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) {
           return null;
@@ -293,8 +311,8 @@ export default function DashboardClient({
           videoUrl: videoColumn ? row[videoColumn.field] : null,
         };
       })
+      .filter(isAlertRow)
       .filter((row) => {
-        if (!row) return false;
         const remarkValue = normalizeRemark(row.remarks);
         if (remarkValue && EXCLUDED_REMARKS.has(remarkValue)) {
           return false;
