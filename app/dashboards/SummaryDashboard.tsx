@@ -279,13 +279,47 @@ export default function SummaryDashboard({
   const maxRemarkTotal = topRemarks[0]?.total ?? 0;
   const maxVehicleTotal = topVehicles[0]?.total ?? 0;
 
+  const allowedAlertTypes = [
+    'Distraction-A2',
+    'Eye Closing-A2',
+    'OverSpeed',
+    'Harsh Acceleration',
+    'Harsh Brake',
+    'Forward Collision-A2',
+    'Seatbelt-A2',
+    'Camera Cover',
+  ];
+
+  const allowedRemarkTargets = [
+    'Fatigue',
+    'Yawning',
+    'Distraction',
+    'Smoking',
+    'Mobile Phone',
+    'Eating/Drinking',
+    'Seatbelt',
+    'Camera Cover',
+    'Harsh Brake',
+    'Harsh Acceleration',
+    'OverSpeed',
+    'Maintenance',
+    'Mirror Check',
+    'Speed Meter Check',
+  ];
+
   const countMatches = (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {
     const normalizedTarget = normalizeLabel(targetLabel);
+    if (field === 'alertType' && !allowedAlertTypes.some((label) => normalizeLabel(label) === normalizedTarget)) {
+      return 0;
+    }
     return dataset.reduce((total, row) => {
       const value = field === 'remarks' ? row.remarks : row.alertType;
       if (!value || value === '—') return total;
       const normalizedValue = normalizeLabel(value);
-      return normalizedValue.includes(normalizedTarget) ? total + 1 : total;
+      if (field === 'remarks') {
+        return normalizedValue.includes(normalizedTarget) ? total + 1 : total;
+      }
+      return normalizedValue === normalizedTarget ? total + 1 : total;
     }, 0);
   };
 
@@ -296,26 +330,17 @@ export default function SummaryDashboard({
       current: number;
       previous: number;
     };
-    const remarkTargets = [
-      'Fatigue',
-      'Yawning',
-      'Distraction',
-      'Smoking',
-      'Mobile Phone',
-      'Seatbelt',
-      'Eating/Drinking',
-    ];
-    const items: HighlightItem[] = remarkTargets.map((label) => ({
+    const items: HighlightItem[] = allowedRemarkTargets.map((label) => ({
       label,
       field: 'remarks' as const,
       current: countMatches(label, 'remarks', currentRows),
       previous: countMatches(label, 'remarks', previousRows),
     }));
     items.push({
-      label: 'Forward collision',
+      label: 'Forward Collision-A2',
       field: 'alertType',
-      current: countMatches('Forward Collision', 'alertType', currentRows),
-      previous: countMatches('Forward Collision', 'alertType', previousRows),
+      current: countMatches('Forward Collision-A2', 'alertType', currentRows),
+      previous: countMatches('Forward Collision-A2', 'alertType', previousRows),
     });
     return items;
   }, [currentRows, previousRows]);
