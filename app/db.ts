@@ -204,10 +204,10 @@ async function ensureTablesExist() {
 
   const dashboards = pgTable('Dashboard', {
     id: serial('id').primaryKey(),
-    name: varchar('name', { length: 128 }),
-    template: varchar('template', { length: 32 }),
-    sheetUrl: varchar('sheetUrl', { length: 512 }),
-    companyId: integer('companyId'),
+    name: varchar('name', { length: 128 }).notNull(),
+    template: varchar('template', { length: 32 }).notNull(),
+    sheetUrl: varchar('sheetUrl', { length: 512 }).notNull(),
+    companyId: integer('companyId').notNull(),
     organizationId: integer('organizationId'),
   });
 

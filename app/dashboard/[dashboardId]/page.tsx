@@ -32,12 +32,17 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     redirect('/dashboard');
   }
   const dashboard = dashboards[0];
+  const dashboardName = dashboard.name ?? 'Dashboard';
+  const sheetUrl = dashboard.sheetUrl ?? '';
+  if (!sheetUrl) {
+    redirect('/dashboard');
+  }
 
   if (dashboard.template === 'Detail') {
-    return <DetailDashboard name={dashboard.name} sheetUrl={dashboard.sheetUrl} />;
+    return <DetailDashboard name={dashboardName} sheetUrl={sheetUrl} />;
   }
   if (dashboard.template === 'Simple') {
-    return <SimpleDashboard name={dashboard.name} sheetUrl={dashboard.sheetUrl} />;
+    return <SimpleDashboard name={dashboardName} sheetUrl={sheetUrl} />;
   }
-  return <SummaryDashboard name={dashboard.name} sheetUrl={dashboard.sheetUrl} />;
+  return <SummaryDashboard name={dashboardName} sheetUrl={sheetUrl} />;
 }
