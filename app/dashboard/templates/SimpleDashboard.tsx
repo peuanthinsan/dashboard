@@ -58,7 +58,7 @@ export default function SimpleDashboard({ name, sheetUrl }: SimpleDashboardProps
     () =>
       findColumn({
         matches: ['remarks', 'remark'],
-        fallbackIndex: null,
+        fallbackIndex: undefined,
       }),
     [findColumn],
   );
@@ -66,7 +66,7 @@ export default function SimpleDashboard({ name, sheetUrl }: SimpleDashboardProps
     () =>
       findColumn({
         matches: ['alert date time', 'track time', 'date'],
-        fallbackIndex: null,
+        fallbackIndex: undefined,
       }),
     [findColumn],
   );
