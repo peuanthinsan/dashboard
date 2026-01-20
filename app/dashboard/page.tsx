@@ -57,6 +57,10 @@ export default async function DashboardIndexPage() {
                 dashboard.organizationId != null
                   ? organizationLookup.get(dashboard.organizationId) ?? `Organization #${dashboard.organizationId}`
                   : 'Unassigned organization';
+              const sheetReference =
+                dashboard.sheetId && dashboard.sheetGid
+                  ? buildSheetUrl(dashboard.sheetId, dashboard.sheetGid)
+                  : 'No sheet linked';
               return (
               <Link
                 key={dashboard.id}
@@ -72,7 +76,7 @@ export default async function DashboardIndexPage() {
                   </p>
                   <p className="text-xs text-slate-400">Linked sheet</p>
                   <p className="text-sm text-slate-200">
-                    {buildSheetUrl(dashboard.sheetId, dashboard.sheetGid)}
+                    {sheetReference}
                   </p>
                 </div>
               </Link>
