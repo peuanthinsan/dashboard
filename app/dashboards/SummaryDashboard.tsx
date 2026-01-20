@@ -81,6 +81,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
   const [fleetFilter, setFleetFilter] = useState('all');
   const [remarkFilter, setRemarkFilter] = useState('all');
   const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
 
   const alertRows = useMemo(() => {
     return rows.map((row) => {
@@ -138,6 +139,13 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
 
+  const filteredVehicleOptions = useMemo(() => {
+    const trimmedSearch = vehicleSearch.trim();
+    if (!trimmedSearch) return vehicleOptions;
+    const normalizedSearch = normalizeLabel(trimmedSearch);
+    return vehicleOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
+  }, [vehicleOptions, vehicleSearch]);
+
   const monthOptions = useMemo(() => {
     const unique = new Map<string, string>();
     alertRows.forEach((row) => {
@@ -151,19 +159,18 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
   }, [alertRows]);
 
   const baseFilteredRows = useMemo(() => {
-    const trimmedVehicleSearch = vehicleSearch.trim();
-    const normalizedVehicleSearch = trimmedVehicleSearch ? normalizeLabel(trimmedVehicleSearch) : '';
+    const normalizedVehicleFilters = vehicleFilters.map((vehicle) => normalizeLabel(vehicle));
     return alertRows.filter((row) => {
       if (alertFilter !== 'all' && row.alertType !== alertFilter) return false;
       if (fleetFilter !== 'all' && row.fleet !== fleetFilter) return false;
       if (remarkFilter !== 'all' && row.remarks !== remarkFilter) return false;
-      if (normalizedVehicleSearch) {
+      if (normalizedVehicleFilters.length > 0) {
         const normalizedVehicle = normalizeLabel(row.vehicle);
-        if (!normalizedVehicle.includes(normalizedVehicleSearch)) return false;
+        if (!normalizedVehicleFilters.includes(normalizedVehicle)) return false;
       }
       return true;
     });
-  }, [alertFilter, alertRows, fleetFilter, remarkFilter, vehicleSearch]);
+  }, [alertFilter, alertRows, fleetFilter, remarkFilter, vehicleFilters]);
 
   const activeMonthKey = monthFilter === 'all' ? null : monthFilter;
 
@@ -289,6 +296,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     setFleetFilter('all');
                     setRemarkFilter('all');
                     setVehicleSearch('');
+                    setVehicleFilters([]);
                   }}
                   className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                 >
@@ -362,15 +370,56 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                     type="text"
                     value={vehicleSearch}
                     onChange={(event) => setVehicleSearch(event.target.value)}
-                    placeholder="Type vehicle number..."
-                    list="vehicle-search-options"
+                    placeholder="Search vehicles..."
                     className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
                   />
-                  <datalist id="vehicle-search-options">
-                    {vehicleOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
-                  </datalist>
+                  <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
+                    {filteredVehicleOptions.length === 0 ? (
+                      <p className="text-xs text-slate-500">No vehicles found.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {filteredVehicleOptions.map((option) => {
+                          const isSelected = vehicleFilters.includes(option);
+                          return (
+                            <li key={option}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setVehicleFilters((current) =>
+                                    isSelected ? current.filter((value) => value !== option) : [...current, option],
+                                  );
+                                }}
+                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
+                                  isSelected
+                                    ? 'bg-indigo-500/20 text-indigo-100'
+                                    : 'text-slate-200 hover:bg-slate-800'
+                                }`}
+                              >
+                                <span>{option}</span>
+                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                  {vehicleFilters.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {vehicleFilters.map((vehicle) => (
+                        <button
+                          key={vehicle}
+                          type="button"
+                          onClick={() =>
+                            setVehicleFilters((current) => current.filter((value) => value !== vehicle))
+                          }
+                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                        >
+                          {vehicle} ×
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </section>
