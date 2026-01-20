@@ -413,104 +413,72 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                   Reset filters
                 </button>
               </div>
-              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search alert types</label>
-                  <input
-                    type="text"
-                    value={alertSearch}
-                    onChange={(event) => setAlertSearch(event.target.value)}
-                    placeholder="Search alerts..."
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-                  />
-                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
-                    {filteredAlertOptions.length === 0 ? (
-                      <p className="text-xs text-slate-500">No alert types found.</p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {filteredAlertOptions.map((option) => {
-                          const isSelected = alertFilters.includes(option);
-                          return (
-                            <li key={option}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAlertFilters((current) =>
-                                    isSelected ? current.filter((value) => value !== option) : [...current, option],
-                                  );
-                                }}
-                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
-                                  isSelected
-                                    ? 'bg-indigo-500/20 text-indigo-100'
-                                    : 'text-slate-200 hover:bg-slate-800'
-                                }`}
-                              >
-                                <span>{option}</span>
-                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                  {alertFilters.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-4 space-y-3 text-xs text-slate-300">
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter alert types</span>
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {alertFilters.map((alert) => (
                         <button
                           key={alert}
                           type="button"
                           onClick={() => setAlertFilters((current) => current.filter((value) => value !== alert))}
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                         >
                           {alert} ×
                         </button>
                       ))}
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        list="alert-type-options"
+                        value={alertSearch}
+                        onChange={(event) => setAlertSearch(event.target.value)}
+                        placeholder={alertOptions.length === 0 ? 'No alert types available' : 'Search alert types'}
+                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      />
+                      <datalist id="alert-type-options">
+                        {filteredAlertOptions.map((option) => (
+                          <option key={option} value={option} />
+                        ))}
+                      </datalist>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trimmed = alertSearch.trim();
+                          if (!trimmed) return;
+                          const matched = alertOptions.find(
+                            (option) => normalizeLabel(option) === normalizeLabel(trimmed),
+                          );
+                          if (!matched) return;
+                          setAlertFilters((current) => (current.includes(matched) ? current : [...current, matched]));
+                          setAlertSearch('');
+                          setPage(1);
+                        }}
+                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAlertFilters([]);
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                  >
+                    Clear
+                  </button>
+                  {alertFilters.length > 0 ? (
+                    <span className="text-slate-500">{alertFilters.length} selected</span>
                   ) : null}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search months</label>
-                  <input
-                    type="text"
-                    value={monthSearch}
-                    onChange={(event) => setMonthSearch(event.target.value)}
-                    placeholder="Search months..."
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-                  />
-                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
-                    {filteredMonthOptions.length === 0 ? (
-                      <p className="text-xs text-slate-500">No months found.</p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {filteredMonthOptions.map((option) => {
-                          const isSelected = monthFilters.includes(option.key);
-                          return (
-                            <li key={option.key}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMonthFilters((current) =>
-                                    isSelected ? current.filter((value) => value !== option.key) : [...current, option.key],
-                                  );
-                                }}
-                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
-                                  isSelected
-                                    ? 'bg-indigo-500/20 text-indigo-100'
-                                    : 'text-slate-200 hover:bg-slate-800'
-                                }`}
-                              >
-                                <span>{option.label}</span>
-                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                  {monthFilters.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter months</span>
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {monthFilters.map((monthKey) => {
                         const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
                         return (
@@ -518,167 +486,188 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                             key={monthKey}
                             type="button"
                             onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                           >
                             {monthLabel} ×
                           </button>
                         );
                       })}
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        list="month-options"
+                        value={monthSearch}
+                        onChange={(event) => setMonthSearch(event.target.value)}
+                        placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
+                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      />
+                      <datalist id="month-options">
+                        {filteredMonthOptions.map((option) => (
+                          <option key={option.key} value={option.label} />
+                        ))}
+                      </datalist>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trimmed = monthSearch.trim();
+                          if (!trimmed) return;
+                          const matched = monthOptions.find(
+                            (option) =>
+                              option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed),
+                          );
+                          if (!matched) return;
+                          setMonthFilters((current) =>
+                            current.includes(matched.key) ? current : [...current, matched.key],
+                          );
+                          setMonthSearch('');
+                          setPage(1);
+                        }}
+                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMonthFilters([]);
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                  >
+                    Clear
+                  </button>
+                  {monthFilters.length > 0 ? (
+                    <span className="text-slate-500">{monthFilters.length} selected</span>
                   ) : null}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search fleets</label>
-                  <input
-                    type="text"
-                    value={fleetSearch}
-                    onChange={(event) => setFleetSearch(event.target.value)}
-                    placeholder="Search fleets..."
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-                  />
-                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
-                    {filteredFleetOptions.length === 0 ? (
-                      <p className="text-xs text-slate-500">No fleets found.</p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {filteredFleetOptions.map((option) => {
-                          const isSelected = fleetFilters.includes(option);
-                          return (
-                            <li key={option}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setFleetFilters((current) =>
-                                    isSelected ? current.filter((value) => value !== option) : [...current, option],
-                                  );
-                                }}
-                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
-                                  isSelected
-                                    ? 'bg-indigo-500/20 text-indigo-100'
-                                    : 'text-slate-200 hover:bg-slate-800'
-                                }`}
-                              >
-                                <span>{option}</span>
-                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                  {fleetFilters.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter fleets</span>
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {fleetFilters.map((fleet) => (
                         <button
                           key={fleet}
                           type="button"
                           onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                         >
                           {fleet} ×
                         </button>
                       ))}
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        list="fleet-options"
+                        value={fleetSearch}
+                        onChange={(event) => setFleetSearch(event.target.value)}
+                        placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
+                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      />
+                      <datalist id="fleet-options">
+                        {filteredFleetOptions.map((option) => (
+                          <option key={option} value={option} />
+                        ))}
+                      </datalist>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trimmed = fleetSearch.trim();
+                          if (!trimmed) return;
+                          const matched = fleetOptions.find(
+                            (option) => normalizeLabel(option) === normalizeLabel(trimmed),
+                          );
+                          if (!matched) return;
+                          setFleetFilters((current) => (current.includes(matched) ? current : [...current, matched]));
+                          setFleetSearch('');
+                          setPage(1);
+                        }}
+                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFleetFilters([]);
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                  >
+                    Clear
+                  </button>
+                  {fleetFilters.length > 0 ? (
+                    <span className="text-slate-500">{fleetFilters.length} selected</span>
                   ) : null}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search remark types</label>
-                  <input
-                    type="text"
-                    value={remarkSearch}
-                    onChange={(event) => setRemarkSearch(event.target.value)}
-                    placeholder="Search remarks..."
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-                  />
-                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
-                    {filteredRemarkOptions.length === 0 ? (
-                      <p className="text-xs text-slate-500">No remarks found.</p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {filteredRemarkOptions.map((option) => {
-                          const isSelected = remarkFilters.includes(option);
-                          return (
-                            <li key={option}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setRemarkFilters((current) =>
-                                    isSelected ? current.filter((value) => value !== option) : [...current, option],
-                                  );
-                                }}
-                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
-                                  isSelected
-                                    ? 'bg-indigo-500/20 text-indigo-100'
-                                    : 'text-slate-200 hover:bg-slate-800'
-                                }`}
-                              >
-                                <span>{option}</span>
-                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                  {remarkFilters.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter remark types</span>
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {remarkFilters.map((remark) => (
                         <button
                           key={remark}
                           type="button"
                           onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                         >
                           {remark} ×
                         </button>
                       ))}
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        list="remark-options"
+                        value={remarkSearch}
+                        onChange={(event) => setRemarkSearch(event.target.value)}
+                        placeholder={remarkOptions.length === 0 ? 'No remarks available' : 'Search remarks'}
+                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      />
+                      <datalist id="remark-options">
+                        {filteredRemarkOptions.map((option) => (
+                          <option key={option} value={option} />
+                        ))}
+                      </datalist>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trimmed = remarkSearch.trim();
+                          if (!trimmed) return;
+                          const matched = remarkOptions.find(
+                            (option) => normalizeLabel(option) === normalizeLabel(trimmed),
+                          );
+                          if (!matched) return;
+                          setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched]));
+                          setRemarkSearch('');
+                          setPage(1);
+                        }}
+                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRemarkFilters([]);
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                  >
+                    Clear
+                  </button>
+                  {remarkFilters.length > 0 ? (
+                    <span className="text-slate-500">{remarkFilters.length} selected</span>
                   ) : null}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search vehicle number</label>
-                  <input
-                    type="text"
-                    value={vehicleSearch}
-                    onChange={(event) => setVehicleSearch(event.target.value)}
-                    placeholder="Search vehicles..."
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-                  />
-                  <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
-                    {filteredVehicleOptions.length === 0 ? (
-                      <p className="text-xs text-slate-500">No vehicles found.</p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {filteredVehicleOptions.map((option) => {
-                          const isSelected = vehicleFilters.includes(option);
-                          return (
-                            <li key={option}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setVehicleFilters((current) =>
-                                    isSelected ? current.filter((value) => value !== option) : [...current, option],
-                                  );
-                                }}
-                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
-                                  isSelected
-                                    ? 'bg-indigo-500/20 text-indigo-100'
-                                    : 'text-slate-200 hover:bg-slate-800'
-                                }`}
-                              >
-                                <span>{option}</span>
-                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                  {vehicleFilters.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {vehicleFilters.map((vehicle) => (
                         <button
                           key={vehicle}
@@ -686,12 +675,56 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                           onClick={() =>
                             setVehicleFilters((current) => current.filter((value) => value !== vehicle))
                           }
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                         >
                           {vehicle} ×
                         </button>
                       ))}
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        list="vehicle-options"
+                        value={vehicleSearch}
+                        onChange={(event) => setVehicleSearch(event.target.value)}
+                        placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicles'}
+                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      />
+                      <datalist id="vehicle-options">
+                        {filteredVehicleOptions.map((option) => (
+                          <option key={option} value={option} />
+                        ))}
+                      </datalist>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trimmed = vehicleSearch.trim();
+                          if (!trimmed) return;
+                          const matched = vehicleOptions.find(
+                            (option) => normalizeLabel(option) === normalizeLabel(trimmed),
+                          );
+                          if (!matched) return;
+                          setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched]));
+                          setVehicleSearch('');
+                          setPage(1);
+                        }}
+                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVehicleFilters([]);
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                  >
+                    Clear
+                  </button>
+                  {vehicleFilters.length > 0 ? (
+                    <span className="text-slate-500">{vehicleFilters.length} selected</span>
                   ) : null}
                 </div>
               </div>
