@@ -65,6 +65,20 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>(defaultSortCriteria);
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const normalizedStartDate = useMemo(() => {
+    if (!startDate) return null;
+    const parsed = new Date(`${startDate}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, [startDate]);
+
+  const normalizedEndDate = useMemo(() => {
+    if (!endDate) return null;
+    const parsed = new Date(`${endDate}T23:59:59.999`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, [endDate]);
 
   const filteredAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
@@ -86,8 +100,15 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
         if (normalizeLabel(row.alertType) !== normalizeLabel('Eye Closing-A2')) return false;
         return allowedRemarks.has(normalizeLabel(row.remarks));
       })
-      .filter((row) => row.parsedDate);
-  }, [rows]);
+      .filter((row) => row.parsedDate)
+      .filter((row) => {
+        if (!row.parsedDate) return false;
+        const timestamp = row.parsedDate.getTime();
+        if (normalizedStartDate && timestamp < normalizedStartDate.getTime()) return false;
+        if (normalizedEndDate && timestamp > normalizedEndDate.getTime()) return false;
+        return true;
+      });
+  }, [rows, normalizedEndDate, normalizedStartDate]);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -202,7 +223,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
 
   useEffect(() => {
     setPage(1);
-  }, [pageSize, sortCriteria, sortedSummaries.length]);
+  }, [pageSize, sortCriteria, sortedSummaries.length, startDate, endDate]);
 
   const trendData = useMemo(() => {
     const counts = new Map<string, { key: string; date: Date; count: number }>();
@@ -461,6 +482,36 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                     Eye Closing-A2 alerts with fatigue, yawning, and distraction remarks.
                   </p>
                 </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-end gap-4 text-xs text-slate-400">
+                <div className="flex flex-col gap-1">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Start date</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => setStartDate(event.target.value)}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-200"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="uppercase tracking-[0.2em] text-slate-500">End date</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(event) => setEndDate(event.target.value)}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-200"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                  }}
+                  className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200"
+                >
+                  Clear dates
+                </button>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
                 <div className="flex flex-wrap items-center gap-3">
