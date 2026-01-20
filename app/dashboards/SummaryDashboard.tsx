@@ -279,17 +279,6 @@ export default function SummaryDashboard({
   const maxRemarkTotal = topRemarks[0]?.total ?? 0;
   const maxVehicleTotal = topVehicles[0]?.total ?? 0;
 
-  const allowedAlertTypes = [
-    'Distraction-A2',
-    'Eye Closing-A2',
-    'OverSpeed',
-    'Harsh Acceleration',
-    'Harsh Brake',
-    'Forward Collision-A2',
-    'Seatbelt-A2',
-    'Camera Cover',
-  ];
-
   const allowedRemarkTargets = [
     'Fatigue',
     'Yawning',
@@ -309,9 +298,6 @@ export default function SummaryDashboard({
 
   const countMatches = (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {
     const normalizedTarget = normalizeLabel(targetLabel);
-    if (field === 'alertType' && !allowedAlertTypes.some((label) => normalizeLabel(label) === normalizedTarget)) {
-      return 0;
-    }
     return dataset.reduce((total, row) => {
       const value = field === 'remarks' ? row.remarks : row.alertType;
       if (!value || value === '—') return total;
@@ -342,7 +328,7 @@ export default function SummaryDashboard({
       current: countMatches('Forward Collision-A2', 'alertType', currentRows),
       previous: countMatches('Forward Collision-A2', 'alertType', previousRows),
     });
-    return items;
+    return items.filter((item) => item.current > 0);
   }, [currentRows, previousRows]);
 
   return (
