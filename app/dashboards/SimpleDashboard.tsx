@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -347,6 +348,13 @@ export default function SimpleDashboard({
         <header className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
+              <Link
+                href="/dashboard"
+                className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-300 transition hover:text-white"
+              >
+                <span aria-hidden="true">←</span>
+                Back to dashboards
+              </Link>
               <h1 className="text-3xl font-semibold">{dashboardName}</h1>
             </div>
             <button
@@ -546,7 +554,7 @@ export default function SimpleDashboard({
                     No daily alert data available yet.
                   </div>
                 ) : (
-                  <div className="relative min-w-[640px]">
+                  <div className="relative min-w-[640px] overflow-visible">
                     <svg
                       viewBox={trendPoints.viewBox}
                       className="h-[300px] w-full"
@@ -637,8 +645,8 @@ export default function SimpleDashboard({
                         className="pointer-events-none absolute rounded-lg border border-indigo-400/40 bg-slate-950/90 px-3 py-2 text-xs text-indigo-100 shadow-lg"
                         style={{
                           left: `${(activePoint.x / trendPoints.width) * 100}%`,
-                          top: `${(activePoint.y / trendPoints.height) * 100}%`,
-                          transform: 'translate(-50%, -120%)',
+                          top: `${(Math.max(activePoint.y - 32, trendPoints.padding.top + 12) / trendPoints.height) * 100}%`,
+                          transform: 'translate(-50%, -100%)',
                         }}
                       >
                         <div className="font-semibold">{activePoint.count} alerts</div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -83,6 +84,13 @@ export default function VideoSamplesDashboard({
         <header className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
+              <Link
+                href="/dashboard"
+                className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-300 transition hover:text-white"
+              >
+                <span aria-hidden="true">←</span>
+                Back to dashboards
+              </Link>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Video samples</p>
               <h1 className="text-3xl font-semibold">{dashboardName}</h1>
             </div>

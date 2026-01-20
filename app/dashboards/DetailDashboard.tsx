@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -384,6 +385,13 @@ export default function DetailDashboard({
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
+            <Link
+              href="/dashboard"
+              className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-300 transition hover:text-white"
+            >
+              <span aria-hidden="true">←</span>
+              Back to dashboards
+            </Link>
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Detail dashboard</p>
             <h1 className="text-3xl font-semibold">{dashboardName}</h1>
             {lastUpdated ? (
@@ -767,7 +775,7 @@ export default function DetailDashboard({
                 </div>
                 <span className="text-sm text-slate-400">{filteredAlerts.length} alerts</span>
               </div>
-              <div className="relative mt-4">
+              <div className="relative mt-4 overflow-visible">
                 {trendData.length === 0 ? (
                   <p className="text-sm text-slate-400">No alert activity available for the selected filters.</p>
                 ) : (
@@ -903,8 +911,8 @@ export default function DetailDashboard({
                     className="pointer-events-none absolute rounded-lg border border-indigo-400/40 bg-slate-950/90 px-3 py-2 text-xs text-indigo-100 shadow-lg"
                     style={{
                       left: `${(activePoint.x / trendPoints.width) * 100}%`,
-                      top: `${(activePoint.y / trendPoints.height) * 100}%`,
-                      transform: 'translate(-50%, -120%)',
+                      top: `${(Math.max(activePoint.y - 32, trendPoints.padding.top + 12) / trendPoints.height) * 100}%`,
+                      transform: 'translate(-50%, -100%)',
                     }}
                   >
                     <div className="font-semibold">{activePoint.count} alerts</div>
