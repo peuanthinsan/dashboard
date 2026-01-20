@@ -160,11 +160,12 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
     });
   }, [alertFilter, alertRows, fleetFilter, remarkFilter, vehicleFilter]);
 
-  const latestMonthKey = monthOptions[0]?.key ?? null;
-  const activeMonthKey = monthFilter === 'all' ? latestMonthKey : monthFilter;
+  const activeMonthKey = monthFilter === 'all' ? null : monthFilter;
 
   const activeMonthLabel =
-    monthOptions.find((option) => option.key === activeMonthKey)?.label ?? 'All months';
+    activeMonthKey
+      ? monthOptions.find((option) => option.key === activeMonthKey)?.label ?? 'All months'
+      : 'All months';
 
   const currentRows = useMemo(() => {
     if (!activeMonthKey) return baseFilteredRows;
