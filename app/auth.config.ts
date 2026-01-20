@@ -13,7 +13,8 @@ export const authConfig = {
       let isLoggedIn = !!auth?.user;
       let isOnDashboard =
         nextUrl.pathname.startsWith('/protected') ||
-        nextUrl.pathname.startsWith('/admin');
+        nextUrl.pathname.startsWith('/admin') ||
+        nextUrl.pathname.startsWith('/dashboard');
 
       if (isOnDashboard) {
         if (isLoggedIn) return true;

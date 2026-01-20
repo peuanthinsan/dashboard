@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSaltSync, hashSync } from 'bcrypt-ts';
 
@@ -55,6 +55,77 @@ export async function createOrganization(name: string) {
   return await db.insert(organizations).values({ name });
 }
 
+export type DashboardTemplate = 'Summary' | 'Detail' | 'Simple';
+
+export async function getDashboards() {
+  const { dashboards } = await ensureTablesExist();
+  return await db.select().from(dashboards).orderBy(dashboards.name);
+}
+
+export async function getDashboardsForUser(user: { companyId: number | null; organizationId: number | null }) {
+  const { dashboards } = await ensureTablesExist();
+  if (!user.companyId) {
+    return [];
+  }
+  return await db
+    .select()
+    .from(dashboards)
+    .where(
+      and(
+        eq(dashboards.companyId, user.companyId),
+        user.organizationId
+          ? or(eq(dashboards.organizationId, user.organizationId), isNull(dashboards.organizationId))
+          : isNull(dashboards.organizationId),
+      ),
+    )
+    .orderBy(dashboards.name);
+}
+
+export async function getDashboardForUserById(
+  dashboardId: number,
+  user: { companyId: number | null; organizationId: number | null },
+) {
+  const { dashboards } = await ensureTablesExist();
+  if (!user.companyId) {
+    return [];
+  }
+  return await db
+    .select()
+    .from(dashboards)
+    .where(
+      and(
+        eq(dashboards.id, dashboardId),
+        eq(dashboards.companyId, user.companyId),
+        user.organizationId
+          ? or(eq(dashboards.organizationId, user.organizationId), isNull(dashboards.organizationId))
+          : isNull(dashboards.organizationId),
+      ),
+    );
+}
+
+export async function createDashboard({
+  name,
+  template,
+  sheetUrl,
+  companyId,
+  organizationId,
+}: {
+  name: string;
+  template: DashboardTemplate;
+  sheetUrl: string;
+  companyId: number;
+  organizationId: number | null;
+}) {
+  const { dashboards } = await ensureTablesExist();
+  return await db.insert(dashboards).values({
+    name,
+    template,
+    sheetUrl,
+    companyId,
+    organizationId,
+  });
+}
+
 export async function updateUserAssignments(
   userId: number,
   {
@@ -92,6 +163,16 @@ async function ensureTablesExist() {
     );
   `;
   await client`
+    CREATE TABLE IF NOT EXISTS "Dashboard" (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(128) NOT NULL,
+      template VARCHAR(32) NOT NULL,
+      "sheetUrl" VARCHAR(512) NOT NULL,
+      "companyId" INTEGER NOT NULL REFERENCES "Company"(id) ON DELETE CASCADE,
+      "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
+    );
+  `;
+  await client`
     CREATE TABLE IF NOT EXISTS "User" (
       id SERIAL PRIMARY KEY,
       email VARCHAR(64),
@@ -121,5 +202,14 @@ async function ensureTablesExist() {
     name: varchar('name', { length: 128 }),
   });
 
-  return { users, companies, organizations };
+  const dashboards = pgTable('Dashboard', {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 128 }),
+    template: varchar('template', { length: 32 }),
+    sheetUrl: varchar('sheetUrl', { length: 512 }),
+    companyId: integer('companyId'),
+    organizationId: integer('organizationId'),
+  });
+
+  return { users, companies, organizations, dashboards };
 }
