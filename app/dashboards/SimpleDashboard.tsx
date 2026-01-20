@@ -36,6 +36,7 @@ type SortCriterion = {
 };
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
+const formatDateInputLabel = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString();
 
 const findValue = (row: Record<string, any>, labels: string[]) => {
   const target = labels.map((label) => normalizeLabel(label));
@@ -58,6 +59,8 @@ const toDayKey = (date: Date) =>
 export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
   const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const defaultSortCriteria = useMemo<SortCriterion[]>(
     () => [{ field: 'date', direction: 'desc' }],
     [],
@@ -66,7 +69,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
 
-  const filteredAlerts = useMemo(() => {
+  const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
     return rows
       .map((row) => {
@@ -88,6 +91,28 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       })
       .filter((row) => row.parsedDate);
   }, [rows]);
+
+  const filteredAlerts = useMemo(() => {
+    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+    const end = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+    if (!start && !end) return baseAlerts;
+    return baseAlerts.filter((row) => {
+      if (!row.parsedDate) return false;
+      const time = row.parsedDate.getTime();
+      if (start && time < start.getTime()) return false;
+      if (end && time > end.getTime()) return false;
+      return true;
+    });
+  }, [baseAlerts, startDate, endDate]);
+
+  const filterSummary = useMemo(() => {
+    if (!startDate && !endDate) {
+      return `Showing all ${baseAlerts.length.toLocaleString()} alerts.`;
+    }
+    const startLabel = startDate ? formatDateInputLabel(startDate) : 'Any start date';
+    const endLabel = endDate ? formatDateInputLabel(endDate) : 'Any end date';
+    return `Showing ${filteredAlerts.length.toLocaleString()} of ${baseAlerts.length.toLocaleString()} alerts between ${startLabel} and ${endLabel}.`;
+  }, [baseAlerts.length, endDate, filteredAlerts.length, startDate]);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -202,7 +227,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
 
   useEffect(() => {
     setPage(1);
-  }, [pageSize, sortCriteria, sortedSummaries.length]);
+  }, [pageSize, sortCriteria, sortedSummaries.length, startDate, endDate]);
 
   const trendData = useMemo(() => {
     const counts = new Map<string, { key: string; date: Date; count: number }>();
@@ -303,6 +328,46 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
           </div>
         ) : (
           <>
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-medium">Filter alerts by date</h2>
+                  <p className="text-sm text-slate-400">Limit the dashboard to a specific date range.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                  }}
+                  className="rounded-lg border border-slate-700 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-200 hover:border-slate-500"
+                >
+                  Clear filters
+                </button>
+              </div>
+              <div className="mt-4 flex flex-wrap items-end gap-4">
+                <label className="flex flex-col gap-2 text-xs uppercase tracking-[0.2em] text-slate-500">
+                  Start date
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => setStartDate(event.target.value)}
+                    className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-xs uppercase tracking-[0.2em] text-slate-500">
+                  End date
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(event) => setEndDate(event.target.value)}
+                    className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                  />
+                </label>
+              </div>
+              <p className="mt-3 text-xs text-slate-400">{filterSummary}</p>
+            </section>
+
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
