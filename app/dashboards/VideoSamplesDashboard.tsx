@@ -122,7 +122,7 @@ export default function VideoSamplesDashboard({ dashboardName, sheetId, sheetGid
                         <p className="text-sm text-slate-200">{sample.remarks}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Alert date time</p>
+                        <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Date time</p>
                         <p className="text-sm text-slate-200">{sample.timeLabel}</p>
                       </div>
                     </div>
