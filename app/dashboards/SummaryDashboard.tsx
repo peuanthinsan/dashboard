@@ -76,10 +76,12 @@ const buildDeltaSummary = (current: number, previous: number) => {
 export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
 
-  const [alertFilter, setAlertFilter] = useState('all');
+  const [alertSearch, setAlertSearch] = useState('');
+  const [alertFilters, setAlertFilters] = useState<string[]>([]);
   const [monthFilter, setMonthFilter] = useState('all');
   const [fleetFilter, setFleetFilter] = useState('all');
-  const [remarkFilter, setRemarkFilter] = useState('all');
+  const [remarkSearch, setRemarkSearch] = useState('');
+  const [remarkFilters, setRemarkFilters] = useState<string[]>([]);
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
 
@@ -115,6 +117,13 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
 
+  const filteredAlertOptions = useMemo(() => {
+    const trimmedSearch = alertSearch.trim();
+    if (!trimmedSearch) return alertOptions;
+    const normalizedSearch = normalizeLabel(trimmedSearch);
+    return alertOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
+  }, [alertOptions, alertSearch]);
+
   const fleetOptions = useMemo(() => {
     const unique = new Set<string>();
     alertRows.forEach((row) => {
@@ -130,6 +139,13 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
     });
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
+
+  const filteredRemarkOptions = useMemo(() => {
+    const trimmedSearch = remarkSearch.trim();
+    if (!trimmedSearch) return remarkOptions;
+    const normalizedSearch = normalizeLabel(trimmedSearch);
+    return remarkOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
+  }, [remarkOptions, remarkSearch]);
 
   const vehicleOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -159,18 +175,26 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
   }, [alertRows]);
 
   const baseFilteredRows = useMemo(() => {
+    const normalizedAlertFilters = alertFilters.map((alert) => normalizeLabel(alert));
+    const normalizedRemarkFilters = remarkFilters.map((remark) => normalizeLabel(remark));
     const normalizedVehicleFilters = vehicleFilters.map((vehicle) => normalizeLabel(vehicle));
     return alertRows.filter((row) => {
-      if (alertFilter !== 'all' && row.alertType !== alertFilter) return false;
+      if (normalizedAlertFilters.length > 0) {
+        const normalizedAlert = normalizeLabel(row.alertType);
+        if (!normalizedAlertFilters.includes(normalizedAlert)) return false;
+      }
       if (fleetFilter !== 'all' && row.fleet !== fleetFilter) return false;
-      if (remarkFilter !== 'all' && row.remarks !== remarkFilter) return false;
+      if (normalizedRemarkFilters.length > 0) {
+        const normalizedRemark = normalizeLabel(row.remarks);
+        if (!normalizedRemarkFilters.includes(normalizedRemark)) return false;
+      }
       if (normalizedVehicleFilters.length > 0) {
         const normalizedVehicle = normalizeLabel(row.vehicle);
         if (!normalizedVehicleFilters.includes(normalizedVehicle)) return false;
       }
       return true;
     });
-  }, [alertFilter, alertRows, fleetFilter, remarkFilter, vehicleFilters]);
+  }, [alertFilters, alertRows, fleetFilter, remarkFilters, vehicleFilters]);
 
   const activeMonthKey = monthFilter === 'all' ? null : monthFilter;
 
@@ -291,10 +315,12 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                 <button
                   type="button"
                   onClick={() => {
-                    setAlertFilter('all');
+                    setAlertSearch('');
+                    setAlertFilters([]);
                     setMonthFilter('all');
                     setFleetFilter('all');
-                    setRemarkFilter('all');
+                    setRemarkSearch('');
+                    setRemarkFilters([]);
                     setVehicleSearch('');
                     setVehicleFilters([]);
                   }}
@@ -305,19 +331,59 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
               </div>
               <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Alert type</label>
-                  <select
-                    value={alertFilter}
-                    onChange={(event) => setAlertFilter(event.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                  >
-                    <option value="all">All alert types</option>
-                    {alertOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search alert types</label>
+                  <input
+                    type="text"
+                    value={alertSearch}
+                    onChange={(event) => setAlertSearch(event.target.value)}
+                    placeholder="Search alerts..."
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                  />
+                  <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
+                    {filteredAlertOptions.length === 0 ? (
+                      <p className="text-xs text-slate-500">No alert types found.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {filteredAlertOptions.map((option) => {
+                          const isSelected = alertFilters.includes(option);
+                          return (
+                            <li key={option}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAlertFilters((current) =>
+                                    isSelected ? current.filter((value) => value !== option) : [...current, option],
+                                  );
+                                }}
+                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
+                                  isSelected
+                                    ? 'bg-indigo-500/20 text-indigo-100'
+                                    : 'text-slate-200 hover:bg-slate-800'
+                                }`}
+                              >
+                                <span>{option}</span>
+                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                  {alertFilters.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {alertFilters.map((alert) => (
+                        <button
+                          key={alert}
+                          type="button"
+                          onClick={() => setAlertFilters((current) => current.filter((value) => value !== alert))}
+                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                        >
+                          {alert} ×
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Filter by month</label>
@@ -350,19 +416,59 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
                   </select>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Filter by remark</label>
-                  <select
-                    value={remarkFilter}
-                    onChange={(event) => setRemarkFilter(event.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                  >
-                    <option value="all">All remarks</option>
-                    {remarkOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search remark types</label>
+                  <input
+                    type="text"
+                    value={remarkSearch}
+                    onChange={(event) => setRemarkSearch(event.target.value)}
+                    placeholder="Search remarks..."
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                  />
+                  <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/40 p-2 text-sm">
+                    {filteredRemarkOptions.length === 0 ? (
+                      <p className="text-xs text-slate-500">No remarks found.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {filteredRemarkOptions.map((option) => {
+                          const isSelected = remarkFilters.includes(option);
+                          return (
+                            <li key={option}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRemarkFilters((current) =>
+                                    isSelected ? current.filter((value) => value !== option) : [...current, option],
+                                  );
+                                }}
+                                className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition ${
+                                  isSelected
+                                    ? 'bg-indigo-500/20 text-indigo-100'
+                                    : 'text-slate-200 hover:bg-slate-800'
+                                }`}
+                              >
+                                <span>{option}</span>
+                                <span className="text-xs text-slate-400">{isSelected ? 'Selected' : 'Add'}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                  {remarkFilters.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {remarkFilters.map((remark) => (
+                        <button
+                          key={remark}
+                          type="button"
+                          onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}
+                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-100"
+                        >
+                          {remark} ×
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search vehicle number</label>
