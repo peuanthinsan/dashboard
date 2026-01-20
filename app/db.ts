@@ -23,6 +23,18 @@ export async function getUser(email: string) {
 }
 
 export async function createUser(email: string, password: string) {
+  return await createUserWithRole({ email, password, isAdmin: false });
+}
+
+export async function createUserWithRole({
+  email,
+  password,
+  isAdmin,
+}: {
+  email: string;
+  password: string;
+  isAdmin: boolean;
+}) {
   const { users } = await ensureTablesExist();
   let salt = genSaltSync(10);
   let hash = hashSync(password, salt);
@@ -33,7 +45,7 @@ export async function createUser(email: string, password: string) {
   return await db.insert(users).values({
     email,
     password: hash,
-    isAdmin: count === 0,
+    isAdmin: isAdmin || count === 0,
   });
 }
 
@@ -97,9 +109,29 @@ export async function createCompany(name: string) {
   return await db.insert(companies).values({ name });
 }
 
+export async function updateCompany(id: number, name: string) {
+  const { companies } = await ensureTablesExist();
+  return await db.update(companies).set({ name }).where(eq(companies.id, id));
+}
+
+export async function deleteCompany(id: number) {
+  const { companies } = await ensureTablesExist();
+  return await db.delete(companies).where(eq(companies.id, id));
+}
+
 export async function createOrganization(name: string) {
   const { organizations } = await ensureTablesExist();
   return await db.insert(organizations).values({ name });
+}
+
+export async function updateOrganization(id: number, name: string) {
+  const { organizations } = await ensureTablesExist();
+  return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+}
+
+export async function deleteOrganization(id: number) {
+  const { organizations } = await ensureTablesExist();
+  return await db.delete(organizations).where(eq(organizations.id, id));
 }
 
 export async function createDashboard({
@@ -168,6 +200,29 @@ export async function updateDashboard({
 export async function deleteDashboard(id: number) {
   const { dashboards } = await ensureTablesExist();
   return await db.delete(dashboards).where(eq(dashboards.id, id));
+}
+
+export async function updateUserProfile({
+  id,
+  email,
+  password,
+}: {
+  id: number;
+  email: string;
+  password?: string | null;
+}) {
+  const { users } = await ensureTablesExist();
+  const updates: { email: string; password?: string } = { email };
+  if (password) {
+    let salt = genSaltSync(10);
+    updates.password = hashSync(password, salt);
+  }
+  return await db.update(users).set(updates).where(eq(users.id, id));
+}
+
+export async function deleteUser(id: number) {
+  const { users } = await ensureTablesExist();
+  return await db.delete(users).where(eq(users.id, id));
 }
 
 export async function updateUserAssignments(
