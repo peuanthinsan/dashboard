@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from 'app/auth';
-import { getDashboardById, getOrganizationById, getUser } from 'app/db';
+import { getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
@@ -32,12 +32,7 @@ export default async function DashboardPage({ params }: { params: { id: string }
     redirect('/login');
   }
 
-  const dashboardId = Number(params.id);
-  if (!dashboardId) {
-    notFound();
-  }
-
-  const dashboardResult = await getDashboardById(dashboardId);
+  const dashboardResult = await getDashboardByPublicId(params.id);
   if (dashboardResult.length === 0) {
     notFound();
   }
@@ -50,7 +45,7 @@ export default async function DashboardPage({ params }: { params: { id: string }
     !dashboard.organizationId || userOrganizationIds.includes(dashboard.organizationId);
 
   if (!matchesCompany || !matchesOrganization) {
-    redirect('/protected');
+    redirect('/dashboard');
   }
 
   let organizationName: string | null = null;
