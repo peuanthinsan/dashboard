@@ -322,7 +322,7 @@ export default function SummaryDashboard({
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <Link
