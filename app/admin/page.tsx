@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { auth } from 'app/auth';
 import {
@@ -22,6 +23,8 @@ import {
 } from 'app/db';
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video Samples'] as const;
+const buildAdminRedirect = (status: 'success' | 'error', message: string) =>
+  `/admin?${new URLSearchParams({ status, message })}`;
 
 const parseSheetLink = (sheetUrl: string) => {
   const trimmed = sheetUrl.trim();
@@ -33,7 +36,11 @@ const parseSheetLink = (sheetUrl: string) => {
   };
 };
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: { status?: string; message?: string };
+}) {
   const session = await auth();
   if (!session?.user?.email) {
     redirect('/login');
@@ -63,9 +70,11 @@ export default async function AdminPage() {
     }
     const name = (formData.get('companyName') as string)?.trim();
     if (!name) {
-      return;
+      redirect(buildAdminRedirect('error', 'Company name is required.'));
     }
     await createCompany(name);
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'Company created.'));
   }
 
   async function saveCompany(formData: FormData) {
@@ -81,9 +90,11 @@ export default async function AdminPage() {
     const companyId = Number(formData.get('companyId'));
     const name = (formData.get('companyName') as string)?.trim();
     if (!companyId || !name) {
-      return;
+      redirect(buildAdminRedirect('error', 'Company name is required.'));
     }
     await updateCompany(companyId, name);
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'Company updated.'));
   }
 
   async function removeCompany(formData: FormData) {
@@ -98,9 +109,11 @@ export default async function AdminPage() {
     }
     const companyId = Number(formData.get('companyId'));
     if (!companyId) {
-      return;
+      redirect(buildAdminRedirect('error', 'Select a company to delete.'));
     }
     await deleteCompany(companyId);
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'Company deleted.'));
   }
 
   async function addOrganization(formData: FormData) {
@@ -115,9 +128,11 @@ export default async function AdminPage() {
     }
     const name = (formData.get('organizationName') as string)?.trim();
     if (!name) {
-      return;
+      redirect(buildAdminRedirect('error', 'Organization name is required.'));
     }
     await createOrganization(name);
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'Organization created.'));
   }
 
   async function saveOrganization(formData: FormData) {
@@ -133,9 +148,11 @@ export default async function AdminPage() {
     const organizationId = Number(formData.get('organizationId'));
     const name = (formData.get('organizationName') as string)?.trim();
     if (!organizationId || !name) {
-      return;
+      redirect(buildAdminRedirect('error', 'Organization name is required.'));
     }
     await updateOrganization(organizationId, name);
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'Organization updated.'));
   }
 
   async function removeOrganization(formData: FormData) {
@@ -150,9 +167,11 @@ export default async function AdminPage() {
     }
     const organizationId = Number(formData.get('organizationId'));
     if (!organizationId) {
-      return;
+      redirect(buildAdminRedirect('error', 'Select an organization to delete.'));
     }
     await deleteOrganization(organizationId);
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'Organization deleted.'));
   }
 
   async function addUser(formData: FormData) {
@@ -169,13 +188,15 @@ export default async function AdminPage() {
     const password = (formData.get('userPassword') as string)?.trim();
     const isAdmin = formData.get('isAdmin') === 'on';
     if (!email || !password) {
-      return;
+      redirect(buildAdminRedirect('error', 'Email and temporary password are required.'));
     }
     const existing = await getUser(email);
     if (existing.length > 0) {
-      return;
+      redirect(buildAdminRedirect('error', 'That user already exists.'));
     }
     await createUserWithRole({ email, password, isAdmin });
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'User created.'));
   }
 
   async function updateUser(formData: FormData) {
@@ -195,10 +216,10 @@ export default async function AdminPage() {
     const organizationValues = formData.getAll('organizationIds') as string[];
     const isAdmin = formData.get('isAdmin') === 'on';
     if (currentUser[0].id === userId && !isAdmin) {
-      return;
+      redirect(buildAdminRedirect('error', 'You cannot remove your own admin access.'));
     }
     if (!email) {
-      return;
+      redirect(buildAdminRedirect('error', 'User email is required.'));
     }
     await updateUserProfile({
       id: userId,
@@ -210,6 +231,8 @@ export default async function AdminPage() {
       organizationIds: organizationValues.map(Number).filter((value) => !Number.isNaN(value)),
       isAdmin,
     });
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'User updated.'));
   }
 
   async function removeUser(formData: FormData) {
@@ -223,10 +246,15 @@ export default async function AdminPage() {
       redirect('/protected');
     }
     const userId = Number(formData.get('userId'));
-    if (!userId || currentUser[0].id === userId) {
-      return;
+    if (!userId) {
+      redirect(buildAdminRedirect('error', 'Select a user to delete.'));
+    }
+    if (currentUser[0].id === userId) {
+      redirect(buildAdminRedirect('error', 'You cannot delete your own account.'));
     }
     await deleteUser(userId);
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'User deleted.'));
   }
 
   async function addDashboard(formData: FormData) {
@@ -245,11 +273,16 @@ export default async function AdminPage() {
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
     if (!name || !template || !sheetUrl || !companyId) {
-      return;
+      redirect(
+        buildAdminRedirect(
+          'error',
+          'Dashboard name, template, sheet link, and company are required.',
+        ),
+      );
     }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
-      return;
+      redirect(buildAdminRedirect('error', 'Enter a valid Google Sheet link.'));
     }
     await createDashboard({
       name,
@@ -260,6 +293,8 @@ export default async function AdminPage() {
       companyId,
       organizationId: organizationValue ? Number(organizationValue) : null,
     });
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'Dashboard created.'));
   }
 
   async function saveDashboard(formData: FormData) {
@@ -279,11 +314,16 @@ export default async function AdminPage() {
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
     if (!dashboardId || !name || !template || !sheetUrl || !companyId) {
-      return;
+      redirect(
+        buildAdminRedirect(
+          'error',
+          'Dashboard name, template, sheet link, and company are required.',
+        ),
+      );
     }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
-      return;
+      redirect(buildAdminRedirect('error', 'Enter a valid Google Sheet link.'));
     }
     await updateDashboard({
       id: dashboardId,
@@ -295,6 +335,8 @@ export default async function AdminPage() {
       companyId,
       organizationId: organizationValue ? Number(organizationValue) : null,
     });
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'Dashboard updated.'));
   }
 
   async function removeDashboard(formData: FormData) {
@@ -309,10 +351,19 @@ export default async function AdminPage() {
     }
     const dashboardId = Number(formData.get('dashboardId'));
     if (!dashboardId) {
-      return;
+      redirect(buildAdminRedirect('error', 'Select a dashboard to delete.'));
     }
     await deleteDashboard(dashboardId);
+    revalidatePath('/admin');
+    redirect(buildAdminRedirect('success', 'Dashboard deleted.'));
   }
+
+  const status = searchParams?.status;
+  const message = searchParams?.message;
+  const bannerTone =
+    status === 'success'
+      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
+      : 'border-rose-500/40 bg-rose-500/10 text-rose-100';
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
@@ -323,6 +374,14 @@ export default async function AdminPage() {
             Assign users to one or more companies and organizations, and manage admin access.
           </p>
         </header>
+        {status && message ? (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm font-medium ${bannerTone}`}
+            role="status"
+          >
+            {message}
+          </div>
+        ) : null}
 
         <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
           <div className="grid gap-4 md:grid-cols-2">
