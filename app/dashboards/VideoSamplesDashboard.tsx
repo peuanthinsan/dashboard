@@ -128,26 +128,16 @@ export default function VideoSamplesDashboard({ dashboardName, sheetId, sheetGid
                     </div>
                     <div className="mt-auto flex flex-col gap-3">
                       {sample.videoUrl && sample.videoUrl !== '—' ? (
-                        <>
-                          <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
-                            <video
-                              controls
-                              preload="metadata"
-                              className="h-40 w-full bg-black/30"
-                            >
-                              <source src={sample.videoUrl} type="video/mp4" />
-                              Your browser does not support the video tag.
-                            </video>
-                          </div>
-                          <a
-                            href={sample.videoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-white transition hover:border-slate-500 hover:text-slate-100"
+                        <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
+                          <video
+                            controls
+                            preload="metadata"
+                            className="h-40 w-full bg-black/30"
                           >
-                            View video
-                          </a>
-                        </>
+                            <source src={sample.videoUrl} type="video/mp4" />
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
                       ) : (
                         <span className="text-sm text-slate-500">Video link unavailable</span>
                       )}
