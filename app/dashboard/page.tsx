@@ -48,7 +48,16 @@ export default async function DashboardIndexPage() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {dashboards.map((dashboard) => (
+            {dashboards.map((dashboard) => {
+              const companyLabel =
+                dashboard.companyId != null
+                  ? companyLookup.get(dashboard.companyId) ?? `Company #${dashboard.companyId}`
+                  : 'Unassigned company';
+              const organizationLabel =
+                dashboard.organizationId != null
+                  ? organizationLookup.get(dashboard.organizationId) ?? `Organization #${dashboard.organizationId}`
+                  : 'Unassigned organization';
+              return (
               <Link
                 key={dashboard.id}
                 href={`/dashboard/${dashboard.id}`}
@@ -59,9 +68,7 @@ export default async function DashboardIndexPage() {
                     {dashboard.name}
                   </h2>
                   <p className="text-xs text-slate-400">
-                    {companyLookup.get(dashboard.companyId) ?? `Company #${dashboard.companyId}`} ·{' '}
-                    {organizationLookup.get(dashboard.organizationId) ??
-                      `Organization #${dashboard.organizationId}`}
+                    {companyLabel} · {organizationLabel}
                   </p>
                   <p className="text-xs text-slate-400">Linked sheet</p>
                   <p className="text-sm text-slate-200">
@@ -69,7 +76,8 @@ export default async function DashboardIndexPage() {
                   </p>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
