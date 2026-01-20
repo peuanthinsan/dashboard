@@ -341,12 +341,12 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                   <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
                     <thead>
                       <tr>
-                        <th className="rounded-l-xl bg-sky-500/90 px-4 py-3 text-white">Date</th>
-                        <th className="bg-teal-400/90 px-4 py-3 text-slate-900">Vehicle Number</th>
-                        <th className="bg-blue-400/90 px-4 py-3 text-right text-slate-900">Distraction</th>
-                        <th className="bg-amber-300/90 px-4 py-3 text-right text-slate-900">Fatigue</th>
-                        <th className="bg-emerald-300/90 px-4 py-3 text-right text-slate-900">Yawning</th>
-                        <th className="rounded-r-xl bg-rose-400/90 px-4 py-3 text-right text-slate-900">Total</th>
+                        <th className="rounded-l-xl bg-slate-800 px-4 py-3 text-slate-100">Date</th>
+                        <th className="bg-slate-800 px-4 py-3 text-slate-100">Vehicle Number</th>
+                        <th className="bg-slate-800 px-4 py-3 text-right text-slate-100">Distraction</th>
+                        <th className="bg-slate-800 px-4 py-3 text-right text-slate-100">Fatigue</th>
+                        <th className="bg-slate-800 px-4 py-3 text-right text-slate-100">Yawning</th>
+                        <th className="rounded-r-xl bg-slate-800 px-4 py-3 text-right text-slate-100">Total</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -356,10 +356,10 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                             {row.dateLabel}
                           </td>
                           <td className="bg-slate-950/30 px-4 py-3 text-slate-100">{row.vehicle}</td>
-                          <td className="bg-blue-500/10 px-4 py-3 text-right text-blue-200">{row.distraction}</td>
-                          <td className="bg-amber-400/10 px-4 py-3 text-right text-amber-200">{row.fatigue}</td>
-                          <td className="bg-emerald-400/10 px-4 py-3 text-right text-emerald-200">{row.yawning}</td>
-                          <td className="bg-rose-500/10 px-4 py-3 text-right text-rose-200">{row.total}</td>
+                          <td className="bg-slate-900/40 px-4 py-3 text-right text-slate-200">{row.distraction}</td>
+                          <td className="bg-slate-900/40 px-4 py-3 text-right text-slate-200">{row.fatigue}</td>
+                          <td className="bg-slate-900/40 px-4 py-3 text-right text-slate-200">{row.yawning}</td>
+                          <td className="bg-slate-900/50 px-4 py-3 text-right text-slate-100">{row.total}</td>
                         </tr>
                       ))}
                     </tbody>
