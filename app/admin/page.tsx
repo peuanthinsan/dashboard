@@ -1,30 +1,22 @@
 import { redirect } from 'next/navigation';
 import { auth } from 'app/auth';
+import { getCompanies, getDashboards, getOrganizations, getUser, getUsers } from 'app/db';
 import {
-  createCompany,
-  createDashboard,
-  createOrganization,
-  getCompanies,
-  getDashboards,
-  getOrganizations,
-  getUser,
-  getUsers,
-  updateDashboard,
-  updateUserAssignments,
-  deleteDashboard,
-} from 'app/db';
+  addCompany,
+  addDashboard,
+  addOrganization,
+  updateDashboardEntry,
+  updateUser,
+} from './actions';
+import {
+  CompanyForm,
+  DashboardCreateForm,
+  DashboardEditForm,
+  OrganizationForm,
+  UserAccessForm,
+} from './AdminForms';
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple'] as const;
-
-const parseSheetLink = (sheetUrl: string) => {
-  const trimmed = sheetUrl.trim();
-  const idMatch = trimmed.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  const gidMatch = trimmed.match(/gid=([0-9]+)/);
-  return {
-    sheetId: idMatch?.[1] ?? null,
-    sheetGid: gidMatch?.[1] ?? '0',
-  };
-};
 
 export default async function AdminPage() {
   const session = await auth();
@@ -44,149 +36,6 @@ export default async function AdminPage() {
     getDashboards(),
   ]);
 
-  async function addCompany(formData: FormData) {
-    'use server';
-    const session = await auth();
-    if (!session?.user?.email) {
-      redirect('/login');
-    }
-    const currentUser = await getUser(session.user.email);
-    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
-    }
-    const name = (formData.get('companyName') as string)?.trim();
-    if (!name) {
-      return;
-    }
-    await createCompany(name);
-  }
-
-  async function addOrganization(formData: FormData) {
-    'use server';
-    const session = await auth();
-    if (!session?.user?.email) {
-      redirect('/login');
-    }
-    const currentUser = await getUser(session.user.email);
-    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
-    }
-    const name = (formData.get('organizationName') as string)?.trim();
-    if (!name) {
-      return;
-    }
-    await createOrganization(name);
-  }
-
-  async function updateUser(formData: FormData) {
-    'use server';
-    const session = await auth();
-    if (!session?.user?.email) {
-      redirect('/login');
-    }
-    const currentUser = await getUser(session.user.email);
-    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
-    }
-    const userId = Number(formData.get('userId'));
-    const companyValues = formData.getAll('companyIds') as string[];
-    const organizationValues = formData.getAll('organizationIds') as string[];
-    const isAdmin = formData.get('isAdmin') === 'on';
-    if (currentUser[0].id === userId && !isAdmin) {
-      return;
-    }
-    await updateUserAssignments(userId, {
-      companyIds: companyValues.map(Number).filter((value) => !Number.isNaN(value)),
-      organizationIds: organizationValues.map(Number).filter((value) => !Number.isNaN(value)),
-      isAdmin,
-    });
-  }
-
-  async function addDashboard(formData: FormData) {
-    'use server';
-    const session = await auth();
-    if (!session?.user?.email) {
-      redirect('/login');
-    }
-    const currentUser = await getUser(session.user.email);
-    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
-    }
-    const name = (formData.get('dashboardName') as string)?.trim();
-    const template = (formData.get('template') as string)?.trim();
-    const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
-    const companyId = Number(formData.get('companyId'));
-    const organizationValue = (formData.get('organizationId') as string) ?? '';
-    if (!name || !template || !sheetUrl || !companyId) {
-      return;
-    }
-    const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
-    if (!sheetId) {
-      return;
-    }
-    await createDashboard({
-      name,
-      template,
-      sheetUrl,
-      sheetId,
-      sheetGid,
-      companyId,
-      organizationId: organizationValue ? Number(organizationValue) : null,
-    });
-  }
-
-  async function saveDashboard(formData: FormData) {
-    'use server';
-    const session = await auth();
-    if (!session?.user?.email) {
-      redirect('/login');
-    }
-    const currentUser = await getUser(session.user.email);
-    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
-    }
-    const dashboardId = Number(formData.get('dashboardId'));
-    const name = (formData.get('dashboardName') as string)?.trim();
-    const template = (formData.get('template') as string)?.trim();
-    const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
-    const companyId = Number(formData.get('companyId'));
-    const organizationValue = (formData.get('organizationId') as string) ?? '';
-    if (!dashboardId || !name || !template || !sheetUrl || !companyId) {
-      return;
-    }
-    const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
-    if (!sheetId) {
-      return;
-    }
-    await updateDashboard({
-      id: dashboardId,
-      name,
-      template,
-      sheetUrl,
-      sheetId,
-      sheetGid,
-      companyId,
-      organizationId: organizationValue ? Number(organizationValue) : null,
-    });
-  }
-
-  async function removeDashboard(formData: FormData) {
-    'use server';
-    const session = await auth();
-    if (!session?.user?.email) {
-      redirect('/login');
-    }
-    const currentUser = await getUser(session.user.email);
-    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
-    }
-    const dashboardId = Number(formData.get('dashboardId'));
-    if (!dashboardId) {
-      return;
-    }
-    await deleteDashboard(dashboardId);
-  }
-
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
@@ -199,41 +48,8 @@ export default async function AdminPage() {
 
         <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
           <div className="grid gap-4 md:grid-cols-2">
-            <form
-              action={addCompany}
-              className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4"
-            >
-              <h2 className="text-lg font-medium">Create company</h2>
-              <input
-                name="companyName"
-                placeholder="Acme Corp"
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-              />
-              <button
-                type="submit"
-                className="rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
-              >
-                Add company
-              </button>
-            </form>
-
-            <form
-              action={addOrganization}
-              className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4"
-            >
-              <h2 className="text-lg font-medium">Create organization</h2>
-              <input
-                name="organizationName"
-                placeholder="Operations Team"
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-              />
-              <button
-                type="submit"
-                className="rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
-              >
-                Add organization
-              </button>
-            </form>
+            <CompanyForm action={addCompany} />
+            <OrganizationForm action={addOrganization} />
           </div>
         </section>
 
@@ -241,11 +57,7 @@ export default async function AdminPage() {
           <h2 className="text-lg font-medium">User access</h2>
           <div className="grid gap-4">
             {users.map((user) => (
-              <form
-                key={user.id}
-                action={updateUser}
-                className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1.2fr_1fr_1fr_auto]"
-              >
+              <UserAccessForm key={user.id} action={updateUser}>
                 <input type="hidden" name="userId" value={user.id} />
                 <div className="flex flex-col gap-1 text-sm">
                   <span className="font-medium text-slate-200">{user.email}</span>
@@ -297,16 +109,7 @@ export default async function AdminPage() {
                     Leave empty to allow only company-level dashboards.
                   </span>
                 </label>
-
-                <div className="flex items-end">
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500"
-                  >
-                    Save
-                  </button>
-                </div>
-              </form>
+              </UserAccessForm>
             ))}
           </div>
         </section>
@@ -319,10 +122,7 @@ export default async function AdminPage() {
             </p>
           </header>
 
-          <form
-            action={addDashboard}
-            className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-2"
-          >
+          <DashboardCreateForm action={addDashboard}>
             <div className="flex flex-col gap-2">
               <label className="text-xs text-slate-400">Dashboard name</label>
               <input
@@ -380,15 +180,7 @@ export default async function AdminPage() {
                 ))}
               </select>
             </div>
-            <div className="flex items-end">
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
-              >
-                Create dashboard
-              </button>
-            </div>
-          </form>
+          </DashboardCreateForm>
 
           <div className="grid gap-4">
             {dashboards.length === 0 ? (
@@ -401,7 +193,7 @@ export default async function AdminPage() {
                   key={dashboard.id}
                   className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1.2fr_1.4fr_1fr_1fr_0.8fr_auto]"
                 >
-                  <form action={saveDashboard} className="contents">
+                  <DashboardEditForm action={updateDashboardEntry}>
                     <input type="hidden" name="dashboardId" value={dashboard.id} />
                     <div className="flex flex-col gap-2">
                       <label className="text-xs text-slate-400">Dashboard name</label>
@@ -463,22 +255,7 @@ export default async function AdminPage() {
                         ))}
                       </select>
                     </div>
-                    <div className="flex items-end gap-2">
-                      <button
-                        type="submit"
-                        className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500"
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="submit"
-                        formAction={removeDashboard}
-                        className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </form>
+                  </DashboardEditForm>
                 </div>
               ))
             )}
