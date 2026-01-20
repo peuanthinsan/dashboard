@@ -119,7 +119,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       if (alertType.includes('distraction')) entry.distraction += 1;
       if (alertType.includes('fatigue')) entry.fatigue += 1;
       if (alertType.includes('yawn')) entry.yawning += 1;
-      entry.total += 1;
+      entry.total = entry.distraction + entry.fatigue + entry.yawning;
       grouped.set(key, entry);
     });
     return Array.from(grouped.values()).sort((a, b) => {
