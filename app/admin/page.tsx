@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { auth } from 'app/auth';
 import {
@@ -23,6 +24,12 @@ import {
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video Samples'] as const;
 
+type AdminNoticeStatus = 'success' | 'error';
+type AdminNotice = {
+  status: AdminNoticeStatus;
+  message: string;
+};
+
 const parseSheetLink = (sheetUrl: string) => {
   const trimmed = sheetUrl.trim();
   const idMatch = trimmed.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -33,7 +40,31 @@ const parseSheetLink = (sheetUrl: string) => {
   };
 };
 
-export default async function AdminPage() {
+const buildNoticeUrl = (status: AdminNoticeStatus, notice: string) => {
+  const params = new URLSearchParams({ status, notice });
+  return `/admin?${params.toString()}`;
+};
+
+const getNotice = (
+  searchParams?: Record<string, string | string[] | undefined>,
+): AdminNotice | null => {
+  const rawNotice = searchParams?.notice;
+  if (!rawNotice || typeof rawNotice !== 'string') {
+    return null;
+  }
+  const rawStatus = searchParams?.status;
+  const status: AdminNoticeStatus = rawStatus === 'success' ? 'success' : 'error';
+  return {
+    status,
+    message: rawNotice,
+  };
+};
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
   const session = await auth();
   if (!session?.user?.email) {
     redirect('/login');
@@ -50,6 +81,7 @@ export default async function AdminPage() {
     getOrganizations(),
     getDashboards(),
   ]);
+  const notice = getNotice(searchParams);
 
   async function addCompany(formData: FormData) {
     'use server';
@@ -63,9 +95,15 @@ export default async function AdminPage() {
     }
     const name = (formData.get('companyName') as string)?.trim();
     if (!name) {
-      return;
+      redirect(buildNoticeUrl('error', 'Enter a company name before saving.'));
     }
-    await createCompany(name);
+    try {
+      await createCompany(name);
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'Company created successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to create the company.'));
+    }
   }
 
   async function saveCompany(formData: FormData) {
@@ -81,9 +119,15 @@ export default async function AdminPage() {
     const companyId = Number(formData.get('companyId'));
     const name = (formData.get('companyName') as string)?.trim();
     if (!companyId || !name) {
-      return;
+      redirect(buildNoticeUrl('error', 'Select a company and provide a name before saving.'));
     }
-    await updateCompany(companyId, name);
+    try {
+      await updateCompany(companyId, name);
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'Company updated successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to update the company.'));
+    }
   }
 
   async function removeCompany(formData: FormData) {
@@ -98,9 +142,15 @@ export default async function AdminPage() {
     }
     const companyId = Number(formData.get('companyId'));
     if (!companyId) {
-      return;
+      redirect(buildNoticeUrl('error', 'Select a company before deleting.'));
     }
-    await deleteCompany(companyId);
+    try {
+      await deleteCompany(companyId);
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'Company deleted successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to delete the company.'));
+    }
   }
 
   async function addOrganization(formData: FormData) {
@@ -115,9 +165,15 @@ export default async function AdminPage() {
     }
     const name = (formData.get('organizationName') as string)?.trim();
     if (!name) {
-      return;
+      redirect(buildNoticeUrl('error', 'Enter an organization name before saving.'));
     }
-    await createOrganization(name);
+    try {
+      await createOrganization(name);
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'Organization created successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to create the organization.'));
+    }
   }
 
   async function saveOrganization(formData: FormData) {
@@ -133,9 +189,15 @@ export default async function AdminPage() {
     const organizationId = Number(formData.get('organizationId'));
     const name = (formData.get('organizationName') as string)?.trim();
     if (!organizationId || !name) {
-      return;
+      redirect(buildNoticeUrl('error', 'Select an organization and provide a name before saving.'));
     }
-    await updateOrganization(organizationId, name);
+    try {
+      await updateOrganization(organizationId, name);
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'Organization updated successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to update the organization.'));
+    }
   }
 
   async function removeOrganization(formData: FormData) {
@@ -150,9 +212,15 @@ export default async function AdminPage() {
     }
     const organizationId = Number(formData.get('organizationId'));
     if (!organizationId) {
-      return;
+      redirect(buildNoticeUrl('error', 'Select an organization before deleting.'));
     }
-    await deleteOrganization(organizationId);
+    try {
+      await deleteOrganization(organizationId);
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'Organization deleted successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to delete the organization.'));
+    }
   }
 
   async function addUser(formData: FormData) {
@@ -169,13 +237,19 @@ export default async function AdminPage() {
     const password = (formData.get('userPassword') as string)?.trim();
     const isAdmin = formData.get('isAdmin') === 'on';
     if (!email || !password) {
-      return;
+      redirect(buildNoticeUrl('error', 'Provide both an email and temporary password.'));
     }
     const existing = await getUser(email);
     if (existing.length > 0) {
-      return;
+      redirect(buildNoticeUrl('error', 'That email is already in use.'));
     }
-    await createUserWithRole({ email, password, isAdmin });
+    try {
+      await createUserWithRole({ email, password, isAdmin });
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'User created successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to create the user.'));
+    }
   }
 
   async function updateUser(formData: FormData) {
@@ -195,21 +269,27 @@ export default async function AdminPage() {
     const organizationValues = formData.getAll('organizationIds') as string[];
     const isAdmin = formData.get('isAdmin') === 'on';
     if (currentUser[0].id === userId && !isAdmin) {
-      return;
+      redirect(buildNoticeUrl('error', 'You cannot remove your own admin access.'));
     }
     if (!email) {
-      return;
+      redirect(buildNoticeUrl('error', 'Provide an email address before saving.'));
     }
-    await updateUserProfile({
-      id: userId,
-      email,
-      password: password ? password : null,
-    });
-    await updateUserAssignments(userId, {
-      companyIds: companyValues.map(Number).filter((value) => !Number.isNaN(value)),
-      organizationIds: organizationValues.map(Number).filter((value) => !Number.isNaN(value)),
-      isAdmin,
-    });
+    try {
+      await updateUserProfile({
+        id: userId,
+        email,
+        password: password ? password : null,
+      });
+      await updateUserAssignments(userId, {
+        companyIds: companyValues.map(Number).filter((value) => !Number.isNaN(value)),
+        organizationIds: organizationValues.map(Number).filter((value) => !Number.isNaN(value)),
+        isAdmin,
+      });
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'User updated successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to update the user.'));
+    }
   }
 
   async function removeUser(formData: FormData) {
@@ -224,9 +304,15 @@ export default async function AdminPage() {
     }
     const userId = Number(formData.get('userId'));
     if (!userId || currentUser[0].id === userId) {
-      return;
+      redirect(buildNoticeUrl('error', 'Select a different user before deleting.'));
     }
-    await deleteUser(userId);
+    try {
+      await deleteUser(userId);
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'User deleted successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to delete the user.'));
+    }
   }
 
   async function addDashboard(formData: FormData) {
@@ -245,21 +331,27 @@ export default async function AdminPage() {
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
     if (!name || !template || !sheetUrl || !companyId) {
-      return;
+      redirect(buildNoticeUrl('error', 'Complete every required dashboard field.'));
     }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
-      return;
+      redirect(buildNoticeUrl('error', 'Provide a valid Google Sheet link.'));
     }
-    await createDashboard({
-      name,
-      template,
-      sheetUrl,
-      sheetId,
-      sheetGid,
-      companyId,
-      organizationId: organizationValue ? Number(organizationValue) : null,
-    });
+    try {
+      await createDashboard({
+        name,
+        template,
+        sheetUrl,
+        sheetId,
+        sheetGid,
+        companyId,
+        organizationId: organizationValue ? Number(organizationValue) : null,
+      });
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'Dashboard created successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to create the dashboard.'));
+    }
   }
 
   async function saveDashboard(formData: FormData) {
@@ -279,22 +371,28 @@ export default async function AdminPage() {
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
     if (!dashboardId || !name || !template || !sheetUrl || !companyId) {
-      return;
+      redirect(buildNoticeUrl('error', 'Complete every required dashboard field.'));
     }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
-      return;
+      redirect(buildNoticeUrl('error', 'Provide a valid Google Sheet link.'));
     }
-    await updateDashboard({
-      id: dashboardId,
-      name,
-      template,
-      sheetUrl,
-      sheetId,
-      sheetGid,
-      companyId,
-      organizationId: organizationValue ? Number(organizationValue) : null,
-    });
+    try {
+      await updateDashboard({
+        id: dashboardId,
+        name,
+        template,
+        sheetUrl,
+        sheetId,
+        sheetGid,
+        companyId,
+        organizationId: organizationValue ? Number(organizationValue) : null,
+      });
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'Dashboard updated successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to update the dashboard.'));
+    }
   }
 
   async function removeDashboard(formData: FormData) {
@@ -309,9 +407,15 @@ export default async function AdminPage() {
     }
     const dashboardId = Number(formData.get('dashboardId'));
     if (!dashboardId) {
-      return;
+      redirect(buildNoticeUrl('error', 'Select a dashboard before deleting.'));
     }
-    await deleteDashboard(dashboardId);
+    try {
+      await deleteDashboard(dashboardId);
+      revalidatePath('/admin');
+      redirect(buildNoticeUrl('success', 'Dashboard deleted successfully.'));
+    } catch (error) {
+      redirect(buildNoticeUrl('error', 'Unable to delete the dashboard.'));
+    }
   }
 
   return (
@@ -323,6 +427,25 @@ export default async function AdminPage() {
             Assign users to one or more companies and organizations, and manage admin access.
           </p>
         </header>
+
+        {notice ? (
+          <div
+            role="status"
+            className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm shadow-lg ${
+              notice.status === 'success'
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
+                : 'border-rose-500/40 bg-rose-500/10 text-rose-100'
+            }`}
+          >
+            <span className="font-medium">{notice.message}</span>
+            <a
+              href="/admin"
+              className="rounded-full border border-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/80 hover:text-white"
+            >
+              Dismiss
+            </a>
+          </div>
+        ) : null}
 
         <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
           <div className="grid gap-4 md:grid-cols-2">
