@@ -93,6 +93,11 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
     const drivers = new Set<string>();
     let latestTimestamp = 0;
     let latestLabel = '—';
+    const remarkTotals = {
+      fatigue: 0,
+      yawning: 0,
+      distraction: 0,
+    };
 
     filteredAlerts.forEach((row) => {
       const vehicle = row.vehicle;
@@ -105,6 +110,10 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
           latestLabel = row.parsedDate.toLocaleString();
         }
       }
+      const remark = normalizeLabel(row.remarks);
+      if (remark === 'fatigue') remarkTotals.fatigue += 1;
+      if (remark === 'yawning') remarkTotals.yawning += 1;
+      if (remark === 'distraction') remarkTotals.distraction += 1;
     });
 
     return {
@@ -112,6 +121,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       vehicles: vehicles.size,
       drivers: drivers.size,
       latest: latestLabel,
+      remarks: remarkTotals,
     };
   }, [filteredAlerts]);
 
@@ -292,22 +302,35 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
           </div>
         ) : (
           <>
-            <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg md:grid-cols-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Total alerts</span>
-                <span className="text-3xl font-semibold">{stats.total.toLocaleString()}</span>
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-medium">Alert remark highlights</h2>
+                  <p className="text-sm text-slate-400">Eye Closing-A2 alerts by remark.</p>
+                </div>
+                <span className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                  {stats.total.toLocaleString()} total alerts
+                </span>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Vehicles</span>
-                <span className="text-3xl font-semibold">{stats.vehicles.toLocaleString()}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Drivers</span>
-                <span className="text-3xl font-semibold">{stats.drivers.toLocaleString()}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Latest alert</span>
-                <span className="text-base text-slate-200">{stats.latest}</span>
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                {(
+                  [
+                    { label: 'Fatigue', value: stats.remarks.fatigue, accent: 'text-amber-200' },
+                    { label: 'Yawning', value: stats.remarks.yawning, accent: 'text-emerald-200' },
+                    { label: 'Distraction', value: stats.remarks.distraction, accent: 'text-indigo-200' },
+                  ] as const
+                ).map((card) => (
+                  <div
+                    key={card.label}
+                    className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5 shadow-sm"
+                  >
+                    <p className="text-sm font-medium text-slate-200">{card.label}</p>
+                    <p className={`mt-3 text-4xl font-semibold ${card.accent}`}>
+                      {card.value.toLocaleString()}
+                    </p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">Alerts</p>
+                  </div>
+                ))}
               </div>
             </section>
 
