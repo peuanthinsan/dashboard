@@ -564,67 +564,71 @@ export default function DetailDashboard({
                     <span className="text-slate-500">{monthFilters.length} selected</span>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter fleets</span>
-                  <div className="flex flex-1 flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      {fleetFilters.map((fleet) => (
-                        <button
-                          key={fleet}
-                          type="button"
-                          onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
-                        >
-                          {fleet} ×
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        list="fleet-options"
-                        value={fleetSearch}
-                        onChange={(event) => setFleetSearch(event.target.value)}
-                        placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
-                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
-                      />
-                      <datalist id="fleet-options">
-                        {filteredFleetOptions.map((option) => (
-                          <option key={option} value={option} />
+                {organizationName ? null : (
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                    <span className="uppercase tracking-[0.2em] text-slate-500">Filter fleets</span>
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {fleetFilters.map((fleet) => (
+                          <button
+                            key={fleet}
+                            type="button"
+                            onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
+                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                          >
+                            {fleet} ×
+                          </button>
                         ))}
-                      </datalist>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const trimmed = fleetSearch.trim();
-                          if (!trimmed) return;
-                          const matched = fleetOptions.find(
-                            (option) => normalizeLabel(option) === normalizeLabel(trimmed),
-                          );
-                          if (!matched) return;
-                          setFleetFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                          setFleetSearch('');
-                          setPage(1);
-                        }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
-                      >
-                        Add
-                      </button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          list="fleet-options"
+                          value={fleetSearch}
+                          onChange={(event) => setFleetSearch(event.target.value)}
+                          placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
+                          className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        />
+                        <datalist id="fleet-options">
+                          {filteredFleetOptions.map((option) => (
+                            <option key={option} value={option} />
+                          ))}
+                        </datalist>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const trimmed = fleetSearch.trim();
+                            if (!trimmed) return;
+                            const matched = fleetOptions.find(
+                              (option) => normalizeLabel(option) === normalizeLabel(trimmed),
+                            );
+                            if (!matched) return;
+                            setFleetFilters((current) =>
+                              current.includes(matched) ? current : [...current, matched],
+                            );
+                            setFleetSearch('');
+                            setPage(1);
+                          }}
+                          className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        >
+                          Add
+                        </button>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFleetFilters([]);
+                        setPage(1);
+                      }}
+                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    >
+                      Clear
+                    </button>
+                    {fleetFilters.length > 0 ? (
+                      <span className="text-slate-500">{fleetFilters.length} selected</span>
+                    ) : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFleetFilters([]);
-                      setPage(1);
-                    }}
-                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
-                  >
-                    Clear
-                  </button>
-                  {fleetFilters.length > 0 ? (
-                    <span className="text-slate-500">{fleetFilters.length} selected</span>
-                  ) : null}
-                </div>
+                )}
                 <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter remark types</span>
                   <div className="flex flex-1 flex-wrap items-center gap-2">
