@@ -46,11 +46,13 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       }
     });
 
+    const latestLabel = latest ? latest.toLocaleString() : '—';
+
     return {
       total: rows.length,
       vehicles: vehicles.size,
       drivers: drivers.size,
-      latest: latest?.toLocaleString() ?? '—',
+      latest: latestLabel,
     };
   }, [rows]);
 
