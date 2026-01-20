@@ -34,6 +34,7 @@ type SortCriterion = {
   field: SortField;
   direction: SortDirection;
 };
+type RemarkFilter = 'all' | 'fatigue' | 'yawning' | 'distraction';
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
@@ -66,6 +67,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
+  const [trendRemarkFilter, setTrendRemarkFilter] = useState<RemarkFilter>('all');
 
   const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
@@ -234,6 +236,8 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
     const counts = new Map<string, { key: string; date: Date; count: number }>();
     filteredAlerts.forEach((row) => {
       if (!row.parsedDate) return;
+      const remark = normalizeLabel(row.remarks);
+      if (trendRemarkFilter !== 'all' && remark !== trendRemarkFilter) return;
       const dayKey = toDayKey(row.parsedDate);
       const existing = counts.get(dayKey);
       if (existing) {
@@ -244,7 +248,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       }
     });
     return Array.from(counts.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [filteredAlerts]);
+  }, [filteredAlerts, trendRemarkFilter]);
 
   const maxTrendValue = trendData.reduce((max, item) => Math.max(max, item.count), 0);
   const trendPoints = useMemo(() => {
@@ -368,6 +372,30 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                   <p className="text-sm text-slate-400">Eye Closing-A2 alerts for fatigue, yawning, and distraction.</p>
                 </div>
                 <span className="text-sm text-slate-400">{stats.total.toLocaleString()} alerts</span>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
+                {(
+                  [
+                    { label: 'All remarks', value: 'all' },
+                    { label: 'Fatigue', value: 'fatigue' },
+                    { label: 'Yawning', value: 'yawning' },
+                    { label: 'Distraction', value: 'distraction' },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setTrendRemarkFilter(option.value)}
+                    className={`rounded-full border px-3 py-1 text-xs ${
+                      trendRemarkFilter === option.value
+                        ? 'border-indigo-400/70 bg-indigo-500/20 text-indigo-100'
+                        : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
               <div className="mt-6 overflow-x-auto">
                 {trendData.length === 0 ? (
