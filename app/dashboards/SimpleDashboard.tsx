@@ -85,7 +85,8 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       .filter((row) => {
         if (normalizeLabel(row.alertType) !== normalizeLabel('Eye Closing-A2')) return false;
         return allowedRemarks.has(normalizeLabel(row.remarks));
-      });
+      })
+      .filter((row) => row.parsedDate);
   }, [rows]);
 
   const stats = useMemo(() => {
