@@ -403,7 +403,7 @@ export default function DashboardClient({ sheetId, gid }: DashboardClientProps) 
           <p className="mt-3 text-sm text-rose-300">{error}</p>
         ) : !vehicleColumn || !alertTypeColumn || !dateTimeColumn ? (
           <p className="mt-3 text-sm text-slate-400">
-            Add columns labelled "Vehicle No", "Alert Type", and a date/time column to view alert trends.
+            Add columns labelled &quot;Vehicle No&quot;, &quot;Alert Type&quot;, and a date/time column to view alert trends.
           </p>
         ) : (
           <div className="mt-4 grid gap-4 md:grid-cols-5">
