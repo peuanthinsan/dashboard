@@ -1054,7 +1054,7 @@ export default function DetailDashboard({ name, sheetUrl }: DetailDashboardProps
                               >
                                 <TableCell sx={{ fontWeight: 600 }}>{row.dateTimeDisplay}</TableCell>
                                 <TableCell sx={{ fontWeight: 500 }}>{row.vehicle}</TableCell>
-                                <TableCell>{row.driver || '—'}</TableCell>
+                                <TableCell>{row.driver ? String(row.driver) : '—'}</TableCell>
                                 <TableCell>
                                   <Chip label={row.alertType} size="small" color="info" variant="outlined" />
                                 </TableCell>
