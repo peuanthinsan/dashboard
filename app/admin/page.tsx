@@ -78,8 +78,9 @@ export default async function AdminPage() {
     const name = (formData.get('dashboardName') as string)?.trim();
     const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
     const companyId = Number(formData.get('companyId'));
-    const organizationId = Number(formData.get('organizationId'));
-    if (!name || !sheetUrl || Number.isNaN(companyId) || Number.isNaN(organizationId)) {
+    const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    if (!name || !sheetUrl || Number.isNaN(companyId)) {
       return;
     }
     const parsed = parseGoogleSheetUrl(sheetUrl);
@@ -215,14 +216,14 @@ export default async function AdminPage() {
               </select>
             </label>
             <label className="flex flex-col gap-2 text-xs text-slate-400">
-              Organization
+              Organization (optional)
               <select
                 name="organizationId"
                 className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                 defaultValue=""
               >
-                <option value="" disabled>
-                  Select organization
+                <option value="">
+                  All organizations
                 </option>
                 {organizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
@@ -250,8 +251,10 @@ export default async function AdminPage() {
                   const companyName =
                     companies.find((company) => company.id === dashboard.companyId)?.name ?? 'Unknown company';
                   const organizationName =
-                    organizations.find((organization) => organization.id === dashboard.organizationId)?.name ??
-                    'Unknown organization';
+                    dashboard.organizationId == null
+                      ? 'All organizations'
+                      : organizations.find((organization) => organization.id === dashboard.organizationId)?.name ??
+                        'Unknown organization';
                   const sheetUrl = dashboard.sheetUrl ?? '';
                   return (
                     <div

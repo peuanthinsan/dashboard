@@ -56,7 +56,7 @@ export default async function DashboardIndexPage() {
               const organizationLabel =
                 dashboard.organizationId != null
                   ? organizationLookup.get(dashboard.organizationId) ?? `Organization #${dashboard.organizationId}`
-                  : 'Unassigned organization';
+                  : 'All organizations';
               const sheetReference =
                 dashboard.sheetId && dashboard.sheetGid
                   ? buildSheetUrl(dashboard.sheetId, dashboard.sheetGid)

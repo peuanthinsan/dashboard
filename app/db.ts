@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSaltSync, hashSync } from 'bcrypt-ts';
 
@@ -57,13 +57,25 @@ export async function getDashboardById(id: number) {
 
 export async function getDashboardsForUser(companyId: number | null, organizationId: number | null) {
   const { dashboards } = await ensureTablesExist();
-  if (!companyId || !organizationId) {
+  if (!companyId) {
     return [];
+  }
+  if (!organizationId) {
+    return await db
+      .select()
+      .from(dashboards)
+      .where(and(eq(dashboards.companyId, companyId), isNull(dashboards.organizationId)))
+      .orderBy(dashboards.name);
   }
   return await db
     .select()
     .from(dashboards)
-    .where(and(eq(dashboards.companyId, companyId), eq(dashboards.organizationId, organizationId)))
+    .where(
+      and(
+        eq(dashboards.companyId, companyId),
+        or(eq(dashboards.organizationId, organizationId), isNull(dashboards.organizationId)),
+      ),
+    )
     .orderBy(dashboards.name);
 }
 
@@ -90,7 +102,7 @@ export async function createDashboard({
   sheetId: string;
   sheetGid: string;
   companyId: number;
-  organizationId: number;
+  organizationId: number | null;
 }) {
   const { dashboards } = await ensureTablesExist();
   return await db.insert(dashboards).values({
@@ -157,7 +169,7 @@ async function ensureTablesExist() {
       "sheetId" VARCHAR(128) NOT NULL,
       "sheetGid" VARCHAR(32) NOT NULL,
       "companyId" INTEGER NOT NULL REFERENCES "Company"(id) ON DELETE CASCADE,
-      "organizationId" INTEGER NOT NULL REFERENCES "Organization"(id) ON DELETE CASCADE
+      "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
     );
   `;
 

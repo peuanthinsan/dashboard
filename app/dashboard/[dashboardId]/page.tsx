@@ -28,11 +28,15 @@ export default async function DashboardPage({ params }: { params: { dashboardId:
   const [companies, organizations] = await Promise.all([getCompanies(), getOrganizations()]);
   const companyName = companies.find((company) => company.id === dashboard.companyId)?.name ?? 'Unknown company';
   const organizationName =
-    organizations.find((organization) => organization.id === dashboard.organizationId)?.name ?? 'Unknown organization';
+    dashboard.organizationId == null
+      ? 'All organizations'
+      : organizations.find((organization) => organization.id === dashboard.organizationId)?.name ??
+        'Unknown organization';
 
   const isAuthorized =
     user.isAdmin ||
-    (user.companyId === dashboard.companyId && user.organizationId === dashboard.organizationId);
+    (user.companyId === dashboard.companyId &&
+      (dashboard.organizationId == null || user.organizationId === dashboard.organizationId));
 
   if (!isAuthorized) {
     return (
