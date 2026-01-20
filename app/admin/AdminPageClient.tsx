@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import type { MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFormState } from 'react-dom';
 
@@ -76,6 +77,12 @@ function useRefreshOnSuccess(state: ActionState) {
   }, [router, state.status]);
 }
 
+function confirmDelete(event: MouseEvent<HTMLButtonElement>) {
+  if (!window.confirm('Are you sure you want to delete this item?')) {
+    event.preventDefault();
+  }
+}
+
 function CompanyRow({ company, action }: { company: Company; action: FormAction }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   useRefreshOnSuccess(state);
@@ -104,6 +111,7 @@ function CompanyRow({ company, action }: { company: Company; action: FormAction 
           type="submit"
           name="intent"
           value="delete"
+          onClick={confirmDelete}
           className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400"
         >
           Delete
@@ -142,6 +150,7 @@ function OrganizationRow({ organization, action }: { organization: Organization;
           type="submit"
           name="intent"
           value="delete"
+          onClick={confirmDelete}
           className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400"
         >
           Delete
@@ -248,6 +257,7 @@ function UserRow({
           type="submit"
           name="intent"
           value="delete"
+          onClick={confirmDelete}
           className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400"
         >
           Delete
@@ -349,6 +359,7 @@ function DashboardRow({
             type="submit"
             name="intent"
             value="delete"
+            onClick={confirmDelete}
             className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400"
           >
             Delete
