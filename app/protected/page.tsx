@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { auth, signOut } from 'app/auth';
-import { getDashboardsForUser, getUser } from 'app/db';
+import { getCompanies, getDashboardsForUser, getUser } from 'app/db';
 
 export default async function ProtectedPage() {
   let session = await auth();
@@ -13,6 +13,8 @@ export default async function ProtectedPage() {
           organizationIds: user[0].organizationIds ?? [],
         })
       : [];
+  let companies = await getCompanies();
+  let companyLookup = new Map(companies.map((company) => [company.id, company.name]));
 
   return (
     <div className="min-h-screen bg-black px-6 py-10 text-white">
@@ -38,19 +40,31 @@ export default async function ProtectedPage() {
             </p>
           ) : (
             <div className="grid gap-3">
-              {dashboards.map((dashboard) => (
-                <Link
-                  key={dashboard.id}
-                  href={`/dashboard/${dashboard.id}`}
-                  className="flex flex-col gap-1 rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition hover:border-slate-600"
-                >
-                  <span className="text-base font-semibold text-white">{dashboard.name}</span>
-                  <span className="text-xs uppercase tracking-wide text-slate-400">
-                    Template: {dashboard.template}
-                  </span>
-                  <span className="text-xs text-slate-500">{dashboard.sheetUrl}</span>
-                </Link>
-              ))}
+              {dashboards.map((dashboard) => {
+                const companyName = companyLookup.get(dashboard.companyId);
+                const isCompanyMatch = user[0]?.companyIds?.includes(dashboard.companyId ?? -1);
+                return (
+                  <Link
+                    key={dashboard.id}
+                    href={`/dashboard/${dashboard.id}`}
+                    className="flex flex-col gap-1 rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition hover:border-slate-600"
+                  >
+                    <span className="text-base font-semibold text-white">{dashboard.name}</span>
+                    <span className="text-xs uppercase tracking-wide text-slate-400">
+                      Template: {dashboard.template}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      Company: {companyName ?? 'Unknown'}
+                      {isCompanyMatch ? (
+                        <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-200">
+                          Assigned
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="text-xs text-slate-500">{dashboard.sheetUrl}</span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </section>
