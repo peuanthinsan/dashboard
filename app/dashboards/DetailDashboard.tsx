@@ -395,167 +395,9 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
         ) : (
           <>
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-medium">Daily alert trend</h2>
-                  <p className="text-sm text-slate-400">Daily totals for the filtered alert set.</p>
-                </div>
-                <span className="text-sm text-slate-400">{filteredAlerts.length} alerts</span>
-              </div>
-              <div className="relative mt-4">
-                {trendData.length === 0 ? (
-                  <p className="text-sm text-slate-400">No alert activity available for the selected filters.</p>
-                ) : (
-                  <svg
-                    viewBox={trendPoints.viewBox}
-                    className="h-72 w-full"
-                    preserveAspectRatio="none"
-                    role="img"
-                    aria-label="Daily alert trend"
-                    onMouseMove={(event) => {
-                      if (trendPoints.points.length === 0) return;
-                      const { left, top, width, height } = event.currentTarget.getBoundingClientRect();
-                      const x = ((event.clientX - left) / width) * trendPoints.width;
-                      const y = ((event.clientY - top) / height) * trendPoints.height;
-                      let closestPoint: TrendPoint | null = null;
-                      let closestDistance = Number.POSITIVE_INFINITY;
-                      trendPoints.points.forEach((point) => {
-                        const distance = Math.hypot(point.x - x, point.y - y);
-                        if (distance < closestDistance) {
-                          closestDistance = distance;
-                          closestPoint = point;
-                        }
-                      });
-                      if (!closestPoint) return;
-                      if (closestDistance <= 24) {
-                        setHoverPoint(closestPoint);
-                      } else if (!pinnedPoint) {
-                        setHoverPoint(null);
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      if (!pinnedPoint) {
-                        setHoverPoint(null);
-                      }
-                    }}
-                  >
-                    <defs>
-                      <linearGradient id="trend-line" x1="0" x2="1" y1="0" y2="0">
-                        <stop offset="0%" stopColor="#a78bfa" />
-                        <stop offset="100%" stopColor="#c4b5fd" />
-                      </linearGradient>
-                    </defs>
-                    <rect
-                      x="0"
-                      y="0"
-                      width="100%"
-                      height="100%"
-                      fill="transparent"
-                      rx="16"
-                    />
-                    {yAxisTicks.map((tick) => {
-                      const y =
-                        trendPoints.padding.top +
-                        tick.position * (trendPoints.height - trendPoints.padding.top - trendPoints.padding.bottom);
-                      return (
-                        <g key={`tick-${tick.value}`}>
-                          <line
-                            x1={trendPoints.padding.left}
-                            x2={trendPoints.width - trendPoints.padding.right}
-                            y1={y}
-                            y2={y}
-                            stroke="#1f2937"
-                            strokeDasharray="4 6"
-                          />
-                          <text
-                            x={trendPoints.padding.left - 12}
-                            y={y + 4}
-                            textAnchor="end"
-                            fontSize="11"
-                            fill="#94a3b8"
-                          >
-                            {tick.value}
-                          </text>
-                        </g>
-                      );
-                    })}
-                    <line
-                      x1={trendPoints.padding.left}
-                      x2={trendPoints.padding.left}
-                      y1={trendPoints.padding.top}
-                      y2={trendPoints.height - trendPoints.padding.bottom}
-                      stroke="#334155"
-                    />
-                    <line
-                      x1={trendPoints.padding.left}
-                      x2={trendPoints.width - trendPoints.padding.right}
-                      y1={trendPoints.height - trendPoints.padding.bottom}
-                      y2={trendPoints.height - trendPoints.padding.bottom}
-                      stroke="#334155"
-                    />
-                    <path d={trendPoints.path} fill="none" stroke="url(#trend-line)" strokeWidth="3" />
-                    {trendPoints.points.map((point, index) => (
-                      <g key={`point-${index}`}>
-                        <circle cx={point.x} cy={point.y} r="10" fill="transparent" />
-                        <circle
-                          cx={point.x}
-                          cy={point.y}
-                          r="5"
-                          fill="#0f172a"
-                          stroke="#c4b5fd"
-                          strokeWidth="2"
-                          className="cursor-pointer transition"
-                          onMouseEnter={() => setHoverPoint(point)}
-                          onFocus={() => setHoverPoint(point)}
-                          onClick={() => {
-                            setPinnedPoint((current) => (current?.label === point.label ? null : point));
-                            setHoverPoint(point);
-                          }}
-                        />
-                      </g>
-                    ))}
-                    {xAxisLabels.map((label) => {
-                      const x =
-                        trendPoints.padding.left +
-                        label.position * (trendPoints.width - trendPoints.padding.left - trendPoints.padding.right);
-                      return (
-                        <text
-                          key={`label-${label.label}-${label.position}`}
-                          x={x}
-                          y={trendPoints.height - trendPoints.padding.bottom + 24}
-                          textAnchor="middle"
-                          fontSize="11"
-                          fill="#94a3b8"
-                        >
-                          {label.label}
-                        </text>
-                      );
-                    })}
-                  </svg>
-                )}
-                {activePoint ? (
-                  <div
-                    className="pointer-events-none absolute rounded-lg border border-indigo-400/40 bg-slate-950/90 px-3 py-2 text-xs text-indigo-100 shadow-lg"
-                    style={{
-                      left: `${(activePoint.x / trendPoints.width) * 100}%`,
-                      top: `${(activePoint.y / trendPoints.height) * 100}%`,
-                      transform: 'translate(-50%, -120%)',
-                    }}
-                  >
-                    <div className="font-semibold">{activePoint.count} alerts</div>
-                    <div className="text-[11px] text-slate-300">{activePoint.label}</div>
-                  </div>
-                ) : null}
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium">Alerts</h2>
-                <span className="text-sm text-slate-400">{totalAlerts} rows</span>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
-                <div>
+                  <h2 className="text-lg font-medium">Filters</h2>
                   <p className="text-sm text-slate-400">
                     Narrow alerts by alert type, remark, month, fleet, or vehicle.
                   </p>
@@ -893,6 +735,168 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                     <span className="text-slate-500">{vehicleFilters.length} selected</span>
                   ) : null}
                 </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-medium">Daily alert trend</h2>
+                  <p className="text-sm text-slate-400">Daily totals for the filtered alert set.</p>
+                </div>
+                <span className="text-sm text-slate-400">{filteredAlerts.length} alerts</span>
+              </div>
+              <div className="relative mt-4">
+                {trendData.length === 0 ? (
+                  <p className="text-sm text-slate-400">No alert activity available for the selected filters.</p>
+                ) : (
+                  <svg
+                    viewBox={trendPoints.viewBox}
+                    className="h-72 w-full"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="Daily alert trend"
+                    onMouseMove={(event) => {
+                      if (trendPoints.points.length === 0) return;
+                      const { left, top, width, height } = event.currentTarget.getBoundingClientRect();
+                      const x = ((event.clientX - left) / width) * trendPoints.width;
+                      const y = ((event.clientY - top) / height) * trendPoints.height;
+                      let closestPoint: TrendPoint | null = null;
+                      let closestDistance = Number.POSITIVE_INFINITY;
+                      trendPoints.points.forEach((point) => {
+                        const distance = Math.hypot(point.x - x, point.y - y);
+                        if (distance < closestDistance) {
+                          closestDistance = distance;
+                          closestPoint = point;
+                        }
+                      });
+                      if (!closestPoint) return;
+                      if (closestDistance <= 24) {
+                        setHoverPoint(closestPoint);
+                      } else if (!pinnedPoint) {
+                        setHoverPoint(null);
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (!pinnedPoint) {
+                        setHoverPoint(null);
+                      }
+                    }}
+                  >
+                    <defs>
+                      <linearGradient id="trend-line" x1="0" x2="1" y1="0" y2="0">
+                        <stop offset="0%" stopColor="#a78bfa" />
+                        <stop offset="100%" stopColor="#c4b5fd" />
+                      </linearGradient>
+                    </defs>
+                    <rect
+                      x="0"
+                      y="0"
+                      width="100%"
+                      height="100%"
+                      fill="transparent"
+                      rx="16"
+                    />
+                    {yAxisTicks.map((tick) => {
+                      const y =
+                        trendPoints.padding.top +
+                        tick.position * (trendPoints.height - trendPoints.padding.top - trendPoints.padding.bottom);
+                      return (
+                        <g key={`tick-${tick.value}`}>
+                          <line
+                            x1={trendPoints.padding.left}
+                            x2={trendPoints.width - trendPoints.padding.right}
+                            y1={y}
+                            y2={y}
+                            stroke="#1f2937"
+                            strokeDasharray="4 6"
+                          />
+                          <text
+                            x={trendPoints.padding.left - 12}
+                            y={y + 4}
+                            textAnchor="end"
+                            fontSize="11"
+                            fill="#94a3b8"
+                          >
+                            {tick.value}
+                          </text>
+                        </g>
+                      );
+                    })}
+                    <line
+                      x1={trendPoints.padding.left}
+                      x2={trendPoints.padding.left}
+                      y1={trendPoints.padding.top}
+                      y2={trendPoints.height - trendPoints.padding.bottom}
+                      stroke="#334155"
+                    />
+                    <line
+                      x1={trendPoints.padding.left}
+                      x2={trendPoints.width - trendPoints.padding.right}
+                      y1={trendPoints.height - trendPoints.padding.bottom}
+                      y2={trendPoints.height - trendPoints.padding.bottom}
+                      stroke="#334155"
+                    />
+                    <path d={trendPoints.path} fill="none" stroke="url(#trend-line)" strokeWidth="3" />
+                    {trendPoints.points.map((point, index) => (
+                      <g key={`point-${index}`}>
+                        <circle cx={point.x} cy={point.y} r="10" fill="transparent" />
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          r="5"
+                          fill="#0f172a"
+                          stroke="#c4b5fd"
+                          strokeWidth="2"
+                          className="cursor-pointer transition"
+                          onMouseEnter={() => setHoverPoint(point)}
+                          onFocus={() => setHoverPoint(point)}
+                          onClick={() => {
+                            setPinnedPoint((current) => (current?.label === point.label ? null : point));
+                            setHoverPoint(point);
+                          }}
+                        />
+                      </g>
+                    ))}
+                    {xAxisLabels.map((label) => {
+                      const x =
+                        trendPoints.padding.left +
+                        label.position * (trendPoints.width - trendPoints.padding.left - trendPoints.padding.right);
+                      return (
+                        <text
+                          key={`label-${label.label}-${label.position}`}
+                          x={x}
+                          y={trendPoints.height - trendPoints.padding.bottom + 24}
+                          textAnchor="middle"
+                          fontSize="11"
+                          fill="#94a3b8"
+                        >
+                          {label.label}
+                        </text>
+                      );
+                    })}
+                  </svg>
+                )}
+                {activePoint ? (
+                  <div
+                    className="pointer-events-none absolute rounded-lg border border-indigo-400/40 bg-slate-950/90 px-3 py-2 text-xs text-indigo-100 shadow-lg"
+                    style={{
+                      left: `${(activePoint.x / trendPoints.width) * 100}%`,
+                      top: `${(activePoint.y / trendPoints.height) * 100}%`,
+                      transform: 'translate(-50%, -120%)',
+                    }}
+                  >
+                    <div className="font-semibold">{activePoint.count} alerts</div>
+                    <div className="text-[11px] text-slate-300">{activePoint.label}</div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-medium">Alerts</h2>
+                <span className="text-sm text-slate-400">{totalAlerts} rows</span>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
                 <div className="flex flex-wrap items-center gap-3">
