@@ -440,7 +440,6 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                     Eye Closing-A2 alerts with fatigue, yawning, and distraction remarks.
                   </p>
                 </div>
-                <span className="text-sm text-slate-400">{sortedSummaries.length} rows</span>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
                 <div className="flex flex-wrap items-center gap-3">
