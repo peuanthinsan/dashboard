@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { auth, signOut } from 'app/auth';
 import { getDashboardsForUser, getUser } from 'app/db';
 
-export default async function ProtectedPage() {
+export default async function DashboardPage() {
   let session = await auth();
   let user = session?.user?.email ? await getUser(session.user.email) : [];
   let isAdmin = user.length > 0 && user[0].isAdmin;
@@ -41,7 +41,7 @@ export default async function ProtectedPage() {
               {dashboards.map((dashboard) => (
                 <Link
                   key={dashboard.id}
-                  href={`/dashboard/${dashboard.id}`}
+                  href={`/dashboard/${dashboard.publicId}`}
                   className="flex flex-col gap-1 rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition hover:border-slate-600"
                 >
                   <span className="text-base font-semibold text-white">{dashboard.name}</span>

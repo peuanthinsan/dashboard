@@ -41,7 +41,7 @@ export default async function AdminPage() {
 
   const currentUser = await getUser(session.user.email);
   if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-    redirect('/protected');
+    redirect('/dashboard');
   }
 
   const [users, companies, organizations, dashboards] = await Promise.all([
@@ -59,7 +59,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const name = (formData.get('companyName') as string)?.trim();
     if (!name) {
@@ -76,7 +76,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const companyId = Number(formData.get('companyId'));
     const name = (formData.get('companyName') as string)?.trim();
@@ -94,7 +94,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const companyId = Number(formData.get('companyId'));
     if (!companyId) {
@@ -111,7 +111,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const name = (formData.get('organizationName') as string)?.trim();
     if (!name) {
@@ -128,7 +128,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const organizationId = Number(formData.get('organizationId'));
     const name = (formData.get('organizationName') as string)?.trim();
@@ -146,7 +146,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const organizationId = Number(formData.get('organizationId'));
     if (!organizationId) {
@@ -163,7 +163,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const email = (formData.get('userEmail') as string)?.trim();
     const password = (formData.get('userPassword') as string)?.trim();
@@ -186,7 +186,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const userId = Number(formData.get('userId'));
     const email = (formData.get('userEmail') as string)?.trim();
@@ -220,7 +220,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const userId = Number(formData.get('userId'));
     if (!userId || currentUser[0].id === userId) {
@@ -237,7 +237,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const name = (formData.get('dashboardName') as string)?.trim();
     const template = (formData.get('template') as string)?.trim();
@@ -270,7 +270,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const dashboardId = Number(formData.get('dashboardId'));
     const name = (formData.get('dashboardName') as string)?.trim();
@@ -305,7 +305,7 @@ export default async function AdminPage() {
     }
     const currentUser = await getUser(session.user.email);
     if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      redirect('/protected');
+      redirect('/dashboard');
     }
     const dashboardId = Number(formData.get('dashboardId'));
     if (!dashboardId) {

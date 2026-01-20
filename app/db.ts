@@ -3,6 +3,7 @@ import { boolean, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core'
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSaltSync, hashSync } from 'bcrypt-ts';
+import { randomUUID } from 'crypto';
 
 // Optionally, if not using email/pass login, you can
 // use the Drizzle adapter for Auth.js / NextAuth
@@ -86,6 +87,11 @@ export async function getDashboardById(id: number) {
   return await db.select().from(dashboards).where(eq(dashboards.id, id));
 }
 
+export async function getDashboardByPublicId(publicId: string) {
+  const { dashboards } = await ensureTablesExist();
+  return await db.select().from(dashboards).where(eq(dashboards.publicId, publicId));
+}
+
 export async function getDashboardsForUser({
   companyIds,
   organizationIds,
@@ -102,11 +108,12 @@ export async function getDashboardsForUser({
     organizationIds.length > 0
       ? or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, organizationIds))
       : isNull(dashboards.organizationId);
-  return await db
+  const dashboardsForUser = await db
     .select()
     .from(dashboards)
     .where(and(companyFilter, organizationFilter))
     .orderBy(dashboards.name);
+  return await ensureDashboardPublicIds(dashboardsForUser);
 }
 
 export async function createCompany(name: string) {
@@ -165,6 +172,7 @@ export async function createDashboard({
     sheetId,
     sheetGid,
     sheetUrl,
+    publicId: randomUUID(),
   });
 }
 
@@ -326,6 +334,10 @@ async function ensureTablesExist() {
       "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
     );
   `;
+  await client`
+    ALTER TABLE "Dashboard"
+    ADD COLUMN IF NOT EXISTS "publicId" VARCHAR(36);
+  `;
 
   const users = pgTable('User', {
     id: serial('id').primaryKey(),
@@ -358,6 +370,7 @@ async function ensureTablesExist() {
 
   const dashboards = pgTable('Dashboard', {
     id: serial('id').primaryKey(),
+    publicId: varchar('publicId', { length: 36 }),
     name: varchar('name', { length: 128 }),
     template: varchar('template', { length: 32 }),
     sheetId: varchar('sheetId', { length: 128 }),
@@ -368,6 +381,22 @@ async function ensureTablesExist() {
   });
 
   return { users, companies, organizations, dashboards, userCompanies, userOrganizations };
+}
+
+async function ensureDashboardPublicIds<T extends { id: number; publicId: string | null }>(
+  dashboardsForUser: T[],
+) {
+  const { dashboards } = await ensureTablesExist();
+  return await Promise.all(
+    dashboardsForUser.map(async (dashboard) => {
+      if (dashboard.publicId) {
+        return dashboard;
+      }
+      const publicId = randomUUID();
+      await db.update(dashboards).set({ publicId }).where(eq(dashboards.id, dashboard.id));
+      return { ...dashboard, publicId };
+    }),
+  );
 }
 
 async function getUserAssignments(
