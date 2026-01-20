@@ -454,26 +454,6 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
               </section>
             </div>
 
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
-              <h2 className="text-lg font-medium">Latest alert samples</h2>
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {currentRows.slice(0, 9).map((row, index) => {
-                  const vehicle = row.vehicle;
-                  const alertType = row.alertType;
-                  const driver = row.driver;
-                  return (
-                    <div key={`${vehicle}-${index}`} className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                      <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Vehicle</div>
-                      <div className="text-base font-semibold text-white">{vehicle ?? '—'}</div>
-                      <div className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">Alert</div>
-                      <div className="text-sm text-slate-200">{alertType ?? '—'}</div>
-                      <div className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">Driver</div>
-                      <div className="text-sm text-slate-300">{driver ?? '—'}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
           </div>
         )}
       </div>
