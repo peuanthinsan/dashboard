@@ -339,7 +339,6 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                   <h2 className="text-lg font-medium">Daily alert trend</h2>
                   <p className="text-sm text-slate-400">Eye Closing-A2 alerts for fatigue, yawning, and distraction.</p>
                 </div>
-                <span className="text-sm text-slate-400">{stats.total.toLocaleString()} alerts</span>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-300">
                 <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
@@ -481,9 +480,6 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                   <h2 className="text-lg font-medium">Alert remark highlights</h2>
                   <p className="text-sm text-slate-400">Eye Closing-A2 alerts by remark.</p>
                 </div>
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  {stats.total.toLocaleString()} total alerts
-                </span>
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-3">
                 {(
