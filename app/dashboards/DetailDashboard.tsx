@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { formatDate, formatDateValue } from 'app/utils/dateFormat';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -62,22 +63,13 @@ const parseDate = (value: unknown) => {
 const toMonthKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-const toMonthLabel = (date: Date) =>
-  date.toLocaleString('default', {
-    month: 'long',
-    year: 'numeric',
-  });
+const toMonthLabel = (date: Date) => formatDate(new Date(date.getFullYear(), date.getMonth(), 1));
 
 const toDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 const toDateLabel = (value: unknown) => {
-  if (!value) return '—';
-  const parsed = new Date(value as string);
-  if (Number.isNaN(parsed.getTime())) {
-    return String(value);
-  }
-  return parsed.toLocaleString();
+  return formatDateValue(value);
 };
 
 export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: DashboardProps) {
@@ -320,7 +312,7 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: item.date.toLocaleDateString() };
+      return { x, y, count: item.count, label: formatDate(item.date) };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -346,7 +338,7 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
         labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: item.date.toLocaleDateString(),
+        label: formatDate(item.date),
         position,
       };
     });
@@ -362,7 +354,7 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Detail dashboard</p>
             <h1 className="text-3xl font-semibold">{dashboardName}</h1>
             {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+              <p className="mt-1 text-xs text-slate-400">Last updated {formatDate(lastUpdated)}</p>
             ) : null}
           </div>
           <button

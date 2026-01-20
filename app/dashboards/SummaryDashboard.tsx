@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { formatDate } from 'app/utils/dateFormat';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -32,11 +33,7 @@ const parseDate = (value: unknown) => {
 const toMonthKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-const toMonthLabel = (date: Date) =>
-  date.toLocaleString('default', {
-    month: 'long',
-    year: 'numeric',
-  });
+const toMonthLabel = (date: Date) => formatDate(new Date(date.getFullYear(), date.getMonth(), 1));
 
 const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
   const totals = new Map<string, number>();
@@ -302,7 +299,7 @@ export default function SummaryDashboard({ dashboardName, sheetId, sheetGid }: D
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Summary dashboard</p>
             <h1 className="text-3xl font-semibold">{dashboardName}</h1>
             {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+              <p className="mt-1 text-xs text-slate-400">Last updated {formatDate(lastUpdated)}</p>
             ) : null}
           </div>
           <button

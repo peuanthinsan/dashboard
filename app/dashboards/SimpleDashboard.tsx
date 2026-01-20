@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { formatDate, formatDateValue } from 'app/utils/dateFormat';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -62,7 +63,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
         const timestamp = parsed.getTime();
         if (timestamp > latestTimestamp) {
           latestTimestamp = timestamp;
-          latestLabel = parsed.toLocaleString();
+          latestLabel = formatDate(parsed);
         }
       }
     });
@@ -82,7 +83,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
         const parsed = parseDate(dateValue);
         return {
           id: `${findValue(row, ['Vehicle No']) ?? 'vehicle'}-${parsed?.getTime() ?? Math.random()}`,
-          time: parsed?.toLocaleString() ?? String(dateValue ?? '—'),
+          time: formatDateValue(dateValue),
           timestamp: parsed?.getTime() ?? 0,
           vehicle: String(findValue(row, ['Vehicle No']) ?? '—'),
           alert: String(findValue(row, ['Alert Type']) ?? '—'),
@@ -108,7 +109,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       const entry = grouped.get(key) ?? {
         key,
         date,
-        dateLabel: date.toLocaleDateString(),
+        dateLabel: formatDate(date),
         vehicle,
         distraction: 0,
         fatigue: 0,
@@ -165,7 +166,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: item.date.toLocaleDateString() };
+      return { x, y, count: item.count, label: formatDate(item.date) };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -190,7 +191,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       const dataIndex = labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: item.date.toLocaleDateString(),
+        label: formatDate(item.date),
         position,
       };
     });
@@ -214,7 +215,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
             </button>
           </div>
           {lastUpdated ? (
-            <p className="text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+          <p className="text-xs text-slate-400">Last updated {formatDate(lastUpdated)}</p>
           ) : null}
         </header>
 

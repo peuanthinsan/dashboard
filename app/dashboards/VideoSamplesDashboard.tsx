@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { formatDate, formatDateValue } from 'app/utils/dateFormat';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -52,7 +53,7 @@ export default function VideoSamplesDashboard({ dashboardName, sheetId, sheetGid
           vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
           driver: toDisplayString(findValue(row, ['Driver Name'])),
           remarks: toDisplayString(findValue(row, ['Remarks', 'Remark'])),
-          timeLabel: parsedDate?.toLocaleString() ?? toDisplayString(timeValue),
+          timeLabel: formatDateValue(timeValue),
           timestamp: parsedDate?.getTime() ?? 0,
           videoUrl: toDisplayString(findValue(row, ['videoURL', 'Videoit', 'Video URL'])),
         };
@@ -79,7 +80,7 @@ export default function VideoSamplesDashboard({ dashboardName, sheetId, sheetGid
             </button>
           </div>
           {lastUpdated ? (
-            <p className="text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+            <p className="text-xs text-slate-400">Last updated {formatDate(lastUpdated)}</p>
           ) : null}
         </header>
 
