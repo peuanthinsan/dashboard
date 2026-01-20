@@ -69,6 +69,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [trendRemarkFilter, setTrendRemarkFilter] = useState<RemarkFilter>('all');
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [vehicleQuery, setVehicleQuery] = useState('');
 
   const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
@@ -135,6 +136,12 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
     const activeVehicles = new Set(vehicleFilters);
     return dateFilteredAlerts.filter((row) => activeVehicles.has(row.vehicle));
   }, [dateFilteredAlerts, vehicleFilters]);
+
+  const filteredVehicleOptions = useMemo(() => {
+    const query = vehicleQuery.trim().toLowerCase();
+    if (!query) return vehicleOptions;
+    return vehicleOptions.filter((vehicle) => vehicle.toLowerCase().includes(query));
+  }, [vehicleOptions, vehicleQuery]);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -579,28 +586,56 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
                 <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
-                <select
-                  multiple
-                  value={vehicleFilters}
-                  onChange={(event) => {
-                    const selected = Array.from(event.target.selectedOptions, (option) => option.value);
-                    setVehicleFilters(selected);
-                    setPage(1);
-                  }}
-                  className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
-                >
-                  {vehicleOptions.length === 0 ? (
-                    <option value="" disabled>
-                      No vehicles available
-                    </option>
-                  ) : (
-                    vehicleOptions.map((vehicle) => (
-                      <option key={vehicle} value={vehicle}>
-                        {vehicle}
-                      </option>
-                    ))
-                  )}
-                </select>
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {vehicleFilters.map((vehicle) => (
+                      <button
+                        key={vehicle}
+                        type="button"
+                        onClick={() => {
+                          setVehicleFilters((current) => current.filter((item) => item !== vehicle));
+                          setPage(1);
+                        }}
+                        className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                      >
+                        {vehicle} ×
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      list="vehicle-options"
+                      value={vehicleQuery}
+                      onChange={(event) => setVehicleQuery(event.target.value)}
+                      placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
+                      className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                    />
+                    <datalist id="vehicle-options">
+                      {filteredVehicleOptions.map((vehicle) => (
+                        <option key={vehicle} value={vehicle} />
+                      ))}
+                    </datalist>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const trimmed = vehicleQuery.trim();
+                        if (!trimmed) return;
+                        const matched = vehicleOptions.find(
+                          (vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase(),
+                        );
+                        if (!matched) return;
+                        setVehicleFilters((current) =>
+                          current.includes(matched) ? current : [...current, matched],
+                        );
+                        setVehicleQuery('');
+                        setPage(1);
+                      }}
+                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
