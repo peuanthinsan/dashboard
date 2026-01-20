@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -59,7 +59,13 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
   const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
   const [pinnedPoint, setPinnedPoint] = useState<TrendPoint | null>(null);
-  const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>([]);
+  const defaultSortCriteria = useMemo<SortCriterion[]>(
+    () => [{ field: 'date', direction: 'desc' }],
+    [],
+  );
+  const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>(defaultSortCriteria);
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
 
   const filteredAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
@@ -176,6 +182,17 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       return 0;
     });
   }, [sortCriteria, summarizedRows]);
+
+  const totalSummaries = sortedSummaries.length;
+  const totalPages = Math.max(1, Math.ceil(totalSummaries / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = totalSummaries === 0 ? 0 : (currentPage - 1) * pageSize;
+  const endIndex = totalSummaries === 0 ? 0 : Math.min(startIndex + pageSize, totalSummaries);
+  const paginatedSummaries = sortedSummaries.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize, sortCriteria, sortedSummaries.length]);
 
   const trendData = useMemo(() => {
     const counts = new Map<string, { key: string; date: Date; count: number }>();
@@ -426,8 +443,31 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                 <span className="text-sm text-slate-400">{sortedSummaries.length} rows</span>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
-                <span>Shift-click column headers to sort by multiple columns.</span>
-                <span>{sortedSummaries.length === 0 ? 'No alerts to show.' : 'Showing all alert rows.'}</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="uppercase tracking-[0.2em] text-slate-500">Rows</span>
+                    <select
+                      value={pageSize}
+                      onChange={(event) => {
+                        setPageSize(Number(event.target.value));
+                        setPage(1);
+                      }}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                    >
+                      {[25, 50, 100].map((size) => (
+                        <option key={size} value={size}>
+                          {size} per page
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <span>Shift-click column headers to sort by multiple columns.</span>
+                </div>
+                <span>
+                  {totalSummaries === 0
+                    ? 'No alerts to show.'
+                    : `Showing ${startIndex + 1}-${endIndex} of ${totalSummaries}`}
+                </span>
               </div>
               {sortCriteria.length > 0 ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
@@ -446,10 +486,10 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                   ))}
                   <button
                     type="button"
-                    onClick={() => setSortCriteria([])}
+                    onClick={() => setSortCriteria(defaultSortCriteria)}
                     className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
                   >
-                    Clear sorting
+                    Reset sorting
                   </button>
                 </div>
               ) : null}
@@ -505,6 +545,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                                   }
                                   return nextCriteria;
                                 });
+                                setPage(1);
                               }}
                               className="flex items-center gap-2 text-left hover:text-slate-200"
                             >
@@ -517,7 +558,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedSummaries.map((row) => (
+                    {paginatedSummaries.map((row) => (
                       <tr key={row.id} className="border-b border-slate-900/80 text-slate-200">
                         <td className="py-3 pr-4 text-slate-300">{row.dateLabel}</td>
                         <td className="py-3 pr-4 font-semibold text-white">{row.vehicle}</td>
@@ -529,6 +570,29 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-md border border-slate-800 px-3 py-1 text-xs text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    disabled={currentPage === totalPages}
+                    className="rounded-md border border-slate-800 px-3 py-1 text-xs text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </section>
           </>
