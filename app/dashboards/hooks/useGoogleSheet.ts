@@ -64,7 +64,7 @@ const parseCsv = (text: string) => {
   return rows;
 };
 
-const detectColumnType = (label: string, sample: string | undefined) => {
+const detectColumnType = (label: string, sample: string | undefined): SheetColumn['type'] => {
   const normalized = normalizeHeader(label);
   const hint = DATE_HEADER_HINTS.some((keyword) => normalized.includes(keyword));
   if (hint) {
@@ -135,7 +135,7 @@ export default function useGoogleSheet({ sheetId, gid }: { sheetId: string; gid:
 
       const headerRow = rows[0];
       const sampleRow = rows[1] ?? [];
-      const nextColumns = headerRow.map((header, index) => ({
+      const nextColumns: SheetColumn[] = headerRow.map((header, index) => ({
         label: header.trim(),
         field: `col_${index}`,
         type: detectColumnType(header, sampleRow[index]),
