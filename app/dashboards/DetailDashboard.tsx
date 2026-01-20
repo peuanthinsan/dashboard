@@ -637,7 +637,7 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                     </div>
                   ) : null}
                 </div>
-                <div className="flex w-full max-w-[140px] flex-col gap-2">
+                <div className="flex w-full max-w-[240px] flex-col gap-2">
                   <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Search vehicle number</label>
                   <input
                     type="text"
@@ -902,10 +902,10 @@ export default function DetailDashboard({ dashboardName, sheetId, sheetGid }: Da
                           sortIndex >= 0 ? sortCriteria[sortIndex].direction : null;
                         const sortBadge =
                           sortIndex >= 0
-                            ? `${sortDirection === 'asc' ? '↑' : '↓'}${
+                            ? `${sortDirection === 'asc' ? 'Asc' : 'Desc'}${
                                 sortCriteria.length > 1 ? ` ${sortIndex + 1}` : ''
                               }`
-                            : '↕';
+                            : 'Sort';
                         return (
                           <th key={column.field} className="py-3 pr-4">
                             <button
