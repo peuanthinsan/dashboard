@@ -1,7 +1,9 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from 'app/auth';
 import { getDashboardById, getUser } from 'app/db';
-import DashboardRenderer from './DashboardRenderer';
+import DetailDashboard from '../templates/DetailDashboard';
+import SimpleDashboard from '../templates/SimpleDashboard';
+import SummaryDashboard from '../templates/SummaryDashboard';
 import type { DashboardRecord } from '../types';
 
 type DashboardPageProps = {
@@ -51,9 +53,17 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     redirect('/protected');
   }
 
+  const template = dashboard.template ?? 'Summary';
+  let content = <SummaryDashboard name={dashboard.name} sheetId={dashboard.sheetId} gid={dashboard.gid} />;
+  if (template === 'Detail') {
+    content = <DetailDashboard name={dashboard.name} sheetId={dashboard.sheetId} gid={dashboard.gid} />;
+  } else if (template === 'Simple') {
+    content = <SimpleDashboard name={dashboard.name} sheetId={dashboard.sheetId} gid={dashboard.gid} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <DashboardRenderer name={dashboard.name} template={dashboard.template} sheetId={dashboard.sheetId} gid={dashboard.gid} />
+      {content}
     </div>
   );
 }
