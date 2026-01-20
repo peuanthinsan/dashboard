@@ -68,6 +68,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [page, setPage] = useState(1);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [trendRemarkFilter, setTrendRemarkFilter] = useState<RemarkFilter>('all');
+  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
 
   const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
@@ -106,7 +107,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
     };
   }, [baseAlerts]);
 
-  const filteredAlerts = useMemo(() => {
+  const dateFilteredAlerts = useMemo(() => {
     const startDate = dateRange.from ? new Date(`${dateRange.from}T00:00:00`) : null;
     const endDate = dateRange.to ? new Date(`${dateRange.to}T23:59:59.999`) : null;
     return baseAlerts.filter((row) => {
@@ -116,6 +117,24 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       return true;
     });
   }, [baseAlerts, dateRange.from, dateRange.to]);
+
+  const vehicleOptions = useMemo(() => {
+    const vehicles = new Set<string>();
+    dateFilteredAlerts.forEach((row) => {
+      if (row.vehicle && row.vehicle !== '—') vehicles.add(row.vehicle);
+    });
+    return Array.from(vehicles).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [dateFilteredAlerts]);
+
+  useEffect(() => {
+    setVehicleFilters((current) => current.filter((vehicle) => vehicleOptions.includes(vehicle)));
+  }, [vehicleOptions]);
+
+  const filteredAlerts = useMemo(() => {
+    if (vehicleFilters.length === 0) return dateFilteredAlerts;
+    const activeVehicles = new Set(vehicleFilters);
+    return dateFilteredAlerts.filter((row) => activeVehicles.has(row.vehicle));
+  }, [dateFilteredAlerts, vehicleFilters]);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -556,6 +575,44 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                   <span className="text-slate-500">
                     Data from {dateBounds.min} to {dateBounds.max}
                   </span>
+                ) : null}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
+                <select
+                  multiple
+                  value={vehicleFilters}
+                  onChange={(event) => {
+                    const selected = Array.from(event.target.selectedOptions, (option) => option.value);
+                    setVehicleFilters(selected);
+                    setPage(1);
+                  }}
+                  className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                >
+                  {vehicleOptions.length === 0 ? (
+                    <option value="" disabled>
+                      No vehicles available
+                    </option>
+                  ) : (
+                    vehicleOptions.map((vehicle) => (
+                      <option key={vehicle} value={vehicle}>
+                        {vehicle}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVehicleFilters([]);
+                    setPage(1);
+                  }}
+                  className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                >
+                  Clear
+                </button>
+                {vehicleFilters.length > 0 ? (
+                  <span className="text-slate-500">{vehicleFilters.length} selected</span>
                 ) : null}
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
