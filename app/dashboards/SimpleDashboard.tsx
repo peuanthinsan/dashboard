@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { formatDate, formatDateValue } from 'app/utils/dateFormat';
+import { formatDate } from 'app/utils/dateFormat';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -84,24 +84,6 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
     };
   }, [rows]);
 
-  const recentAlerts = useMemo(() => {
-    return [...rows]
-      .map((row) => {
-        const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
-        const parsed = parseDate(dateValue);
-        return {
-          id: `${findValue(row, ['Vehicle No']) ?? 'vehicle'}-${parsed?.getTime() ?? Math.random()}`,
-          time: formatDateValue(dateValue),
-          timestamp: parsed?.getTime() ?? 0,
-          vehicle: String(findValue(row, ['Vehicle No']) ?? '—'),
-          alert: String(findValue(row, ['Alert Type']) ?? '—'),
-          speed: findValue(row, ['Speed']),
-        };
-      })
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 6);
-  }, [rows]);
-
   const tableRows = useMemo<TableRow[]>(() => {
     const grouped = new Map<string, TableRow>();
     rows.forEach((row) => {
@@ -131,6 +113,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       grouped.set(key, entry);
     });
     return Array.from(grouped.values())
+      .filter((entry) => entry.total > 0)
       .sort((a, b) => {
         const timeDiff = b.date.getTime() - a.date.getTime();
         if (timeDiff !== 0) return timeDiff;
@@ -422,22 +405,6 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
               )}
             </section>
 
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
-              <h2 className="text-lg font-medium">Recent alerts</h2>
-              <div className="mt-4 grid gap-3">
-                {recentAlerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/40 p-4 md:grid-cols-[1.1fr_1fr_1fr_auto]"
-                  >
-                    <div className="text-sm text-slate-300">{alert.time}</div>
-                    <div className="text-sm font-semibold text-white">{alert.vehicle}</div>
-                    <div className="text-sm text-slate-200">{alert.alert}</div>
-                    <div className="text-sm text-slate-400">{alert.speed ? `${alert.speed} km/h` : '—'}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
           </>
         )}
       </div>
