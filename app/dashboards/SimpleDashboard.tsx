@@ -34,6 +34,7 @@ type SortCriterion = {
   field: SortField;
   direction: SortDirection;
 };
+type RemarkFilter = 'all' | 'fatigue' | 'yawning' | 'distraction';
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
@@ -65,8 +66,12 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>(defaultSortCriteria);
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
+  const [trendRemarkFilter, setTrendRemarkFilter] = useState<RemarkFilter>('all');
+  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [vehicleQuery, setVehicleQuery] = useState('');
 
-  const filteredAlerts = useMemo(() => {
+  const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
     return rows
       .map((row) => {
@@ -88,6 +93,55 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       })
       .filter((row) => row.parsedDate);
   }, [rows]);
+
+  const dateBounds = useMemo(() => {
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
+    baseAlerts.forEach((row) => {
+      if (!row.parsedDate) return;
+      if (!minDate || row.parsedDate < minDate) minDate = row.parsedDate;
+      if (!maxDate || row.parsedDate > maxDate) maxDate = row.parsedDate;
+    });
+    return {
+      min: minDate ? toDayKey(minDate) : '',
+      max: maxDate ? toDayKey(maxDate) : '',
+    };
+  }, [baseAlerts]);
+
+  const dateFilteredAlerts = useMemo(() => {
+    const startDate = dateRange.from ? new Date(`${dateRange.from}T00:00:00`) : null;
+    const endDate = dateRange.to ? new Date(`${dateRange.to}T23:59:59.999`) : null;
+    return baseAlerts.filter((row) => {
+      if (!row.parsedDate) return false;
+      if (startDate && row.parsedDate < startDate) return false;
+      if (endDate && row.parsedDate > endDate) return false;
+      return true;
+    });
+  }, [baseAlerts, dateRange.from, dateRange.to]);
+
+  const vehicleOptions = useMemo(() => {
+    const vehicles = new Set<string>();
+    dateFilteredAlerts.forEach((row) => {
+      if (row.vehicle && row.vehicle !== '—') vehicles.add(row.vehicle);
+    });
+    return Array.from(vehicles).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [dateFilteredAlerts]);
+
+  useEffect(() => {
+    setVehicleFilters((current) => current.filter((vehicle) => vehicleOptions.includes(vehicle)));
+  }, [vehicleOptions]);
+
+  const filteredAlerts = useMemo(() => {
+    if (vehicleFilters.length === 0) return dateFilteredAlerts;
+    const activeVehicles = new Set(vehicleFilters);
+    return dateFilteredAlerts.filter((row) => activeVehicles.has(row.vehicle));
+  }, [dateFilteredAlerts, vehicleFilters]);
+
+  const filteredVehicleOptions = useMemo(() => {
+    const query = vehicleQuery.trim().toLowerCase();
+    if (!query) return vehicleOptions;
+    return vehicleOptions.filter((vehicle) => vehicle.toLowerCase().includes(query));
+  }, [vehicleOptions, vehicleQuery]);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -208,6 +262,8 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
     const counts = new Map<string, { key: string; date: Date; count: number }>();
     filteredAlerts.forEach((row) => {
       if (!row.parsedDate) return;
+      const remark = normalizeLabel(row.remarks);
+      if (trendRemarkFilter !== 'all' && remark !== trendRemarkFilter) return;
       const dayKey = toDayKey(row.parsedDate);
       const existing = counts.get(dayKey);
       if (existing) {
@@ -218,7 +274,7 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       }
     });
     return Array.from(counts.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [filteredAlerts]);
+  }, [filteredAlerts, trendRemarkFilter]);
 
   const maxTrendValue = trendData.reduce((max, item) => Math.max(max, item.count), 0);
   const trendPoints = useMemo(() => {
@@ -306,42 +362,33 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-medium">Alert remark highlights</h2>
-                  <p className="text-sm text-slate-400">Eye Closing-A2 alerts by remark.</p>
-                </div>
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  {stats.total.toLocaleString()} total alerts
-                </span>
-              </div>
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                {(
-                  [
-                    { label: 'Fatigue', value: stats.remarks.fatigue, accent: 'text-amber-200' },
-                    { label: 'Yawning', value: stats.remarks.yawning, accent: 'text-emerald-200' },
-                    { label: 'Distraction', value: stats.remarks.distraction, accent: 'text-indigo-200' },
-                  ] as const
-                ).map((card) => (
-                  <div
-                    key={card.label}
-                    className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5 shadow-sm"
-                  >
-                    <p className="text-sm font-medium text-slate-200">{card.label}</p>
-                    <p className={`mt-3 text-4xl font-semibold ${card.accent}`}>
-                      {card.value.toLocaleString()}
-                    </p>
-                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">Alerts</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
                   <h2 className="text-lg font-medium">Daily alert trend</h2>
                   <p className="text-sm text-slate-400">Eye Closing-A2 alerts for fatigue, yawning, and distraction.</p>
                 </div>
-                <span className="text-sm text-slate-400">{stats.total.toLocaleString()} alerts</span>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
+                {(
+                  [
+                    { label: 'All remarks', value: 'all' },
+                    { label: 'Fatigue', value: 'fatigue' },
+                    { label: 'Yawning', value: 'yawning' },
+                    { label: 'Distraction', value: 'distraction' },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setTrendRemarkFilter(option.value)}
+                    className={`rounded-full border px-3 py-1 text-xs ${
+                      trendRemarkFilter === option.value
+                        ? 'border-indigo-400/70 bg-indigo-500/20 text-indigo-100'
+                        : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
               <div className="mt-6 overflow-x-auto">
                 {trendData.length === 0 ? (
@@ -456,11 +503,152 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
+                  <h2 className="text-lg font-medium">Alert remark highlights</h2>
+                  <p className="text-sm text-slate-400">Eye Closing-A2 alerts by remark.</p>
+                </div>
+              </div>
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                {(
+                  [
+                    { label: 'Fatigue', value: stats.remarks.fatigue, accent: 'text-amber-200' },
+                    { label: 'Yawning', value: stats.remarks.yawning, accent: 'text-emerald-200' },
+                    { label: 'Distraction', value: stats.remarks.distraction, accent: 'text-indigo-200' },
+                  ] as const
+                ).map((card) => (
+                  <div
+                    key={card.label}
+                    className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5 shadow-sm"
+                  >
+                    <p className="text-sm font-medium text-slate-200">{card.label}</p>
+                    <p className={`mt-3 text-4xl font-semibold ${card.accent}`}>
+                      {card.value.toLocaleString()}
+                    </p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">Alerts</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
                   <h2 className="text-lg font-medium">Alerts by vehicle and date</h2>
                   <p className="text-sm text-slate-400">
                     Eye Closing-A2 alerts with fatigue, yawning, and distraction remarks.
                   </p>
                 </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Filter dates</span>
+                <label className="flex items-center gap-2">
+                  <span className="text-slate-400">From</span>
+                  <input
+                    type="date"
+                    value={dateRange.from}
+                    min={dateBounds.min}
+                    max={dateRange.to || dateBounds.max}
+                    onChange={(event) => {
+                      setDateRange((current) => ({ ...current, from: event.target.value }));
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                  />
+                </label>
+                <label className="flex items-center gap-2">
+                  <span className="text-slate-400">To</span>
+                  <input
+                    type="date"
+                    value={dateRange.to}
+                    min={dateRange.from || dateBounds.min}
+                    max={dateBounds.max}
+                    onChange={(event) => {
+                      setDateRange((current) => ({ ...current, to: event.target.value }));
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateRange({ from: '', to: '' });
+                    setPage(1);
+                  }}
+                  className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                >
+                  Clear
+                </button>
+                {dateBounds.min && dateBounds.max ? (
+                  <span className="text-slate-500">
+                    Data from {dateBounds.min} to {dateBounds.max}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {vehicleFilters.map((vehicle) => (
+                      <button
+                        key={vehicle}
+                        type="button"
+                        onClick={() => {
+                          setVehicleFilters((current) => current.filter((item) => item !== vehicle));
+                          setPage(1);
+                        }}
+                        className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                      >
+                        {vehicle} ×
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      list="vehicle-options"
+                      value={vehicleQuery}
+                      onChange={(event) => setVehicleQuery(event.target.value)}
+                      placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
+                      className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                    />
+                    <datalist id="vehicle-options">
+                      {filteredVehicleOptions.map((vehicle) => (
+                        <option key={vehicle} value={vehicle} />
+                      ))}
+                    </datalist>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const trimmed = vehicleQuery.trim();
+                        if (!trimmed) return;
+                        const matched = vehicleOptions.find(
+                          (vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase(),
+                        );
+                        if (!matched) return;
+                        setVehicleFilters((current) =>
+                          current.includes(matched) ? current : [...current, matched],
+                        );
+                        setVehicleQuery('');
+                        setPage(1);
+                      }}
+                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVehicleFilters([]);
+                    setPage(1);
+                  }}
+                  className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                >
+                  Clear
+                </button>
+                {vehicleFilters.length > 0 ? (
+                  <span className="text-slate-500">{vehicleFilters.length} selected</span>
+                ) : null}
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
                 <div className="flex flex-wrap items-center gap-3">
