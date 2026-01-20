@@ -97,9 +97,29 @@ export async function createCompany(name: string) {
   return await db.insert(companies).values({ name });
 }
 
+export async function updateCompany(id: number, name: string) {
+  const { companies } = await ensureTablesExist();
+  return await db.update(companies).set({ name }).where(eq(companies.id, id));
+}
+
+export async function deleteCompany(id: number) {
+  const { companies } = await ensureTablesExist();
+  return await db.delete(companies).where(eq(companies.id, id));
+}
+
 export async function createOrganization(name: string) {
   const { organizations } = await ensureTablesExist();
   return await db.insert(organizations).values({ name });
+}
+
+export async function updateOrganization(id: number, name: string) {
+  const { organizations } = await ensureTablesExist();
+  return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+}
+
+export async function deleteOrganization(id: number) {
+  const { organizations } = await ensureTablesExist();
+  return await db.delete(organizations).where(eq(organizations.id, id));
 }
 
 export async function createDashboard({
@@ -215,6 +235,16 @@ export async function updateUserAssignments(
       })),
     );
   }
+}
+
+export async function updateUserEmail(userId: number, email: string) {
+  const { users } = await ensureTablesExist();
+  return await db.update(users).set({ email }).where(eq(users.id, userId));
+}
+
+export async function deleteUser(userId: number) {
+  const { users } = await ensureTablesExist();
+  return await db.delete(users).where(eq(users.id, userId));
 }
 
 async function ensureTablesExist() {

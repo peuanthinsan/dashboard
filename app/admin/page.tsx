@@ -2,15 +2,22 @@ import { redirect } from 'next/navigation';
 import { auth } from 'app/auth';
 import {
   createCompany,
+  createUser,
   createDashboard,
   createOrganization,
+  deleteCompany,
+  deleteOrganization,
   getCompanies,
   getDashboards,
   getOrganizations,
   getUser,
   getUsers,
+  deleteUser,
+  updateCompany,
   updateDashboard,
+  updateOrganization,
   updateUserAssignments,
+  updateUserEmail,
   deleteDashboard,
 } from 'app/db';
 
@@ -61,6 +68,41 @@ export default async function AdminPage() {
     await createCompany(name);
   }
 
+  async function saveCompany(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/protected');
+    }
+    const companyId = Number(formData.get('companyId'));
+    const name = (formData.get('companyName') as string)?.trim();
+    if (!companyId || !name) {
+      return;
+    }
+    await updateCompany(companyId, name);
+  }
+
+  async function removeCompany(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/protected');
+    }
+    const companyId = Number(formData.get('companyId'));
+    if (!companyId) {
+      return;
+    }
+    await deleteCompany(companyId);
+  }
+
   async function addOrganization(formData: FormData) {
     'use server';
     const session = await auth();
@@ -78,6 +120,59 @@ export default async function AdminPage() {
     await createOrganization(name);
   }
 
+  async function saveOrganization(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/protected');
+    }
+    const organizationId = Number(formData.get('organizationId'));
+    const name = (formData.get('organizationName') as string)?.trim();
+    if (!organizationId || !name) {
+      return;
+    }
+    await updateOrganization(organizationId, name);
+  }
+
+  async function removeOrganization(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/protected');
+    }
+    const organizationId = Number(formData.get('organizationId'));
+    if (!organizationId) {
+      return;
+    }
+    await deleteOrganization(organizationId);
+  }
+
+  async function addUser(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/protected');
+    }
+    const email = (formData.get('userEmail') as string)?.trim();
+    const password = (formData.get('userPassword') as string)?.trim();
+    if (!email || !password) {
+      return;
+    }
+    await createUser(email, password);
+  }
+
   async function updateUser(formData: FormData) {
     'use server';
     const session = await auth();
@@ -89,17 +184,39 @@ export default async function AdminPage() {
       redirect('/protected');
     }
     const userId = Number(formData.get('userId'));
+    const email = (formData.get('email') as string)?.trim();
     const companyValues = formData.getAll('companyIds') as string[];
     const organizationValues = formData.getAll('organizationIds') as string[];
     const isAdmin = formData.get('isAdmin') === 'on';
+    if (!userId || !email) {
+      return;
+    }
     if (currentUser[0].id === userId && !isAdmin) {
       return;
     }
+    await updateUserEmail(userId, email);
     await updateUserAssignments(userId, {
       companyIds: companyValues.map(Number).filter((value) => !Number.isNaN(value)),
       organizationIds: organizationValues.map(Number).filter((value) => !Number.isNaN(value)),
       isAdmin,
     });
+  }
+
+  async function removeUser(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/protected');
+    }
+    const userId = Number(formData.get('userId'));
+    if (!userId || currentUser[0].id === userId) {
+      return;
+    }
+    await deleteUser(userId);
   }
 
   async function addDashboard(formData: FormData) {
@@ -235,10 +352,116 @@ export default async function AdminPage() {
               </button>
             </form>
           </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3">
+              <h3 className="text-sm font-semibold text-slate-200">Companies</h3>
+              {companies.length === 0 ? (
+                <p className="text-xs text-slate-400">No companies yet.</p>
+              ) : (
+                companies.map((company) => (
+                  <form
+                    key={company.id}
+                    action={saveCompany}
+                    className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3"
+                  >
+                    <input type="hidden" name="companyId" value={company.id} />
+                    <input
+                      name="companyName"
+                      defaultValue={company.name}
+                      className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:border-slate-500"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="submit"
+                        formAction={removeCompany}
+                        className="rounded-lg border border-rose-500/50 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:border-rose-400"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </form>
+                ))
+              )}
+            </div>
+
+            <div className="grid gap-3">
+              <h3 className="text-sm font-semibold text-slate-200">Organizations</h3>
+              {organizations.length === 0 ? (
+                <p className="text-xs text-slate-400">No organizations yet.</p>
+              ) : (
+                organizations.map((organization) => (
+                  <form
+                    key={organization.id}
+                    action={saveOrganization}
+                    className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3"
+                  >
+                    <input type="hidden" name="organizationId" value={organization.id} />
+                    <input
+                      name="organizationName"
+                      defaultValue={organization.name}
+                      className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:border-slate-500"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="submit"
+                        formAction={removeOrganization}
+                        className="rounded-lg border border-rose-500/50 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:border-rose-400"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </form>
+                ))
+              )}
+            </div>
+          </div>
         </section>
 
         <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
           <h2 className="text-lg font-medium">User access</h2>
+          <form
+            action={addUser}
+            className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1.4fr_1fr_auto]"
+          >
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-slate-400">Email</label>
+              <input
+                name="userEmail"
+                placeholder="user@company.com"
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-slate-400">Temporary password</label>
+              <input
+                type="password"
+                name="userPassword"
+                placeholder="••••••••"
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                type="submit"
+                className="w-full rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+              >
+                Create user
+              </button>
+            </div>
+          </form>
           <div className="grid gap-4">
             {users.map((user) => (
               <form
@@ -248,7 +471,12 @@ export default async function AdminPage() {
               >
                 <input type="hidden" name="userId" value={user.id} />
                 <div className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium text-slate-200">{user.email}</span>
+                  <label className="text-xs text-slate-400">Email</label>
+                  <input
+                    name="email"
+                    defaultValue={user.email ?? ''}
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                  />
                   <label className="flex items-center gap-2 text-xs text-slate-400">
                     <input
                       type="checkbox"
@@ -299,12 +527,21 @@ export default async function AdminPage() {
                 </label>
 
                 <div className="flex items-end">
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500"
-                  >
-                    Save
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="submit"
+                      formAction={removeUser}
+                      className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </form>
             ))}
