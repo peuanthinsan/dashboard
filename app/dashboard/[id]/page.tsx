@@ -40,11 +40,11 @@ export default async function DashboardPage({ params }: { params: { id: string }
   }
   const dashboard = dashboardResult[0];
 
-  const userCompanyId = user[0].companyId ?? null;
-  const userOrganizationId = user[0].organizationId ?? null;
-  const matchesCompany = userCompanyId && dashboard.companyId === userCompanyId;
+  const userCompanyIds = user[0].companyIds ?? [];
+  const userOrganizationIds = user[0].organizationIds ?? [];
+  const matchesCompany = userCompanyIds.includes(dashboard.companyId ?? -1);
   const matchesOrganization =
-    !dashboard.organizationId || dashboard.organizationId === userOrganizationId;
+    !dashboard.organizationId || userOrganizationIds.includes(dashboard.organizationId);
 
   if (!matchesCompany || !matchesOrganization) {
     redirect('/protected');

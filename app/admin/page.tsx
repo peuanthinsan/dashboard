@@ -89,15 +89,15 @@ export default async function AdminPage() {
       redirect('/protected');
     }
     const userId = Number(formData.get('userId'));
-    const companyValue = (formData.get('companyId') as string) ?? '';
-    const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const companyValues = formData.getAll('companyIds') as string[];
+    const organizationValues = formData.getAll('organizationIds') as string[];
     const isAdmin = formData.get('isAdmin') === 'on';
     if (currentUser[0].id === userId && !isAdmin) {
       return;
     }
     await updateUserAssignments(userId, {
-      companyId: companyValue ? Number(companyValue) : null,
-      organizationId: organizationValue ? Number(organizationValue) : null,
+      companyIds: companyValues.map(Number).filter((value) => !Number.isNaN(value)),
+      organizationIds: organizationValues.map(Number).filter((value) => !Number.isNaN(value)),
       isAdmin,
     });
   }
@@ -193,7 +193,7 @@ export default async function AdminPage() {
         <header className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold">Administration</h1>
           <p className="text-sm text-slate-300">
-            Assign users to companies or organizations and manage admin access.
+            Assign users to one or more companies and organizations, and manage admin access.
           </p>
         </header>
 
@@ -261,35 +261,41 @@ export default async function AdminPage() {
                 </div>
 
                 <label className="flex flex-col gap-2 text-xs text-slate-400">
-                  Company
+                  Companies
                   <select
-                    name="companyId"
-                    defaultValue={user.companyId ?? ''}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    name="companyIds"
+                    multiple
+                    defaultValue={(user.companyIds ?? []).map(String)}
+                    className="min-h-[7rem] rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                   >
-                    <option value="">No company</option>
                     {companies.map((company) => (
                       <option key={company.id} value={company.id}>
                         {company.name}
                       </option>
                     ))}
                   </select>
+                  <span className="text-[11px] text-slate-500">
+                    Hold Ctrl (Windows) or Command (Mac) to select multiple.
+                  </span>
                 </label>
 
                 <label className="flex flex-col gap-2 text-xs text-slate-400">
-                  Organization
+                  Organizations
                   <select
-                    name="organizationId"
-                    defaultValue={user.organizationId ?? ''}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    name="organizationIds"
+                    multiple
+                    defaultValue={(user.organizationIds ?? []).map(String)}
+                    className="min-h-[7rem] rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                   >
-                    <option value="">No organization</option>
                     {organizations.map((organization) => (
                       <option key={organization.id} value={organization.id}>
                         {organization.name}
                       </option>
                     ))}
                   </select>
+                  <span className="text-[11px] text-slate-500">
+                    Leave empty to allow only company-level dashboards.
+                  </span>
                 </label>
 
                 <div className="flex items-end">
