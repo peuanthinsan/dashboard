@@ -45,6 +45,16 @@ export async function getOrganizations() {
   return await db.select().from(organizations).orderBy(organizations.name);
 }
 
+export async function getDashboards() {
+  const { dashboards } = await ensureTablesExist();
+  return await db.select().from(dashboards).orderBy(dashboards.name);
+}
+
+export async function getDashboardById(id: number) {
+  const { dashboards } = await ensureTablesExist();
+  return await db.select().from(dashboards).where(eq(dashboards.id, id));
+}
+
 export async function createCompany(name: string) {
   const { companies } = await ensureTablesExist();
   return await db.insert(companies).values({ name });
@@ -53,6 +63,31 @@ export async function createCompany(name: string) {
 export async function createOrganization(name: string) {
   const { organizations } = await ensureTablesExist();
   return await db.insert(organizations).values({ name });
+}
+
+export type DashboardTemplate = 'Summary' | 'Detail' | 'Simple';
+
+export async function createDashboard({
+  name,
+  companyId,
+  organizationId,
+  template,
+  sheetUrl,
+}: {
+  name: string;
+  companyId: number;
+  organizationId: number | null;
+  template: DashboardTemplate;
+  sheetUrl: string;
+}) {
+  const { dashboards } = await ensureTablesExist();
+  return await db.insert(dashboards).values({
+    name,
+    companyId,
+    organizationId,
+    template,
+    sheetUrl,
+  });
 }
 
 export async function updateUserAssignments(
@@ -92,6 +127,16 @@ async function ensureTablesExist() {
     );
   `;
   await client`
+    CREATE TABLE IF NOT EXISTS "Dashboard" (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(128) NOT NULL,
+      template VARCHAR(32) NOT NULL,
+      "sheetUrl" VARCHAR(512) NOT NULL,
+      "companyId" INTEGER REFERENCES "Company"(id) ON DELETE CASCADE,
+      "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
+    );
+  `;
+  await client`
     CREATE TABLE IF NOT EXISTS "User" (
       id SERIAL PRIMARY KEY,
       email VARCHAR(64),
@@ -121,5 +166,14 @@ async function ensureTablesExist() {
     name: varchar('name', { length: 128 }),
   });
 
-  return { users, companies, organizations };
+  const dashboards = pgTable('Dashboard', {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 128 }),
+    template: varchar('template', { length: 32 }),
+    sheetUrl: varchar('sheetUrl', { length: 512 }),
+    companyId: integer('companyId'),
+    organizationId: integer('organizationId'),
+  });
+
+  return { users, companies, organizations, dashboards };
 }

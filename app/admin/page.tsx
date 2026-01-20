@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation';
 import { auth } from 'app/auth';
 import {
   createCompany,
+  createDashboard,
   createOrganization,
   getCompanies,
+  getDashboards,
   getOrganizations,
   getUser,
   getUsers,
@@ -21,10 +23,11 @@ export default async function AdminPage() {
     redirect('/protected');
   }
 
-  const [users, companies, organizations] = await Promise.all([
+  const [users, companies, organizations, dashboards] = await Promise.all([
     getUsers(),
     getCompanies(),
     getOrganizations(),
+    getDashboards(),
   ]);
 
   async function addCompany(formData: FormData) {
@@ -85,13 +88,40 @@ export default async function AdminPage() {
     });
   }
 
+  async function addDashboard(formData: FormData) {
+    'use server';
+    const session = await auth();
+    if (!session?.user?.email) {
+      redirect('/login');
+    }
+    const currentUser = await getUser(session.user.email);
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      redirect('/protected');
+    }
+    const name = (formData.get('dashboardName') as string)?.trim();
+    const template = (formData.get('template') as string)?.trim();
+    const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
+    const companyValue = (formData.get('dashboardCompanyId') as string) ?? '';
+    const organizationValue = (formData.get('dashboardOrganizationId') as string) ?? '';
+    if (!name || !template || !sheetUrl || !companyValue) {
+      return;
+    }
+    await createDashboard({
+      name,
+      template: template as 'Summary' | 'Detail' | 'Simple',
+      sheetUrl,
+      companyId: Number(companyValue),
+      organizationId: organizationValue ? Number(organizationValue) : null,
+    });
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
         <header className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold">Administration</h1>
           <p className="text-sm text-slate-300">
-            Assign users to companies or organizations and manage admin access.
+            Assign users to companies or organizations, and provision dashboards for teams.
           </p>
         </header>
 
@@ -133,6 +163,114 @@ export default async function AdminPage() {
               </button>
             </form>
           </div>
+        </section>
+
+        <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-lg font-medium">Create dashboard</h2>
+            <p className="text-sm text-slate-300">
+              Dashboards inherit access from the assigned company and optional organization.
+            </p>
+          </div>
+          <form action={addDashboard} className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-xs text-slate-400">
+                Dashboard name
+                <input
+                  name="dashboardName"
+                  placeholder="PoonNok Dashboard"
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-xs text-slate-400">
+                Template
+                <select
+                  name="template"
+                  defaultValue="Summary"
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                >
+                  <option value="Summary">Summary</option>
+                  <option value="Detail">Detail</option>
+                  <option value="Simple">Simple</option>
+                </select>
+              </label>
+            </div>
+            <label className="flex flex-col gap-2 text-xs text-slate-400">
+              Google Sheet link
+              <input
+                name="sheetUrl"
+                placeholder="https://docs.google.com/spreadsheets/..."
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+              />
+            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2 text-xs text-slate-400">
+                Company
+                <select
+                  name="dashboardCompanyId"
+                  defaultValue=""
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                >
+                  <option value="" disabled>
+                    Select a company
+                  </option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-2 text-xs text-slate-400">
+                Organization (optional)
+                <select
+                  name="dashboardOrganizationId"
+                  defaultValue=""
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                >
+                  <option value="">All organizations</option>
+                  {organizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div>
+              <button
+                type="submit"
+                className="rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+              >
+                Add dashboard
+              </button>
+            </div>
+          </form>
+          {dashboards.length > 0 ? (
+            <div className="grid gap-3">
+              <h3 className="text-sm font-semibold text-slate-200">Existing dashboards</h3>
+              {dashboards.map((dashboard) => (
+                <div
+                  key={dashboard.id}
+                  className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-200"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-semibold">{dashboard.name}</span>
+                    <span className="rounded-full border border-indigo-400/60 px-2 py-1 text-xs uppercase tracking-wide text-indigo-200">
+                      {dashboard.template}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    Company #{dashboard.companyId}
+                    {dashboard.organizationId ? ` • Organization #${dashboard.organizationId}` : ' • All organizations'}
+                  </div>
+                  <div className="text-xs text-slate-500 break-all">{dashboard.sheetUrl}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">No dashboards created yet.</p>
+          )}
         </section>
 
         <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
