@@ -417,7 +417,7 @@ export default function AdminPageClient({
         <header className="flex flex-col gap-2">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+            className="inline-flex w-fit items-center gap-2 text-sm text-slate-300 transition hover:text-white"
           >
             <span aria-hidden="true">←</span>
             Back to dashboards

@@ -25,7 +25,7 @@ export default async function DashboardPage() {
           {isAdmin ? (
             <Link
               href="/admin"
-              className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
             >
               Go to administration
             </Link>
