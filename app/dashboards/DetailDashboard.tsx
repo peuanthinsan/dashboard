@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
@@ -108,6 +108,7 @@ export default function DetailDashboard({
   const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>([]);
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
+  const didSetDefaultMonth = useRef(false);
 
   const alertRows = useMemo<AlertRow[]>(() => {
     const mappedRows = rows.map((row, index) => {
@@ -217,11 +218,13 @@ export default function DetailDashboard({
   }, [monthOptions, monthSearch]);
 
   useEffect(() => {
-    if (monthFilters.length > 0) return;
+    if (didSetDefaultMonth.current) return;
+    if (monthOptions.length === 0) return;
+    didSetDefaultMonth.current = true;
     if (monthOptions.some((option) => option.key === currentMonthKey)) {
       setMonthFilters([currentMonthKey]);
     }
-  }, [currentMonthKey, monthFilters.length, monthOptions]);
+  }, [currentMonthKey, monthOptions]);
 
   const baseFilteredRows = useMemo(() => {
     const normalizedAlertFilters = alertFilters.map((alert) => normalizeLabel(alert));
