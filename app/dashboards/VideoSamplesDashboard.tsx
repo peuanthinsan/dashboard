@@ -86,7 +86,7 @@ export default function VideoSamplesDashboard({
             <div>
               <Link
                 href="/dashboard"
-                className="mb-2 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white"
+                className="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
               >
                 <span aria-hidden="true">←</span>
                 Back to dashboards
