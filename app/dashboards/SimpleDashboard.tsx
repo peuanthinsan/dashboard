@@ -65,8 +65,9 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
   const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>(defaultSortCriteria);
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
-  const filteredAlerts = useMemo(() => {
+  const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
     return rows
       .map((row) => {
@@ -88,6 +89,31 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
       })
       .filter((row) => row.parsedDate);
   }, [rows]);
+
+  const dateBounds = useMemo(() => {
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
+    baseAlerts.forEach((row) => {
+      if (!row.parsedDate) return;
+      if (!minDate || row.parsedDate < minDate) minDate = row.parsedDate;
+      if (!maxDate || row.parsedDate > maxDate) maxDate = row.parsedDate;
+    });
+    return {
+      min: minDate ? toDayKey(minDate) : '',
+      max: maxDate ? toDayKey(maxDate) : '',
+    };
+  }, [baseAlerts]);
+
+  const filteredAlerts = useMemo(() => {
+    const startDate = dateRange.from ? new Date(`${dateRange.from}T00:00:00`) : null;
+    const endDate = dateRange.to ? new Date(`${dateRange.to}T23:59:59.999`) : null;
+    return baseAlerts.filter((row) => {
+      if (!row.parsedDate) return false;
+      if (startDate && row.parsedDate < startDate) return false;
+      if (endDate && row.parsedDate > endDate) return false;
+      return true;
+    });
+  }, [baseAlerts, dateRange.from, dateRange.to]);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -461,6 +487,52 @@ export default function SimpleDashboard({ dashboardName, sheetId, sheetGid }: Da
                     Eye Closing-A2 alerts with fatigue, yawning, and distraction remarks.
                   </p>
                 </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Filter dates</span>
+                <label className="flex items-center gap-2">
+                  <span className="text-slate-400">From</span>
+                  <input
+                    type="date"
+                    value={dateRange.from}
+                    min={dateBounds.min}
+                    max={dateRange.to || dateBounds.max}
+                    onChange={(event) => {
+                      setDateRange((current) => ({ ...current, from: event.target.value }));
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                  />
+                </label>
+                <label className="flex items-center gap-2">
+                  <span className="text-slate-400">To</span>
+                  <input
+                    type="date"
+                    value={dateRange.to}
+                    min={dateRange.from || dateBounds.min}
+                    max={dateBounds.max}
+                    onChange={(event) => {
+                      setDateRange((current) => ({ ...current, to: event.target.value }));
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateRange({ from: '', to: '' });
+                    setPage(1);
+                  }}
+                  className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                >
+                  Clear
+                </button>
+                {dateBounds.min && dateBounds.max ? (
+                  <span className="text-slate-500">
+                    Data from {dateBounds.min} to {dateBounds.max}
+                  </span>
+                ) : null}
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
                 <div className="flex flex-wrap items-center gap-3">
