@@ -370,10 +370,10 @@ export default function SimpleDashboard({
   const activePoint = hoverPoint;
 
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
+    <div className="min-h-screen bg-slate-950 px-4 py-6 text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div>
               <Link
                 href="/dashboard"
@@ -390,7 +390,7 @@ export default function SimpleDashboard({
             <button
               type="button"
               onClick={refresh}
-              className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500"
+              className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500 sm:w-auto"
             >
               Refresh data
             </button>
@@ -413,7 +413,7 @@ export default function SimpleDashboard({
         ) : (
           <>
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-medium">Filters</h2>
                   <p className="text-sm text-slate-400">Narrow alerts by date range or vehicle.</p>
@@ -434,9 +434,9 @@ export default function SimpleDashboard({
                 </button>
               </div>
               <div className="mt-4 space-y-3 text-xs text-slate-300">
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter dates</span>
-                  <label className="flex items-center gap-2">
+                  <label className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                     <span className="text-slate-400">From</span>
                     <input
                       type="date"
@@ -447,10 +447,10 @@ export default function SimpleDashboard({
                         setDateRange((current) => ({ ...current, from: event.target.value }));
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:w-auto"
                     />
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                     <span className="text-slate-400">To</span>
                     <input
                       type="date"
@@ -461,7 +461,7 @@ export default function SimpleDashboard({
                         setDateRange((current) => ({ ...current, to: event.target.value }));
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:w-auto"
                     />
                   </label>
                   <button
@@ -470,7 +470,7 @@ export default function SimpleDashboard({
                       setDateRange({ from: '', to: '' });
                       setPage(1);
                     }}
-                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -480,9 +480,9 @@ export default function SimpleDashboard({
                     </span>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300 sm:flex-row sm:flex-wrap sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
-                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <div className="flex w-full flex-1 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                     <div className="flex flex-wrap gap-2">
                       {vehicleFilters.map((vehicle) => (
                         <button
@@ -498,13 +498,13 @@ export default function SimpleDashboard({
                         </button>
                       ))}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                       <input
                         list="vehicle-options"
                         value={vehicleQuery}
                         onChange={(event) => setVehicleQuery(event.target.value)}
                         placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
-                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        className="w-full min-w-0 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px]"
                       />
                       <datalist id="vehicle-options">
                         {filteredVehicleOptions.map((vehicle) => (
@@ -526,7 +526,7 @@ export default function SimpleDashboard({
                           setVehicleQuery('');
                           setPage(1);
                         }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                       >
                         Add
                       </button>
@@ -538,7 +538,7 @@ export default function SimpleDashboard({
                       setVehicleFilters([]);
                       setPage(1);
                     }}
-                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -547,9 +547,9 @@ export default function SimpleDashboard({
                   ) : null}
                 </div>
                 {driverOptions.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
+                  <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300 sm:flex-row sm:flex-wrap sm:items-center">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
-                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-1 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                       <div className="flex flex-wrap gap-2">
                         {driverFilters.map((driver) => (
                           <button
@@ -565,13 +565,13 @@ export default function SimpleDashboard({
                           </button>
                         ))}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                         <input
                           list="driver-options"
                           value={driverQuery}
                           onChange={(event) => setDriverQuery(event.target.value)}
                           placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
-                          className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                          className="w-full min-w-0 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px]"
                         />
                         <datalist id="driver-options">
                           {filteredDriverOptions.map((driver) => (
@@ -593,7 +593,7 @@ export default function SimpleDashboard({
                             setDriverQuery('');
                             setPage(1);
                           }}
-                          className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                          className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                         >
                           Add
                         </button>
@@ -605,7 +605,7 @@ export default function SimpleDashboard({
                         setDriverFilters([]);
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                      className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                     >
                       Clear
                     </button>
