@@ -88,8 +88,6 @@ export default function SummaryDashboard({
   );
 
   const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
-  const [alertSearch, setAlertSearch] = useState('');
-  const [alertFilters, setAlertFilters] = useState<string[]>([]);
   const [monthSearch, setMonthSearch] = useState('');
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [fleetSearch, setFleetSearch] = useState('');
@@ -155,27 +153,6 @@ export default function SummaryDashboard({
     }
     return mappedRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
   }, [normalizedOrganizationName, rows]);
-
-  const alertOptions = useMemo(() => {
-    const normalizedAllowed = allowedAlertTypes.map((label) => normalizeLabel(label));
-    const matching = new Set<string>();
-    alertRows.forEach((row) => {
-      if (!row.alertType || row.alertType === '—') return;
-      const normalizedValue = normalizeLabel(row.alertType);
-      const allowedIndex = normalizedAllowed.indexOf(normalizedValue);
-      if (allowedIndex >= 0) {
-        matching.add(allowedAlertTypes[allowedIndex]);
-      }
-    });
-    return Array.from(matching).sort((a, b) => a.localeCompare(b));
-  }, [alertRows, allowedAlertTypes]);
-
-  const filteredAlertOptions = useMemo(() => {
-    const trimmedSearch = alertSearch.trim();
-    if (!trimmedSearch) return alertOptions;
-    const normalizedSearch = normalizeLabel(trimmedSearch);
-    return alertOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
-  }, [alertOptions, alertSearch]);
 
   const fleetOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -258,15 +235,14 @@ export default function SummaryDashboard({
   }, [currentMonthKey, monthOptions]);
 
   const baseFilteredRows = useMemo(() => {
-    const normalizedAlertFilters = alertFilters.map((alert) => normalizeLabel(alert));
+    const normalizedAllowedAlertTypes = allowedAlertTypes.map((alert) => normalizeLabel(alert));
     const normalizedFleetFilters = fleetFilters.map((fleet) => normalizeLabel(fleet));
     const normalizedRemarkFilters = remarkFilters.map((remark) => normalizeLabel(remark));
     const normalizedVehicleFilters = vehicleFilters.map((vehicle) => normalizeLabel(vehicle));
     return alertRows.filter((row) => {
-      if (normalizedAlertFilters.length > 0) {
-        const normalizedAlert = normalizeLabel(row.alertType);
-        if (!normalizedAlertFilters.includes(normalizedAlert)) return false;
-      }
+      if (!row.alertType || row.alertType === '—') return false;
+      const normalizedAlertType = normalizeLabel(row.alertType);
+      if (!normalizedAllowedAlertTypes.includes(normalizedAlertType)) return false;
       if (normalizedFleetFilters.length > 0) {
         const normalizedFleet = normalizeLabel(row.fleet);
         if (!normalizedFleetFilters.includes(normalizedFleet)) return false;
@@ -281,7 +257,7 @@ export default function SummaryDashboard({
       }
       return true;
     });
-  }, [alertFilters, alertRows, fleetFilters, remarkFilters, vehicleFilters]);
+  }, [alertRows, allowedAlertTypes, fleetFilters, remarkFilters, vehicleFilters]);
 
   const activeMonthKey = monthFilters.length === 1 ? monthFilters[0] : null;
 
@@ -399,14 +375,12 @@ export default function SummaryDashboard({
                 <div>
                   <h2 className="text-lg font-medium">Filters</h2>
                   <p className="text-sm text-slate-400">
-                    Narrow alerts by alert type, remark, month, fleet, or vehicle.
+                    Narrow alerts by remark, month, fleet, or vehicle.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    setAlertSearch('');
-                    setAlertFilters([]);
                     setMonthSearch('');
                     setMonthFilters([]);
                     setFleetSearch('');
@@ -422,63 +396,6 @@ export default function SummaryDashboard({
                 </button>
               </div>
               <div className="mt-4 space-y-3 text-xs text-slate-300">
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter alert types</span>
-                  <div className="flex flex-1 flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      {alertFilters.map((alert) => (
-                        <button
-                          key={alert}
-                          type="button"
-                          onClick={() => setAlertFilters((current) => current.filter((value) => value !== alert))}
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
-                        >
-                          {alert} ×
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        list="alert-type-options"
-                        value={alertSearch}
-                        onChange={(event) => setAlertSearch(event.target.value)}
-                        placeholder={alertOptions.length === 0 ? 'No alert types available' : 'Search alert types'}
-                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
-                      />
-                      <datalist id="alert-type-options">
-                        {filteredAlertOptions.map((option) => (
-                          <option key={option} value={option} />
-                        ))}
-                      </datalist>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const trimmed = alertSearch.trim();
-                          if (!trimmed) return;
-                          const matched = alertOptions.find(
-                            (option) => normalizeLabel(option) === normalizeLabel(trimmed),
-                          );
-                          if (!matched) return;
-                          setAlertFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                          setAlertSearch('');
-                        }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setAlertFilters([])}
-                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
-                  >
-                    Clear
-                  </button>
-                  {alertFilters.length > 0 ? (
-                    <span className="text-slate-500">{alertFilters.length} selected</span>
-                  ) : null}
-                </div>
                 <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter months</span>
                   <div className="flex flex-1 flex-wrap items-center gap-2">
