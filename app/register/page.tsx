@@ -1,22 +1,88 @@
-import Link from 'next/link';
-import { Form } from 'app/form';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import { z } from 'zod';
+
 import { createUser, getUser } from 'app/db';
-import { SubmitButton } from 'app/submit-button';
+import { RegisterForm } from 'app/register/register-form';
+
+const registerSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required.' })
+    .trim()
+    .email('Enter a valid email address.'),
+  password: z
+    .string({ required_error: 'Password is required.' })
+    .min(8, 'Password must be at least 8 characters long.')
+    .max(72, 'Password must be at most 72 characters long.'),
+});
+
+type RegisterState = {
+  error: string | null;
+};
+
+type RateLimitEntry = {
+  count: number;
+  expiresAt: number;
+};
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+function getClientIdentifier() {
+  const forwardedFor = headers().get('x-forwarded-for');
+  const ip = forwardedFor?.split(',')[0]?.trim();
+
+  return ip || headers().get('x-real-ip') || 'unknown';
+}
+
+function checkRateLimit(key: string) {
+  const now = Date.now();
+  const entry = rateLimitStore.get(key);
+
+  if (!entry || entry.expiresAt <= now) {
+    rateLimitStore.set(key, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
+    return { ok: true };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX_ATTEMPTS) {
+    return { ok: false, message: 'Too many sign up attempts. Please try again shortly.' };
+  }
+
+  entry.count += 1;
+  return { ok: true };
+}
 
 export default function Login() {
-  async function register(formData: FormData) {
+  async function register(
+    _prevState: RegisterState,
+    formData: FormData,
+  ): Promise<RegisterState> {
     'use server';
-    let email = formData.get('email') as string;
-    let password = formData.get('password') as string;
-    let user = await getUser(email);
+    const email = formData.get('email');
+    const password = formData.get('password');
+    const parsed = registerSchema.safeParse({ email, password });
+
+    if (!parsed.success) {
+      const firstError = parsed.error.errors[0]?.message;
+      return { error: firstError ?? 'Invalid registration details.' };
+    }
+
+    const rateLimitKey = getClientIdentifier();
+    const rateLimitResult = checkRateLimit(rateLimitKey);
+
+    if (!rateLimitResult.ok) {
+      return { error: rateLimitResult.message };
+    }
+
+    const user = await getUser(parsed.data.email);
 
     if (user.length > 0) {
-      return 'User already exists'; // TODO: Handle errors with useFormStatus
-    } else {
-      await createUser(email, password);
-      redirect('/login');
+      return { error: 'An account with this email already exists.' };
     }
+
+    await createUser(parsed.data.email, parsed.data.password);
+    redirect('/login');
   }
 
   return (
@@ -28,16 +94,7 @@ export default function Login() {
             Create an account with your email and password
           </p>
         </div>
-        <Form action={register}>
-          <SubmitButton>Sign Up</SubmitButton>
-          <p className="text-center text-sm text-gray-600">
-            {'Already have an account? '}
-            <Link href="/login" className="font-semibold text-gray-800">
-              Sign in
-            </Link>
-            {' instead.'}
-          </p>
-        </Form>
+        <RegisterForm action={register} />
       </div>
     </div>
   );
