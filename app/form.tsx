@@ -1,4 +1,4 @@
-import type { FormAction } from 'react-dom';
+type FormAction = string | ((formData: FormData) => void | Promise<void>);
 
 export function Form({
   action,
