@@ -18,7 +18,10 @@ function CompanyRow({ company, action }: { company: Company; action: FormAction 
   useRefreshOnSuccess(state);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+    <form
+      action={formAction}
+      className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+    >
       <input type="hidden" name="companyId" value={company.id} />
       <div className="flex w-full flex-col gap-2 sm:flex-1">
         <label className="text-xs text-slate-400">Company name</label>
@@ -44,7 +47,7 @@ function CompanyRow({ company, action }: { company: Company; action: FormAction 
           confirmClassName="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
         />
       </div>
-      <StatusMessage state={state} />
+      <StatusMessage state={state} className="sm:basis-full" />
     </form>
   );
 }
