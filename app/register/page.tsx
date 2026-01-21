@@ -72,7 +72,7 @@ export default function Login() {
     const rateLimitResult = checkRateLimit(rateLimitKey);
 
     if (!rateLimitResult.ok) {
-      return { error: rateLimitResult.message };
+      return { error: rateLimitResult.message ?? 'Too many sign up attempts.' };
     }
 
     const user = await getUser(parsed.data.email);
