@@ -441,9 +441,9 @@ export default function DetailDashboard({
   const activePoint = pinnedPoint ?? hoverPoint;
 
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
+      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-6 sm:gap-8">
+        <header className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link
               href="/dashboard"

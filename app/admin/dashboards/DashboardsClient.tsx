@@ -133,7 +133,7 @@ export default function DashboardsClient({
   useRefreshOnSuccess(dashboardCreateState);
 
   return (
-    <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+    <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
       <header className="flex flex-col gap-2">
         <h2 className="text-lg font-medium">Dashboards</h2>
         <p className="text-sm text-slate-300">

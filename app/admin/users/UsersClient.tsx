@@ -132,7 +132,7 @@ export default function UsersClient({
   useRefreshOnSuccess(userCreateState);
 
   return (
-    <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+    <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
       <form
         action={userCreateAction}
         className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1.2fr_1fr_auto]"

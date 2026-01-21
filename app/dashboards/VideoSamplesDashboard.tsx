@@ -82,10 +82,10 @@ export default function VideoSamplesDashboard({
   }, [normalizedOrganizationName, rows]);
 
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
+    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
+      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-6 sm:gap-8">
         <header className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Link
                 href="/dashboard"
@@ -121,7 +121,7 @@ export default function VideoSamplesDashboard({
             Loading video samples…
           </div>
         ) : (
-          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-medium">Latest alert samples</h2>
               <span className="text-sm text-slate-400">{samples.length} videos</span>

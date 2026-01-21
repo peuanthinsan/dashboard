@@ -63,7 +63,7 @@ export default function CompaniesClient({
   useRefreshOnSuccess(companyCreateState);
 
   return (
-    <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+    <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
       <form
         action={companyCreateAction}
         className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4"

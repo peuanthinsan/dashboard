@@ -6,8 +6,8 @@ export default async function AdminPage() {
   await requireAdmin();
 
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
+    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
+      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-6 sm:gap-8">
         <header className="flex flex-col gap-3">
           <Link
             href="/dashboard"
@@ -51,7 +51,7 @@ export default async function AdminPage() {
             <Link
               key={card.href}
               href={card.href}
-              className="flex h-full flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg transition hover:border-slate-600"
+              className="flex h-full flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg transition hover:border-slate-600 sm:p-6"
             >
               <h2 className="text-lg font-semibold">{card.title}</h2>
               <p className="text-sm text-slate-300">{card.description}</p>
