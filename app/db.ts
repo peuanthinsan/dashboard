@@ -54,13 +54,29 @@ const dashboards = pgTable('Dashboard', {
 
 export async function getUser(email: string) {
   const userRows = await db.select().from(users).where(eq(users.email, email));
-  const assignments = await Promise.all(
-    userRows.map(async (user) => ({
-      ...user,
-      ...(await getUserAssignments(user.id, user.companyId ?? null, user.organizationId ?? null)),
-    })),
+  if (userRows.length === 0) {
+    return [];
+  }
+  const assignmentsByUserId = await getUserAssignmentsByUserIds(
+    userRows.map((user) => user.id),
   );
-  return assignments;
+  return userRows.map((user) => {
+    const assignment = assignmentsByUserId.get(user.id) ?? {
+      companyIds: [],
+      organizationIds: [],
+    };
+    return {
+      ...user,
+      companyIds:
+        assignment.companyIds.length === 0 && user.companyId
+          ? [user.companyId]
+          : assignment.companyIds,
+      organizationIds:
+        assignment.organizationIds.length === 0 && user.organizationId
+          ? [user.organizationId]
+          : assignment.organizationIds,
+    };
+  });
 }
 
 export async function createUser(email: string, password: string) {
@@ -91,13 +107,29 @@ export async function createUserWithRole({
 
 export async function getUsers() {
   const userRows = await db.select().from(users).orderBy(users.id);
-  const assignments = await Promise.all(
-    userRows.map(async (user) => ({
-      ...user,
-      ...(await getUserAssignments(user.id, user.companyId ?? null, user.organizationId ?? null)),
-    })),
+  if (userRows.length === 0) {
+    return [];
+  }
+  const assignmentsByUserId = await getUserAssignmentsByUserIds(
+    userRows.map((user) => user.id),
   );
-  return assignments;
+  return userRows.map((user) => {
+    const assignment = assignmentsByUserId.get(user.id) ?? {
+      companyIds: [],
+      organizationIds: [],
+    };
+    return {
+      ...user,
+      companyIds:
+        assignment.companyIds.length === 0 && user.companyId
+          ? [user.companyId]
+          : assignment.companyIds,
+      organizationIds:
+        assignment.organizationIds.length === 0 && user.organizationId
+          ? [user.organizationId]
+          : assignment.organizationIds,
+    };
+  });
 }
 
 export async function getCompanies() {
@@ -319,35 +351,45 @@ async function ensureDashboardPublicIds<T extends { id: number; publicId: string
   );
 }
 
-async function getUserAssignments(
-  userId: number,
-  fallbackCompanyId: number | null,
-  fallbackOrganizationId: number | null,
-) {
+async function getUserAssignmentsByUserIds(userIds: number[]) {
+  const uniqueUserIds = Array.from(new Set(userIds));
+  if (uniqueUserIds.length === 0) {
+    return new Map<number, { companyIds: number[]; organizationIds: number[] }>();
+  }
   const [companyRows, organizationRows] = await Promise.all([
     db
-      .select({ companyId: userCompanies.companyId })
+      .select({ userId: userCompanies.userId, companyId: userCompanies.companyId })
       .from(userCompanies)
-      .where(eq(userCompanies.userId, userId)),
+      .where(inArray(userCompanies.userId, uniqueUserIds)),
     db
-      .select({ organizationId: userOrganizations.organizationId })
+      .select({
+        userId: userOrganizations.userId,
+        organizationId: userOrganizations.organizationId,
+      })
       .from(userOrganizations)
-      .where(eq(userOrganizations.userId, userId)),
+      .where(inArray(userOrganizations.userId, uniqueUserIds)),
   ]);
 
-  const companyIds = companyRows
-    .map((row) => row.companyId)
-    .filter((value): value is number => !!value);
-  const organizationIds = organizationRows
-    .map((row) => row.organizationId)
-    .filter((value): value is number => !!value);
+  const assignments = new Map<number, { companyIds: number[]; organizationIds: number[] }>();
+  for (const userId of uniqueUserIds) {
+    assignments.set(userId, { companyIds: [], organizationIds: [] });
+  }
 
-  return {
-    companyIds:
-      companyIds.length === 0 && fallbackCompanyId ? [fallbackCompanyId] : companyIds,
-    organizationIds:
-      organizationIds.length === 0 && fallbackOrganizationId
-        ? [fallbackOrganizationId]
-        : organizationIds,
-  };
+  for (const row of companyRows) {
+    if (!row.userId || !row.companyId) continue;
+    const entry = assignments.get(row.userId);
+    if (entry) {
+      entry.companyIds.push(row.companyId);
+    }
+  }
+
+  for (const row of organizationRows) {
+    if (!row.userId || !row.organizationId) continue;
+    const entry = assignments.get(row.userId);
+    if (entry) {
+      entry.organizationIds.push(row.organizationId);
+    }
+  }
+
+  return assignments;
 }
