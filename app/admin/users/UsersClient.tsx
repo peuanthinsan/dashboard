@@ -114,7 +114,7 @@ function UserRow({
           confirmClassName="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
         />
       </div>
-      <StatusMessage state={state} />
+      <StatusMessage state={state} className="md:col-span-full" />
     </form>
   );
 }
