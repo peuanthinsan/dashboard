@@ -54,7 +54,7 @@ const dashboards = pgTable('Dashboard', {
 });
 
 export const getUser = cache(async (email: string) => {
-  const userRows = await db.select().from(users).where(eq(users.email, email));
+  const userRows = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (userRows.length === 0) {
     return [];
   }
@@ -157,13 +157,13 @@ export const getDashboardByPublicId = cache(async (publicId: string) => {
   return await db.select().from(dashboards).where(eq(dashboards.publicId, publicId));
 });
 
-export async function getDashboardsForUser({
+export const getDashboardsForUser = cache(async ({
   companyIds,
   organizationIds,
 }: {
   companyIds: number[];
   organizationIds: number[];
-}) {
+}) => {
   if (companyIds.length === 0) {
     return [];
   }
@@ -178,7 +178,7 @@ export async function getDashboardsForUser({
     .where(and(companyFilter, organizationFilter))
     .orderBy(dashboards.name);
   return await ensureDashboardPublicIds(dashboardsForUser);
-}
+});
 
 export async function createCompany(name: string) {
   return await db.insert(companies).values({ name });
