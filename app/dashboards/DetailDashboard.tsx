@@ -114,33 +114,39 @@ export default function DetailDashboard({
   const [page, setPage] = useState(1);
   const didSetDefaultMonth = useRef(false);
 
-  const allowedAlertTypes = [
-    'Distraction-A2',
-    'Eye Closing-A2',
-    'OverSpeed',
-    'Harsh Acceleration',
-    'Harsh Brake',
-    'Forward Collision-A2',
-    'Seatbelt-A2',
-    'Camera Cover',
-  ];
+  const allowedAlertTypes = useMemo(
+    () => [
+      'Distraction-A2',
+      'Eye Closing-A2',
+      'OverSpeed',
+      'Harsh Acceleration',
+      'Harsh Brake',
+      'Forward Collision-A2',
+      'Seatbelt-A2',
+      'Camera Cover',
+    ],
+    [],
+  );
 
-  const allowedRemarkTargets = [
-    'Fatigue',
-    'Yawning',
-    'Distraction',
-    'Smoking',
-    'Mobile Phone',
-    'Eating/Drinking',
-    'Seatbelt',
-    'Camera Cover',
-    'Harsh Brake',
-    'Harsh Acceleration',
-    'OverSpeed',
-    'Maintenance',
-    'Mirror Check',
-    'Speed Meter Check',
-  ];
+  const allowedRemarkTargets = useMemo(
+    () => [
+      'Fatigue',
+      'Yawning',
+      'Distraction',
+      'Smoking',
+      'Mobile Phone',
+      'Eating/Drinking',
+      'Seatbelt',
+      'Camera Cover',
+      'Harsh Brake',
+      'Harsh Acceleration',
+      'OverSpeed',
+      'Maintenance',
+      'Mirror Check',
+      'Speed Meter Check',
+    ],
+    [],
+  );
 
   const alertRows = useMemo<AlertRow[]>(() => {
     const mappedRows = rows.map((row, index) => {

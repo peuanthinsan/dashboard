@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 
@@ -102,33 +102,39 @@ export default function SummaryDashboard({
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const didSetDefaultMonth = useRef(false);
 
-  const allowedAlertTypes = [
-    'Distraction-A2',
-    'Eye Closing-A2',
-    'OverSpeed',
-    'Harsh Acceleration',
-    'Harsh Brake',
-    'Forward Collision-A2',
-    'Seatbelt-A2',
-    'Camera Cover',
-  ];
+  const allowedAlertTypes = useMemo(
+    () => [
+      'Distraction-A2',
+      'Eye Closing-A2',
+      'OverSpeed',
+      'Harsh Acceleration',
+      'Harsh Brake',
+      'Forward Collision-A2',
+      'Seatbelt-A2',
+      'Camera Cover',
+    ],
+    [],
+  );
 
-  const allowedRemarkTargets = [
-    'Fatigue',
-    'Yawning',
-    'Distraction',
-    'Smoking',
-    'Mobile Phone',
-    'Eating/Drinking',
-    'Seatbelt',
-    'Camera Cover',
-    'Harsh Brake',
-    'Harsh Acceleration',
-    'OverSpeed',
-    'Maintenance',
-    'Mirror Check',
-    'Speed Meter Check',
-  ];
+  const allowedRemarkTargets = useMemo(
+    () => [
+      'Fatigue',
+      'Yawning',
+      'Distraction',
+      'Smoking',
+      'Mobile Phone',
+      'Eating/Drinking',
+      'Seatbelt',
+      'Camera Cover',
+      'Harsh Brake',
+      'Harsh Acceleration',
+      'OverSpeed',
+      'Maintenance',
+      'Mirror Check',
+      'Speed Meter Check',
+    ],
+    [],
+  );
 
   const alertRows = useMemo(() => {
     const mappedRows = rows.map((row) => {
@@ -321,18 +327,21 @@ export default function SummaryDashboard({
   const maxRemarkTotal = topRemarks[0]?.total ?? 0;
   const maxVehicleTotal = topVehicles[0]?.total ?? 0;
 
-  const countMatches = (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {
-    const normalizedTarget = normalizeLabel(targetLabel);
-    return dataset.reduce((total, row) => {
-      const value = field === 'remarks' ? row.remarks : row.alertType;
-      if (!value || value === '—') return total;
-      const normalizedValue = normalizeLabel(value);
-      if (field === 'remarks') {
-        return normalizedValue.includes(normalizedTarget) ? total + 1 : total;
-      }
-      return normalizedValue === normalizedTarget ? total + 1 : total;
-    }, 0);
-  };
+  const countMatches = useCallback(
+    (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {
+      const normalizedTarget = normalizeLabel(targetLabel);
+      return dataset.reduce((total, row) => {
+        const value = field === 'remarks' ? row.remarks : row.alertType;
+        if (!value || value === '—') return total;
+        const normalizedValue = normalizeLabel(value);
+        if (field === 'remarks') {
+          return normalizedValue.includes(normalizedTarget) ? total + 1 : total;
+        }
+        return normalizedValue === normalizedTarget ? total + 1 : total;
+      }, 0);
+    },
+    [],
+  );
 
   const highlightItems = useMemo(() => {
     type HighlightItem = {
@@ -354,7 +363,7 @@ export default function SummaryDashboard({
       previous: countMatches('Forward Collision-A2', 'alertType', previousRows),
     });
     return items.filter((item) => item.current > 0);
-  }, [currentRows, previousRows]);
+  }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
