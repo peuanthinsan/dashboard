@@ -67,8 +67,20 @@ const dashboards = pgTable('Dashboard', {
   organizationIdIdx: index('Dashboard_organizationId_idx').on(table.organizationId),
 }));
 
+const userSelect = {
+  id: users.id,
+  email: users.email,
+  isAdmin: users.isAdmin,
+  companyId: users.companyId,
+  organizationId: users.organizationId,
+};
+
 export const getUser = cache(async (email: string) => {
-  const userRows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  const userRows = await db
+    .select(userSelect)
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
   if (userRows.length === 0) {
     return [];
   }
@@ -98,6 +110,17 @@ export async function createUser(email: string, password: string) {
   return await createUserWithRole({ email, password, isAdmin: false });
 }
 
+export const getUserForAuth = async (email: string) => {
+  return await db
+    .select({
+      ...userSelect,
+      password: users.password,
+    })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+};
+
 export async function createUserWithRole({
   email,
   password,
@@ -121,7 +144,7 @@ export async function createUserWithRole({
 }
 
 export const getUsers = cache(async () => {
-  const userRows = await db.select().from(users).orderBy(users.id);
+  const userRows = await db.select(userSelect).from(users).orderBy(users.id);
   if (userRows.length === 0) {
     return [];
   }
