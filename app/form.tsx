@@ -1,8 +1,10 @@
+type FormAction = string | ((formData: FormData) => void | Promise<void>);
+
 export function Form({
   action,
   children,
 }: {
-  action: any;
+  action: FormAction;
   children: React.ReactNode;
 }) {
   return (

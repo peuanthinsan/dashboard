@@ -1,9 +1,10 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { boolean, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, primaryKey, serial, varchar } from 'drizzle-orm/pg-core';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
-import { genSaltSync, hashSync } from 'bcrypt-ts';
+import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
+import { cache } from 'react';
 
 // Optionally, if not using email/pass login, you can
 // use the Drizzle adapter for Auth.js / NextAuth
@@ -11,21 +12,114 @@ import { randomUUID } from 'crypto';
 let client = postgres(`${process.env.POSTGRES_URL!}?sslmode=require`);
 let db = drizzle(client);
 
-export async function getUser(email: string) {
-  const { users } = await ensureTablesExist();
-  const userRows = await db.select().from(users).where(eq(users.email, email));
-  const assignments = await Promise.all(
-    userRows.map(async (user) => ({
-      ...user,
-      ...(await getUserAssignments(user.id, user.companyId ?? null, user.organizationId ?? null)),
-    })),
+const users = pgTable('User', {
+  id: serial('id').primaryKey(),
+  email: varchar('email', { length: 64 }).notNull().unique(),
+  password: varchar('password', { length: 64 }).notNull(),
+  isAdmin: boolean('isAdmin').default(false),
+  companyId: integer('companyId'),
+  organizationId: integer('organizationId'),
+}, (table) => ({
+  companyIdIdx: index('User_companyId_idx').on(table.companyId),
+  organizationIdIdx: index('User_organizationId_idx').on(table.organizationId),
+}));
+
+const userCompanies = pgTable('UserCompany', {
+  userId: integer('userId').notNull(),
+  companyId: integer('companyId').notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.companyId] }),
+  userIdIdx: index('UserCompany_userId_idx').on(table.userId),
+  companyIdIdx: index('UserCompany_companyId_idx').on(table.companyId),
+}));
+
+const userOrganizations = pgTable('UserOrganization', {
+  userId: integer('userId').notNull(),
+  organizationId: integer('organizationId').notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.organizationId] }),
+  userIdIdx: index('UserOrganization_userId_idx').on(table.userId),
+  organizationIdIdx: index('UserOrganization_organizationId_idx').on(table.organizationId),
+}));
+
+const companies = pgTable('Company', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 128 }).notNull().unique(),
+});
+
+const organizations = pgTable('Organization', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 128 }).notNull().unique(),
+});
+
+const dashboards = pgTable('Dashboard', {
+  id: serial('id').primaryKey(),
+  publicId: varchar('publicId', { length: 36 }).unique(),
+  name: varchar('name', { length: 128 }).notNull(),
+  template: varchar('template', { length: 32 }).notNull(),
+  sheetId: varchar('sheetId', { length: 128 }).notNull(),
+  sheetGid: varchar('sheetGid', { length: 24 }).notNull(),
+  sheetUrl: varchar('sheetUrl', { length: 512 }).notNull(),
+  companyId: integer('companyId'),
+  organizationId: integer('organizationId'),
+}, (table) => ({
+  companyIdIdx: index('Dashboard_companyId_idx').on(table.companyId),
+  organizationIdIdx: index('Dashboard_organizationId_idx').on(table.organizationId),
+}));
+
+const userSelect = {
+  id: users.id,
+  email: users.email,
+  isAdmin: users.isAdmin,
+  companyId: users.companyId,
+  organizationId: users.organizationId,
+};
+
+export const getUser = cache(async (email: string) => {
+  const userRows = await db
+    .select(userSelect)
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+  if (userRows.length === 0) {
+    return [];
+  }
+  const assignmentsByUserId = await getUserAssignmentsByUserIds(
+    userRows.map((user) => user.id),
   );
-  return assignments;
-}
+  return userRows.map((user) => {
+    const assignment = assignmentsByUserId.get(user.id) ?? {
+      companyIds: [],
+      organizationIds: [],
+    };
+    return {
+      ...user,
+      companyIds:
+        assignment.companyIds.length === 0 && user.companyId
+          ? [user.companyId]
+          : assignment.companyIds,
+      organizationIds:
+        assignment.organizationIds.length === 0 && user.organizationId
+          ? [user.organizationId]
+          : assignment.organizationIds,
+    };
+  });
+});
 
 export async function createUser(email: string, password: string) {
   return await createUserWithRole({ email, password, isAdmin: false });
 }
+
+export const getUserForAuth = async (email: string) => {
+  return await db
+    .select({
+      ...userSelect,
+      password: users.password,
+    })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+};
 
 export async function createUserWithRole({
   email,
@@ -36,113 +130,120 @@ export async function createUserWithRole({
   password: string;
   isAdmin: boolean;
 }) {
-  const { users } = await ensureTablesExist();
-  let salt = genSaltSync(10);
-  let hash = hashSync(password, salt);
-  const [{ count }] = await client`
-    SELECT COUNT(*)::int AS count FROM "User";
-  `;
+  const salt = await genSalt(10);
+  const passwordHash = await hash(password, salt);
 
-  return await db.insert(users).values({
-    email,
-    password: hash,
-    isAdmin: isAdmin || count === 0,
+  return await db.transaction(async (tx) => {
+    const existing = await tx.select({ id: users.id }).from(users).limit(1);
+    return await tx.insert(users).values({
+      email,
+      password: passwordHash,
+      isAdmin: isAdmin || existing.length === 0,
+    });
   });
 }
 
-export async function getUsers() {
-  const { users } = await ensureTablesExist();
-  const userRows = await db.select().from(users).orderBy(users.id);
-  const assignments = await Promise.all(
-    userRows.map(async (user) => ({
-      ...user,
-      ...(await getUserAssignments(user.id, user.companyId ?? null, user.organizationId ?? null)),
-    })),
+export const getUsers = cache(async () => {
+  const userRows = await db.select(userSelect).from(users).orderBy(users.id);
+  if (userRows.length === 0) {
+    return [];
+  }
+  const assignmentsByUserId = await getUserAssignmentsByUserIds(
+    userRows.map((user) => user.id),
   );
-  return assignments;
-}
+  return userRows.map((user) => {
+    const assignment = assignmentsByUserId.get(user.id) ?? {
+      companyIds: [],
+      organizationIds: [],
+    };
+    return {
+      ...user,
+      companyIds:
+        assignment.companyIds.length === 0 && user.companyId
+          ? [user.companyId]
+          : assignment.companyIds,
+      organizationIds:
+        assignment.organizationIds.length === 0 && user.organizationId
+          ? [user.organizationId]
+          : assignment.organizationIds,
+    };
+  });
+});
 
-export async function getCompanies() {
-  const { companies } = await ensureTablesExist();
+export const getCompanies = cache(async () => {
   return await db.select().from(companies).orderBy(companies.name);
-}
+});
 
-export async function getOrganizations() {
-  const { organizations } = await ensureTablesExist();
+export const getOrganizations = cache(async () => {
   return await db.select().from(organizations).orderBy(organizations.name);
-}
+});
 
-export async function getOrganizationById(id: number) {
-  const { organizations } = await ensureTablesExist();
+export const getOrganizationById = cache(async (id: number) => {
   return await db.select().from(organizations).where(eq(organizations.id, id));
-}
+});
 
-export async function getDashboards() {
-  const { dashboards } = await ensureTablesExist();
+export const getDashboards = cache(async () => {
   return await db.select().from(dashboards).orderBy(dashboards.name);
-}
+});
 
-export async function getDashboardById(id: number) {
-  const { dashboards } = await ensureTablesExist();
+export const getDashboardById = cache(async (id: number) => {
   return await db.select().from(dashboards).where(eq(dashboards.id, id));
-}
+});
 
-export async function getDashboardByPublicId(publicId: string) {
-  const { dashboards } = await ensureTablesExist();
+export const getDashboardByPublicId = cache(async (publicId: string) => {
   return await db.select().from(dashboards).where(eq(dashboards.publicId, publicId));
-}
+});
 
-export async function getDashboardsForUser({
+export const getDashboardsForUser = cache(async ({
   companyIds,
   organizationIds,
 }: {
   companyIds: number[];
   organizationIds: number[];
-}) {
-  const { dashboards } = await ensureTablesExist();
+}) => {
   if (companyIds.length === 0) {
     return [];
   }
+  const dashboardListSelect = {
+    id: dashboards.id,
+    publicId: dashboards.publicId,
+    name: dashboards.name,
+    template: dashboards.template,
+    sheetUrl: dashboards.sheetUrl,
+  };
   const companyFilter = inArray(dashboards.companyId, companyIds);
   const organizationFilter =
     organizationIds.length > 0
       ? or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, organizationIds))
       : isNull(dashboards.organizationId);
-  const dashboardsForUser = await db
-    .select()
+  return await db
+    .select(dashboardListSelect)
     .from(dashboards)
     .where(and(companyFilter, organizationFilter))
     .orderBy(dashboards.name);
-  return await ensureDashboardPublicIds(dashboardsForUser);
-}
+});
 
 export async function createCompany(name: string) {
-  const { companies } = await ensureTablesExist();
   return await db.insert(companies).values({ name });
 }
 
 export async function updateCompany(id: number, name: string) {
-  const { companies } = await ensureTablesExist();
   return await db.update(companies).set({ name }).where(eq(companies.id, id));
 }
 
 export async function deleteCompany(id: number) {
-  const { companies } = await ensureTablesExist();
   return await db.delete(companies).where(eq(companies.id, id));
 }
 
 export async function createOrganization(name: string) {
-  const { organizations } = await ensureTablesExist();
   return await db.insert(organizations).values({ name });
 }
 
 export async function updateOrganization(id: number, name: string) {
-  const { organizations } = await ensureTablesExist();
   return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
 }
 
 export async function deleteOrganization(id: number) {
-  const { organizations } = await ensureTablesExist();
   return await db.delete(organizations).where(eq(organizations.id, id));
 }
 
@@ -163,7 +264,6 @@ export async function createDashboard({
   sheetGid: string;
   sheetUrl: string;
 }) {
-  const { dashboards } = await ensureTablesExist();
   return await db.insert(dashboards).values({
     name,
     companyId,
@@ -195,7 +295,6 @@ export async function updateDashboard({
   sheetGid: string;
   sheetUrl: string;
 }) {
-  const { dashboards } = await ensureTablesExist();
   return await db
     .update(dashboards)
     .set({
@@ -211,7 +310,6 @@ export async function updateDashboard({
 }
 
 export async function deleteDashboard(id: number) {
-  const { dashboards } = await ensureTablesExist();
   return await db.delete(dashboards).where(eq(dashboards.id, id));
 }
 
@@ -224,17 +322,15 @@ export async function updateUserProfile({
   email: string;
   password?: string | null;
 }) {
-  const { users } = await ensureTablesExist();
   const updates: { email: string; password?: string } = { email };
   if (password) {
-    let salt = genSaltSync(10);
-    updates.password = hashSync(password, salt);
+    const salt = await genSalt(10);
+    updates.password = await hash(password, salt);
   }
   return await db.update(users).set(updates).where(eq(users.id, id));
 }
 
 export async function deleteUser(id: number) {
-  const { users } = await ensureTablesExist();
   return await db.delete(users).where(eq(users.id, id));
 }
 
@@ -250,185 +346,89 @@ export async function updateUserAssignments(
     isAdmin: boolean;
   },
 ) {
-  const { users, userCompanies, userOrganizations } = await ensureTablesExist();
   const uniqueCompanyIds = Array.from(new Set(companyIds));
   const uniqueOrganizationIds = Array.from(new Set(organizationIds));
 
-  await db
-    .update(users)
-    .set({
-      companyId: uniqueCompanyIds[0] ?? null,
-      organizationId: uniqueOrganizationIds[0] ?? null,
-      isAdmin,
-    })
-    .where(eq(users.id, userId));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({
+        companyId: uniqueCompanyIds[0] ?? null,
+        organizationId: uniqueOrganizationIds[0] ?? null,
+        isAdmin,
+      })
+      .where(eq(users.id, userId));
 
-  await db.delete(userCompanies).where(eq(userCompanies.userId, userId));
-  await db.delete(userOrganizations).where(eq(userOrganizations.userId, userId));
+    await tx.delete(userCompanies).where(eq(userCompanies.userId, userId));
+    await tx.delete(userOrganizations).where(eq(userOrganizations.userId, userId));
 
-  if (uniqueCompanyIds.length > 0) {
-    await db.insert(userCompanies).values(
-      uniqueCompanyIds.map((companyId) => ({
-        userId,
-        companyId,
-      })),
-    );
+    if (uniqueCompanyIds.length > 0) {
+      await tx.insert(userCompanies).values(
+        uniqueCompanyIds.map((companyId) => ({
+          userId,
+          companyId,
+        })),
+      );
+    }
+
+    if (uniqueOrganizationIds.length > 0) {
+      await tx.insert(userOrganizations).values(
+        uniqueOrganizationIds.map((organizationId) => ({
+          userId,
+          organizationId,
+        })),
+      );
+    }
+  });
+}
+
+async function getUserAssignmentsByUserIds(userIds: number[]) {
+  const uniqueUserIds = Array.from(new Set(userIds));
+  if (uniqueUserIds.length === 0) {
+    return new Map<number, { companyIds: number[]; organizationIds: number[] }>();
   }
-
-  if (uniqueOrganizationIds.length > 0) {
-    await db.insert(userOrganizations).values(
-      uniqueOrganizationIds.map((organizationId) => ({
-        userId,
-        organizationId,
-      })),
-    );
-  }
-}
-
-async function ensureTablesExist() {
-  await client`
-    CREATE TABLE IF NOT EXISTS "Company" (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(128) UNIQUE NOT NULL
-    );
-  `;
-  await client`
-    CREATE TABLE IF NOT EXISTS "Organization" (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(128) UNIQUE NOT NULL
-    );
-  `;
-  await client`
-    CREATE TABLE IF NOT EXISTS "User" (
-      id SERIAL PRIMARY KEY,
-      email VARCHAR(64),
-      password VARCHAR(64),
-      "isAdmin" BOOLEAN DEFAULT FALSE,
-      "companyId" INTEGER REFERENCES "Company"(id) ON DELETE SET NULL,
-      "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
-    );
-  `;
-  await client`
-    CREATE TABLE IF NOT EXISTS "UserCompany" (
-      "userId" INTEGER REFERENCES "User"(id) ON DELETE CASCADE,
-      "companyId" INTEGER REFERENCES "Company"(id) ON DELETE CASCADE,
-      PRIMARY KEY ("userId", "companyId")
-    );
-  `;
-  await client`
-    CREATE TABLE IF NOT EXISTS "UserOrganization" (
-      "userId" INTEGER REFERENCES "User"(id) ON DELETE CASCADE,
-      "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE CASCADE,
-      PRIMARY KEY ("userId", "organizationId")
-    );
-  `;
-  await client`
-    CREATE TABLE IF NOT EXISTS "Dashboard" (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(128) NOT NULL,
-      template VARCHAR(32) NOT NULL,
-      "sheetId" VARCHAR(128) NOT NULL,
-      "sheetGid" VARCHAR(24) NOT NULL,
-      "sheetUrl" VARCHAR(512) NOT NULL,
-      "companyId" INTEGER REFERENCES "Company"(id) ON DELETE CASCADE,
-      "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
-    );
-  `;
-  await client`
-    ALTER TABLE "Dashboard"
-    ADD COLUMN IF NOT EXISTS "publicId" VARCHAR(36);
-  `;
-
-  const users = pgTable('User', {
-    id: serial('id').primaryKey(),
-    email: varchar('email', { length: 64 }),
-    password: varchar('password', { length: 64 }),
-    isAdmin: boolean('isAdmin').default(false),
-    companyId: integer('companyId'),
-    organizationId: integer('organizationId'),
-  });
-
-  const userCompanies = pgTable('UserCompany', {
-    userId: integer('userId'),
-    companyId: integer('companyId'),
-  });
-
-  const userOrganizations = pgTable('UserOrganization', {
-    userId: integer('userId'),
-    organizationId: integer('organizationId'),
-  });
-
-  const companies = pgTable('Company', {
-    id: serial('id').primaryKey(),
-    name: varchar('name', { length: 128 }),
-  });
-
-  const organizations = pgTable('Organization', {
-    id: serial('id').primaryKey(),
-    name: varchar('name', { length: 128 }),
-  });
-
-  const dashboards = pgTable('Dashboard', {
-    id: serial('id').primaryKey(),
-    publicId: varchar('publicId', { length: 36 }),
-    name: varchar('name', { length: 128 }),
-    template: varchar('template', { length: 32 }),
-    sheetId: varchar('sheetId', { length: 128 }),
-    sheetGid: varchar('sheetGid', { length: 24 }),
-    sheetUrl: varchar('sheetUrl', { length: 512 }),
-    companyId: integer('companyId'),
-    organizationId: integer('organizationId'),
-  });
-
-  return { users, companies, organizations, dashboards, userCompanies, userOrganizations };
-}
-
-async function ensureDashboardPublicIds<T extends { id: number; publicId: string | null }>(
-  dashboardsForUser: T[],
-) {
-  const { dashboards } = await ensureTablesExist();
-  return await Promise.all(
-    dashboardsForUser.map(async (dashboard) => {
-      if (dashboard.publicId) {
-        return dashboard;
-      }
-      const publicId = randomUUID();
-      await db.update(dashboards).set({ publicId }).where(eq(dashboards.id, dashboard.id));
-      return { ...dashboard, publicId };
-    }),
-  );
-}
-
-async function getUserAssignments(
-  userId: number,
-  fallbackCompanyId: number | null,
-  fallbackOrganizationId: number | null,
-) {
-  const { userCompanies, userOrganizations } = await ensureTablesExist();
   const [companyRows, organizationRows] = await Promise.all([
     db
-      .select({ companyId: userCompanies.companyId })
+      .select({ userId: userCompanies.userId, companyId: userCompanies.companyId })
       .from(userCompanies)
-      .where(eq(userCompanies.userId, userId)),
+      .where(inArray(userCompanies.userId, uniqueUserIds)),
     db
-      .select({ organizationId: userOrganizations.organizationId })
+      .select({
+        userId: userOrganizations.userId,
+        organizationId: userOrganizations.organizationId,
+      })
       .from(userOrganizations)
-      .where(eq(userOrganizations.userId, userId)),
+      .where(inArray(userOrganizations.userId, uniqueUserIds)),
   ]);
 
-  const companyIds = companyRows
-    .map((row) => row.companyId)
-    .filter((value): value is number => !!value);
-  const organizationIds = organizationRows
-    .map((row) => row.organizationId)
-    .filter((value): value is number => !!value);
+  const assignments = new Map<number, { companyIds: Set<number>; organizationIds: Set<number> }>();
+  for (const userId of uniqueUserIds) {
+    assignments.set(userId, { companyIds: new Set(), organizationIds: new Set() });
+  }
 
-  return {
-    companyIds:
-      companyIds.length === 0 && fallbackCompanyId ? [fallbackCompanyId] : companyIds,
-    organizationIds:
-      organizationIds.length === 0 && fallbackOrganizationId
-        ? [fallbackOrganizationId]
-        : organizationIds,
-  };
+  for (const row of companyRows) {
+    if (!row.userId || !row.companyId) continue;
+    const entry = assignments.get(row.userId);
+    if (entry) {
+      entry.companyIds.add(row.companyId);
+    }
+  }
+
+  for (const row of organizationRows) {
+    if (!row.userId || !row.organizationId) continue;
+    const entry = assignments.get(row.userId);
+    if (entry) {
+      entry.organizationIds.add(row.organizationId);
+    }
+  }
+
+  return new Map(
+    Array.from(assignments.entries()).map(([userId, entry]) => [
+      userId,
+      {
+        companyIds: Array.from(entry.companyIds),
+        organizationIds: Array.from(entry.organizationIds),
+      },
+    ]),
+  );
 }
