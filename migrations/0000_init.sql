@@ -45,5 +45,7 @@ CREATE INDEX "User_companyId_idx" ON "User" ("companyId");
 CREATE INDEX "User_organizationId_idx" ON "User" ("organizationId");
 CREATE INDEX "UserCompany_userId_idx" ON "UserCompany" ("userId");
 CREATE INDEX "UserOrganization_userId_idx" ON "UserOrganization" ("userId");
+CREATE INDEX "UserCompany_companyId_idx" ON "UserCompany" ("companyId");
+CREATE INDEX "UserOrganization_organizationId_idx" ON "UserOrganization" ("organizationId");
 CREATE INDEX "Dashboard_companyId_idx" ON "Dashboard" ("companyId");
 CREATE INDEX "Dashboard_organizationId_idx" ON "Dashboard" ("organizationId");

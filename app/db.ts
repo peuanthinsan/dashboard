@@ -4,6 +4,7 @@ import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
+import { cache } from 'react';
 
 // Optionally, if not using email/pass login, you can
 // use the Drizzle adapter for Auth.js / NextAuth
@@ -52,7 +53,7 @@ const dashboards = pgTable('Dashboard', {
   organizationId: integer('organizationId'),
 });
 
-export async function getUser(email: string) {
+export const getUser = cache(async (email: string) => {
   const userRows = await db.select().from(users).where(eq(users.email, email));
   if (userRows.length === 0) {
     return [];
@@ -77,7 +78,7 @@ export async function getUser(email: string) {
           : assignment.organizationIds,
     };
   });
-}
+});
 
 export async function createUser(email: string, password: string) {
   return await createUserWithRole({ email, password, isAdmin: false });
@@ -105,7 +106,7 @@ export async function createUserWithRole({
   });
 }
 
-export async function getUsers() {
+export const getUsers = cache(async () => {
   const userRows = await db.select().from(users).orderBy(users.id);
   if (userRows.length === 0) {
     return [];
@@ -130,31 +131,31 @@ export async function getUsers() {
           : assignment.organizationIds,
     };
   });
-}
+});
 
-export async function getCompanies() {
+export const getCompanies = cache(async () => {
   return await db.select().from(companies).orderBy(companies.name);
-}
+});
 
-export async function getOrganizations() {
+export const getOrganizations = cache(async () => {
   return await db.select().from(organizations).orderBy(organizations.name);
-}
+});
 
-export async function getOrganizationById(id: number) {
+export const getOrganizationById = cache(async (id: number) => {
   return await db.select().from(organizations).where(eq(organizations.id, id));
-}
+});
 
-export async function getDashboards() {
+export const getDashboards = cache(async () => {
   return await db.select().from(dashboards).orderBy(dashboards.name);
-}
+});
 
-export async function getDashboardById(id: number) {
+export const getDashboardById = cache(async (id: number) => {
   return await db.select().from(dashboards).where(eq(dashboards.id, id));
-}
+});
 
-export async function getDashboardByPublicId(publicId: string) {
+export const getDashboardByPublicId = cache(async (publicId: string) => {
   return await db.select().from(dashboards).where(eq(dashboards.publicId, publicId));
-}
+});
 
 export async function getDashboardsForUser({
   companyIds,
