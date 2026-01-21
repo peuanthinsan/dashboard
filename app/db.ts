@@ -54,7 +54,7 @@ const organizations = pgTable('Organization', {
 
 const dashboards = pgTable('Dashboard', {
   id: serial('id').primaryKey(),
-  publicId: varchar('publicId', { length: 36 }).notNull().unique(),
+  publicId: varchar('publicId', { length: 36 }).unique(),
   name: varchar('name', { length: 128 }).notNull(),
   template: varchar('template', { length: 32 }).notNull(),
   sheetId: varchar('sheetId', { length: 128 }).notNull(),
@@ -216,12 +216,28 @@ export const getDashboardsForUser = cache(async ({
     organizationIds.length > 0
       ? or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, organizationIds))
       : isNull(dashboards.organizationId);
-  return await db
+  const dashboardsForUser = await db
     .select(dashboardListSelect)
     .from(dashboards)
     .where(and(companyFilter, organizationFilter))
     .orderBy(dashboards.name);
+  return await ensureDashboardPublicIds(dashboardsForUser);
 });
+
+async function ensureDashboardPublicIds<T extends { id: number; publicId: string | null }>(
+  dashboardsForUser: T[],
+) {
+  return await Promise.all(
+    dashboardsForUser.map(async (dashboard) => {
+      if (dashboard.publicId) {
+        return dashboard;
+      }
+      const publicId = randomUUID();
+      await db.update(dashboards).set({ publicId }).where(eq(dashboards.id, dashboard.id));
+      return { ...dashboard, publicId };
+    }),
+  );
+}
 
 export async function createCompany(name: string) {
   return await db.insert(companies).values({ name });
