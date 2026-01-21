@@ -84,7 +84,7 @@ export default function OrganizationsClient({
           />
           <button
             type="submit"
-            className="w-full rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400 sm:w-auto"
+            className="w-full shrink-0 whitespace-nowrap rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400 sm:w-auto"
           >
             Add organization
           </button>
