@@ -109,7 +109,7 @@ export default async function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
+    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-col gap-3">
           <Link
@@ -120,7 +120,7 @@ export default async function AdminUsersPage() {
             Back to admin overview
           </Link>
           <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-semibold">Users</h1>
+            <h1 className="text-2xl font-semibold sm:text-3xl">Users</h1>
             <p className="text-sm text-slate-300">
               Assign users to companies and organizations and manage admin access.
             </p>

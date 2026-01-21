@@ -97,12 +97,12 @@ function UserRow({
         </span>
       </label>
 
-      <div className="flex items-end gap-2">
+      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
         <button
           type="submit"
           name="intent"
           value="save"
-          className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500"
+          className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500 sm:w-auto"
         >
           Save
         </button>
@@ -111,7 +111,7 @@ function UserRow({
           name="intent"
           value="delete"
           onClick={confirmDelete}
-          className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400"
+          className="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
         >
           Delete
         </button>
@@ -132,7 +132,7 @@ export default function UsersClient({
   useRefreshOnSuccess(userCreateState);
 
   return (
-    <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+    <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
       <form
         action={userCreateAction}
         className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1.2fr_1fr_auto]"
@@ -165,7 +165,7 @@ export default function UsersClient({
         <div className="flex items-center">
           <button
             type="submit"
-            className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+            className="w-full rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400 sm:w-auto"
           >
             Create user
           </button>
