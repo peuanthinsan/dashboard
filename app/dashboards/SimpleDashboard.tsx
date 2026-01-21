@@ -126,6 +126,8 @@ export default function SimpleDashboard({
     };
   }, [baseAlerts]);
 
+  const showDateFilter = Boolean(dateBounds.min && dateBounds.max);
+
   const dateFilteredAlerts = useMemo(() => {
     const startDate = dateRange.from ? new Date(`${dateRange.from}T00:00:00`) : null;
     const endDate = dateRange.to ? new Date(`${dateRange.to}T23:59:59.999`) : null;
@@ -185,6 +187,9 @@ export default function SimpleDashboard({
     if (!query) return driverOptions;
     return driverOptions.filter((driver) => driver.toLowerCase().includes(query));
   }, [driverOptions, driverQuery]);
+
+  const showVehicleFilter = vehicleOptions.length > 0;
+  const showDriverFilter = driverOptions.length > 0;
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -434,119 +439,121 @@ export default function SimpleDashboard({
                 </button>
               </div>
               <div className="mt-4 space-y-3 text-xs text-slate-300">
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter dates</span>
-                  <label className="flex items-center gap-2">
-                    <span className="text-slate-400">From</span>
-                    <input
-                      type="date"
-                      value={dateRange.from}
-                      min={dateBounds.min}
-                      max={dateRange.to || dateBounds.max}
-                      onChange={(event) => {
-                        setDateRange((current) => ({ ...current, from: event.target.value }));
+                {showDateFilter ? (
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                    <span className="uppercase tracking-[0.2em] text-slate-500">Filter dates</span>
+                    <label className="flex items-center gap-2">
+                      <span className="text-slate-400">From</span>
+                      <input
+                        type="date"
+                        value={dateRange.from}
+                        min={dateBounds.min}
+                        max={dateRange.to || dateBounds.max}
+                        onChange={(event) => {
+                          setDateRange((current) => ({ ...current, from: event.target.value }));
+                          setPage(1);
+                        }}
+                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <span className="text-slate-400">To</span>
+                      <input
+                        type="date"
+                        value={dateRange.to}
+                        min={dateRange.from || dateBounds.min}
+                        max={dateBounds.max}
+                        onChange={(event) => {
+                          setDateRange((current) => ({ ...current, to: event.target.value }));
+                          setPage(1);
+                        }}
+                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDateRange({ from: '', to: '' });
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
-                    />
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <span className="text-slate-400">To</span>
-                    <input
-                      type="date"
-                      value={dateRange.to}
-                      min={dateRange.from || dateBounds.min}
-                      max={dateBounds.max}
-                      onChange={(event) => {
-                        setDateRange((current) => ({ ...current, to: event.target.value }));
-                        setPage(1);
-                      }}
-                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDateRange({ from: '', to: '' });
-                      setPage(1);
-                    }}
-                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
-                  >
-                    Clear
-                  </button>
-                  {dateBounds.min && dateBounds.max ? (
+                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    >
+                      Clear
+                    </button>
                     <span className="text-slate-500">
                       Data from {dateBounds.min} to {dateBounds.max}
                     </span>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
-                  <div className="flex flex-1 flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      {vehicleFilters.map((vehicle) => (
+                  </div>
+                ) : null}
+                {showVehicleFilter ? (
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
+                    <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {vehicleFilters.map((vehicle) => (
+                          <button
+                            key={vehicle}
+                            type="button"
+                            onClick={() => {
+                              setVehicleFilters((current) => current.filter((item) => item !== vehicle));
+                              setPage(1);
+                            }}
+                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                          >
+                            {vehicle} ×
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          list="vehicle-options"
+                          value={vehicleQuery}
+                          onChange={(event) => setVehicleQuery(event.target.value)}
+                          placeholder="Search vehicle number"
+                          className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        />
+                        <datalist id="vehicle-options">
+                          {filteredVehicleOptions.map((vehicle) => (
+                            <option key={vehicle} value={vehicle} />
+                          ))}
+                        </datalist>
                         <button
-                          key={vehicle}
                           type="button"
                           onClick={() => {
-                            setVehicleFilters((current) => current.filter((item) => item !== vehicle));
+                            const trimmed = vehicleQuery.trim();
+                            if (!trimmed) return;
+                            const matched = vehicleOptions.find(
+                              (vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase(),
+                            );
+                            if (!matched) return;
+                            setVehicleFilters((current) =>
+                              current.includes(matched) ? current : [...current, matched],
+                            );
+                            setVehicleQuery('');
                             setPage(1);
                           }}
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                          className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
                         >
-                          {vehicle} ×
+                          Add
                         </button>
-                      ))}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        list="vehicle-options"
-                        value={vehicleQuery}
-                        onChange={(event) => setVehicleQuery(event.target.value)}
-                        placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
-                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
-                      />
-                      <datalist id="vehicle-options">
-                        {filteredVehicleOptions.map((vehicle) => (
-                          <option key={vehicle} value={vehicle} />
-                        ))}
-                      </datalist>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const trimmed = vehicleQuery.trim();
-                          if (!trimmed) return;
-                          const matched = vehicleOptions.find(
-                            (vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase(),
-                          );
-                          if (!matched) return;
-                          setVehicleFilters((current) =>
-                            current.includes(matched) ? current : [...current, matched],
-                          );
-                          setVehicleQuery('');
-                          setPage(1);
-                        }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
-                      >
-                        Add
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVehicleFilters([]);
+                        setPage(1);
+                      }}
+                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    >
+                      Clear
+                    </button>
+                    {vehicleFilters.length > 0 ? (
+                      <span className="text-slate-500">{vehicleFilters.length} selected</span>
+                    ) : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVehicleFilters([]);
-                      setPage(1);
-                    }}
-                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
-                  >
-                    Clear
-                  </button>
-                  {vehicleFilters.length > 0 ? (
-                    <span className="text-slate-500">{vehicleFilters.length} selected</span>
-                  ) : null}
-                </div>
-                {driverOptions.length > 0 ? (
+                ) : null}
+                {showDriverFilter ? (
                   <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
                     <div className="flex flex-1 flex-wrap items-center gap-2">
@@ -570,7 +577,7 @@ export default function SimpleDashboard({
                           list="driver-options"
                           value={driverQuery}
                           onChange={(event) => setDriverQuery(event.target.value)}
-                          placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
+                          placeholder="Search driver name"
                           className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
                         />
                         <datalist id="driver-options">
