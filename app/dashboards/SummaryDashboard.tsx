@@ -181,7 +181,6 @@ export default function SummaryDashboard({
         }
       });
     });
-    matching.add('OverSpeed');
     return Array.from(matching).sort((a, b) => a.localeCompare(b));
   }, [alertRows, allowedRemarkTargets]);
 
