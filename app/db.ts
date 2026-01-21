@@ -33,12 +33,12 @@ const userOrganizations = pgTable('UserOrganization', {
 
 const companies = pgTable('Company', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 128 }).notNull(),
+  name: varchar('name', { length: 128 }).notNull().unique(),
 });
 
 const organizations = pgTable('Organization', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 128 }).notNull(),
+  name: varchar('name', { length: 128 }).notNull().unique(),
 });
 
 const dashboards = pgTable('Dashboard', {
@@ -371,16 +371,16 @@ async function getUserAssignmentsByUserIds(userIds: number[]) {
       .where(inArray(userOrganizations.userId, uniqueUserIds)),
   ]);
 
-  const assignments = new Map<number, { companyIds: number[]; organizationIds: number[] }>();
+  const assignments = new Map<number, { companyIds: Set<number>; organizationIds: Set<number> }>();
   for (const userId of uniqueUserIds) {
-    assignments.set(userId, { companyIds: [], organizationIds: [] });
+    assignments.set(userId, { companyIds: new Set(), organizationIds: new Set() });
   }
 
   for (const row of companyRows) {
     if (!row.userId || !row.companyId) continue;
     const entry = assignments.get(row.userId);
     if (entry) {
-      entry.companyIds.push(row.companyId);
+      entry.companyIds.add(row.companyId);
     }
   }
 
@@ -388,9 +388,17 @@ async function getUserAssignmentsByUserIds(userIds: number[]) {
     if (!row.userId || !row.organizationId) continue;
     const entry = assignments.get(row.userId);
     if (entry) {
-      entry.organizationIds.push(row.organizationId);
+      entry.organizationIds.add(row.organizationId);
     }
   }
 
-  return assignments;
+  return new Map(
+    Array.from(assignments.entries()).map(([userId, entry]) => [
+      userId,
+      {
+        companyIds: Array.from(entry.companyIds),
+        organizationIds: Array.from(entry.organizationIds),
+      },
+    ]),
+  );
 }
