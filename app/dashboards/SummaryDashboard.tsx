@@ -157,6 +157,16 @@ export default function SummaryDashboard({
     return remarkRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
   }, [normalizedOrganizationName, rows]);
 
+  const vehicleSourceRows = useMemo(() => {
+    if (!normalizedOrganizationName) {
+      return rows;
+    }
+    return rows.filter((row) => {
+      const fleet = toDisplayString(findValue(row, ['Fleet']));
+      return normalizeLabel(fleet) === normalizedOrganizationName;
+    });
+  }, [normalizedOrganizationName, rows]);
+
   const fleetOptions = useMemo(() => {
     const unique = new Set<string>();
     alertRows.forEach((row) => {
@@ -196,11 +206,12 @@ export default function SummaryDashboard({
 
   const vehicleOptions = useMemo(() => {
     const unique = new Set<string>();
-    alertRows.forEach((row) => {
-      if (row.vehicle && row.vehicle !== '—') unique.add(row.vehicle);
+    vehicleSourceRows.forEach((row) => {
+      const vehicle = toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH']));
+      if (vehicle && vehicle !== '—') unique.add(vehicle);
     });
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
-  }, [alertRows]);
+  }, [vehicleSourceRows]);
 
   const filteredVehicleOptions = useMemo(() => {
     const trimmedSearch = vehicleSearch.trim();
