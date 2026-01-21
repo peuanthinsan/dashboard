@@ -1,7 +1,8 @@
 'use client';
 
 import { useFormState } from 'react-dom';
-import { confirmDelete, INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
+import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
+import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import type { ActionState, Company, Organization, User } from '../types';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
@@ -106,15 +107,12 @@ function UserRow({
         >
           Save
         </button>
-        <button
-          type="submit"
-          name="intent"
-          value="delete"
-          onClick={confirmDelete}
-          className="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
-        >
-          Delete
-        </button>
+        <ConfirmDeleteDialog
+          title="Delete user"
+          description="This will permanently delete the user account."
+          triggerClassName="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
+          confirmClassName="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
+        />
       </div>
       <StatusMessage state={state} />
     </form>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import type { MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ActionState } from './types';
 
@@ -24,10 +23,4 @@ export function useRefreshOnSuccess(state: ActionState) {
       router.refresh();
     }
   }, [router, state.status]);
-}
-
-export function confirmDelete(event: MouseEvent<HTMLButtonElement>) {
-  if (!window.confirm('Are you sure you want to delete this item?')) {
-    event.preventDefault();
-  }
 }
