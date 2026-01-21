@@ -162,7 +162,7 @@ export default function UsersClient({
             Admin access
           </label>
         </div>
-        <div className="flex items-end">
+        <div className="flex items-center">
           <button
             type="submit"
             className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
