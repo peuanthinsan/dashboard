@@ -105,6 +105,8 @@ export default function DetailDashboard({
   const [trendRemarkFilter, setTrendRemarkFilter] = useState('all');
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [driverSearch, setDriverSearch] = useState('');
+  const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
   const [pinnedPoint, setPinnedPoint] = useState<TrendPoint | null>(null);
   const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>([]);
@@ -221,6 +223,21 @@ export default function DetailDashboard({
     return vehicleOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
   }, [vehicleOptions, vehicleSearch]);
 
+  const driverOptions = useMemo(() => {
+    const unique = new Set<string>();
+    alertRows.forEach((row) => {
+      if (row.driver && row.driver !== '—') unique.add(row.driver);
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [alertRows]);
+
+  const filteredDriverOptions = useMemo(() => {
+    const trimmedSearch = driverSearch.trim();
+    if (!trimmedSearch) return driverOptions;
+    const normalizedSearch = normalizeLabel(trimmedSearch);
+    return driverOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
+  }, [driverOptions, driverSearch]);
+
   const monthOptions = useMemo(() => {
     const unique = new Map<string, string>();
     alertRows.forEach((row) => {
@@ -260,6 +277,7 @@ export default function DetailDashboard({
     const normalizedFleetFilters = fleetFilters.map((fleet) => normalizeLabel(fleet));
     const normalizedRemarkFilters = remarkFilters.map((remark) => normalizeLabel(remark));
     const normalizedVehicleFilters = vehicleFilters.map((vehicle) => normalizeLabel(vehicle));
+    const normalizedDriverFilters = driverFilters.map((driver) => normalizeLabel(driver));
     return alertRows.filter((row) => {
       if (!row.alertType || row.alertType === '—') return false;
       const normalizedAlertType = normalizeLabel(row.alertType);
@@ -276,9 +294,13 @@ export default function DetailDashboard({
         const normalizedVehicle = normalizeLabel(row.vehicle);
         if (!normalizedVehicleFilters.includes(normalizedVehicle)) return false;
       }
+      if (normalizedDriverFilters.length > 0) {
+        const normalizedDriver = normalizeLabel(row.driver);
+        if (!normalizedDriverFilters.includes(normalizedDriver)) return false;
+      }
       return true;
     });
-  }, [alertRows, allowedAlertTypes, fleetFilters, remarkFilters, vehicleFilters]);
+  }, [alertRows, allowedAlertTypes, fleetFilters, remarkFilters, vehicleFilters, driverFilters]);
 
   const filteredAlerts = useMemo(() => {
     if (monthFilters.length === 0) return baseFilteredRows;
@@ -338,7 +360,7 @@ export default function DetailDashboard({
 
   useEffect(() => {
     setPage(1);
-  }, [monthFilters, fleetFilters, remarkFilters, vehicleFilters]);
+  }, [monthFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters]);
 
   const trendData = useMemo(() => {
     const counts = new Map<string, { key: string; date: Date; count: number }>();
@@ -470,6 +492,8 @@ export default function DetailDashboard({
                     setRemarkFilters([]);
                     setVehicleSearch('');
                     setVehicleFilters([]);
+                    setDriverSearch('');
+                    setDriverFilters([]);
                   }}
                   className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
                 >
@@ -733,6 +757,73 @@ export default function DetailDashboard({
                     <span className="text-slate-500">{vehicleFilters.length} selected</span>
                   ) : null}
                 </div>
+                {driverOptions.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                    <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {driverFilters.map((driver) => (
+                          <button
+                            key={driver}
+                            type="button"
+                            onClick={() =>
+                              setDriverFilters((current) => current.filter((value) => value !== driver))
+                            }
+                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                          >
+                            {driver} ×
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          list="driver-options"
+                          value={driverSearch}
+                          onChange={(event) => setDriverSearch(event.target.value)}
+                          placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search drivers'}
+                          className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        />
+                        <datalist id="driver-options">
+                          {filteredDriverOptions.map((option) => (
+                            <option key={option} value={option} />
+                          ))}
+                        </datalist>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const trimmed = driverSearch.trim();
+                            if (!trimmed) return;
+                            const matched = driverOptions.find(
+                              (option) => normalizeLabel(option) === normalizeLabel(trimmed),
+                            );
+                            if (!matched) return;
+                            setDriverFilters((current) =>
+                              current.includes(matched) ? current : [...current, matched],
+                            );
+                            setDriverSearch('');
+                            setPage(1);
+                          }}
+                          className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDriverFilters([]);
+                        setPage(1);
+                      }}
+                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    >
+                      Clear
+                    </button>
+                    {driverFilters.length > 0 ? (
+                      <span className="text-slate-500">{driverFilters.length} selected</span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </section>
 
