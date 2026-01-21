@@ -23,6 +23,14 @@ type SheetResponse = {
   refresh: () => void;
 };
 
+type CachedSheet = {
+  columns: SheetColumn[];
+  rows: SheetRow[];
+  lastUpdated: number;
+};
+
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
 const buildSheetUrl = (sheetId: string, gid: string) =>
   `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
 
@@ -60,7 +68,50 @@ export default function useGoogleSheet({ sheetId, gid }: UseGoogleSheetOptions):
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const cacheKey = `google-sheet:${sheetId}:${gid}`;
+
+  const readCache = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    const cached = window.localStorage.getItem(cacheKey);
+    if (!cached) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(cached) as CachedSheet;
+      if (!parsed?.lastUpdated || Date.now() - parsed.lastUpdated > CACHE_TTL_MS) {
+        window.localStorage.removeItem(cacheKey);
+        return null;
+      }
+      return parsed;
+    } catch {
+      window.localStorage.removeItem(cacheKey);
+      return null;
+    }
+  }, [cacheKey]);
+
+  const writeCache = useCallback(
+    (payload: CachedSheet) => {
+      if (typeof window === 'undefined') {
+        return;
+      }
+      window.localStorage.setItem(cacheKey, JSON.stringify(payload));
+    },
+    [cacheKey],
+  );
+
   const fetchSheet = useCallback(async () => {
+    const cached = readCache();
+    if (cached) {
+      setColumns(cached.columns);
+      setRows(cached.rows);
+      setLastUpdated(new Date(cached.lastUpdated));
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -72,14 +123,16 @@ export default function useGoogleSheet({ sheetId, gid }: UseGoogleSheetOptions):
       const parsed = parseGoogleSheet(text);
       setColumns(parsed.columns);
       setRows(parsed.rows);
-      setLastUpdated(new Date());
+      const now = Date.now();
+      setLastUpdated(new Date(now));
+      writeCache({ columns: parsed.columns, rows: parsed.rows, lastUpdated: now });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to fetch the Google Sheet data.';
       setError(message);
     } finally {
       setLoading(false);
     }
-  }, [gid, sheetId]);
+  }, [gid, readCache, sheetId, writeCache]);
 
   useEffect(() => {
     fetchSheet();
