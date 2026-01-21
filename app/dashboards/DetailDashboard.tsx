@@ -102,6 +102,7 @@ export default function DetailDashboard({
   const [fleetFilters, setFleetFilters] = useState<string[]>([]);
   const [remarkSearch, setRemarkSearch] = useState('');
   const [remarkFilters, setRemarkFilters] = useState<string[]>([]);
+  const [trendRemarkFilter, setTrendRemarkFilter] = useState('all');
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
@@ -248,6 +249,12 @@ export default function DetailDashboard({
     }
   }, [currentMonthKey, monthOptions]);
 
+  useEffect(() => {
+    if (trendRemarkFilter === 'all') return;
+    if (remarkOptions.some((option) => option === trendRemarkFilter)) return;
+    setTrendRemarkFilter('all');
+  }, [remarkOptions, trendRemarkFilter]);
+
   const baseFilteredRows = useMemo(() => {
     const normalizedAllowedAlertTypes = allowedAlertTypes.map((alert) => normalizeLabel(alert));
     const normalizedFleetFilters = fleetFilters.map((fleet) => normalizeLabel(fleet));
@@ -337,6 +344,11 @@ export default function DetailDashboard({
     const counts = new Map<string, { key: string; date: Date; count: number }>();
     filteredAlerts.forEach((row) => {
       if (!row.parsedDate) return;
+      if (trendRemarkFilter !== 'all') {
+        const normalizedRemark = normalizeLabel(row.remarks);
+        const normalizedFilter = normalizeLabel(trendRemarkFilter);
+        if (!normalizedRemark.includes(normalizedFilter)) return;
+      }
       const dayKey = toDayKey(row.parsedDate);
       const existing = counts.get(dayKey);
       if (existing) {
@@ -347,7 +359,7 @@ export default function DetailDashboard({
       }
     });
     return Array.from(counts.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [filteredAlerts]);
+  }, [filteredAlerts, trendRemarkFilter]);
 
   const maxTrendValue = trendData.reduce((max, item) => Math.max(max, item.count), 0);
   const trendPoints = useMemo(() => {
@@ -730,6 +742,26 @@ export default function DetailDashboard({
                   <h2 className="text-lg font-medium">Daily alert trend</h2>
                   <p className="text-sm text-slate-400">Daily totals for the filtered alert set.</p>
                 </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
+                {[
+                  { label: 'All remarks', value: 'all' },
+                  ...remarkOptions.map((option) => ({ label: option, value: option })),
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setTrendRemarkFilter(option.value)}
+                    className={`rounded-full border px-3 py-1 text-xs ${
+                      trendRemarkFilter === option.value
+                        ? 'border-indigo-400/70 bg-indigo-500/20 text-indigo-100'
+                        : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
               <div className="relative mt-4 overflow-visible">
                 {trendData.length === 0 ? (
