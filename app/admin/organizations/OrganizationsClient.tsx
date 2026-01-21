@@ -75,7 +75,7 @@ export default function OrganizationsClient({
         action={organizationCreateAction}
         className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4 sm:flex-row sm:flex-wrap sm:items-end"
       >
-        <h2 className="text-lg font-medium">Create organization</h2>
+        <h2 className="w-full text-lg font-medium">Create organization</h2>
         <div className="flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:items-end">
           <input
             name="organizationName"
