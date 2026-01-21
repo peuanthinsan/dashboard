@@ -727,7 +727,6 @@ export default function DetailDashboard({
                   <h2 className="text-lg font-medium">Daily alert trend</h2>
                   <p className="text-sm text-slate-400">Daily totals for the filtered alert set.</p>
                 </div>
-                <span className="text-sm text-slate-400">{filteredAlerts.length} alerts</span>
               </div>
               <div className="relative mt-4 overflow-visible">
                 {trendData.length === 0 ? (
@@ -879,7 +878,6 @@ export default function DetailDashboard({
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Alerts</h2>
-                <span className="text-sm text-slate-400">{totalAlerts} rows</span>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
                 <div className="flex flex-wrap items-center gap-3">
