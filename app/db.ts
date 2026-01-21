@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
-import { genSaltSync, hashSync } from 'bcrypt-ts';
+import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
 
 // Optionally, if not using email/pass login, you can
@@ -13,8 +13,8 @@ let db = drizzle(client);
 
 const users = pgTable('User', {
   id: serial('id').primaryKey(),
-  email: varchar('email', { length: 64 }),
-  password: varchar('password', { length: 64 }),
+  email: varchar('email', { length: 64 }).notNull().unique(),
+  password: varchar('password', { length: 64 }).notNull(),
   isAdmin: boolean('isAdmin').default(false),
   companyId: integer('companyId'),
   organizationId: integer('organizationId'),
@@ -76,15 +76,15 @@ export async function createUserWithRole({
   password: string;
   isAdmin: boolean;
 }) {
-  let salt = genSaltSync(10);
-  let hash = hashSync(password, salt);
+  const salt = await genSalt(10);
+  const passwordHash = await hash(password, salt);
   const [{ count }] = await client`
     SELECT COUNT(*)::int AS count FROM "User";
   `;
 
   return await db.insert(users).values({
     email,
-    password: hash,
+    password: passwordHash,
     isAdmin: isAdmin || count === 0,
   });
 }
@@ -248,8 +248,8 @@ export async function updateUserProfile({
 }) {
   const updates: { email: string; password?: string } = { email };
   if (password) {
-    let salt = genSaltSync(10);
-    updates.password = hashSync(password, salt);
+    const salt = await genSalt(10);
+    updates.password = await hash(password, salt);
   }
   return await db.update(users).set(updates).where(eq(users.id, id));
 }

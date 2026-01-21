@@ -10,8 +10,8 @@ CREATE TABLE "Organization" (
 
 CREATE TABLE "User" (
   id SERIAL PRIMARY KEY,
-  email VARCHAR(64),
-  password VARCHAR(64),
+  email VARCHAR(64) UNIQUE NOT NULL,
+  password VARCHAR(64) NOT NULL,
   "isAdmin" BOOLEAN DEFAULT FALSE,
   "companyId" INTEGER REFERENCES "Company"(id) ON DELETE SET NULL,
   "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
@@ -40,3 +40,8 @@ CREATE TABLE "Dashboard" (
   "companyId" INTEGER REFERENCES "Company"(id) ON DELETE CASCADE,
   "organizationId" INTEGER REFERENCES "Organization"(id) ON DELETE SET NULL
 );
+
+CREATE INDEX "User_companyId_idx" ON "User" ("companyId");
+CREATE INDEX "User_organizationId_idx" ON "User" ("organizationId");
+CREATE INDEX "UserCompany_userId_idx" ON "UserCompany" ("userId");
+CREATE INDEX "UserOrganization_userId_idx" ON "UserOrganization" ("userId");

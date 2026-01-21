@@ -1,8 +1,10 @@
+import type { FormAction } from 'react-dom';
+
 export function Form({
   action,
   children,
 }: {
-  action: any;
+  action: FormAction;
   children: React.ReactNode;
 }) {
   return (
