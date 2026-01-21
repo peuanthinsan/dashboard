@@ -1,9 +1,55 @@
-import Link from 'next/link';
-import { Form } from 'app/form';
+import { AuthError } from 'next-auth';
+import { z } from 'zod';
+
 import { signIn } from 'app/auth';
-import { SubmitButton } from 'app/submit-button';
+import { LoginForm } from 'app/login/login-form';
+
+const loginSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required.' })
+    .trim()
+    .email('Enter a valid email address.'),
+  password: z
+    .string({ required_error: 'Password is required.' })
+    .min(8, 'Password must be at least 8 characters long.')
+    .max(72, 'Password must be at most 72 characters long.'),
+});
+
+type LoginState = {
+  error: string | null;
+};
 
 export default function Login() {
+  async function login(
+    _prevState: LoginState,
+    formData: FormData,
+  ): Promise<LoginState> {
+    'use server';
+    const email = formData.get('email');
+    const password = formData.get('password');
+    const parsed = loginSchema.safeParse({ email, password });
+
+    if (!parsed.success) {
+      const firstError = parsed.error.errors[0]?.message;
+      return { error: firstError ?? 'Invalid login details.' };
+    }
+
+    try {
+      await signIn('credentials', {
+        redirectTo: '/dashboard',
+        email: parsed.data.email,
+        password: parsed.data.password,
+      });
+    } catch (error) {
+      if (error instanceof AuthError) {
+        return { error: 'Invalid email or password.' };
+      }
+      throw error;
+    }
+
+    return { error: null };
+  }
+
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
       <div className="z-10 w-full max-w-md overflow-hidden rounded-2xl border border-gray-100 shadow-xl">
@@ -13,25 +59,7 @@ export default function Login() {
             Use your email and password to sign in
           </p>
         </div>
-        <Form
-          action={async (formData: FormData) => {
-            'use server';
-            await signIn('credentials', {
-              redirectTo: '/dashboard',
-              email: formData.get('email') as string,
-              password: formData.get('password') as string,
-            });
-          }}
-        >
-          <SubmitButton>Sign in</SubmitButton>
-          <p className="text-center text-sm text-gray-600">
-            {"Don't have an account? "}
-            <Link href="/register" className="font-semibold text-gray-800">
-              Sign up
-            </Link>
-            {' for free.'}
-          </p>
-        </Form>
+        <LoginForm action={login} />
       </div>
     </div>
   );

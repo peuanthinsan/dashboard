@@ -27,7 +27,7 @@ const buildSheetUrl = (sheetId: string, gid: string) =>
   `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
 
 const parseGoogleSheet = (payload: string) => {
-  const match = payload.match(/setResponse\((.*)\);/s);
+  const match = payload.match(/setResponse\(([\s\S]*)\);/);
   if (!match) {
     throw new Error('Unable to read the Google Sheet response.');
   }
