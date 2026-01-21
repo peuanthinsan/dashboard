@@ -366,7 +366,7 @@ export default function SummaryDashboard({
   }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
 
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
+    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -378,7 +378,7 @@ export default function SummaryDashboard({
               Back to dashboards
             </Link>
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Summary dashboard</p>
-            <h1 className="text-3xl font-semibold">{dashboardName}</h1>
+            <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             {lastUpdated ? (
               <p className="mt-1 text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
             ) : null}
@@ -386,7 +386,7 @@ export default function SummaryDashboard({
           <button
             type="button"
             onClick={refresh}
-            className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500"
+            className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500 sm:w-auto"
           >
             Refresh data
           </button>
@@ -404,7 +404,7 @@ export default function SummaryDashboard({
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Filters</h2>
@@ -432,9 +432,9 @@ export default function SummaryDashboard({
                 </button>
               </div>
               <div className="mt-4 space-y-3 text-xs text-slate-300">
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter months</span>
-                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
                       {monthFilters.map((monthKey) => {
                         const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
@@ -450,13 +450,13 @@ export default function SummaryDashboard({
                         );
                       })}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                       <input
                         list="month-options"
                         value={monthSearch}
                         onChange={(event) => setMonthSearch(event.target.value)}
                         placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
-                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
                       <datalist id="month-options">
                         {filteredMonthOptions.map((option) => (
@@ -487,7 +487,7 @@ export default function SummaryDashboard({
                   <button
                     type="button"
                     onClick={() => setMonthFilters([])}
-                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -496,9 +496,9 @@ export default function SummaryDashboard({
                   ) : null}
                 </div>
                 {organizationName ? null : (
-                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                  <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Filter fleets</span>
-                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                       <div className="flex flex-wrap gap-2">
                         {fleetFilters.map((fleet) => (
                           <button
@@ -511,13 +511,13 @@ export default function SummaryDashboard({
                           </button>
                         ))}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                         <input
                           list="fleet-options"
                           value={fleetSearch}
                           onChange={(event) => setFleetSearch(event.target.value)}
                           placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
-                          className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
                         />
                         <datalist id="fleet-options">
                           {filteredFleetOptions.map((option) => (
@@ -547,7 +547,7 @@ export default function SummaryDashboard({
                     <button
                       type="button"
                       onClick={() => setFleetFilters([])}
-                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                      className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                     >
                       Clear
                     </button>
@@ -556,9 +556,9 @@ export default function SummaryDashboard({
                     ) : null}
                   </div>
                 )}
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter remark types</span>
-                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
                       {remarkFilters.map((remark) => (
                         <button
@@ -571,13 +571,13 @@ export default function SummaryDashboard({
                         </button>
                       ))}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                       <input
                         list="remark-options"
                         value={remarkSearch}
                         onChange={(event) => setRemarkSearch(event.target.value)}
                         placeholder={remarkOptions.length === 0 ? 'No remarks available' : 'Search remarks'}
-                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
                       <datalist id="remark-options">
                         {filteredRemarkOptions.map((option) => (
@@ -605,7 +605,7 @@ export default function SummaryDashboard({
                   <button
                     type="button"
                     onClick={() => setRemarkFilters([])}
-                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -613,9 +613,9 @@ export default function SummaryDashboard({
                     <span className="text-slate-500">{remarkFilters.length} selected</span>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
-                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
                       {vehicleFilters.map((vehicle) => (
                         <button
@@ -630,13 +630,13 @@ export default function SummaryDashboard({
                         </button>
                       ))}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                       <input
                         list="vehicle-options"
                         value={vehicleSearch}
                         onChange={(event) => setVehicleSearch(event.target.value)}
                         placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicles'}
-                        className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
                       <datalist id="vehicle-options">
                         {filteredVehicleOptions.map((option) => (
@@ -664,7 +664,7 @@ export default function SummaryDashboard({
                   <button
                     type="button"
                     onClick={() => setVehicleFilters([])}
-                    className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -673,9 +673,9 @@ export default function SummaryDashboard({
                   ) : null}
                 </div>
                 {driverOptions.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                  <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
-                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                       <div className="flex flex-wrap gap-2">
                         {driverFilters.map((driver) => (
                           <button
@@ -690,13 +690,13 @@ export default function SummaryDashboard({
                           </button>
                         ))}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                         <input
                           list="driver-options"
                           value={driverSearch}
                           onChange={(event) => setDriverSearch(event.target.value)}
                           placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search drivers'}
-                          className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
                         />
                         <datalist id="driver-options">
                           {filteredDriverOptions.map((option) => (
@@ -726,7 +726,7 @@ export default function SummaryDashboard({
                     <button
                       type="button"
                       onClick={() => setDriverFilters([])}
-                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                      className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
                     >
                       Clear
                     </button>
@@ -738,7 +738,7 @@ export default function SummaryDashboard({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
               <div>
                 <h2 className="text-lg font-medium">Alert remark highlights</h2>
                 <p className="text-sm text-slate-400">
@@ -771,7 +771,7 @@ export default function SummaryDashboard({
             </section>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
                 <h2 className="text-lg font-medium">Fleet volume</h2>
                 <p className="text-sm text-slate-400">Fleet distribution based on alert activity.</p>
                 <div className="mt-4 space-y-3">
@@ -791,7 +791,7 @@ export default function SummaryDashboard({
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
                 <h2 className="text-lg font-medium">Remarks volume</h2>
                 <p className="text-sm text-slate-400">Most frequent remark tags in the filtered alerts.</p>
                 <div className="mt-4 space-y-3">
@@ -811,7 +811,7 @@ export default function SummaryDashboard({
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
                 <h2 className="text-lg font-medium">Vehicle volume</h2>
                 <p className="text-sm text-slate-400">Top vehicles based on alert activity.</p>
                 <div className="mt-4 space-y-3">

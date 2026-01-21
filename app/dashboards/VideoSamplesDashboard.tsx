@@ -82,7 +82,7 @@ export default function VideoSamplesDashboard({
   }, [normalizedOrganizationName, rows]);
 
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10 text-white">
+    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -95,12 +95,12 @@ export default function VideoSamplesDashboard({
                 Back to dashboards
               </Link>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Video samples</p>
-              <h1 className="text-3xl font-semibold">{dashboardName}</h1>
+              <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             </div>
             <button
               type="button"
               onClick={refresh}
-              className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500"
+              className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500 sm:w-auto"
             >
               Refresh data
             </button>
@@ -121,7 +121,7 @@ export default function VideoSamplesDashboard({
             Loading video samples…
           </div>
         ) : (
-          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-medium">Latest alert samples</h2>
               <span className="text-sm text-slate-400">{samples.length} videos</span>

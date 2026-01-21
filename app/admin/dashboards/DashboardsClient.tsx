@@ -1,7 +1,8 @@
 'use client';
 
 import { useFormState } from 'react-dom';
-import { confirmDelete, INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
+import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
+import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video Samples'] as const;
@@ -94,24 +95,21 @@ function DashboardRow({
             ))}
           </select>
         </div>
-        <div className="flex items-end gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
           <button
             type="submit"
             name="intent"
             value="save"
-            className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500"
+            className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500 sm:w-auto"
           >
             Save
           </button>
-          <button
-            type="submit"
-            name="intent"
-            value="delete"
-            onClick={confirmDelete}
-            className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400"
-          >
-            Delete
-          </button>
+          <ConfirmDeleteDialog
+            title="Delete dashboard"
+            description="This will permanently delete the dashboard entry."
+            triggerClassName="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
+            confirmClassName="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
+          />
         </div>
         <StatusMessage state={state} />
       </form>
@@ -133,7 +131,7 @@ export default function DashboardsClient({
   useRefreshOnSuccess(dashboardCreateState);
 
   return (
-    <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+    <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
       <header className="flex flex-col gap-2">
         <h2 className="text-lg font-medium">Dashboards</h2>
         <p className="text-sm text-slate-300">
