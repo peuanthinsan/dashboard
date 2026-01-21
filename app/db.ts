@@ -54,7 +54,7 @@ const organizations = pgTable('Organization', {
 
 const dashboards = pgTable('Dashboard', {
   id: serial('id').primaryKey(),
-  publicId: varchar('publicId', { length: 36 }).unique(),
+  publicId: varchar('publicId', { length: 36 }).notNull().unique(),
   name: varchar('name', { length: 128 }).notNull(),
   template: varchar('template', { length: 32 }).notNull(),
   sheetId: varchar('sheetId', { length: 128 }).notNull(),
@@ -204,17 +204,23 @@ export const getDashboardsForUser = cache(async ({
   if (companyIds.length === 0) {
     return [];
   }
+  const dashboardListSelect = {
+    id: dashboards.id,
+    publicId: dashboards.publicId,
+    name: dashboards.name,
+    template: dashboards.template,
+    sheetUrl: dashboards.sheetUrl,
+  };
   const companyFilter = inArray(dashboards.companyId, companyIds);
   const organizationFilter =
     organizationIds.length > 0
       ? or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, organizationIds))
       : isNull(dashboards.organizationId);
-  const dashboardsForUser = await db
-    .select()
+  return await db
+    .select(dashboardListSelect)
     .from(dashboards)
     .where(and(companyFilter, organizationFilter))
     .orderBy(dashboards.name);
-  return await ensureDashboardPublicIds(dashboardsForUser);
 });
 
 export async function createCompany(name: string) {
@@ -374,21 +380,6 @@ export async function updateUserAssignments(
       );
     }
   });
-}
-
-async function ensureDashboardPublicIds<T extends { id: number; publicId: string | null }>(
-  dashboardsForUser: T[],
-) {
-  return await Promise.all(
-    dashboardsForUser.map(async (dashboard) => {
-      if (dashboard.publicId) {
-        return dashboard;
-      }
-      const publicId = randomUUID();
-      await db.update(dashboards).set({ publicId }).where(eq(dashboards.id, dashboard.id));
-      return { ...dashboard, publicId };
-    }),
-  );
 }
 
 async function getUserAssignmentsByUserIds(userIds: number[]) {
