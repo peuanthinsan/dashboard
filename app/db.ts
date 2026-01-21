@@ -32,22 +32,22 @@ const userOrganizations = pgTable('UserOrganization', {
 
 const companies = pgTable('Company', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 128 }),
+  name: varchar('name', { length: 128 }).notNull(),
 });
 
 const organizations = pgTable('Organization', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 128 }),
+  name: varchar('name', { length: 128 }).notNull(),
 });
 
 const dashboards = pgTable('Dashboard', {
   id: serial('id').primaryKey(),
-  publicId: varchar('publicId', { length: 36 }),
-  name: varchar('name', { length: 128 }),
-  template: varchar('template', { length: 32 }),
-  sheetId: varchar('sheetId', { length: 128 }),
-  sheetGid: varchar('sheetGid', { length: 24 }),
-  sheetUrl: varchar('sheetUrl', { length: 512 }),
+  publicId: varchar('publicId', { length: 36 }).unique(),
+  name: varchar('name', { length: 128 }).notNull(),
+  template: varchar('template', { length: 32 }).notNull(),
+  sheetId: varchar('sheetId', { length: 128 }).notNull(),
+  sheetGid: varchar('sheetGid', { length: 24 }).notNull(),
+  sheetUrl: varchar('sheetUrl', { length: 512 }).notNull(),
   companyId: integer('companyId'),
   organizationId: integer('organizationId'),
 });

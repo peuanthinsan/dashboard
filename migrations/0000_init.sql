@@ -31,7 +31,7 @@ CREATE TABLE "UserOrganization" (
 
 CREATE TABLE "Dashboard" (
   id SERIAL PRIMARY KEY,
-  "publicId" VARCHAR(36),
+  "publicId" VARCHAR(36) UNIQUE,
   name VARCHAR(128) NOT NULL,
   template VARCHAR(32) NOT NULL,
   "sheetId" VARCHAR(128) NOT NULL,
@@ -45,3 +45,5 @@ CREATE INDEX "User_companyId_idx" ON "User" ("companyId");
 CREATE INDEX "User_organizationId_idx" ON "User" ("organizationId");
 CREATE INDEX "UserCompany_userId_idx" ON "UserCompany" ("userId");
 CREATE INDEX "UserOrganization_userId_idx" ON "UserOrganization" ("userId");
+CREATE INDEX "Dashboard_companyId_idx" ON "Dashboard" ("companyId");
+CREATE INDEX "Dashboard_organizationId_idx" ON "Dashboard" ("organizationId");

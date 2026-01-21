@@ -18,7 +18,7 @@ export const {
         const parsed = z
           .object({
             email: z.string().email(),
-            password: z.string().min(1),
+            password: z.string().min(8),
           })
           .safeParse(credentials);
         if (!parsed.success) {
