@@ -35,6 +35,8 @@ const toDisplayString = (value: unknown) => {
   return String(value);
 };
 
+const hasRemark = (value: string) => value !== '—' && value.trim() !== '';
+
 const parseDate = (value: unknown) => {
   if (!value) return null;
   const parsed = new Date(value as string);
@@ -71,6 +73,7 @@ export default function VideoSamplesDashboard({
         };
       })
       .filter((row) => {
+        if (!hasRemark(row.remarks)) return false;
         if (!normalizedOrganizationName) return true;
         return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
