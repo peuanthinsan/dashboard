@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { boolean, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, primaryKey, serial, varchar } from 'drizzle-orm/pg-core';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
@@ -19,17 +19,28 @@ const users = pgTable('User', {
   isAdmin: boolean('isAdmin').default(false),
   companyId: integer('companyId'),
   organizationId: integer('organizationId'),
-});
+}, (table) => ({
+  companyIdIdx: index('User_companyId_idx').on(table.companyId),
+  organizationIdIdx: index('User_organizationId_idx').on(table.organizationId),
+}));
 
 const userCompanies = pgTable('UserCompany', {
-  userId: integer('userId'),
-  companyId: integer('companyId'),
-});
+  userId: integer('userId').notNull(),
+  companyId: integer('companyId').notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.companyId] }),
+  userIdIdx: index('UserCompany_userId_idx').on(table.userId),
+  companyIdIdx: index('UserCompany_companyId_idx').on(table.companyId),
+}));
 
 const userOrganizations = pgTable('UserOrganization', {
-  userId: integer('userId'),
-  organizationId: integer('organizationId'),
-});
+  userId: integer('userId').notNull(),
+  organizationId: integer('organizationId').notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.organizationId] }),
+  userIdIdx: index('UserOrganization_userId_idx').on(table.userId),
+  organizationIdIdx: index('UserOrganization_organizationId_idx').on(table.organizationId),
+}));
 
 const companies = pgTable('Company', {
   id: serial('id').primaryKey(),
@@ -51,7 +62,10 @@ const dashboards = pgTable('Dashboard', {
   sheetUrl: varchar('sheetUrl', { length: 512 }).notNull(),
   companyId: integer('companyId'),
   organizationId: integer('organizationId'),
-});
+}, (table) => ({
+  companyIdIdx: index('Dashboard_companyId_idx').on(table.companyId),
+  organizationIdIdx: index('Dashboard_organizationId_idx').on(table.organizationId),
+}));
 
 export const getUser = cache(async (email: string) => {
   const userRows = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -95,14 +109,14 @@ export async function createUserWithRole({
 }) {
   const salt = await genSalt(10);
   const passwordHash = await hash(password, salt);
-  const [{ count }] = await client`
-    SELECT COUNT(*)::int AS count FROM "User";
-  `;
 
-  return await db.insert(users).values({
-    email,
-    password: passwordHash,
-    isAdmin: isAdmin || count === 0,
+  return await db.transaction(async (tx) => {
+    const existing = await tx.select({ id: users.id }).from(users).limit(1);
+    return await tx.insert(users).values({
+      email,
+      password: passwordHash,
+      isAdmin: isAdmin || existing.length === 0,
+    });
   });
 }
 
@@ -306,35 +320,37 @@ export async function updateUserAssignments(
   const uniqueCompanyIds = Array.from(new Set(companyIds));
   const uniqueOrganizationIds = Array.from(new Set(organizationIds));
 
-  await db
-    .update(users)
-    .set({
-      companyId: uniqueCompanyIds[0] ?? null,
-      organizationId: uniqueOrganizationIds[0] ?? null,
-      isAdmin,
-    })
-    .where(eq(users.id, userId));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({
+        companyId: uniqueCompanyIds[0] ?? null,
+        organizationId: uniqueOrganizationIds[0] ?? null,
+        isAdmin,
+      })
+      .where(eq(users.id, userId));
 
-  await db.delete(userCompanies).where(eq(userCompanies.userId, userId));
-  await db.delete(userOrganizations).where(eq(userOrganizations.userId, userId));
+    await tx.delete(userCompanies).where(eq(userCompanies.userId, userId));
+    await tx.delete(userOrganizations).where(eq(userOrganizations.userId, userId));
 
-  if (uniqueCompanyIds.length > 0) {
-    await db.insert(userCompanies).values(
-      uniqueCompanyIds.map((companyId) => ({
-        userId,
-        companyId,
-      })),
-    );
-  }
+    if (uniqueCompanyIds.length > 0) {
+      await tx.insert(userCompanies).values(
+        uniqueCompanyIds.map((companyId) => ({
+          userId,
+          companyId,
+        })),
+      );
+    }
 
-  if (uniqueOrganizationIds.length > 0) {
-    await db.insert(userOrganizations).values(
-      uniqueOrganizationIds.map((organizationId) => ({
-        userId,
-        organizationId,
-      })),
-    );
-  }
+    if (uniqueOrganizationIds.length > 0) {
+      await tx.insert(userOrganizations).values(
+        uniqueOrganizationIds.map((organizationId) => ({
+          userId,
+          organizationId,
+        })),
+      );
+    }
+  });
 }
 
 async function ensureDashboardPublicIds<T extends { id: number; publicId: string | null }>(
