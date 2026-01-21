@@ -24,6 +24,8 @@ const toDisplayString = (value: unknown) => {
   return String(value);
 };
 
+const hasRemark = (value: string) => value !== '—' && value.trim() !== '';
+
 const parseDate = (value: unknown) => {
   if (!value) return null;
   const parsed = new Date(value as string);
@@ -148,10 +150,11 @@ export default function SummaryDashboard({
         dateValue,
       };
     });
+    const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks));
     if (!normalizedOrganizationName) {
-      return mappedRows;
+      return remarkRows;
     }
-    return mappedRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
+    return remarkRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
   }, [normalizedOrganizationName, rows]);
 
   const fleetOptions = useMemo(() => {
