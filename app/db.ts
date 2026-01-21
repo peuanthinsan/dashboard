@@ -216,28 +216,12 @@ export const getDashboardsForUser = cache(async ({
     organizationIds.length > 0
       ? or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, organizationIds))
       : isNull(dashboards.organizationId);
-  const dashboardsForUser = await db
+  return await db
     .select(dashboardListSelect)
     .from(dashboards)
     .where(and(companyFilter, organizationFilter))
     .orderBy(dashboards.name);
-  return await ensureDashboardPublicIds(dashboardsForUser);
 });
-
-async function ensureDashboardPublicIds<T extends { id: number; publicId: string | null }>(
-  dashboardsForUser: T[],
-) {
-  return await Promise.all(
-    dashboardsForUser.map(async (dashboard) => {
-      if (dashboard.publicId) {
-        return dashboard;
-      }
-      const publicId = randomUUID();
-      await db.update(dashboards).set({ publicId }).where(eq(dashboards.id, dashboard.id));
-      return { ...dashboard, publicId };
-    }),
-  );
-}
 
 export async function createCompany(name: string) {
   return await db.insert(companies).values({ name });
