@@ -15,24 +15,24 @@ export default async function DashboardPage() {
       : [];
 
   return (
-    <div className="min-h-screen bg-black px-6 py-10 text-white">
+    <div className="min-h-screen bg-black px-4 py-8 text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2">
             <p className="text-sm text-slate-300">You are logged in as</p>
-            <h1 className="text-3xl font-semibold">{session?.user?.email}</h1>
+            <h1 className="text-2xl font-semibold sm:text-3xl">{session?.user?.email}</h1>
           </div>
           {isAdmin ? (
             <Link
               href="/admin"
-              className="inline-flex w-fit items-center rounded-lg border border-slate-700 px-4 py-2 text-sm text-white transition hover:border-slate-500"
+              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-700 px-4 py-2 text-sm text-white transition hover:border-slate-500 sm:w-fit"
             >
               Go to administration
             </Link>
           ) : null}
         </header>
 
-        <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
+        <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
           <h2 className="text-lg font-medium">Available dashboards</h2>
           {dashboards.length === 0 ? (
             <p className="text-sm text-slate-400">
@@ -44,13 +44,13 @@ export default async function DashboardPage() {
                 <Link
                   key={dashboard.id}
                   href={`/dashboard/${dashboard.publicId}`}
-                  className="flex flex-col gap-1 rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition hover:border-slate-600"
+                  className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition hover:border-slate-600"
                 >
                   <span className="text-base font-semibold text-white">{dashboard.name}</span>
                   <span className="text-xs uppercase tracking-wide text-slate-400">
                     Template: {dashboard.template}
                   </span>
-                  <span className="text-xs text-slate-500">{dashboard.sheetUrl}</span>
+                  <span className="break-all text-xs text-slate-500">{dashboard.sheetUrl}</span>
                 </Link>
               ))}
             </div>
