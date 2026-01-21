@@ -83,7 +83,7 @@ export default function SimpleDashboard({
   const [vehicleQuery, setVehicleQuery] = useState('');
 
   const baseAlerts = useMemo(() => {
-    const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction', 'overspeed']);
+    const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
     return rows
       .map((row) => {
         const alertType = String(findValue(row, ['Alert Type']) ?? '');
