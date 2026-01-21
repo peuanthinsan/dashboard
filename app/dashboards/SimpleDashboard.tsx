@@ -355,6 +355,9 @@ export default function SimpleDashboard({
                 <span aria-hidden="true">←</span>
                 Back to dashboards
               </Link>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                Simple Dashboard
+              </p>
               <h1 className="text-3xl font-semibold">{dashboardName}</h1>
             </div>
             <button
