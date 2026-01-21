@@ -81,6 +81,8 @@ export default function SimpleDashboard({
   const [trendRemarkFilter, setTrendRemarkFilter] = useState<RemarkFilter>('all');
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [vehicleQuery, setVehicleQuery] = useState('');
+  const [driverFilters, setDriverFilters] = useState<string[]>([]);
+  const [driverQuery, setDriverQuery] = useState('');
 
   const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
@@ -147,17 +149,42 @@ export default function SimpleDashboard({
     setVehicleFilters((current) => current.filter((vehicle) => vehicleOptions.includes(vehicle)));
   }, [vehicleOptions]);
 
+  const driverOptions = useMemo(() => {
+    const drivers = new Set<string>();
+    dateFilteredAlerts.forEach((row) => {
+      if (row.driver && row.driver !== '—') drivers.add(row.driver);
+    });
+    return Array.from(drivers).sort((a, b) => a.localeCompare(b));
+  }, [dateFilteredAlerts]);
+
+  useEffect(() => {
+    setDriverFilters((current) => current.filter((driver) => driverOptions.includes(driver)));
+  }, [driverOptions]);
+
   const filteredAlerts = useMemo(() => {
-    if (vehicleFilters.length === 0) return dateFilteredAlerts;
-    const activeVehicles = new Set(vehicleFilters);
-    return dateFilteredAlerts.filter((row) => activeVehicles.has(row.vehicle));
-  }, [dateFilteredAlerts, vehicleFilters]);
+    let alerts = dateFilteredAlerts;
+    if (vehicleFilters.length > 0) {
+      const activeVehicles = new Set(vehicleFilters);
+      alerts = alerts.filter((row) => activeVehicles.has(row.vehicle));
+    }
+    if (driverFilters.length > 0) {
+      const activeDrivers = new Set(driverFilters);
+      alerts = alerts.filter((row) => activeDrivers.has(row.driver));
+    }
+    return alerts;
+  }, [dateFilteredAlerts, vehicleFilters, driverFilters]);
 
   const filteredVehicleOptions = useMemo(() => {
     const query = vehicleQuery.trim().toLowerCase();
     if (!query) return vehicleOptions;
     return vehicleOptions.filter((vehicle) => vehicle.toLowerCase().includes(query));
   }, [vehicleOptions, vehicleQuery]);
+
+  const filteredDriverOptions = useMemo(() => {
+    const query = driverQuery.trim().toLowerCase();
+    if (!query) return driverOptions;
+    return driverOptions.filter((driver) => driver.toLowerCase().includes(query));
+  }, [driverOptions, driverQuery]);
 
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
@@ -397,6 +424,8 @@ export default function SimpleDashboard({
                     setDateRange({ from: '', to: '' });
                     setVehicleFilters([]);
                     setVehicleQuery('');
+                    setDriverFilters([]);
+                    setDriverQuery('');
                     setPage(1);
                   }}
                   className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
@@ -517,6 +546,74 @@ export default function SimpleDashboard({
                     <span className="text-slate-500">{vehicleFilters.length} selected</span>
                   ) : null}
                 </div>
+                {driverOptions.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-300">
+                    <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {driverFilters.map((driver) => (
+                          <button
+                            key={driver}
+                            type="button"
+                            onClick={() => {
+                              setDriverFilters((current) => current.filter((item) => item !== driver));
+                              setPage(1);
+                            }}
+                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                          >
+                            {driver} ×
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          list="driver-options"
+                          value={driverQuery}
+                          onChange={(event) => setDriverQuery(event.target.value)}
+                          placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
+                          className="min-w-[220px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        />
+                        <datalist id="driver-options">
+                          {filteredDriverOptions.map((driver) => (
+                            <option key={driver} value={driver} />
+                          ))}
+                        </datalist>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const trimmed = driverQuery.trim();
+                            if (!trimmed) return;
+                            const matched = driverOptions.find(
+                              (driver) => driver.toLowerCase() === trimmed.toLowerCase(),
+                            );
+                            if (!matched) return;
+                            setDriverFilters((current) =>
+                              current.includes(matched) ? current : [...current, matched],
+                            );
+                            setDriverQuery('');
+                            setPage(1);
+                          }}
+                          className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDriverFilters([]);
+                        setPage(1);
+                      }}
+                      className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    >
+                      Clear
+                    </button>
+                    {driverFilters.length > 0 ? (
+                      <span className="text-slate-500">{driverFilters.length} selected</span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </section>
 
