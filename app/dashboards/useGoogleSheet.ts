@@ -30,6 +30,8 @@ type CachedSheet = {
 };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_CACHE_CHARS = 2_000_000;
+const memoryCache = new Map<string, CachedSheet>();
 
 const buildSheetUrl = (sheetId: string, gid: string) =>
   `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
@@ -74,18 +76,33 @@ export default function useGoogleSheet({ sheetId, gid }: UseGoogleSheetOptions):
     if (typeof window === 'undefined') {
       return null;
     }
-    const cached = window.localStorage.getItem(cacheKey);
+    const cachedMemory = memoryCache.get(cacheKey);
+    if (cachedMemory) {
+      if (Date.now() - cachedMemory.lastUpdated <= CACHE_TTL_MS) {
+        return cachedMemory;
+      }
+      memoryCache.delete(cacheKey);
+    }
+    let cached: string | null = null;
+    try {
+      cached = window.localStorage.getItem(cacheKey);
+    } catch {
+      return null;
+    }
     if (!cached) {
       return null;
     }
     try {
       const parsed = JSON.parse(cached) as CachedSheet;
       if (!parsed?.lastUpdated || Date.now() - parsed.lastUpdated > CACHE_TTL_MS) {
+        memoryCache.delete(cacheKey);
         window.localStorage.removeItem(cacheKey);
         return null;
       }
+      memoryCache.set(cacheKey, parsed);
       return parsed;
     } catch {
+      memoryCache.delete(cacheKey);
       window.localStorage.removeItem(cacheKey);
       return null;
     }
@@ -96,7 +113,20 @@ export default function useGoogleSheet({ sheetId, gid }: UseGoogleSheetOptions):
       if (typeof window === 'undefined') {
         return;
       }
-      window.localStorage.setItem(cacheKey, JSON.stringify(payload));
+      memoryCache.set(cacheKey, payload);
+      const serialized = JSON.stringify(payload);
+      if (serialized.length > MAX_CACHE_CHARS) {
+        return;
+      }
+      try {
+        window.localStorage.setItem(cacheKey, serialized);
+      } catch {
+        try {
+          window.localStorage.removeItem(cacheKey);
+        } catch {
+          // Ignore storage failures.
+        }
+      }
     },
     [cacheKey],
   );
