@@ -73,20 +73,22 @@ export default function OrganizationsClient({
     <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
       <form
         action={organizationCreateAction}
-        className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4"
+        className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4 sm:flex-row sm:flex-wrap sm:items-end"
       >
         <h2 className="text-lg font-medium">Create organization</h2>
-        <input
-          name="organizationName"
-          placeholder="Operations Team"
-          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-        />
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400 sm:w-fit"
-        >
-          Add organization
-        </button>
+        <div className="flex w-full flex-col gap-3 sm:flex-1 sm:flex-row sm:items-end">
+          <input
+            name="organizationName"
+            placeholder="Operations Team"
+            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+          />
+          <button
+            type="submit"
+            className="w-full rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400 sm:w-auto"
+          >
+            Add organization
+          </button>
+        </div>
         <StatusMessage state={organizationCreateState} />
       </form>
 
