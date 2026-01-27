@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import useGoogleSheet from './useGoogleSheet';
+import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 
 type DashboardProps = {
   dashboardName: string;
@@ -37,6 +39,12 @@ type SortCriterion = {
   direction: SortDirection;
 };
 type RemarkFilter = 'all' | 'fatigue' | 'yawning' | 'distraction';
+type SimpleFilterState = {
+  dateRange: { from: string; to: string };
+  vehicleFilters: string[];
+  driverFilters: string[];
+  trendRemarkFilter: RemarkFilter;
+};
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
@@ -69,6 +77,8 @@ export default function SimpleDashboard({
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
   );
+  const params = useParams();
+  const dashboardId = Array.isArray(params.id) ? params.id[0] : params.id ?? 'unknown';
   const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
   const defaultSortCriteria = useMemo<SortCriterion[]>(
     () => [{ field: 'date', direction: 'desc' }],
@@ -83,6 +93,40 @@ export default function SimpleDashboard({
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [driverQuery, setDriverQuery] = useState('');
+  const storageKey = useMemo(
+    () => `songdee-dashboard:filters:simple:${dashboardId}`,
+    [dashboardId],
+  );
+
+  useEffect(() => {
+    const stored = loadStoredFilters<SimpleFilterState>(storageKey);
+    if (!stored) return;
+    if (stored.dateRange) {
+      setDateRange({
+        from: typeof stored.dateRange.from === 'string' ? stored.dateRange.from : '',
+        to: typeof stored.dateRange.to === 'string' ? stored.dateRange.to : '',
+      });
+    }
+    if (Array.isArray(stored.vehicleFilters)) {
+      setVehicleFilters(stored.vehicleFilters.filter((value) => typeof value === 'string'));
+    }
+    if (Array.isArray(stored.driverFilters)) {
+      setDriverFilters(stored.driverFilters.filter((value) => typeof value === 'string'));
+    }
+    if (stored.trendRemarkFilter && ['all', 'fatigue', 'yawning', 'distraction'].includes(stored.trendRemarkFilter)) {
+      setTrendRemarkFilter(stored.trendRemarkFilter);
+    }
+    setPage(1);
+  }, [storageKey]);
+
+  useEffect(() => {
+    saveStoredFilters(storageKey, {
+      dateRange,
+      vehicleFilters,
+      driverFilters,
+      trendRemarkFilter,
+    });
+  }, [dateRange, driverFilters, storageKey, trendRemarkFilter, vehicleFilters]);
 
   const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);

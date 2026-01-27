@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import useGoogleSheet from './useGoogleSheet';
+import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 
 type DashboardProps = {
   dashboardName: string;
@@ -88,6 +90,8 @@ export default function SummaryDashboard({
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
   );
+  const params = useParams();
+  const dashboardId = Array.isArray(params.id) ? params.id[0] : params.id ?? 'unknown';
 
   const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
   const [monthSearch, setMonthSearch] = useState('');
@@ -101,6 +105,47 @@ export default function SummaryDashboard({
   const [driverSearch, setDriverSearch] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const didSetDefaultMonth = useRef(false);
+  const storageKey = useMemo(
+    () => `songdee-dashboard:filters:summary:${dashboardId}`,
+    [dashboardId],
+  );
+
+  useEffect(() => {
+    const stored = loadStoredFilters<{
+      monthFilters: string[];
+      fleetFilters: string[];
+      remarkFilters: string[];
+      vehicleFilters: string[];
+      driverFilters: string[];
+    }>(storageKey);
+    if (!stored) return;
+    didSetDefaultMonth.current = true;
+    if (Array.isArray(stored.monthFilters)) {
+      setMonthFilters(stored.monthFilters.filter((value) => typeof value === 'string'));
+    }
+    if (Array.isArray(stored.fleetFilters)) {
+      setFleetFilters(stored.fleetFilters.filter((value) => typeof value === 'string'));
+    }
+    if (Array.isArray(stored.remarkFilters)) {
+      setRemarkFilters(stored.remarkFilters.filter((value) => typeof value === 'string'));
+    }
+    if (Array.isArray(stored.vehicleFilters)) {
+      setVehicleFilters(stored.vehicleFilters.filter((value) => typeof value === 'string'));
+    }
+    if (Array.isArray(stored.driverFilters)) {
+      setDriverFilters(stored.driverFilters.filter((value) => typeof value === 'string'));
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    saveStoredFilters(storageKey, {
+      monthFilters,
+      fleetFilters,
+      remarkFilters,
+      vehicleFilters,
+      driverFilters,
+    });
+  }, [driverFilters, fleetFilters, monthFilters, remarkFilters, storageKey, vehicleFilters]);
 
   const allowedAlertTypes = useMemo(
     () => [
@@ -254,11 +299,15 @@ export default function SummaryDashboard({
   useEffect(() => {
     if (didSetDefaultMonth.current) return;
     if (monthOptions.length === 0) return;
+    if (monthFilters.length > 0) {
+      didSetDefaultMonth.current = true;
+      return;
+    }
     didSetDefaultMonth.current = true;
     if (monthOptions.some((option) => option.key === currentMonthKey)) {
       setMonthFilters([currentMonthKey]);
     }
-  }, [currentMonthKey, monthOptions]);
+  }, [currentMonthKey, monthFilters, monthOptions]);
 
   const baseFilteredRows = useMemo(() => {
     const normalizedAllowedAlertTypes = allowedAlertTypes.map((alert) => normalizeLabel(alert));
