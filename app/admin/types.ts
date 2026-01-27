@@ -28,4 +28,5 @@ export type Dashboard = {
   template: string | null;
   companyId: number | null;
   organizationId: number | null;
+  notes: string | null;
 };

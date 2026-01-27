@@ -1,0 +1,2 @@
+ALTER TABLE "Dashboard"
+ADD COLUMN "notes" VARCHAR(2000);

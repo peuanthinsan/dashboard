@@ -11,6 +11,7 @@ type DashboardProps = {
   sheetId: string;
   sheetGid: string;
   organizationName?: string | null;
+  dashboardNotes?: string | null;
 };
 
 type AlertRow = {
@@ -100,6 +101,7 @@ export default function DetailDashboard({
   sheetId,
   sheetGid,
   organizationName,
+  dashboardNotes,
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
@@ -533,8 +535,13 @@ export default function DetailDashboard({
             </Link>
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Detail dashboard</p>
             <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
+            {dashboardNotes?.trim() ? (
+              <p className="mt-2 max-w-2xl whitespace-pre-wrap text-sm text-slate-200">
+                {dashboardNotes}
+              </p>
+            ) : null}
             {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+              <p className="mt-2 text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
             ) : null}
           </div>
           <button
