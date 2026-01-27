@@ -6,6 +6,7 @@ import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 
 type DashboardProps = {
+  dashboardId: string;
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
@@ -66,6 +67,7 @@ const toDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 export default function SimpleDashboard({
+  dashboardId,
   dashboardName,
   sheetId,
   sheetGid,
@@ -90,10 +92,7 @@ export default function SimpleDashboard({
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [driverQuery, setDriverQuery] = useState('');
-  const storageKey = useMemo(
-    () => `songdee-dashboard:filters:simple:${sheetId}:${sheetGid}:${organizationName ?? 'all'}`,
-    [sheetGid, sheetId, organizationName],
-  );
+  const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
   useEffect(() => {
     const stored = loadStoredFilters<SimpleFilterState>(storageKey);

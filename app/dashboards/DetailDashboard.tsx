@@ -6,6 +6,7 @@ import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 
 type DashboardProps = {
+  dashboardId: string;
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
@@ -94,6 +95,7 @@ const toDateLabel = (value: unknown) => {
 };
 
 export default function DetailDashboard({
+  dashboardId,
   dashboardName,
   sheetId,
   sheetGid,
@@ -122,10 +124,7 @@ export default function DetailDashboard({
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
   const didSetDefaultMonth = useRef(false);
-  const storageKey = useMemo(
-    () => `songdee-dashboard:filters:detail:${sheetId}:${sheetGid}:${organizationName ?? 'all'}`,
-    [sheetGid, sheetId, organizationName],
-  );
+  const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
   useEffect(() => {
     const stored = loadStoredFilters<DetailFilterState>(storageKey);

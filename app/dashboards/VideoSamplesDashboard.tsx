@@ -5,6 +5,7 @@ import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 
 type DashboardProps = {
+  dashboardId: string;
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
