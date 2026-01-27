@@ -32,7 +32,7 @@ function DashboardRow({
   useRefreshOnSuccess(state);
 
   return (
-    <div className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1.2fr_1.4fr_1fr_1fr_0.8fr_auto]">
+    <div className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1.1fr_1.3fr_1.1fr_1.1fr_1fr_0.8fr_auto]">
       <form action={formAction} className="contents">
         <input type="hidden" name="dashboardId" value={dashboard.id} />
         <div className="flex flex-col gap-2">
@@ -94,6 +94,15 @@ function DashboardRow({
               </option>
             ))}
           </select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-xs text-slate-400">Notes</label>
+          <textarea
+            name="notes"
+            defaultValue={dashboard.notes ?? ''}
+            rows={3}
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+          />
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
           <button
@@ -200,6 +209,15 @@ export default function DashboardsClient({
               </option>
             ))}
           </select>
+        </div>
+        <div className="flex flex-col gap-2 md:col-span-2">
+          <label className="text-xs text-slate-400">Notes</label>
+          <textarea
+            name="notes"
+            rows={3}
+            placeholder="Add any notes to display on the dashboard"
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+          />
         </div>
         <div className="flex items-end">
           <button

@@ -11,6 +11,7 @@ type DashboardProps = {
   sheetId: string;
   sheetGid: string;
   organizationName?: string | null;
+  notes?: string | null;
 };
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
@@ -85,6 +86,7 @@ export default function SummaryDashboard({
   sheetId,
   sheetGid,
   organizationName,
+  notes,
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
@@ -436,6 +438,15 @@ export default function SummaryDashboard({
             Refresh data
           </button>
         </header>
+
+        {notes ? (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-200 shadow-lg sm:p-6">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">
+              Notes
+            </h2>
+            <p className="mt-3 whitespace-pre-line text-base text-slate-100">{notes}</p>
+          </section>
+        ) : null}
 
         {error ? (
           <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">

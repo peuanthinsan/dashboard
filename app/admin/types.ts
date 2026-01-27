@@ -26,6 +26,7 @@ export type Dashboard = {
   name: string | null;
   sheetUrl: string | null;
   template: string | null;
+  notes?: string | null;
   companyId: number | null;
   organizationId: number | null;
 };

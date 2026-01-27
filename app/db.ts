@@ -60,6 +60,7 @@ const dashboards = pgTable('Dashboard', {
   sheetId: varchar('sheetId', { length: 128 }).notNull(),
   sheetGid: varchar('sheetGid', { length: 24 }).notNull(),
   sheetUrl: varchar('sheetUrl', { length: 512 }).notNull(),
+  notes: varchar('notes', { length: 1024 }),
   companyId: integer('companyId'),
   organizationId: integer('organizationId'),
 }, (table) => ({
@@ -255,6 +256,7 @@ export async function createDashboard({
   sheetId,
   sheetGid,
   sheetUrl,
+  notes,
 }: {
   name: string;
   companyId: number;
@@ -263,6 +265,7 @@ export async function createDashboard({
   sheetId: string;
   sheetGid: string;
   sheetUrl: string;
+  notes?: string | null;
 }) {
   return await db.insert(dashboards).values({
     name,
@@ -272,6 +275,7 @@ export async function createDashboard({
     sheetId,
     sheetGid,
     sheetUrl,
+    notes,
     publicId: randomUUID(),
   });
 }
@@ -285,6 +289,7 @@ export async function updateDashboard({
   sheetId,
   sheetGid,
   sheetUrl,
+  notes,
 }: {
   id: number;
   name: string;
@@ -294,6 +299,7 @@ export async function updateDashboard({
   sheetId: string;
   sheetGid: string;
   sheetUrl: string;
+  notes?: string | null;
 }) {
   return await db
     .update(dashboards)
@@ -305,6 +311,7 @@ export async function updateDashboard({
       sheetId,
       sheetGid,
       sheetUrl,
+      notes,
     })
     .where(eq(dashboards.id, id));
 }
