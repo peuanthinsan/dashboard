@@ -32,6 +32,7 @@ export default async function AdminDashboardsPage() {
     const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const notesValue = (formData.get('notes') as string | null)?.trim() ?? '';
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
     }
@@ -48,6 +49,7 @@ export default async function AdminDashboardsPage() {
         sheetGid,
         companyId,
         organizationId: organizationValue ? Number(organizationValue) : null,
+        notes: notesValue ? notesValue : null,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard created.' };
@@ -84,6 +86,7 @@ export default async function AdminDashboardsPage() {
     const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const notesValue = (formData.get('notes') as string | null)?.trim() ?? '';
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
     }
@@ -101,6 +104,7 @@ export default async function AdminDashboardsPage() {
         sheetGid,
         companyId,
         organizationId: organizationValue ? Number(organizationValue) : null,
+        notes: notesValue ? notesValue : null,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard updated.' };

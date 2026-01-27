@@ -4,12 +4,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import DashboardNotes from './DashboardNotes';
 
 type DashboardProps = {
   dashboardId: string;
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
+  dashboardNotes?: string | null;
   organizationName?: string | null;
 };
 
@@ -99,6 +101,7 @@ export default function DetailDashboard({
   dashboardName,
   sheetId,
   sheetGid,
+  dashboardNotes,
   organizationName,
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
@@ -545,6 +548,8 @@ export default function DetailDashboard({
             Refresh data
           </button>
         </header>
+
+        <DashboardNotes notes={dashboardNotes} />
 
         {error ? (
           <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
