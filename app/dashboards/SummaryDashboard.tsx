@@ -430,7 +430,7 @@ export default function SummaryDashboard({
               <p className="mt-1 text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
             ) : null}
             {dashboardNotes ? (
-              <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
+              <div className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
                 {dashboardNotes}
               </div>
             ) : null}
