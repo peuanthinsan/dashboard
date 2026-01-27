@@ -58,6 +58,7 @@ export default async function DashboardPage({ params }: { params: { id: string }
 
   return (
     <Template
+      dashboardId={params.id}
       dashboardName={dashboard.name ?? 'Company dashboard'}
       sheetId={dashboard.sheetId ?? ''}
       sheetGid={dashboard.sheetGid ?? '0'}

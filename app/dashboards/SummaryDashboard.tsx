@@ -6,6 +6,7 @@ import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 
 type DashboardProps = {
+  dashboardId: string;
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
@@ -79,6 +80,7 @@ const buildDeltaSummary = (current: number, previous: number) => {
 };
 
 export default function SummaryDashboard({
+  dashboardId,
   dashboardName,
   sheetId,
   sheetGid,
@@ -102,10 +104,7 @@ export default function SummaryDashboard({
   const [driverSearch, setDriverSearch] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const didSetDefaultMonth = useRef(false);
-  const storageKey = useMemo(
-    () => `songdee-dashboard:filters:summary:${sheetId}:${sheetGid}:${organizationName ?? 'all'}`,
-    [sheetGid, sheetId, organizationName],
-  );
+  const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
   useEffect(() => {
     const stored = loadStoredFilters<{
