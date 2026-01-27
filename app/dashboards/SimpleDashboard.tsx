@@ -264,6 +264,25 @@ export default function SimpleDashboard({
     };
   }, [filteredAlerts]);
 
+  const availableTrendRemarkOptions = useMemo(
+    () => {
+      const options: { label: string; value: RemarkFilter }[] = [{ label: 'All remarks', value: 'all' }];
+      if (stats.remarks.fatigue > 0) options.push({ label: 'Fatigue', value: 'fatigue' });
+      if (stats.remarks.yawning > 0) options.push({ label: 'Yawning', value: 'yawning' });
+      if (stats.remarks.distraction > 0) options.push({ label: 'Distraction', value: 'distraction' });
+      return options;
+    },
+    [stats.remarks.distraction, stats.remarks.fatigue, stats.remarks.yawning],
+  );
+
+  useEffect(() => {
+    if (trendRemarkFilter === 'all') return;
+    const hasFilter = availableTrendRemarkOptions.some((option) => option.value === trendRemarkFilter);
+    if (!hasFilter) {
+      setTrendRemarkFilter('all');
+    }
+  }, [availableTrendRemarkOptions, trendRemarkFilter]);
+
   const summarizedRows = useMemo<AlertSummaryRow[]>(() => {
     const grouped = new Map<string, AlertSummaryRow>();
     filteredAlerts.forEach((row) => {
@@ -667,14 +686,7 @@ export default function SimpleDashboard({
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-300">
                 <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
-                {(
-                  [
-                    { label: 'All remarks', value: 'all' },
-                    { label: 'Fatigue', value: 'fatigue' },
-                    { label: 'Yawning', value: 'yawning' },
-                    { label: 'Distraction', value: 'distraction' },
-                  ] as const
-                ).map((option) => (
+                {availableTrendRemarkOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"
