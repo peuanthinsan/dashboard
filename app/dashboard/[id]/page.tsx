@@ -62,6 +62,7 @@ export default async function DashboardPage({ params }: { params: { id: string }
       dashboardName={dashboard.name ?? 'Company dashboard'}
       sheetId={dashboard.sheetId ?? ''}
       sheetGid={dashboard.sheetGid ?? '0'}
+      dashboardNotes={dashboard.notes ?? null}
       organizationName={organizationName}
     />
   );

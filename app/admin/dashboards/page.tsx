@@ -30,6 +30,8 @@ export default async function AdminDashboardsPage() {
     const name = (formData.get('dashboardName') as string)?.trim();
     const template = (formData.get('template') as string)?.trim();
     const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
+    const notesValue = (formData.get('dashboardNotes') as string) ?? '';
+    const notes = notesValue.trim() ? notesValue.trim() : null;
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
     if (!name || !template || !sheetUrl || !companyId) {
@@ -48,6 +50,7 @@ export default async function AdminDashboardsPage() {
         sheetGid,
         companyId,
         organizationId: organizationValue ? Number(organizationValue) : null,
+        notes,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard created.' };
@@ -82,6 +85,8 @@ export default async function AdminDashboardsPage() {
     const name = (formData.get('dashboardName') as string)?.trim();
     const template = (formData.get('template') as string)?.trim();
     const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
+    const notesValue = (formData.get('dashboardNotes') as string) ?? '';
+    const notes = notesValue.trim() ? notesValue.trim() : null;
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
     if (!name || !template || !sheetUrl || !companyId) {
@@ -101,6 +106,7 @@ export default async function AdminDashboardsPage() {
         sheetGid,
         companyId,
         organizationId: organizationValue ? Number(organizationValue) : null,
+        notes,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard updated.' };
