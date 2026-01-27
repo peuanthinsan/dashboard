@@ -125,10 +125,7 @@ export default function DetailDashboard({
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
   const didSetDefaultMonth = useRef(false);
-  const storageKey = useMemo(
-    () => `songdee-dashboard:filters:detail:${dashboardId}`,
-    [dashboardId],
-  );
+  const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
   useEffect(() => {
     const stored = loadStoredFilters<DetailFilterState>(storageKey);

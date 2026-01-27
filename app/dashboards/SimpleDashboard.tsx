@@ -93,10 +93,7 @@ export default function SimpleDashboard({
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [driverQuery, setDriverQuery] = useState('');
-  const storageKey = useMemo(
-    () => `songdee-dashboard:filters:simple:${dashboardId}`,
-    [dashboardId],
-  );
+  const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
   useEffect(() => {
     const stored = loadStoredFilters<SimpleFilterState>(storageKey);

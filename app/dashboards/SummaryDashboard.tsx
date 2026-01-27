@@ -105,10 +105,7 @@ export default function SummaryDashboard({
   const [driverSearch, setDriverSearch] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const didSetDefaultMonth = useRef(false);
-  const storageKey = useMemo(
-    () => `songdee-dashboard:filters:summary:${dashboardId}`,
-    [dashboardId],
-  );
+  const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
   useEffect(() => {
     const stored = loadStoredFilters<{
