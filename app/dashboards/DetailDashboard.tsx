@@ -332,12 +332,6 @@ export default function DetailDashboard({
     }
   }, [currentMonthKey, monthFilters, monthOptions]);
 
-  useEffect(() => {
-    if (trendRemarkFilter === 'all') return;
-    if (remarkOptions.some((option) => option === trendRemarkFilter)) return;
-    setTrendRemarkFilter('all');
-  }, [remarkOptions, trendRemarkFilter]);
-
   const baseFilteredRows = useMemo(() => {
     const normalizedAllowedAlertTypes = allowedAlertTypes.map((alert) => normalizeLabel(alert));
     const normalizedFleetFilters = fleetFilters.map((fleet) => normalizeLabel(fleet));
@@ -372,6 +366,32 @@ export default function DetailDashboard({
     if (monthFilters.length === 0) return baseFilteredRows;
     return baseFilteredRows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
   }, [baseFilteredRows, monthFilters]);
+
+  const availableTrendRemarkOptions = useMemo(() => {
+    const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
+    const matching = new Set<string>();
+    filteredAlerts.forEach((row) => {
+      if (!row.remarks || row.remarks === '—') return;
+      const normalizedValue = normalizeLabel(row.remarks);
+      normalizedTargets.forEach((target, index) => {
+        if (normalizedValue.includes(target)) {
+          matching.add(allowedRemarkTargets[index]);
+        }
+      });
+    });
+    return [
+      { label: 'All remarks', value: 'all' },
+      ...Array.from(matching)
+        .sort((a, b) => a.localeCompare(b))
+        .map((option) => ({ label: option, value: option })),
+    ];
+  }, [allowedRemarkTargets, filteredAlerts]);
+
+  useEffect(() => {
+    if (trendRemarkFilter === 'all') return;
+    if (availableTrendRemarkOptions.some((option) => option.value === trendRemarkFilter)) return;
+    setTrendRemarkFilter('all');
+  }, [availableTrendRemarkOptions, trendRemarkFilter]);
 
   const sortedAlerts = useMemo(() => {
     if (sortCriteria.length === 0) return filteredAlerts;
@@ -902,10 +922,7 @@ export default function DetailDashboard({
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-300">
                 <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
-                {[
-                  { label: 'All remarks', value: 'all' },
-                  ...remarkOptions.map((option) => ({ label: option, value: option })),
-                ].map((option) => (
+                {availableTrendRemarkOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"
