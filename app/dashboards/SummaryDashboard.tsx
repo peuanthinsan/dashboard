@@ -10,6 +10,7 @@ type DashboardProps = {
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
+  dashboardNotes?: string | null;
   organizationName?: string | null;
 };
 
@@ -84,6 +85,7 @@ export default function SummaryDashboard({
   dashboardName,
   sheetId,
   sheetGid,
+  dashboardNotes,
   organizationName,
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
@@ -426,6 +428,11 @@ export default function SummaryDashboard({
             <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             {lastUpdated ? (
               <p className="mt-1 text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+            ) : null}
+            {dashboardNotes ? (
+              <div className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
+                {dashboardNotes}
+              </div>
             ) : null}
           </div>
           <button
