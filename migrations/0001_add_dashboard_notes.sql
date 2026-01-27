@@ -1,1 +1,1 @@
-ALTER TABLE "Dashboard" ADD COLUMN "notes" TEXT;
+ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "notes" TEXT;

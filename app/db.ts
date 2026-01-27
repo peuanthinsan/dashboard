@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, index, integer, pgTable, primaryKey, serial, text, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
@@ -75,6 +75,25 @@ const userSelect = {
   companyId: users.companyId,
   organizationId: users.organizationId,
 };
+
+const ensureDashboardNotesColumn = (() => {
+  let ready = false;
+  let pending: Promise<void> | null = null;
+  return async () => {
+    if (ready) return;
+    if (!pending) {
+      pending = db
+        .execute(sql`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "notes" TEXT;`)
+        .then(() => {
+          ready = true;
+        })
+        .catch((error) => {
+          console.error('Failed to ensure dashboard notes column', error);
+        });
+    }
+    await pending;
+  };
+})();
 
 export const getUser = cache(async (email: string) => {
   const userRows = await db
@@ -184,14 +203,17 @@ export const getOrganizationById = cache(async (id: number) => {
 });
 
 export const getDashboards = cache(async () => {
+  await ensureDashboardNotesColumn();
   return await db.select().from(dashboards).orderBy(dashboards.name);
 });
 
 export const getDashboardById = cache(async (id: number) => {
+  await ensureDashboardNotesColumn();
   return await db.select().from(dashboards).where(eq(dashboards.id, id));
 });
 
 export const getDashboardByPublicId = cache(async (publicId: string) => {
+  await ensureDashboardNotesColumn();
   return await db.select().from(dashboards).where(eq(dashboards.publicId, publicId));
 });
 
@@ -267,6 +289,7 @@ export async function createDashboard({
   sheetUrl: string;
   notes?: string | null;
 }) {
+  await ensureDashboardNotesColumn();
   return await db.insert(dashboards).values({
     name,
     companyId,
@@ -301,6 +324,7 @@ export async function updateDashboard({
   sheetUrl: string;
   notes?: string | null;
 }) {
+  await ensureDashboardNotesColumn();
   return await db
     .update(dashboards)
     .set({
