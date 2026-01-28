@@ -16,11 +16,13 @@ export default async function DashboardPage() {
       : [];
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 dark:bg-black dark:text-white sm:px-6 sm:py-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/70 px-4 py-8 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
-        <header className="flex flex-wrap items-start justify-between gap-6">
+        <header className="flex flex-wrap items-start justify-between gap-6 rounded-3xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/60">
           <div className="flex max-w-2xl flex-col gap-3">
-            <p className="text-sm text-slate-600 dark:text-slate-300">You are logged in as</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
+              Dashboard hub
+            </p>
             <h1 className="text-2xl font-semibold sm:text-3xl">{session?.user?.email}</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Pick a dashboard to review performance, drill into trends, and export the latest insights for your
@@ -30,7 +32,7 @@ export default async function DashboardPage() {
           {isAdmin ? <AdminShortcut /> : null}
         </header>
 
-        <section className="grid gap-6 rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900/60 sm:p-6">
+        <section className="grid gap-6 rounded-3xl border border-white/60 bg-white/80 p-5 shadow-xl backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/60 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold">Available dashboards</h2>
@@ -38,7 +40,7 @@ export default async function DashboardPage() {
                 Tailored views based on your companies and organizations.
               </p>
             </div>
-            <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300">
+            <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300">
               {dashboards.length} Total
             </span>
           </div>
@@ -52,19 +54,19 @@ export default async function DashboardPage() {
                 <Link
                   key={dashboard.id}
                   href={`/dashboard/${dashboard.publicId}`}
-                  className="group flex h-full flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg dark:border-slate-800 dark:bg-slate-950/60 dark:hover:border-slate-600"
+                  className="group flex h-full flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-sm transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl dark:border-slate-800 dark:bg-slate-950/70 dark:hover:border-slate-600"
                 >
                   <div className="flex items-start justify-between gap-4">
-                    <div>
+                    <div className="flex flex-wrap items-center gap-3">
                       <span className="text-base font-semibold text-slate-900 dark:text-white">
                         {dashboard.name}
                       </span>
-                      <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-800/80 dark:text-slate-300">
+                      <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600 shadow-sm dark:bg-slate-800/80 dark:text-slate-300">
                         <span className="h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-300" />
                         {dashboard.template}
                       </div>
                     </div>
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-500 transition group-hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:group-hover:text-white">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-500 transition group-hover:border-indigo-200 group-hover:bg-indigo-50 group-hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:group-hover:border-slate-500 dark:group-hover:bg-slate-900 dark:group-hover:text-white">
                       <svg
                         aria-hidden="true"
                         viewBox="0 0 24 24"
