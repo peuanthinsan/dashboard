@@ -45,12 +45,7 @@ const toMonthLabel = (date: Date) =>
     year: 'numeric',
   });
 
-const formatDateThai = (date: Date) =>
-  date.toLocaleDateString('th-TH', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+const formatDateGB = (date: Date) => date.toLocaleDateString('en-GB');
 
 const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
   const totals = new Map<string, number>();
@@ -434,7 +429,7 @@ export default function SummaryDashboard({
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Summary dashboard</p>
             <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-400">Last updated {formatDateThai(lastUpdated)}</p>
+              <p className="mt-1 text-xs text-slate-400">Last updated {formatDateGB(lastUpdated)}</p>
             ) : null}
             {dashboardNotes ? (
               <div className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
