@@ -5,6 +5,7 @@ import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 
 type DashboardProps = {
   dashboardId: string;
@@ -525,24 +526,24 @@ export default function DetailDashboard({
   const activePoint = pinnedPoint ?? hoverPoint;
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
+    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <Link
               href="/dashboard"
-              className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-300 transition hover:text-white"
+              className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-300 transition hover:text-slate-900 dark:hover:text-white"
             >
               <span aria-hidden="true">←</span>
               Back to dashboards
             </Link>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Detail dashboard</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Detail dashboard</p>
             <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
             ) : null}
             {dashboardNotes ? (
-              <div className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
+              <div className="mt-3 w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-sm text-slate-700 dark:text-slate-200">
                 {dashboardNotes}
               </div>
             ) : null}
@@ -556,16 +557,16 @@ export default function DetailDashboard({
         ) : null}
 
         {loading ? (
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-300">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
             Loading detailed alerts…
           </div>
         ) : (
           <>
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Filters</h2>
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     Narrow alerts by remark, month, fleet, or vehicle.
                   </p>
                 </div>
@@ -588,22 +589,20 @@ export default function DetailDashboard({
                   Reset filters
                 </button>
               </div>
-              <div className="mt-4 space-y-3 text-xs text-slate-300">
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+              <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter months</span>
                   <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
                       {monthFilters.map((monthKey) => {
                         const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
                         return (
-                          <button
+                          <FilterChip
                             key={monthKey}
-                            type="button"
                             onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                           >
                             {monthLabel} ×
-                          </button>
+                          </FilterChip>
                         );
                       })}
                     </div>
@@ -613,7 +612,7 @@ export default function DetailDashboard({
                         value={monthSearch}
                         onChange={(event) => setMonthSearch(event.target.value)}
                         placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
-                        className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
                       <datalist id="month-options">
                         {filteredMonthOptions.map((option) => (
@@ -636,7 +635,7 @@ export default function DetailDashboard({
                           setMonthSearch('');
                           setPage(1);
                         }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                       >
                         Add
                       </button>
@@ -648,7 +647,7 @@ export default function DetailDashboard({
                       setMonthFilters([]);
                       setPage(1);
                     }}
-                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -657,20 +656,18 @@ export default function DetailDashboard({
                   ) : null}
                 </div>
                 {organizationName ? null : (
-                  <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Filter fleets</span>
                     <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                       <div className="flex flex-wrap gap-2">
-                        {fleetFilters.map((fleet) => (
-                          <button
-                            key={fleet}
-                            type="button"
-                            onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
-                          >
-                            {fleet} ×
-                          </button>
-                        ))}
+                      {fleetFilters.map((fleet) => (
+                        <FilterChip
+                          key={fleet}
+                          onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
+                        >
+                          {fleet} ×
+                        </FilterChip>
+                      ))}
                       </div>
                       <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                         <input
@@ -678,7 +675,7 @@ export default function DetailDashboard({
                           value={fleetSearch}
                           onChange={(event) => setFleetSearch(event.target.value)}
                           placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
-                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                          className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                         />
                         <datalist id="fleet-options">
                           {filteredFleetOptions.map((option) => (
@@ -700,7 +697,7 @@ export default function DetailDashboard({
                             setFleetSearch('');
                             setPage(1);
                           }}
-                          className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                          className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                         >
                           Add
                         </button>
@@ -712,7 +709,7 @@ export default function DetailDashboard({
                         setFleetFilters([]);
                         setPage(1);
                       }}
-                      className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                     >
                       Clear
                     </button>
@@ -721,19 +718,17 @@ export default function DetailDashboard({
                     ) : null}
                   </div>
                 )}
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter remark types</span>
                   <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
                       {remarkFilters.map((remark) => (
-                        <button
+                        <FilterChip
                           key={remark}
-                          type="button"
                           onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                         >
                           {remark} ×
-                        </button>
+                        </FilterChip>
                       ))}
                     </div>
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -742,7 +737,7 @@ export default function DetailDashboard({
                         value={remarkSearch}
                         onChange={(event) => setRemarkSearch(event.target.value)}
                         placeholder={remarkOptions.length === 0 ? 'No remarks available' : 'Search remarks'}
-                        className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
                       <datalist id="remark-options">
                         {filteredRemarkOptions.map((option) => (
@@ -762,7 +757,7 @@ export default function DetailDashboard({
                           setRemarkSearch('');
                           setPage(1);
                         }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                       >
                         Add
                       </button>
@@ -774,7 +769,7 @@ export default function DetailDashboard({
                       setRemarkFilters([]);
                       setPage(1);
                     }}
-                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -782,21 +777,19 @@ export default function DetailDashboard({
                     <span className="text-slate-500">{remarkFilters.length} selected</span>
                   ) : null}
                 </div>
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
                   <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
                       {vehicleFilters.map((vehicle) => (
-                        <button
+                        <FilterChip
                           key={vehicle}
-                          type="button"
                           onClick={() =>
                             setVehicleFilters((current) => current.filter((value) => value !== vehicle))
                           }
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                         >
                           {vehicle} ×
-                        </button>
+                        </FilterChip>
                       ))}
                     </div>
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -805,7 +798,7 @@ export default function DetailDashboard({
                         value={vehicleSearch}
                         onChange={(event) => setVehicleSearch(event.target.value)}
                         placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicles'}
-                        className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
                       <datalist id="vehicle-options">
                         {filteredVehicleOptions.map((option) => (
@@ -825,7 +818,7 @@ export default function DetailDashboard({
                           setVehicleSearch('');
                           setPage(1);
                         }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                       >
                         Add
                       </button>
@@ -837,7 +830,7 @@ export default function DetailDashboard({
                       setVehicleFilters([]);
                       setPage(1);
                     }}
-                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -846,21 +839,19 @@ export default function DetailDashboard({
                   ) : null}
                 </div>
                 {driverOptions.length > 0 ? (
-                  <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
                     <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                       <div className="flex flex-wrap gap-2">
                         {driverFilters.map((driver) => (
-                          <button
+                          <FilterChip
                             key={driver}
-                            type="button"
                             onClick={() =>
                               setDriverFilters((current) => current.filter((value) => value !== driver))
                             }
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                           >
                             {driver} ×
-                          </button>
+                          </FilterChip>
                         ))}
                       </div>
                       <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -869,7 +860,7 @@ export default function DetailDashboard({
                           value={driverSearch}
                           onChange={(event) => setDriverSearch(event.target.value)}
                           placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search drivers'}
-                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                          className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                         />
                         <datalist id="driver-options">
                           {filteredDriverOptions.map((option) => (
@@ -891,7 +882,7 @@ export default function DetailDashboard({
                             setDriverSearch('');
                             setPage(1);
                           }}
-                          className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                          className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                         >
                           Add
                         </button>
@@ -903,7 +894,7 @@ export default function DetailDashboard({
                         setDriverFilters([]);
                         setPage(1);
                       }}
-                      className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                     >
                       Clear
                     </button>
@@ -915,25 +906,23 @@ export default function DetailDashboard({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Daily alert trend</h2>
-                  <p className="text-sm text-slate-400">Daily totals for the filtered alert set.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Daily totals for the filtered alert set.</p>
                 </div>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                 <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
                 {availableTrendRemarkOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => setTrendRemarkFilter(option.value)}
-                    className={`rounded-full border px-3 py-1 text-xs ${
-                      trendRemarkFilter === option.value
-                        ? 'border-indigo-400/70 bg-indigo-500/20 text-indigo-100'
-                        : 'border-slate-700 text-slate-300 hover:border-slate-500'
-                    }`}
+                    className={
+                      trendRemarkFilter === option.value ? chipClassName : chipMutedClassName
+                    }
                   >
                     {option.label}
                   </button>
@@ -941,7 +930,7 @@ export default function DetailDashboard({
               </div>
               <div className="relative mt-4 overflow-visible">
                 {trendData.length === 0 ? (
-                  <p className="text-sm text-slate-400">No alert activity available for the selected filters.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No alert activity available for the selected filters.</p>
                 ) : (
                   <svg
                     viewBox={trendPoints.viewBox}
@@ -1033,11 +1022,11 @@ export default function DetailDashboard({
                     <path d={trendPoints.path} fill="none" stroke="url(#trend-line)" strokeWidth="3" />
                     {trendPoints.points.map((point, index) => (
                       <g key={`point-${index}`}>
-                        <circle cx={point.x} cy={point.y} r="10" fill="transparent" />
+                        <circle cx={point.x} cy={point.y} r="8" fill="transparent" />
                         <circle
                           cx={point.x}
                           cy={point.y}
-                          r="5"
+                          r="4"
                           fill="#0f172a"
                           stroke="#c4b5fd"
                           strokeWidth="2"
@@ -1072,7 +1061,7 @@ export default function DetailDashboard({
                 )}
                 {activePoint ? (
                   <div
-                    className="pointer-events-none absolute rounded-lg border border-indigo-400/40 bg-slate-950/90 px-3 py-2 text-xs text-indigo-100 shadow-lg"
+                    className="pointer-events-none absolute rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-lg dark:border-indigo-400/40 dark:bg-slate-950/90 dark:text-indigo-100"
                     style={{
                       left: `${(activePoint.x / trendPoints.width) * 100}%`,
                       top: `${(Math.max(activePoint.y - 32, trendPoints.padding.top + 12) / trendPoints.height) * 100}%`,
@@ -1080,17 +1069,17 @@ export default function DetailDashboard({
                     }}
                   >
                     <div className="font-semibold">{activePoint.count} alerts</div>
-                    <div className="text-[11px] text-slate-300">{activePoint.label}</div>
+                    <div className="text-[11px] text-slate-600 dark:text-slate-300">{activePoint.label}</div>
                   </div>
                 ) : null}
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Alerts</h2>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Rows</span>
@@ -1100,7 +1089,7 @@ export default function DetailDashboard({
                         setPageSize(Number(event.target.value));
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
                     >
                       {[25, 50, 100].map((size) => (
                         <option key={size} value={size}>
@@ -1116,19 +1105,17 @@ export default function DetailDashboard({
                 </span>
               </div>
               {sortCriteria.length > 0 ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Sorted by</span>
                   {sortCriteria.map((criterion, index) => (
-                    <button
+                    <FilterChip
                       key={`${criterion.field}-${criterion.direction}`}
-                      type="button"
                       onClick={() =>
                         setSortCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))
                       }
-                      className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
                     >
                       {criterion.field} {criterion.direction} ×
-                    </button>
+                    </FilterChip>
                   ))}
                   <button
                     type="button"
@@ -1142,7 +1129,7 @@ export default function DetailDashboard({
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[860px] border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-800 text-xs uppercase tracking-[0.2em] text-slate-400">
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                       {(
                         [
                           { label: 'Alert time', field: 'time' },
@@ -1192,10 +1179,14 @@ export default function DetailDashboard({
                                 });
                                 setPage(1);
                               }}
-                              className="flex items-center gap-2 text-left hover:text-slate-200"
+                              className="flex items-center gap-2 text-left hover:text-slate-700 dark:text-slate-200"
                             >
                               <span>{column.label}</span>
-                              <span className="text-[11px] text-slate-500">{sortBadge}</span>
+                              <span
+                                className="text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-500 dark:text-indigo-200"
+                              >
+                                {sortBadge}
+                              </span>
                             </button>
                           </th>
                         );
@@ -1205,9 +1196,14 @@ export default function DetailDashboard({
                   </thead>
                   <tbody>
                     {paginatedAlerts.map((row) => (
-                      <tr key={row.id} className="border-b border-slate-900/80 text-slate-200">
-                        <td className="py-3 pr-4 text-slate-300">{row.time}</td>
-                        <td className="py-3 pr-4 font-semibold text-white">{row.vehicle}</td>
+                      <tr
+                        key={row.id}
+                        className="border-b border-slate-200 text-slate-700 dark:border-slate-900/80 dark:text-slate-200"
+                      >
+                        <td className="py-3 pr-4 text-slate-600 dark:text-slate-300">{row.time}</td>
+                        <td className="py-3 pr-4 font-semibold text-slate-900 dark:text-white">
+                          {row.vehicle}
+                        </td>
                         <td className="py-3 pr-4">{row.driver}</td>
                         <td className="py-3 pr-4">{row.alertType}</td>
                         <td className="py-3 pr-4">{row.speed}</td>
@@ -1232,7 +1228,7 @@ export default function DetailDashboard({
                   </tbody>
                 </table>
               </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
                 <span>
                   Page {currentPage} of {totalPages}
                 </span>
@@ -1241,7 +1237,7 @@ export default function DetailDashboard({
                     type="button"
                     onClick={() => setPage((current) => Math.max(1, current - 1))}
                     disabled={currentPage === 1}
-                    className="rounded-md border border-slate-800 px-3 py-1 text-xs text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
+                    className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
                   >
                     Previous
                   </button>
@@ -1249,7 +1245,7 @@ export default function DetailDashboard({
                     type="button"
                     onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                     disabled={currentPage === totalPages}
-                    className="rounded-md border border-slate-800 px-3 py-1 text-xs text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
+                    className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
                   >
                     Next
                   </button>

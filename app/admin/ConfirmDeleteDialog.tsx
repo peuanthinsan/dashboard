@@ -9,7 +9,7 @@ type DialogTitleProps = {
 
 function DialogTitle({ id, children }: DialogTitleProps) {
   return (
-    <h2 id={id} className="text-lg font-semibold text-white">
+    <h2 id={id} className="text-lg font-semibold text-slate-900 dark:text-white">
       {children}
     </h2>
   );
@@ -36,7 +36,7 @@ function DialogContent({
       <button
         type="button"
         aria-hidden="true"
-        className="absolute inset-0 bg-slate-950/80"
+        className="absolute inset-0 bg-slate-900/20 dark:bg-slate-950/80"
         onClick={onClose}
       />
       <div
@@ -44,10 +44,10 @@ function DialogContent({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="relative w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl"
+        className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950"
       >
         <DialogTitle id={titleId}>{title}</DialogTitle>
-        <p id={descriptionId} className="mt-2 text-sm text-slate-300">
+        <p id={descriptionId} className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           {description}
         </p>
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -99,7 +99,7 @@ export default function ConfirmDeleteDialog({
             onClick={() => setIsOpen(false)}
             className={
               cancelClassName ??
-              'w-full rounded-lg border border-slate-700 px-3 py-2 text-sm text-white hover:border-slate-500 sm:w-auto'
+              'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 hover:border-slate-300 dark:border-slate-700 dark:text-white dark:hover:border-slate-500 sm:w-auto'
             }
           >
             Cancel

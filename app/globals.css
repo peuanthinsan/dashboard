@@ -2,13 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-input[type='date'],
-input[type='month'] {
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+
+  html.dark body {
+    @apply bg-slate-950 text-white;
+  }
+}
+
+html.dark input[type='date'],
+html.dark input[type='month'] {
   color-scheme: dark;
 }
 
-input[type='date']::-webkit-calendar-picker-indicator,
-input[type='month']::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-  opacity: 0.75;
+html.dark input[type='date']::-webkit-calendar-picker-indicator,
+html.dark input[type='month']::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  opacity: 1;
 }
