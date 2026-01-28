@@ -67,19 +67,21 @@ export default async function AdminCompaniesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
+    <div className="min-h-screen bg-[var(--app-bg)] px-4 py-8 text-[var(--app-text)] sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-col gap-3">
           <Link
             href="/admin"
-            className="inline-flex w-fit items-center gap-2 text-sm text-slate-300 transition hover:text-white"
+            className="inline-flex w-fit items-center gap-2 text-sm text-[var(--app-text-muted)] transition hover:text-[var(--app-text)]"
           >
             <span aria-hidden="true">←</span>
             Back to admin overview
           </Link>
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-semibold sm:text-3xl">Companies</h1>
-            <p className="text-sm text-slate-300">Create and manage company records.</p>
+            <p className="text-sm text-[var(--app-text-muted)]">
+              Create and manage company records.
+            </p>
           </div>
           <AdminNav />
         </header>

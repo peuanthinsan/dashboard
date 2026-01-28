@@ -32,31 +32,31 @@ function DashboardRow({
   useRefreshOnSuccess(state);
 
   return (
-    <div className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-[1.1fr_1.4fr_1fr_1fr_1.2fr_0.8fr_auto]">
+    <div className="grid gap-4 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 md:grid-cols-[1.1fr_1.4fr_1fr_1fr_1.2fr_0.8fr_auto]">
       <form action={formAction} className="contents">
         <input type="hidden" name="dashboardId" value={dashboard.id} />
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Dashboard name</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Dashboard name</label>
           <input
             name="dashboardName"
             defaultValue={dashboard.name ?? ''}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)]"
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Sheet link</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Sheet link</label>
           <input
             name="sheetUrl"
             defaultValue={dashboard.sheetUrl ?? ''}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)]"
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Company</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Company</label>
           <select
             name="companyId"
             defaultValue={dashboard.companyId ?? ''}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)]"
           >
             <option value="">Select company</option>
             {companies.map((company) => (
@@ -67,11 +67,11 @@ function DashboardRow({
           </select>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Organization</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Organization</label>
           <select
             name="organizationId"
             defaultValue={dashboard.organizationId ?? ''}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)]"
           >
             <option value="">No organization</option>
             {organizations.map((organization) => (
@@ -82,20 +82,20 @@ function DashboardRow({
           </select>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Notes</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Notes</label>
           <textarea
             name="dashboardNotes"
             defaultValue={dashboard.notes ?? ''}
             rows={2}
-            className="resize-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="resize-none rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)]"
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Template</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Template</label>
           <select
             name="template"
             defaultValue={dashboard.template ?? 'Summary'}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)]"
           >
             {DASHBOARD_TEMPLATES.map((template) => (
               <option key={template} value={template}>
@@ -109,7 +109,7 @@ function DashboardRow({
             type="submit"
             name="intent"
             value="save"
-            className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-white hover:border-slate-500 sm:w-auto"
+            className="w-full rounded-lg border border-[var(--app-border-strong)] px-4 py-2 text-sm font-semibold text-[var(--app-text)] hover:border-[var(--app-border-strong)] sm:w-auto"
           >
             Save
           </button>
@@ -140,10 +140,10 @@ export default function DashboardsClient({
   useRefreshOnSuccess(dashboardCreateState);
 
   return (
-    <section className="grid gap-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+    <section className="grid gap-6 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4 shadow-lg sm:p-6">
       <header className="flex flex-col gap-2">
         <h2 className="text-lg font-medium">Dashboards</h2>
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-[var(--app-text-muted)]">
           Create dashboards for a company, optionally filter by organization, and set the
           template + sheet link.
         </p>
@@ -151,29 +151,29 @@ export default function DashboardsClient({
 
       <form
         action={dashboardCreateAction}
-        className="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4 md:grid-cols-2"
+        className="grid gap-4 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 md:grid-cols-2"
       >
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Dashboard name</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Dashboard name</label>
           <input
             name="dashboardName"
             placeholder="Operations overview"
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)] placeholder:text-[var(--app-text-faint)]"
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Google Sheet link</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Google Sheet link</label>
           <input
             name="sheetUrl"
             placeholder="https://docs.google.com/spreadsheets/d/..."
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)] placeholder:text-[var(--app-text-faint)]"
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Company</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Company</label>
           <select
             name="companyId"
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)]"
           >
             <option value="">Select company</option>
             {companies.map((company) => (
@@ -184,10 +184,10 @@ export default function DashboardsClient({
           </select>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Organization (optional)</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Organization (optional)</label>
           <select
             name="organizationId"
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)]"
           >
             <option value="">No organization</option>
             {organizations.map((organization) => (
@@ -198,10 +198,10 @@ export default function DashboardsClient({
           </select>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-400">Template</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">Template</label>
           <select
             name="template"
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)]"
           >
             {DASHBOARD_TEMPLATES.map((template) => (
               <option key={template} value={template}>
@@ -211,12 +211,14 @@ export default function DashboardsClient({
           </select>
         </div>
         <div className="flex flex-col gap-2 md:col-span-2">
-          <label className="text-xs text-slate-400">Dashboard notes (optional)</label>
+          <label className="text-xs text-[var(--app-text-subtle)]">
+            Dashboard notes (optional)
+          </label>
           <textarea
             name="dashboardNotes"
             rows={3}
             placeholder="Add any notes that should appear on the dashboard."
-            className="resize-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+            className="resize-none rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-input-bg)] px-3 py-2 text-sm text-[var(--app-text)] placeholder:text-[var(--app-text-faint)]"
           />
         </div>
         <div className="flex items-end">
@@ -232,7 +234,7 @@ export default function DashboardsClient({
 
       <div className="grid gap-4">
         {dashboards.length === 0 ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--app-text-subtle)]">
             No dashboards yet. Create one to make it available to users.
           </p>
         ) : (

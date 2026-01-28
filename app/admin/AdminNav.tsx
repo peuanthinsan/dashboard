@@ -10,12 +10,12 @@ const NAV_LINKS = [
 
 export default function AdminNav() {
   return (
-    <nav className="flex flex-wrap gap-2 text-sm text-slate-300">
+    <nav className="flex flex-wrap gap-2 text-sm text-[var(--app-text-muted)]">
       {NAV_LINKS.map((link) => (
         <Link
           key={link.href}
           href={link.href}
-          className="rounded-full border border-slate-700 px-3 py-1 transition hover:border-slate-500 hover:text-white"
+          className="rounded-full border border-[var(--app-border-strong)] px-3 py-1 transition hover:border-[var(--app-border-strong)] hover:text-[var(--app-text)]"
         >
           {link.label}
         </Link>

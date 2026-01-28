@@ -2,13 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+  --app-bg: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-muted: rgba(241, 245, 249, 0.8);
+  --app-surface-subtle: rgba(226, 232, 240, 0.6);
+  --app-border: #e2e8f0;
+  --app-border-strong: #cbd5e1;
+  --app-text: #0f172a;
+  --app-text-muted: #334155;
+  --app-text-subtle: #64748b;
+  --app-text-faint: #94a3b8;
+  --app-input-bg: #ffffff;
+  --app-overlay: rgba(15, 23, 42, 0.1);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --app-bg: #020617;
+  --app-surface: #0f172a;
+  --app-surface-muted: rgba(15, 23, 42, 0.7);
+  --app-surface-subtle: rgba(2, 6, 23, 0.6);
+  --app-border: #1e293b;
+  --app-border-strong: #334155;
+  --app-text: #e2e8f0;
+  --app-text-muted: #cbd5e1;
+  --app-text-subtle: #94a3b8;
+  --app-text-faint: #64748b;
+  --app-input-bg: rgba(15, 23, 42, 0.9);
+  --app-overlay: rgba(2, 6, 23, 0.8);
+}
+
 input[type='date'],
 input[type='month'] {
-  color-scheme: dark;
+  color-scheme: inherit;
 }
 
 input[type='date']::-webkit-calendar-picker-indicator,
 input[type='month']::-webkit-calendar-picker-indicator {
-  filter: invert(1);
+  filter: invert(0);
   opacity: 0.75;
+}
+
+[data-theme='dark'] input[type='date']::-webkit-calendar-picker-indicator,
+[data-theme='dark'] input[type='month']::-webkit-calendar-picker-indicator {
+  filter: invert(1);
 }

@@ -39,9 +39,9 @@ export function RegisterForm({
     <Form action={formAction}>
       <SubmitButton>Sign Up</SubmitButton>
       <FormError message={state.error} />
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-[var(--app-text-subtle)]">
         {'Already have an account? '}
-        <Link href="/login" className="font-semibold text-gray-800">
+        <Link href="/login" className="font-semibold text-[var(--app-text)]">
           Sign in
         </Link>
         {' instead.'}

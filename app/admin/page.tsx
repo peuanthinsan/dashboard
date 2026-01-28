@@ -6,19 +6,19 @@ export default async function AdminPage() {
   await requireAdmin();
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
+    <div className="min-h-screen bg-[var(--app-bg)] px-4 py-8 text-[var(--app-text)] sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-col gap-3">
           <Link
             href="/dashboard"
-            className="inline-flex w-fit items-center gap-2 text-sm text-slate-300 transition hover:text-white"
+            className="inline-flex w-fit items-center gap-2 text-sm text-[var(--app-text-muted)] transition hover:text-[var(--app-text)]"
           >
             <span aria-hidden="true">←</span>
             Back to dashboards
           </Link>
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-semibold sm:text-3xl">Administration</h1>
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-[var(--app-text-muted)]">
               Choose a section to manage companies, organizations, users, and dashboards.
             </p>
           </div>
@@ -51,10 +51,10 @@ export default async function AdminPage() {
             <Link
               key={card.href}
               href={card.href}
-              className="flex h-full flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg transition hover:border-slate-600"
+              className="flex h-full flex-col gap-2 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-6 shadow-lg transition hover:border-[var(--app-border-strong)]"
             >
               <h2 className="text-lg font-semibold">{card.title}</h2>
-              <p className="text-sm text-slate-300">{card.description}</p>
+              <p className="text-sm text-[var(--app-text-muted)]">{card.description}</p>
               <span className="mt-auto text-sm text-indigo-300">Open section →</span>
             </Link>
           ))}
