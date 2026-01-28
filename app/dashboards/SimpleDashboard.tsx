@@ -950,7 +950,11 @@ export default function SimpleDashboard({
                               className="flex items-center gap-2 text-left hover:text-slate-700 dark:text-slate-200"
                             >
                               <span>{column.label}</span>
-                              <span className="text-[11px] text-slate-500">{sortBadge}</span>
+                              <span
+                                className="text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-500 dark:text-indigo-200"
+                              >
+                                {sortBadge}
+                              </span>
                             </button>
                           </th>
                         );
