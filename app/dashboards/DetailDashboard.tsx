@@ -105,7 +105,7 @@ export default function DetailDashboard({
   dashboardNotes,
   organizationName,
 }: DashboardProps) {
-  const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
@@ -548,13 +548,6 @@ export default function DetailDashboard({
               </div>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={refresh}
-            className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500 sm:w-auto"
-          >
-            Refresh data
-          </button>
         </header>
 
         {error ? (
