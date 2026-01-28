@@ -39,9 +39,9 @@ export function LoginForm({
     <Form action={formAction}>
       <SubmitButton>Sign in</SubmitButton>
       <FormError message={state.error} />
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-gray-600 dark:text-slate-400">
         {"Don't have an account? "}
-        <Link href="/register" className="font-semibold text-gray-800">
+        <Link href="/register" className="font-semibold text-gray-800 dark:text-white">
           Sign up
         </Link>
         {' for free.'}
