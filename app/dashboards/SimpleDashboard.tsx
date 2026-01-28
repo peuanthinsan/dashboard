@@ -379,7 +379,7 @@ export default function SimpleDashboard({
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: formatDateTimeGB(item.date) };
+      return { x, y, count: item.count, label: item.date.toLocaleDateString() };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
