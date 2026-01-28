@@ -1,6 +1,7 @@
 import './globals.css';
 
 import { GeistSans } from 'geist/font/sans';
+import ThemeToggle from 'app/theme-toggle';
 
 let title = 'SongdeeGPS Dashboard';
 let description =
@@ -23,8 +24,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={GeistSans.variable}>{children}</body>
+    <html lang="en" data-theme="light">
+      <body className={GeistSans.variable}>
+        <ThemeToggle />
+        {children}
+      </body>
     </html>
   );
 }
