@@ -1022,11 +1022,11 @@ export default function DetailDashboard({
                     <path d={trendPoints.path} fill="none" stroke="url(#trend-line)" strokeWidth="3" />
                     {trendPoints.points.map((point, index) => (
                       <g key={`point-${index}`}>
-                        <circle cx={point.x} cy={point.y} r="10" fill="transparent" />
+                        <circle cx={point.x} cy={point.y} r="8" fill="transparent" />
                         <circle
                           cx={point.x}
                           cy={point.y}
-                          r="5"
+                          r="4"
                           fill="#0f172a"
                           stroke="#c4b5fd"
                           strokeWidth="2"

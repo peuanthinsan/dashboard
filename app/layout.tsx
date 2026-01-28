@@ -28,7 +28,7 @@ export default function RootLayout({
       <body className={GeistSans.variable}>
         <div
           id="theme-controls"
-          className="fixed right-4 top-4 z-50 flex items-center gap-2"
+          className="fixed right-4 top-4 z-50 flex flex-row-reverse items-center gap-2"
         >
           <ThemeToggle />
         </div>

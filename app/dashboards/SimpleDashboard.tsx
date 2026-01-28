@@ -749,10 +749,10 @@ export default function SimpleDashboard({
                           key={`${point.x}-${point.y}-${index}`}
                           cx={point.x}
                           cy={point.y}
-                          r={index === trendPoints.points.length - 1 ? 6 : 5}
+                          r={index === trendPoints.points.length - 1 ? 4 : 3}
                           fill="#0f172a"
                           stroke="#C4B5FD"
-                          strokeWidth="3"
+                          strokeWidth="2"
                           onMouseEnter={() => setHoverPoint(point)}
                           onMouseLeave={() => setHoverPoint(null)}
                           className="cursor-pointer"
