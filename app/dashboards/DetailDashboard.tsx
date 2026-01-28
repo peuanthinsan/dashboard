@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
+import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 
 type DashboardProps = {
@@ -85,16 +86,6 @@ const toMonthLabel = (date: Date) =>
 
 const toDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
-const formatDateTimeGB = (date: Date) =>
-  date.toLocaleString('en-GB', {
-    month: '2-digit',
-    day: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
 
 const toDateLabel = (value: unknown) => {
   if (!value) return '—';
