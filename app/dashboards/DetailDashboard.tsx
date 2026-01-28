@@ -86,8 +86,12 @@ const toMonthLabel = (date: Date) =>
 const toDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-const formatDateEU = (date: Date) =>
-  `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+const formatDateThai = (date: Date) =>
+  date.toLocaleDateString('th-TH', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 
 const toDateLabel = (value: unknown) => {
   if (!value) return '—';
@@ -95,7 +99,7 @@ const toDateLabel = (value: unknown) => {
   if (Number.isNaN(parsed.getTime())) {
     return String(value);
   }
-  return formatDateEU(parsed);
+  return formatDateThai(parsed);
 };
 
 export default function DetailDashboard({
@@ -492,7 +496,7 @@ export default function DetailDashboard({
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: formatDateEU(item.date) };
+      return { x, y, count: item.count, label: formatDateThai(item.date) };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -518,7 +522,7 @@ export default function DetailDashboard({
         labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: formatDateEU(item.date),
+        label: formatDateThai(item.date),
         position,
       };
     });
@@ -541,7 +545,7 @@ export default function DetailDashboard({
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Detail dashboard</p>
             <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-400">Last updated {formatDateEU(lastUpdated)}</p>
+              <p className="mt-1 text-xs text-slate-400">Last updated {formatDateThai(lastUpdated)}</p>
             ) : null}
             {dashboardNotes ? (
               <div className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
