@@ -46,7 +46,15 @@ const parseDate = (value: unknown) => {
   return parsed;
 };
 
-const formatDateGB = (date: Date) => date.toLocaleDateString('en-GB');
+const formatDateTimeGB = (date: Date) =>
+  date.toLocaleString('en-GB', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 
 export default function VideoSamplesDashboard({
   dashboardName,
@@ -71,7 +79,7 @@ export default function VideoSamplesDashboard({
           vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
           driver: toDisplayString(findValue(row, ['Driver Name'])),
           remarks: toDisplayString(findValue(row, ['Remarks', 'Remark'])),
-          timeLabel: parsedDate ? formatDateGB(parsedDate) : toDisplayString(timeValue),
+          timeLabel: parsedDate ? formatDateTimeGB(parsedDate) : toDisplayString(timeValue),
           timestamp: parsedDate?.getTime() ?? 0,
           videoUrl: toDisplayString(findValue(row, ['videoURL', 'Videoit', 'Video URL'])),
           fleet: toDisplayString(findValue(row, ['Fleet'])),
@@ -104,7 +112,7 @@ export default function VideoSamplesDashboard({
             </div>
           </div>
           {lastUpdated ? (
-            <p className="text-xs text-slate-400">Last updated {formatDateGB(lastUpdated)}</p>
+            <p className="text-xs text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
           ) : null}
           {dashboardNotes ? (
             <div className="mt-2 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">

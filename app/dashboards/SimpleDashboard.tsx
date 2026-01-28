@@ -67,13 +67,21 @@ const parseDate = (value: unknown) => {
 const toDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-const formatDateGB = (date: Date) => date.toLocaleDateString('en-GB');
+const formatDateTimeGB = (date: Date) =>
+  date.toLocaleString('en-GB', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 
 const formatDateKeyGB = (value: string) => {
   const [year, month, day] = value.split('-');
   if (!year || !month || !day) return value;
   const parsed = new Date(`${year}-${month}-${day}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? value : formatDateGB(parsed);
+  return Number.isNaN(parsed.getTime()) ? value : formatDateTimeGB(parsed);
 };
 
 export default function SimpleDashboard({
@@ -256,7 +264,7 @@ export default function SimpleDashboard({
         const timestamp = row.parsedDate.getTime();
         if (timestamp > latestTimestamp) {
           latestTimestamp = timestamp;
-          latestLabel = formatDateGB(row.parsedDate);
+          latestLabel = formatDateTimeGB(row.parsedDate);
         }
       }
       const remark = normalizeLabel(row.remarks);
@@ -277,7 +285,7 @@ export default function SimpleDashboard({
   const summarizedRows = useMemo<AlertSummaryRow[]>(() => {
     const grouped = new Map<string, AlertSummaryRow>();
     filteredAlerts.forEach((row) => {
-      const dateLabel = row.parsedDate ? formatDateGB(row.parsedDate) : '—';
+      const dateLabel = row.parsedDate ? formatDateTimeGB(row.parsedDate) : '—';
       const dateKey = row.parsedDate ? toDayKey(row.parsedDate) : `unknown-${row.vehicle}`;
       const groupKey = `${dateKey}-${row.vehicle}`;
       const existing = grouped.get(groupKey) ?? {
@@ -387,7 +395,7 @@ export default function SimpleDashboard({
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: formatDateGB(item.date) };
+      return { x, y, count: item.count, label: formatDateTimeGB(item.date) };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -412,7 +420,7 @@ export default function SimpleDashboard({
       const dataIndex = labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: formatDateGB(item.date),
+        label: formatDateTimeGB(item.date),
         position,
       };
     });
@@ -440,7 +448,7 @@ export default function SimpleDashboard({
             </div>
           </div>
           {lastUpdated ? (
-            <p className="text-xs text-slate-400">Last updated {formatDateGB(lastUpdated)}</p>
+            <p className="text-xs text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
           ) : null}
           {dashboardNotes ? (
             <div className="mt-2 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
