@@ -185,7 +185,7 @@ export default function DashboardsClient({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1.6fr]">
+      <div className="grid gap-6">
         <form
           action={dashboardCreateAction}
           className="grid gap-4 rounded-2xl border border-slate-200/70 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm dark:border-slate-800/70 dark:from-slate-950/70 dark:to-slate-950/30"
