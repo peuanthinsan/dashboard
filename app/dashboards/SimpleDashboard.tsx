@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
+import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 
 type DashboardProps = {
@@ -526,17 +527,15 @@ export default function SimpleDashboard({
                   <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
                       {vehicleFilters.map((vehicle) => (
-                        <button
+                        <FilterChip
                           key={vehicle}
-                          type="button"
                           onClick={() => {
                             setVehicleFilters((current) => current.filter((item) => item !== vehicle));
                             setPage(1);
                           }}
-                          className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100"
                         >
                           {vehicle} ×
-                        </button>
+                        </FilterChip>
                       ))}
                     </div>
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -593,17 +592,15 @@ export default function SimpleDashboard({
                     <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                       <div className="flex flex-wrap gap-2">
                         {driverFilters.map((driver) => (
-                          <button
+                          <FilterChip
                             key={driver}
-                            type="button"
                             onClick={() => {
                               setDriverFilters((current) => current.filter((item) => item !== driver));
                               setPage(1);
                             }}
-                            className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100"
                           >
                             {driver} ×
-                          </button>
+                          </FilterChip>
                         ))}
                       </div>
                       <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -679,11 +676,9 @@ export default function SimpleDashboard({
                     key={option.value}
                     type="button"
                     onClick={() => setTrendRemarkFilter(option.value)}
-                    className={`rounded-full border px-3 py-1 text-xs ${
-                      trendRemarkFilter === option.value
-                        ? 'border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-500'
-                    }`}
+                    className={
+                      trendRemarkFilter === option.value ? chipClassName : chipMutedClassName
+                    }
                   >
                     {option.label}
                   </button>
@@ -880,16 +875,14 @@ export default function SimpleDashboard({
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Sorted by</span>
                   {sortCriteria.map((criterion, index) => (
-                    <button
+                    <FilterChip
                       key={`${criterion.field}-${criterion.direction}`}
-                      type="button"
                       onClick={() =>
                         setSortCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))
                       }
-                      className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100"
                     >
                       {criterion.field} {criterion.direction} ×
-                    </button>
+                    </FilterChip>
                   ))}
                   <button
                     type="button"
