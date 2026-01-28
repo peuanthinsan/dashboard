@@ -184,23 +184,25 @@ export default function UsersClient({
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Required *</span>
           </div>
           <div className="grid gap-4">
-            <label className="flex flex-col gap-2 text-xs text-slate-500 dark:text-slate-400">
-              Email *
-              <input
-                name="userEmail"
-                placeholder="user@acme.com"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-xs text-slate-500 dark:text-slate-400">
-              Temporary password *
-              <input
-                type="password"
-                name="userPassword"
-                placeholder="Create a password"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
-              />
-            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-2 text-xs text-slate-500 dark:text-slate-400">
+                Email *
+                <input
+                  name="userEmail"
+                  placeholder="user@acme.com"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-xs text-slate-500 dark:text-slate-400">
+                Temporary password *
+                <input
+                  type="password"
+                  name="userPassword"
+                  placeholder="Create a password"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
+                />
+              </label>
+            </div>
             <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <input
                 type="checkbox"
