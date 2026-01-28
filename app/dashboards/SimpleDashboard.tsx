@@ -809,9 +809,21 @@ export default function SimpleDashboard({
               <div className="mt-6 grid gap-4 md:grid-cols-3">
                 {(
                   [
-                    { label: 'Fatigue', value: stats.remarks.fatigue, accent: 'text-amber-200' },
-                    { label: 'Yawning', value: stats.remarks.yawning, accent: 'text-emerald-200' },
-                    { label: 'Distraction', value: stats.remarks.distraction, accent: 'text-indigo-200' },
+                    {
+                      label: 'Fatigue',
+                      value: stats.remarks.fatigue,
+                      accent: 'text-amber-500 dark:text-amber-200',
+                    },
+                    {
+                      label: 'Yawning',
+                      value: stats.remarks.yawning,
+                      accent: 'text-emerald-500 dark:text-emerald-200',
+                    },
+                    {
+                      label: 'Distraction',
+                      value: stats.remarks.distraction,
+                      accent: 'text-indigo-500 dark:text-indigo-200',
+                    },
                   ] as const
                 ).map((card) => (
                   <div
@@ -962,9 +974,15 @@ export default function SimpleDashboard({
                         <td className="py-3 pr-4 font-semibold text-slate-900 dark:text-white">
                           {row.vehicle}
                         </td>
-                        <td className="py-3 pr-4 text-amber-200">{row.fatigue}</td>
-                        <td className="py-3 pr-4 text-emerald-200">{row.yawning}</td>
-                        <td className="py-3 pr-4 text-indigo-200">{row.distraction}</td>
+                        <td className="py-3 pr-4 text-amber-500 dark:text-amber-200">
+                          {row.fatigue}
+                        </td>
+                        <td className="py-3 pr-4 text-emerald-500 dark:text-emerald-200">
+                          {row.yawning}
+                        </td>
+                        <td className="py-3 pr-4 text-indigo-500 dark:text-indigo-200">
+                          {row.distraction}
+                        </td>
                         <td className="py-3 pr-4 text-rose-200">{row.total}</td>
                       </tr>
                     ))}
