@@ -33,7 +33,7 @@ function DashboardRow({
   useRefreshOnSuccess(state);
 
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.1fr_1.4fr_1fr_1fr_1.2fr_0.8fr_auto]">
+    <div className="grid gap-4 rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.1fr_1.4fr_1fr_1fr_0.8fr_0.8fr_auto]">
       <form action={formAction} className="contents">
         <input type="hidden" name="dashboardId" value={dashboard.id} />
         <div className="flex flex-col gap-2">
