@@ -681,7 +681,7 @@ export default function SimpleDashboard({
                     onClick={() => setTrendRemarkFilter(option.value)}
                     className={`rounded-full border px-3 py-1 text-xs ${
                       trendRemarkFilter === option.value
-                        ? 'border-indigo-400/70 bg-indigo-500/20 text-indigo-100'
+                        ? 'border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100'
                         : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-500'
                     }`}
                   >
