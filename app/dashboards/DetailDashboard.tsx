@@ -516,7 +516,7 @@ export default function DetailDashboard({
         labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: formatDateTimeGB(item.date),
+        label: item.date.toLocaleDateString(),
         position,
       };
     });
