@@ -600,7 +600,7 @@ export default function DetailDashboard({
                             key={monthKey}
                             type="button"
                             onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                            className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100"
                           >
                             {monthLabel} ×
                           </button>
@@ -666,7 +666,7 @@ export default function DetailDashboard({
                             key={fleet}
                             type="button"
                             onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                            className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100"
                           >
                             {fleet} ×
                           </button>
@@ -730,7 +730,7 @@ export default function DetailDashboard({
                           key={remark}
                           type="button"
                           onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                          className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100"
                         >
                           {remark} ×
                         </button>
@@ -793,7 +793,7 @@ export default function DetailDashboard({
                           onClick={() =>
                             setVehicleFilters((current) => current.filter((value) => value !== vehicle))
                           }
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                          className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100"
                         >
                           {vehicle} ×
                         </button>
@@ -857,7 +857,7 @@ export default function DetailDashboard({
                             onClick={() =>
                               setDriverFilters((current) => current.filter((value) => value !== driver))
                             }
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                            className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100"
                           >
                             {driver} ×
                           </button>
@@ -1072,7 +1072,7 @@ export default function DetailDashboard({
                 )}
                 {activePoint ? (
                   <div
-                    className="pointer-events-none absolute rounded-lg border border-indigo-400/40 bg-slate-950/90 px-3 py-2 text-xs text-indigo-100 shadow-lg"
+                    className="pointer-events-none absolute rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-lg dark:border-indigo-400/40 dark:bg-slate-950/90 dark:text-indigo-100"
                     style={{
                       left: `${(activePoint.x / trendPoints.width) * 100}%`,
                       top: `${(Math.max(activePoint.y - 32, trendPoints.padding.top + 12) / trendPoints.height) * 100}%`,
@@ -1125,7 +1125,7 @@ export default function DetailDashboard({
                       onClick={() =>
                         setSortCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))
                       }
-                      className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                      className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100"
                     >
                       {criterion.field} {criterion.direction} ×
                     </button>
