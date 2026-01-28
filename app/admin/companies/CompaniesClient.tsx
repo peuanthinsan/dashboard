@@ -36,15 +36,15 @@ function CompanyRow({ company, action }: { company: Company; action: FormAction 
           type="submit"
           name="intent"
           value="save"
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 hover:border-slate-300 dark:border-slate-700 dark:text-white dark:hover:border-slate-500 sm:w-auto"
+          className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 sm:w-auto"
         >
           Save
         </button>
         <ConfirmDeleteDialog
           title="Delete company"
           description="This will permanently delete the company record."
-          triggerClassName="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
-          confirmClassName="w-full rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-semibold text-rose-200 hover:border-rose-400 sm:w-auto"
+          triggerClassName="w-full rounded-lg bg-rose-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-400 sm:w-auto"
+          confirmClassName="w-full rounded-lg bg-rose-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-400 sm:w-auto"
         />
       </div>
       <StatusMessage state={state} className="sm:basis-full" />
