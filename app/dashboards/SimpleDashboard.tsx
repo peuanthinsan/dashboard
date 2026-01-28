@@ -980,7 +980,7 @@ export default function SimpleDashboard({
                         <td className="py-3 pr-4 text-indigo-500 dark:text-indigo-200">
                           {row.distraction}
                         </td>
-                        <td className="py-3 pr-4 text-rose-200">{row.total}</td>
+                        <td className="py-3 pr-4 text-rose-500 dark:text-rose-200">{row.total}</td>
                       </tr>
                     ))}
                   </tbody>
