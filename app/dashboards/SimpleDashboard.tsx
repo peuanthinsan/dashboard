@@ -67,14 +67,10 @@ const parseDate = (value: unknown) => {
 const toDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-const formatDateThai = (date: Date) =>
-  date.toLocaleDateString('th-TH', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+const formatDateEU = (date: Date) =>
+  `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 
-const formatDateKeyThai = (value: string) => {
+const formatDateKeyEU = (value: string) => {
   const [year, month, day] = value.split('-');
   if (!year || !month || !day) return value;
   return `${day}/${month}/${year}`;
@@ -260,7 +256,7 @@ export default function SimpleDashboard({
         const timestamp = row.parsedDate.getTime();
         if (timestamp > latestTimestamp) {
           latestTimestamp = timestamp;
-          latestLabel = formatDateThai(row.parsedDate);
+          latestLabel = formatDateEU(row.parsedDate);
         }
       }
       const remark = normalizeLabel(row.remarks);
@@ -281,7 +277,7 @@ export default function SimpleDashboard({
   const summarizedRows = useMemo<AlertSummaryRow[]>(() => {
     const grouped = new Map<string, AlertSummaryRow>();
     filteredAlerts.forEach((row) => {
-      const dateLabel = row.parsedDate ? formatDateThai(row.parsedDate) : '—';
+      const dateLabel = row.parsedDate ? formatDateEU(row.parsedDate) : '—';
       const dateKey = row.parsedDate ? toDayKey(row.parsedDate) : `unknown-${row.vehicle}`;
       const groupKey = `${dateKey}-${row.vehicle}`;
       const existing = grouped.get(groupKey) ?? {
@@ -391,7 +387,7 @@ export default function SimpleDashboard({
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: formatDateThai(item.date) };
+      return { x, y, count: item.count, label: formatDateEU(item.date) };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -416,7 +412,7 @@ export default function SimpleDashboard({
       const dataIndex = labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: formatDateThai(item.date),
+        label: formatDateEU(item.date),
         position,
       };
     });
@@ -451,7 +447,7 @@ export default function SimpleDashboard({
             </button>
           </div>
           {lastUpdated ? (
-            <p className="text-xs text-slate-400">Last updated {formatDateThai(lastUpdated)}</p>
+            <p className="text-xs text-slate-400">Last updated {formatDateEU(lastUpdated)}</p>
           ) : null}
           {dashboardNotes ? (
             <div className="mt-2 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
@@ -536,7 +532,7 @@ export default function SimpleDashboard({
                   </button>
                   {dateBounds.min && dateBounds.max ? (
                     <span className="text-slate-500">
-                      Data from {formatDateKeyThai(dateBounds.min)} to {formatDateKeyThai(dateBounds.max)}
+                      Data from {formatDateKeyEU(dateBounds.min)} to {formatDateKeyEU(dateBounds.max)}
                     </span>
                   ) : null}
                 </div>
