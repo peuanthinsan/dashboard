@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import ThemeToggle from 'app/theme-toggle';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
@@ -61,7 +62,7 @@ const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
 const Bar = ({ value, max }: { value: number; max: number }) => {
   const width = max === 0 ? 0 : Math.round((value / max) * 100);
   return (
-    <div className="h-2 w-full rounded-full bg-slate-800">
+    <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800">
       <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${width}%` }} />
     </div>
   );
@@ -414,47 +415,48 @@ export default function SummaryDashboard({
   }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 text-slate-900 dark:text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <Link
               href="/dashboard"
-              className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-300 transition hover:text-white"
+              className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-300 transition hover:text-slate-900 dark:hover:text-white"
             >
               <span aria-hidden="true">←</span>
               Back to dashboards
             </Link>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Summary dashboard</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Summary dashboard</p>
             <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
             ) : null}
             {dashboardNotes ? (
-              <div className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
+              <div className="mt-3 w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-sm text-slate-700 dark:text-slate-200">
                 {dashboardNotes}
               </div>
             ) : null}
           </div>
+          <ThemeToggle />
         </header>
 
         {error ? (
-          <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
+          <div className="rounded-xl border border-rose-200 dark:border-rose-500/40 bg-rose-100 dark:bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-200">
             {error}
           </div>
         ) : null}
 
         {loading ? (
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-300">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
             Loading summary…
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Filters</h2>
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     Narrow alerts by remark, month, fleet, or vehicle.
                   </p>
                 </div>
@@ -472,13 +474,13 @@ export default function SummaryDashboard({
                     setDriverSearch('');
                     setDriverFilters([]);
                   }}
-                  className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
+                  className="text-sm font-semibold text-indigo-600 dark:text-indigo-300 hover:text-indigo-600 dark:text-indigo-200"
                 >
                   Reset filters
                 </button>
               </div>
-              <div className="mt-4 space-y-3 text-xs text-slate-300">
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+              <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter months</span>
                   <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
@@ -489,7 +491,7 @@ export default function SummaryDashboard({
                             key={monthKey}
                             type="button"
                             onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                            className="rounded-full border border-indigo-200 dark:border-indigo-500/40 bg-indigo-100 dark:bg-indigo-500/10 px-3 py-1 text-xs text-indigo-700 dark:text-indigo-100"
                           >
                             {monthLabel} ×
                           </button>
@@ -502,7 +504,7 @@ export default function SummaryDashboard({
                         value={monthSearch}
                         onChange={(event) => setMonthSearch(event.target.value)}
                         placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
-                        className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                        className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
                       <datalist id="month-options">
                         {filteredMonthOptions.map((option) => (
@@ -524,7 +526,7 @@ export default function SummaryDashboard({
                           );
                           setMonthSearch('');
                         }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                       >
                         Add
                       </button>
@@ -533,7 +535,7 @@ export default function SummaryDashboard({
                   <button
                     type="button"
                     onClick={() => setMonthFilters([])}
-                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                    className="w-full rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -542,7 +544,7 @@ export default function SummaryDashboard({
                   ) : null}
                 </div>
                 {organizationName ? null : (
-                  <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Filter fleets</span>
                     <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                       <div className="flex flex-wrap gap-2">
@@ -551,7 +553,7 @@ export default function SummaryDashboard({
                             key={fleet}
                             type="button"
                             onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                            className="rounded-full border border-indigo-200 dark:border-indigo-500/40 bg-indigo-100 dark:bg-indigo-500/10 px-3 py-1 text-xs text-indigo-700 dark:text-indigo-100"
                           >
                             {fleet} ×
                           </button>
@@ -563,7 +565,7 @@ export default function SummaryDashboard({
                           value={fleetSearch}
                           onChange={(event) => setFleetSearch(event.target.value)}
                           placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
-                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                          className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                         />
                         <datalist id="fleet-options">
                           {filteredFleetOptions.map((option) => (
@@ -584,7 +586,7 @@ export default function SummaryDashboard({
                             );
                             setFleetSearch('');
                           }}
-                          className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                          className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                         >
                           Add
                         </button>
@@ -593,7 +595,7 @@ export default function SummaryDashboard({
                     <button
                       type="button"
                       onClick={() => setFleetFilters([])}
-                      className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                      className="w-full rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                     >
                       Clear
                     </button>
@@ -602,7 +604,7 @@ export default function SummaryDashboard({
                     ) : null}
                   </div>
                 )}
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter remark types</span>
                   <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
@@ -611,7 +613,7 @@ export default function SummaryDashboard({
                           key={remark}
                           type="button"
                           onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                          className="rounded-full border border-indigo-200 dark:border-indigo-500/40 bg-indigo-100 dark:bg-indigo-500/10 px-3 py-1 text-xs text-indigo-700 dark:text-indigo-100"
                         >
                           {remark} ×
                         </button>
@@ -623,7 +625,7 @@ export default function SummaryDashboard({
                         value={remarkSearch}
                         onChange={(event) => setRemarkSearch(event.target.value)}
                         placeholder={remarkOptions.length === 0 ? 'No remarks available' : 'Search remarks'}
-                        className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                        className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
                       <datalist id="remark-options">
                         {filteredRemarkOptions.map((option) => (
@@ -642,7 +644,7 @@ export default function SummaryDashboard({
                           setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched]));
                           setRemarkSearch('');
                         }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                       >
                         Add
                       </button>
@@ -651,7 +653,7 @@ export default function SummaryDashboard({
                   <button
                     type="button"
                     onClick={() => setRemarkFilters([])}
-                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                    className="w-full rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -659,7 +661,7 @@ export default function SummaryDashboard({
                     <span className="text-slate-500">{remarkFilters.length} selected</span>
                   ) : null}
                 </div>
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                   <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
                   <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
@@ -670,7 +672,7 @@ export default function SummaryDashboard({
                           onClick={() =>
                             setVehicleFilters((current) => current.filter((value) => value !== vehicle))
                           }
-                          className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                          className="rounded-full border border-indigo-200 dark:border-indigo-500/40 bg-indigo-100 dark:bg-indigo-500/10 px-3 py-1 text-xs text-indigo-700 dark:text-indigo-100"
                         >
                           {vehicle} ×
                         </button>
@@ -682,7 +684,7 @@ export default function SummaryDashboard({
                         value={vehicleSearch}
                         onChange={(event) => setVehicleSearch(event.target.value)}
                         placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicles'}
-                        className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                        className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
                       <datalist id="vehicle-options">
                         {filteredVehicleOptions.map((option) => (
@@ -701,7 +703,7 @@ export default function SummaryDashboard({
                           setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched]));
                           setVehicleSearch('');
                         }}
-                        className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                        className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                       >
                         Add
                       </button>
@@ -710,7 +712,7 @@ export default function SummaryDashboard({
                   <button
                     type="button"
                     onClick={() => setVehicleFilters([])}
-                    className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                    className="w-full rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
@@ -719,7 +721,7 @@ export default function SummaryDashboard({
                   ) : null}
                 </div>
                 {driverOptions.length > 0 ? (
-                  <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
                     <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                       <div className="flex flex-wrap gap-2">
@@ -730,7 +732,7 @@ export default function SummaryDashboard({
                             onClick={() =>
                               setDriverFilters((current) => current.filter((value) => value !== driver))
                             }
-                            className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-100"
+                            className="rounded-full border border-indigo-200 dark:border-indigo-500/40 bg-indigo-100 dark:bg-indigo-500/10 px-3 py-1 text-xs text-indigo-700 dark:text-indigo-100"
                           >
                             {driver} ×
                           </button>
@@ -742,7 +744,7 @@ export default function SummaryDashboard({
                           value={driverSearch}
                           onChange={(event) => setDriverSearch(event.target.value)}
                           placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search drivers'}
-                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 sm:min-w-[220px] sm:w-auto"
+                          className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                         />
                         <datalist id="driver-options">
                           {filteredDriverOptions.map((option) => (
@@ -763,7 +765,7 @@ export default function SummaryDashboard({
                             );
                             setDriverSearch('');
                           }}
-                          className="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                          className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                         >
                           Add
                         </button>
@@ -772,7 +774,7 @@ export default function SummaryDashboard({
                     <button
                       type="button"
                       onClick={() => setDriverFilters([])}
-                      className="w-full rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500 sm:w-auto"
+                      className="w-full rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                     >
                       Clear
                     </button>
@@ -784,10 +786,10 @@ export default function SummaryDashboard({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
               <div>
                 <h2 className="text-lg font-medium">Alert remark highlights</h2>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {activeMonthKey
                     ? `Showing ${activeMonthLabel} totals with change versus last month.`
                     : `Showing ${activeMonthLabel} totals.`}
@@ -797,17 +799,17 @@ export default function SummaryDashboard({
                 {highlightItems.map((item) => {
                   const summary = buildDeltaSummary(item.current, item.previous);
                   return (
-                    <div key={item.label} className="rounded-2xl border border-indigo-500/20 bg-slate-900/40 p-4">
-                      <div className="text-sm text-slate-300">{item.label}</div>
-                      <div className="mt-2 text-2xl font-semibold text-white">{item.current}</div>
+                    <div key={item.label} className="rounded-2xl border border-indigo-500/20 bg-white/70 dark:bg-slate-900/40 p-4">
+                      <div className="text-sm text-slate-600 dark:text-slate-300">{item.label}</div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{item.current}</div>
                       {activeMonthKey ? (
                         <>
                           <div
-                            className={`mt-3 text-sm ${summary.isIncrease ? 'text-emerald-300' : 'text-rose-300'}`}
+                            className={`mt-3 text-sm ${summary.isIncrease ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'}`}
                           >
                             {summary.deltaLabel}
                           </div>
-                          <div className="text-xs text-slate-400">{summary.percentLabel}</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">{summary.percentLabel}</div>
                         </>
                       ) : null}
                     </div>
@@ -817,18 +819,18 @@ export default function SummaryDashboard({
             </section>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
                 <h2 className="text-lg font-medium">Fleet volume</h2>
-                <p className="text-sm text-slate-400">Fleet distribution based on alert activity.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Fleet distribution based on alert activity.</p>
                 <div className="mt-4 space-y-3">
                   {topFleets.length === 0 ? (
-                    <p className="text-sm text-slate-400">No fleet data available.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No fleet data available.</p>
                   ) : (
                     topFleets.map((row) => (
                       <div key={row.label} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-200">{row.label}</span>
-                          <span className="text-slate-400">{row.total}</span>
+                          <span className="text-slate-700 dark:text-slate-200">{row.label}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{row.total}</span>
                         </div>
                         <Bar value={row.total} max={maxFleetTotal} />
                       </div>
@@ -837,18 +839,18 @@ export default function SummaryDashboard({
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
                 <h2 className="text-lg font-medium">Remarks volume</h2>
-                <p className="text-sm text-slate-400">Most frequent remark tags in the filtered alerts.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Most frequent remark tags in the filtered alerts.</p>
                 <div className="mt-4 space-y-3">
                   {topRemarks.length === 0 ? (
-                    <p className="text-sm text-slate-400">No remark data available.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No remark data available.</p>
                   ) : (
                     topRemarks.map((row) => (
                       <div key={row.label} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-200">{row.label}</span>
-                          <span className="text-slate-400">{row.total}</span>
+                          <span className="text-slate-700 dark:text-slate-200">{row.label}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{row.total}</span>
                         </div>
                         <Bar value={row.total} max={maxRemarkTotal} />
                       </div>
@@ -857,18 +859,18 @@ export default function SummaryDashboard({
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
                 <h2 className="text-lg font-medium">Vehicle volume</h2>
-                <p className="text-sm text-slate-400">Top vehicles based on alert activity.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Top vehicles based on alert activity.</p>
                 <div className="mt-4 space-y-3">
                   {topVehicles.length === 0 ? (
-                    <p className="text-sm text-slate-400">No vehicle data available.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No vehicle data available.</p>
                   ) : (
                     topVehicles.map((row) => (
                       <div key={row.label} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-200">{row.label}</span>
-                          <span className="text-slate-400">{row.total}</span>
+                          <span className="text-slate-700 dark:text-slate-200">{row.label}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{row.total}</span>
                         </div>
                         <Bar value={row.total} max={maxVehicleTotal} />
                       </div>

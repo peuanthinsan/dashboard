@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
+import ThemeToggle from 'app/theme-toggle';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 
@@ -86,82 +87,83 @@ export default function VideoSamplesDashboard({
   }, [normalizedOrganizationName, rows]);
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 text-slate-900 dark:text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <Link
                 href="/dashboard"
-                className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-300 transition hover:text-white"
+                className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-300 transition hover:text-slate-900 dark:hover:text-white"
               >
                 <span aria-hidden="true">←</span>
                 Back to dashboards
               </Link>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Video samples</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Video samples</p>
               <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             </div>
+            <ThemeToggle />
           </div>
           {lastUpdated ? (
-            <p className="text-xs text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
           ) : null}
           {dashboardNotes ? (
-            <div className="mt-2 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
+            <div className="mt-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-sm text-slate-700 dark:text-slate-200">
               {dashboardNotes}
             </div>
           ) : null}
         </header>
 
         {error ? (
-          <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
+          <div className="rounded-xl border border-rose-200 dark:border-rose-500/40 bg-rose-100 dark:bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-200">
             {error}
           </div>
         ) : null}
 
         {loading ? (
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-300">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
             Loading video samples…
           </div>
         ) : (
-          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg sm:p-6">
+          <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-medium">Latest alert samples</h2>
-              <span className="text-sm text-slate-400">{samples.length} videos</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">{samples.length} videos</span>
             </div>
             {samples.length === 0 ? (
-              <p className="mt-4 text-sm text-slate-400">No video samples available yet.</p>
+              <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No video samples available yet.</p>
             ) : (
               <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {samples.map((sample) => (
                   <article
                     key={sample.id}
-                    className="flex h-full flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)]"
+                    className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-950/40 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)]"
                   >
                     <div className="flex flex-col gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Vehicle</p>
-                        <p className="text-lg font-semibold text-white">{sample.vehicle}</p>
+                        <p className="text-lg font-semibold text-slate-900 dark:text-white">{sample.vehicle}</p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Driver</p>
-                        <p className="text-sm text-slate-200">{sample.driver}</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-200">{sample.driver}</p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Remark</p>
-                        <p className="text-sm text-slate-200">{sample.remarks}</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-200">{sample.remarks}</p>
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Alert date time</p>
-                        <p className="text-sm text-slate-200">{sample.timeLabel}</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-200">{sample.timeLabel}</p>
                       </div>
                     </div>
                     <div className="mt-auto flex flex-col gap-3">
                       {sample.videoUrl && sample.videoUrl !== '—' ? (
-                        <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
+                        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/40">
                           <video
                             controls
                             preload="metadata"
-                            className="h-40 w-full bg-black/30"
+                            className="h-40 w-full bg-slate-200/60 dark:bg-black/30"
                           >
                             <source src={sample.videoUrl} type="video/mp4" />
                             Your browser does not support the video tag.

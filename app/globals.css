@@ -2,13 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-input[type='date'],
-input[type='month'] {
+:root {
+  color-scheme: light;
+}
+
+.dark {
   color-scheme: dark;
 }
 
-input[type='date']::-webkit-calendar-picker-indicator,
-input[type='month']::-webkit-calendar-picker-indicator {
+.dark input[type='date'],
+.dark input[type='month'] {
+  color-scheme: dark;
+}
+
+.dark input[type='date']::-webkit-calendar-picker-indicator,
+.dark input[type='month']::-webkit-calendar-picker-indicator {
   filter: invert(1);
   opacity: 0.75;
 }
