@@ -174,7 +174,7 @@ export default function UsersClient({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1.6fr]">
+      <div className="grid gap-6">
         <form
           action={userCreateAction}
           className="grid gap-4 rounded-2xl border border-slate-200/70 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm dark:border-slate-800/70 dark:from-slate-950/70 dark:to-slate-950/30"
@@ -183,7 +183,7 @@ export default function UsersClient({
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create user</h3>
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Required *</span>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4">
             <label className="flex flex-col gap-2 text-xs text-slate-500 dark:text-slate-400">
               Email *
               <input
@@ -201,7 +201,7 @@ export default function UsersClient({
                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
               />
             </label>
-            <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 sm:col-span-2">
+            <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <input
                 type="checkbox"
                 name="isAdmin"
