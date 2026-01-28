@@ -15,7 +15,7 @@ export default function AdminNav() {
         <Link
           key={link.href}
           href={link.href}
-          className="rounded-full border border-slate-200 px-3 py-1 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:hover:border-slate-500 dark:hover:text-white"
+          className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 font-medium shadow-sm transition hover:border-slate-300 hover:bg-white hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/70 dark:hover:border-slate-500 dark:hover:bg-slate-900 dark:hover:text-white"
         >
           {link.label}
         </Link>
