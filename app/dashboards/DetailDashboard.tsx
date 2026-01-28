@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
+import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 
 type DashboardProps = {
@@ -92,7 +93,7 @@ const toDateLabel = (value: unknown) => {
   if (Number.isNaN(parsed.getTime())) {
     return String(value);
   }
-  return parsed.toLocaleString();
+  return formatDateTimeGB(parsed);
 };
 
 export default function DetailDashboard({
@@ -103,7 +104,7 @@ export default function DetailDashboard({
   dashboardNotes,
   organizationName,
 }: DashboardProps) {
-  const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
@@ -122,7 +123,9 @@ export default function DetailDashboard({
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
   const [pinnedPoint, setPinnedPoint] = useState<TrendPoint | null>(null);
-  const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>([]);
+  const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>([
+    { field: 'time', direction: 'desc' },
+  ]);
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
   const didSetDefaultMonth = useRef(false);
@@ -487,7 +490,7 @@ export default function DetailDashboard({
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: item.date.toLocaleDateString() };
+      return { x, y, count: item.count, label: formatDateTimeGB(item.date) };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -513,7 +516,7 @@ export default function DetailDashboard({
         labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: item.date.toLocaleDateString(),
+        label: formatDateTimeGB(item.date),
         position,
       };
     });
@@ -536,7 +539,7 @@ export default function DetailDashboard({
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Detail dashboard</p>
             <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+              <p className="mt-1 text-xs text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
             ) : null}
             {dashboardNotes ? (
               <div className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
@@ -544,13 +547,6 @@ export default function DetailDashboard({
               </div>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={refresh}
-            className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500 sm:w-auto"
-          >
-            Refresh data
-          </button>
         </header>
 
         {error ? (

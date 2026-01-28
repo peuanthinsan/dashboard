@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
+import { formatDateTimeGB } from './dateFormat';
 
 type DashboardProps = {
   dashboardId: string;
@@ -53,7 +54,7 @@ export default function VideoSamplesDashboard({
   dashboardNotes,
   organizationName,
 }: DashboardProps) {
-  const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
@@ -69,7 +70,7 @@ export default function VideoSamplesDashboard({
           vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
           driver: toDisplayString(findValue(row, ['Driver Name'])),
           remarks: toDisplayString(findValue(row, ['Remarks', 'Remark'])),
-          timeLabel: parsedDate?.toLocaleString() ?? toDisplayString(timeValue),
+          timeLabel: parsedDate ? formatDateTimeGB(parsedDate) : toDisplayString(timeValue),
           timestamp: parsedDate?.getTime() ?? 0,
           videoUrl: toDisplayString(findValue(row, ['videoURL', 'Videoit', 'Video URL'])),
           fleet: toDisplayString(findValue(row, ['Fleet'])),
@@ -100,16 +101,9 @@ export default function VideoSamplesDashboard({
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Video samples</p>
               <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             </div>
-            <button
-              type="button"
-              onClick={refresh}
-              className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500 sm:w-auto"
-            >
-              Refresh data
-            </button>
           </div>
           {lastUpdated ? (
-            <p className="text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+            <p className="text-xs text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
           ) : null}
           {dashboardNotes ? (
             <div className="mt-2 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">

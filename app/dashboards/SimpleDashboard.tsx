@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
+import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 
 type DashboardProps = {
@@ -75,7 +76,7 @@ export default function SimpleDashboard({
   dashboardNotes,
   organizationName,
 }: DashboardProps) {
-  const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
@@ -247,7 +248,7 @@ export default function SimpleDashboard({
         const timestamp = row.parsedDate.getTime();
         if (timestamp > latestTimestamp) {
           latestTimestamp = timestamp;
-          latestLabel = row.parsedDate.toLocaleString();
+          latestLabel = formatDateTimeGB(row.parsedDate);
         }
       }
       const remark = normalizeLabel(row.remarks);
@@ -268,7 +269,7 @@ export default function SimpleDashboard({
   const summarizedRows = useMemo<AlertSummaryRow[]>(() => {
     const grouped = new Map<string, AlertSummaryRow>();
     filteredAlerts.forEach((row) => {
-      const dateLabel = row.parsedDate ? toDayKey(row.parsedDate) : '—';
+      const dateLabel = row.parsedDate ? formatDateTimeGB(row.parsedDate) : '—';
       const dateKey = row.parsedDate ? toDayKey(row.parsedDate) : `unknown-${row.vehicle}`;
       const groupKey = `${dateKey}-${row.vehicle}`;
       const existing = grouped.get(groupKey) ?? {
@@ -378,7 +379,7 @@ export default function SimpleDashboard({
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: item.date.toLocaleDateString() };
+      return { x, y, count: item.count, label: formatDateTimeGB(item.date) };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -403,7 +404,7 @@ export default function SimpleDashboard({
       const dataIndex = labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: item.date.toLocaleDateString(),
+        label: formatDateTimeGB(item.date),
         position,
       };
     });
@@ -429,16 +430,9 @@ export default function SimpleDashboard({
               </p>
               <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             </div>
-            <button
-              type="button"
-              onClick={refresh}
-              className="w-full rounded-lg border border-slate-700 px-4 py-2 text-sm text-white hover:border-slate-500 sm:w-auto"
-            >
-              Refresh data
-            </button>
           </div>
           {lastUpdated ? (
-            <p className="text-xs text-slate-400">Last updated {lastUpdated.toLocaleString()}</p>
+            <p className="text-xs text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
           ) : null}
           {dashboardNotes ? (
             <div className="mt-2 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
@@ -523,7 +517,7 @@ export default function SimpleDashboard({
                   </button>
                   {dateBounds.min && dateBounds.max ? (
                     <span className="text-slate-500">
-                      Data from {dateBounds.min} to {dateBounds.max}
+                      Data from {formatDateKeyGB(dateBounds.min)} to {formatDateKeyGB(dateBounds.max)}
                     </span>
                   ) : null}
                 </div>
