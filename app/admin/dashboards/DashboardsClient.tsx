@@ -87,8 +87,8 @@ function DashboardRow({
           <textarea
             name="dashboardNotes"
             defaultValue={dashboard.notes ?? ''}
-            rows={2}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            rows={1}
+            className="w-[148px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
         </div>
         <div className="flex flex-col gap-2">
