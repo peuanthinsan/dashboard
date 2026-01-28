@@ -33,7 +33,7 @@ function DashboardRow({
   useRefreshOnSuccess(state);
 
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.1fr_1.4fr_1fr_1fr_1.2fr_0.8fr_auto]">
+    <div className="grid gap-4 rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.1fr_1.4fr_1fr_1fr_1.2fr_0.8fr_auto]">
       <form action={formAction} className="contents">
         <input type="hidden" name="dashboardId" value={dashboard.id} />
         <div className="flex flex-col gap-2">
@@ -129,6 +129,8 @@ export default function DashboardsClient({
   addDashboardAction,
   manageDashboardAction,
 }: DashboardsClientProps) {
+  const totalDashboards = dashboards.length;
+
   const [dashboardCreateState, dashboardCreateAction] = useFormState(
     addDashboardAction,
     INITIAL_STATE,
@@ -149,14 +151,44 @@ export default function DashboardsClient({
           </p>
         </div>
         <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300">
-          {dashboards.length} total
+          {totalDashboards} total
         </span>
       </header>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+            Total dashboards
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{totalDashboards}</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Available dashboards across companies.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+            Companies
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{companies.length}</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Dashboard assignments by company.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/70 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm dark:border-slate-800/70 dark:from-slate-950/60 dark:to-slate-950/30 sm:col-span-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+            Setup guide
+          </p>
+          <ul className="mt-2 space-y-2 text-xs text-slate-600 dark:text-slate-300">
+            <li>Paste a full Google Sheet link for validation.</li>
+            <li>Use organization filters to control scope.</li>
+          </ul>
+        </div>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1.6fr]">
         <form
           action={dashboardCreateAction}
-          className="grid gap-4 rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60"
+          className="grid gap-4 rounded-2xl border border-slate-200/70 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm dark:border-slate-800/70 dark:from-slate-950/70 dark:to-slate-950/30"
         >
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create dashboard</h3>
