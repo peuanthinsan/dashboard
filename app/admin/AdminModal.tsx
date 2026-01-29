@@ -1,0 +1,60 @@
+'use client';
+
+import { useId } from 'react';
+
+type AdminModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  sizeClassName?: string;
+};
+
+export default function AdminModal({
+  isOpen,
+  onClose,
+  title,
+  description,
+  children,
+  sizeClassName = 'max-w-3xl',
+}: AdminModalProps) {
+  const titleId = useId();
+  const descriptionId = useId();
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+      <button
+        type="button"
+        aria-hidden="true"
+        className="absolute inset-0 bg-slate-900/20 dark:bg-slate-950/80"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
+        className={`relative w-full ${sizeClassName} max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950`}
+      >
+        <div className="border-b border-slate-200/70 bg-slate-50 px-5 py-4 dark:border-slate-800/70 dark:bg-slate-900">
+          <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-white">
+            {title}
+          </h2>
+          {description ? (
+            <p id={descriptionId} className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              {description}
+            </p>
+          ) : null}
+        </div>
+        <div className="max-h-[calc(90vh-6rem)] overflow-y-auto px-5 py-4">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
