@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -27,6 +28,8 @@ type UsersClientProps = {
   addUserAction: FormAction;
   manageUserAction: FormAction;
 };
+
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
 function UserRow({
   user,
@@ -135,9 +138,63 @@ export default function UsersClient({
   manageUserAction,
 }: UsersClientProps) {
   const adminCount = users.filter((user) => user.isAdmin).length;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(25);
+  const [page, setPage] = useState(1);
+
+  const companyMap = useMemo(
+    () => new Map(companies.map((company) => [company.id, company.name ?? ''])),
+    [companies],
+  );
+  const organizationMap = useMemo(
+    () => new Map(organizations.map((organization) => [organization.id, organization.name ?? ''])),
+    [organizations],
+  );
+
+  const filteredUsers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return users;
+    }
+
+    return users.filter((user) => {
+      const email = (user.email ?? '').toLowerCase();
+      const companyNames = (user.companyIds ?? [])
+        .map((id) => companyMap.get(id))
+        .filter(Boolean)
+        .join(' ');
+      const organizationNames = (user.organizationIds ?? [])
+        .map((id) => organizationMap.get(id))
+        .filter(Boolean)
+        .join(' ');
+      const role = user.isAdmin ? 'admin' : 'user';
+      const haystack = `${email} ${companyNames} ${organizationNames} ${role}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [searchQuery, users, companyMap, organizationMap]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const pagedUsers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredUsers.slice(start, start + pageSize);
+  }, [filteredUsers, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const [userCreateState, userCreateAction] = useFormState(addUserAction, INITIAL_STATE);
   useRefreshOnSuccess(userCreateState);
+
+  const totalUsersLabel = `${filteredUsers.length} of ${users.length}`;
+  const rangeStart = filteredUsers.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(filteredUsers.length, page * pageSize);
 
   return (
     <AdminSection>
@@ -220,16 +277,72 @@ export default function UsersClient({
               </p>
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+                Search users
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search email, company, organization, role"
+                  className={`${ADMIN_INPUT} min-w-[220px]`}
+                />
+              </label>
+              <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+                Rows per page
+                <select
+                  value={pageSize}
+                  onChange={(event) =>
+                    setPageSize(Number(event.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])
+                  }
+                  className={ADMIN_SELECT}
+                >
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <span>
+                Showing {rangeStart}-{rangeEnd} ({totalUsersLabel})
+              </span>
+              <button
+                type="button"
+                className={ADMIN_SAVE_BUTTON}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page === 1}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className={ADMIN_SAVE_BUTTON}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={page === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </div>
           <div className="mt-4 grid gap-4">
-            {users.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                companies={companies}
-                organizations={organizations}
-                action={manageUserAction}
-              />
-            ))}
+            {pagedUsers.length === 0 ? (
+              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                No users match your search. Try adjusting the query or filters.
+              </p>
+            ) : (
+              pagedUsers.map((user) => (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  companies={companies}
+                  organizations={organizations}
+                  action={manageUserAction}
+                />
+              ))
+            )}
           </div>
         </AdminPanel>
       </div>

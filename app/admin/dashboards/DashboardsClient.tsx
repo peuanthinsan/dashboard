@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -19,6 +20,7 @@ import {
 import type { ActionState, Company, Dashboard, Organization } from '../types';
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video'] as const;
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -142,12 +144,63 @@ export default function DashboardsClient({
   manageDashboardAction,
 }: DashboardsClientProps) {
   const totalDashboards = dashboards.length;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(25);
+  const [page, setPage] = useState(1);
+
+  const companyMap = useMemo(
+    () => new Map(companies.map((company) => [company.id, company.name ?? ''])),
+    [companies],
+  );
+  const organizationMap = useMemo(
+    () => new Map(organizations.map((organization) => [organization.id, organization.name ?? ''])),
+    [organizations],
+  );
+
+  const filteredDashboards = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return dashboards;
+    }
+
+    return dashboards.filter((dashboard) => {
+      const name = (dashboard.name ?? '').toLowerCase();
+      const sheetUrl = (dashboard.sheetUrl ?? '').toLowerCase();
+      const template = (dashboard.template ?? '').toLowerCase();
+      const company = dashboard.companyId ? companyMap.get(dashboard.companyId) ?? '' : '';
+      const organization = dashboard.organizationId
+        ? organizationMap.get(dashboard.organizationId) ?? ''
+        : '';
+      const haystack = `${name} ${sheetUrl} ${template} ${company} ${organization}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [searchQuery, dashboards, companyMap, organizationMap]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDashboards.length / pageSize));
+  const pagedDashboards = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredDashboards.slice(start, start + pageSize);
+  }, [filteredDashboards, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const [dashboardCreateState, dashboardCreateAction] = useFormState(
     addDashboardAction,
     INITIAL_STATE,
   );
   useRefreshOnSuccess(dashboardCreateState);
+
+  const totalDashboardsLabel = `${filteredDashboards.length} of ${totalDashboards}`;
+  const rangeStart = filteredDashboards.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(filteredDashboards.length, page * pageSize);
 
   return (
     <AdminSection>
@@ -273,13 +326,63 @@ export default function DashboardsClient({
               </p>
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+                Search dashboards
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search name, template, company, sheet"
+                  className={`${ADMIN_INPUT} min-w-[240px]`}
+                />
+              </label>
+              <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+                Rows per page
+                <select
+                  value={pageSize}
+                  onChange={(event) =>
+                    setPageSize(Number(event.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])
+                  }
+                  className={ADMIN_SELECT}
+                >
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <span>
+                Showing {rangeStart}-{rangeEnd} ({totalDashboardsLabel})
+              </span>
+              <button
+                type="button"
+                className={ADMIN_SAVE_BUTTON}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page === 1}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className={ADMIN_SAVE_BUTTON}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={page === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </div>
           <div className="mt-4 grid gap-4">
-            {dashboards.length === 0 ? (
+            {pagedDashboards.length === 0 ? (
               <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                No dashboards yet. Create one to make it available to users.
+                No dashboards match your search. Try adjusting the query or filters.
               </p>
             ) : (
-              dashboards.map((dashboard) => (
+              pagedDashboards.map((dashboard) => (
                 <DashboardRow
                   key={dashboard.id}
                   dashboard={dashboard}
