@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -10,6 +11,7 @@ import {
   ADMIN_HINT_TEXT,
   ADMIN_INPUT,
   ADMIN_LABEL,
+  ADMIN_PILL,
   ADMIN_PRIMARY_BUTTON,
   ADMIN_SAVE_BUTTON,
   ADMIN_SELECT,
@@ -28,103 +30,18 @@ type UsersClientProps = {
   manageUserAction: FormAction;
 };
 
-function UserRow({
-  user,
-  companies,
-  organizations,
-  action,
-}: {
-  user: User;
-  companies: Company[];
-  organizations: Organization[];
-  action: FormAction;
-}) {
-  const [state, formAction] = useFormState(action, INITIAL_STATE);
-  useRefreshOnSuccess(state);
+function formatEntityList(names: string[]) {
+  if (names.length === 0) {
+    return 'None';
+  }
 
-  return (
-    <form
-      action={formAction}
-      className="grid gap-4 rounded-xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.3fr_1.1fr_1fr_1fr_auto]"
-    >
-      <input type="hidden" name="userId" value={user.id} />
-      <div className="flex flex-col gap-2 text-sm">
-        <label className={ADMIN_LABEL}>Email</label>
-        <input
-          name="userEmail"
-          defaultValue={user.email ?? ''}
-          className={ADMIN_INPUT}
-        />
-        <label className={ADMIN_LABEL}>Reset password</label>
-        <input
-          type="password"
-          name="userPassword"
-          placeholder="Leave blank to keep"
-          className={ADMIN_INPUT}
-        />
-        <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
-          <input
-            type="checkbox"
-            name="isAdmin"
-            defaultChecked={!!user.isAdmin}
-            className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
-          />
-          Admin access
-        </label>
-      </div>
+  const preview = names.slice(0, 2).join(', ');
+  const remaining = names.length - 2;
+  if (remaining > 0) {
+    return `${preview} +${remaining}`;
+  }
 
-      <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-        Companies
-        <select
-          name="companyIds"
-          multiple
-          defaultValue={(user.companyIds ?? []).map(String)}
-          className={`min-h-[7rem] ${ADMIN_SELECT}`}
-        >
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.name}
-            </option>
-          ))}
-        </select>
-        <span className={ADMIN_HINT_TEXT}>
-          Hold Ctrl (Windows) or Command (Mac) to select multiple.
-        </span>
-      </label>
-
-      <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-        Organizations
-        <select
-          name="organizationIds"
-          multiple
-          defaultValue={(user.organizationIds ?? []).map(String)}
-          className={`min-h-[7rem] ${ADMIN_SELECT}`}
-        >
-          {organizations.map((organization) => (
-            <option key={organization.id} value={organization.id}>
-              {organization.name}
-            </option>
-          ))}
-        </select>
-        <span className={ADMIN_HINT_TEXT}>
-          Leave empty to allow only company-level dashboards.
-        </span>
-      </label>
-
-      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
-        <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
-          Save
-        </button>
-        <ConfirmDeleteDialog
-          title="Delete user"
-          description="This will permanently delete the user account."
-          triggerClassName={ADMIN_DELETE_BUTTON}
-          confirmClassName={ADMIN_DELETE_BUTTON}
-        />
-      </div>
-      <StatusMessage state={state} className="md:col-span-full" />
-    </form>
-  );
+  return preview;
 }
 
 export default function UsersClient({
@@ -135,6 +52,25 @@ export default function UsersClient({
   manageUserAction,
 }: UsersClientProps) {
   const adminCount = users.filter((user) => user.isAdmin).length;
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
+  const companyLookup = useMemo(
+    () => new Map(companies.map((company) => [String(company.id), company.name])),
+    [companies],
+  );
+  const organizationLookup = useMemo(
+    () => new Map(organizations.map((org) => [String(org.id), org.name])),
+    [organizations],
+  );
+  const selectedUser = users.find((user) => String(user.id) === selectedUserId) ?? null;
+
+  const [editState, editAction] = useFormState(manageUserAction, INITIAL_STATE);
+  useRefreshOnSuccess(editState);
+  useEffect(() => {
+    if (editState.status === 'success') {
+      setSelectedUserId(null);
+    }
+  }, [editState.status]);
 
   const [userCreateState, userCreateAction] = useFormState(addUserAction, INITIAL_STATE);
   useRefreshOnSuccess(userCreateState);
@@ -220,19 +156,190 @@ export default function UsersClient({
               </p>
             </div>
           </div>
-          <div className="mt-4 grid gap-4">
-            {users.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                companies={companies}
-                organizations={organizations}
-                action={manageUserAction}
-              />
-            ))}
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/95 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+            <div className="overflow-x-auto">
+              <table className="min-w-[720px] w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/60 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">User</th>
+                    <th className="px-4 py-3 font-semibold">Admin</th>
+                    <th className="px-4 py-3 font-semibold">Companies</th>
+                    <th className="px-4 py-3 font-semibold">Organizations</th>
+                    <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => {
+                    const companyNames = (user.companyIds ?? [])
+                      .map((id) => companyLookup.get(String(id)))
+                      .filter((name): name is string => Boolean(name));
+                    const organizationNames = (user.organizationIds ?? [])
+                      .map((id) => organizationLookup.get(String(id)))
+                      .filter((name): name is string => Boolean(name));
+
+                    return (
+                      <tr
+                        key={user.id}
+                        className="border-t border-slate-200/70 text-slate-700 hover:bg-slate-50/80 dark:border-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-900/40"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-900 dark:text-white">
+                            {user.email ?? 'Unknown'}
+                          </div>
+                          <div className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>ID: {user.id}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`${ADMIN_PILL} ${user.isAdmin ? 'bg-indigo-500/10 text-indigo-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}>
+                            {user.isAdmin ? 'Admin' : 'Member'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm">
+                            {formatEntityList(companyNames)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm">
+                            {formatEntityList(organizationNames)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUserId(String(user.id))}
+                            className={ADMIN_SAVE_BUTTON}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {users.length === 0 ? (
+              <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                No users yet. Create one to grant access.
+              </p>
+            ) : null}
           </div>
         </AdminPanel>
       </div>
+      {selectedUser ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center px-4 py-6">
+          <button
+            type="button"
+            aria-hidden="true"
+            className="absolute inset-0 bg-slate-900/20 dark:bg-slate-950/80"
+            onClick={() => setSelectedUserId(null)}
+          />
+          <div className="relative w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Edit user</h3>
+                <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                  Update user profile details, admin access, and assignments.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedUserId(null)}
+                className="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-600 transition hover:border-slate-300 dark:border-slate-700 dark:text-slate-300"
+              >
+                Close
+              </button>
+            </div>
+            <form
+              key={selectedUser.id}
+              action={editAction}
+              className="mt-4 grid gap-4"
+            >
+              <input type="hidden" name="userId" value={selectedUser.id} />
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Email
+                  <input
+                    name="userEmail"
+                    defaultValue={selectedUser.email ?? ''}
+                    className={ADMIN_INPUT}
+                  />
+                </label>
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Reset password
+                  <input
+                    type="password"
+                    name="userPassword"
+                    placeholder="Leave blank to keep"
+                    className={ADMIN_INPUT}
+                  />
+                </label>
+              </div>
+              <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
+                <input
+                  type="checkbox"
+                  name="isAdmin"
+                  defaultChecked={!!selectedUser.isAdmin}
+                  className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
+                />
+                Admin access
+              </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Companies
+                  <select
+                    name="companyIds"
+                    multiple
+                    defaultValue={(selectedUser.companyIds ?? []).map(String)}
+                    className={`min-h-[8rem] ${ADMIN_SELECT}`}
+                  >
+                    {companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className={ADMIN_HINT_TEXT}>
+                    Hold Ctrl (Windows) or Command (Mac) to select multiple.
+                  </span>
+                </label>
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Organizations
+                  <select
+                    name="organizationIds"
+                    multiple
+                    defaultValue={(selectedUser.organizationIds ?? []).map(String)}
+                    className={`min-h-[8rem] ${ADMIN_SELECT}`}
+                  >
+                    {organizations.map((organization) => (
+                      <option key={organization.id} value={organization.id}>
+                        {organization.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className={ADMIN_HINT_TEXT}>
+                    Leave empty to allow only company-level dashboards.
+                  </span>
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <StatusMessage state={editState} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
+                    Save changes
+                  </button>
+                  <ConfirmDeleteDialog
+                    title="Delete user"
+                    description="This will permanently delete the user account."
+                    triggerClassName={ADMIN_DELETE_BUTTON}
+                    confirmClassName={ADMIN_DELETE_BUTTON}
+                  />
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </AdminSection>
   );
 }
