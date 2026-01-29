@@ -41,89 +41,100 @@ function UserRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   useRefreshOnSuccess(state);
+  const formId = `user-${user.id}`;
 
   return (
-    <form
-      action={formAction}
-      className="grid gap-4 rounded-xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.3fr_1.1fr_1fr_1fr_auto]"
-    >
-      <input type="hidden" name="userId" value={user.id} />
-      <div className="flex flex-col gap-2 text-sm">
-        <label className={ADMIN_LABEL}>Email</label>
-        <input
-          name="userEmail"
-          defaultValue={user.email ?? ''}
-          className={ADMIN_INPUT}
-        />
-        <label className={ADMIN_LABEL}>Reset password</label>
-        <input
-          type="password"
-          name="userPassword"
-          placeholder="Leave blank to keep"
-          className={ADMIN_INPUT}
-        />
-        <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
-          <input
-            type="checkbox"
-            name="isAdmin"
-            defaultChecked={!!user.isAdmin}
-            className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
-          />
-          Admin access
-        </label>
-      </div>
-
-      <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-        Companies
-        <select
-          name="companyIds"
-          multiple
-          defaultValue={(user.companyIds ?? []).map(String)}
-          className={`min-h-[7rem] ${ADMIN_SELECT}`}
-        >
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.name}
-            </option>
-          ))}
-        </select>
-        <span className={ADMIN_HINT_TEXT}>
-          Hold Ctrl (Windows) or Command (Mac) to select multiple.
-        </span>
-      </label>
-
-      <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-        Organizations
-        <select
-          name="organizationIds"
-          multiple
-          defaultValue={(user.organizationIds ?? []).map(String)}
-          className={`min-h-[7rem] ${ADMIN_SELECT}`}
-        >
-          {organizations.map((organization) => (
-            <option key={organization.id} value={organization.id}>
-              {organization.name}
-            </option>
-          ))}
-        </select>
-        <span className={ADMIN_HINT_TEXT}>
-          Leave empty to allow only company-level dashboards.
-        </span>
-      </label>
-
-      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
-        <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
-          Save
-        </button>
-        <ConfirmDeleteDialog
-          title="Delete user"
-          description="This will permanently delete the user account."
-          triggerClassName={ADMIN_DELETE_BUTTON}
-          confirmClassName={ADMIN_DELETE_BUTTON}
-        />
-      </div>
-      <StatusMessage state={state} className="md:col-span-full" />
-    </form>
+    <>
+      <tr className="border-b border-slate-200/70 align-top text-sm last:border-b-0 dark:border-slate-800/70">
+        <td className="p-3">
+          <div className="flex flex-col gap-2">
+            <label className={ADMIN_LABEL}>Email</label>
+            <input
+              name="userEmail"
+              defaultValue={user.email ?? ''}
+              className={ADMIN_INPUT}
+              form={formId}
+            />
+            <label className={ADMIN_LABEL}>Reset password</label>
+            <input
+              type="password"
+              name="userPassword"
+              placeholder="Leave blank to keep"
+              className={ADMIN_INPUT}
+              form={formId}
+            />
+            <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
+              <input
+                type="checkbox"
+                name="isAdmin"
+                defaultChecked={!!user.isAdmin}
+                className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
+                form={formId}
+              />
+              Admin access
+            </label>
+          </div>
+        </td>
+        <td className="p-3">
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Companies
+            <select
+              name="companyIds"
+              multiple
+              defaultValue={(user.companyIds ?? []).map(String)}
+              className={`min-h-[6rem] ${ADMIN_SELECT}`}
+              form={formId}
+            >
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+            <span className={ADMIN_HINT_TEXT}>
+              Hold Ctrl (Windows) or Command (Mac) to select multiple.
+            </span>
+          </label>
+        </td>
+        <td className="p-3">
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Organizations
+            <select
+              name="organizationIds"
+              multiple
+              defaultValue={(user.organizationIds ?? []).map(String)}
+              className={`min-h-[6rem] ${ADMIN_SELECT}`}
+              form={formId}
+            >
+              {organizations.map((organization) => (
+                <option key={organization.id} value={organization.id}>
+                  {organization.name}
+                </option>
+              ))}
+            </select>
+            <span className={ADMIN_HINT_TEXT}>
+              Leave empty to allow only company-level dashboards.
+            </span>
+          </label>
+        </td>
+        <td className="p-3">
+          <form id={formId} action={formAction} className="flex flex-col gap-2">
+            <input type="hidden" name="userId" value={user.id} />
+            <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
+              Save
+            </button>
+            <ConfirmDeleteDialog
+              title="Delete user"
+              description="This will permanently delete the user account."
+              triggerClassName={ADMIN_DELETE_BUTTON}
+              confirmClassName={ADMIN_DELETE_BUTTON}
+              formId={formId}
+            />
+            <StatusMessage state={state} />
+          </form>
+        </td>
+      </tr>
+    </>
   );
 }
 
@@ -216,20 +227,42 @@ export default function UsersClient({
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage users</h3>
               <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                Update profiles, assign companies, and manage access.
+                Inline edit users, assign companies, and manage access at scale.
               </p>
             </div>
           </div>
-          <div className="mt-4 grid gap-4">
-            {users.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                companies={companies}
-                organizations={organizations}
-                action={manageUserAction}
-              />
-            ))}
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800/70">
+            <div className="max-h-[560px] overflow-auto">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-50/95 text-xs uppercase tracking-wide text-slate-500 backdrop-blur dark:bg-slate-950/95 dark:text-slate-400">
+                  <tr>
+                    <th className="px-3 py-3">User</th>
+                    <th className="px-3 py-3">Companies</th>
+                    <th className="px-3 py-3">Organizations</th>
+                    <th className="px-3 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-slate-950">
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className={`px-3 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                        No users yet. Create one to start assigning access.
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map((user) => (
+                      <UserRow
+                        key={user.id}
+                        user={user}
+                        companies={companies}
+                        organizations={organizations}
+                        action={manageUserAction}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </AdminPanel>
       </div>
