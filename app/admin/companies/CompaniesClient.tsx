@@ -45,7 +45,7 @@ function CompanyRow({ company, action }: { company: Company; action: FormAction 
           </div>
           <div className="mt-1 text-xs text-slate-500">ID {company.id}</div>
         </td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-3 text-right">
           <button type="button" onClick={() => setIsOpen(true)} className={ADMIN_SAVE_BUTTON}>
             Edit
           </button>
@@ -151,7 +151,7 @@ export default function CompaniesClient({
                 <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Company</th>
-                    <th className="px-4 py-3 font-semibold">Actions</th>
+                    <th className="px-4 py-3 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
