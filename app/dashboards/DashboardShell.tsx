@@ -45,9 +45,7 @@ export default function DashboardShell({
               </p>
             ) : null}
             {notes ? (
-              <div className="mt-3 w-full rounded-2xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-sm text-slate-700 dark:border-slate-800/70 dark:bg-slate-950/60 dark:text-slate-200">
-                {notes}
-              </div>
+              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{notes}</p>
             ) : null}
           </div>
           {actions ? <div className="flex items-start gap-3">{actions}</div> : null}

@@ -6,6 +6,7 @@ import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
 import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
+import FilterGroup from './FilterGroup';
 import {
   buildTrendGeometry,
   buildXAxisLabels,
@@ -116,6 +117,29 @@ export default function SimpleDashboard({
       trendRemarkFilter,
     });
   }, [dateRange, driverFilters, storageKey, trendRemarkFilter, vehicleFilters]);
+
+  const handleSearchAdd = <T,>(
+    searchValue: string,
+    findMatch: (trimmed: string) => T | undefined,
+    onMatch: (match: T) => void,
+    clearSearch: () => void,
+  ) => {
+    const trimmed = searchValue.trim();
+    if (!trimmed) return;
+    const matched = findMatch(trimmed);
+    if (!matched) return;
+    onMatch(matched);
+    clearSearch();
+  };
+
+  const resetFilters = () => {
+    setDateRange({ from: '', to: '' });
+    setVehicleFilters([]);
+    setVehicleQuery('');
+    setDriverFilters([]);
+    setDriverQuery('');
+    setPage(1);
+  };
 
   const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
@@ -388,22 +412,25 @@ export default function SimpleDashboard({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setDateRange({ from: '', to: '' });
-                  setVehicleFilters([]);
-                  setVehicleQuery('');
-                  setDriverFilters([]);
-                  setDriverQuery('');
-                  setPage(1);
-                }}
+                onClick={resetFilters}
                 className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
               >
                 Reset filters
               </button>
             </div>
             <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
-              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
-                <span className="uppercase tracking-[0.2em] text-slate-500">Filter dates</span>
+              <FilterGroup
+                label="Filter dates"
+                onClear={() => {
+                  setDateRange({ from: '', to: '' });
+                  setPage(1);
+                }}
+                helper={
+                  dateBounds.min && dateBounds.max
+                    ? `Data from ${formatDateKeyGB(dateBounds.min)} to ${formatDateKeyGB(dateBounds.max)}`
+                    : null
+                }
+              >
                 <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                   <span className="text-slate-500 dark:text-slate-400">From</span>
                   <input
@@ -434,151 +461,118 @@ export default function SimpleDashboard({
                     className="date-range-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDateRange({ from: '', to: '' });
+              </FilterGroup>
+              <FilterGroup
+                label="Filter vehicles"
+                onClear={() => {
+                  setVehicleFilters([]);
+                  setPage(1);
+                }}
+                count={vehicleFilters.length}
+              >
+                <div className="flex flex-wrap gap-2">
+                  {vehicleFilters.map((vehicle) => (
+                    <FilterChip
+                      key={vehicle}
+                      onClick={() => {
+                        setVehicleFilters((current) => current.filter((item) => item !== vehicle));
+                        setPage(1);
+                      }}
+                    >
+                      {vehicle} ×
+                    </FilterChip>
+                  ))}
+                </div>
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                  <input
+                    list="vehicle-options"
+                    value={vehicleQuery}
+                    onChange={(event) => setVehicleQuery(event.target.value)}
+                    placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
+                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                  />
+                  <datalist id="vehicle-options">
+                    {filteredVehicleOptions.map((vehicle) => (
+                      <option key={vehicle} value={vehicle} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSearchAdd(
+                        vehicleQuery,
+                        (trimmed) =>
+                          vehicleOptions.find((vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase()),
+                        (matched) =>
+                          setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])),
+                        () => {
+                          setVehicleQuery('');
+                          setPage(1);
+                        },
+                      )
+                    }
+                    className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                  >
+                    Add
+                  </button>
+                </div>
+              </FilterGroup>
+              {driverOptions.length > 0 ? (
+                <FilterGroup
+                  label="Filter drivers"
+                  onClear={() => {
+                    setDriverFilters([]);
                     setPage(1);
                   }}
-                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
+                  count={driverFilters.length}
                 >
-                  Clear
-                </button>
-                {dateBounds.min && dateBounds.max ? (
-                  <span className="text-slate-500">
-                    Data from {formatDateKeyGB(dateBounds.min)} to {formatDateKeyGB(dateBounds.max)}
-                  </span>
-                ) : null}
-              </div>
-              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 text-xs text-slate-600 dark:text-slate-300 sm:flex-row sm:items-center">
-                <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
-                <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                   <div className="flex flex-wrap gap-2">
-                    {vehicleFilters.map((vehicle) => (
+                    {driverFilters.map((driver) => (
                       <FilterChip
-                        key={vehicle}
+                        key={driver}
                         onClick={() => {
-                          setVehicleFilters((current) => current.filter((item) => item !== vehicle));
+                          setDriverFilters((current) => current.filter((item) => item !== driver));
                           setPage(1);
                         }}
                       >
-                        {vehicle} ×
+                        {driver} ×
                       </FilterChip>
                     ))}
                   </div>
                   <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                     <input
-                      list="vehicle-options"
-                      value={vehicleQuery}
-                      onChange={(event) => setVehicleQuery(event.target.value)}
-                      placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
+                      list="driver-options"
+                      value={driverQuery}
+                      onChange={(event) => setDriverQuery(event.target.value)}
+                      placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
-                    <datalist id="vehicle-options">
-                      {filteredVehicleOptions.map((vehicle) => (
-                        <option key={vehicle} value={vehicle} />
+                    <datalist id="driver-options">
+                      {filteredDriverOptions.map((driver) => (
+                        <option key={driver} value={driver} />
                       ))}
                     </datalist>
                     <button
                       type="button"
-                      onClick={() => {
-                        const trimmed = vehicleQuery.trim();
-                        if (!trimmed) return;
-                        const matched = vehicleOptions.find(
-                          (vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase(),
-                        );
-                        if (!matched) return;
-                        setVehicleFilters((current) =>
-                          current.includes(matched) ? current : [...current, matched],
-                        );
-                        setVehicleQuery('');
-                        setPage(1);
-                      }}
+                      onClick={() =>
+                        handleSearchAdd(
+                          driverQuery,
+                          (trimmed) =>
+                            driverOptions.find((driver) => driver.toLowerCase() === trimmed.toLowerCase()),
+                          (matched) =>
+                            setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])),
+                          () => {
+                            setDriverQuery('');
+                            setPage(1);
+                          },
+                        )
+                      }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
                       Add
                     </button>
                   </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVehicleFilters([]);
-                    setPage(1);
-                  }}
-                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
-                >
-                  Clear
-                </button>
-                {vehicleFilters.length > 0 ? (
-                  <span className="text-slate-500">{vehicleFilters.length} selected</span>
-                ) : null}
-              </div>
-              {driverOptions.length > 0 ? (
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 text-xs text-slate-600 dark:text-slate-300 sm:flex-row sm:items-center">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
-                  <div className="flex w-full flex-1 flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      {driverFilters.map((driver) => (
-                        <FilterChip
-                          key={driver}
-                          onClick={() => {
-                            setDriverFilters((current) => current.filter((item) => item !== driver));
-                            setPage(1);
-                          }}
-                        >
-                          {driver} ×
-                        </FilterChip>
-                      ))}
-                    </div>
-                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                      <input
-                        list="driver-options"
-                        value={driverQuery}
-                        onChange={(event) => setDriverQuery(event.target.value)}
-                        placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
-                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
-                      />
-                      <datalist id="driver-options">
-                        {filteredDriverOptions.map((driver) => (
-                          <option key={driver} value={driver} />
-                        ))}
-                      </datalist>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const trimmed = driverQuery.trim();
-                          if (!trimmed) return;
-                          const matched = driverOptions.find(
-                            (driver) => driver.toLowerCase() === trimmed.toLowerCase(),
-                          );
-                          if (!matched) return;
-                          setDriverFilters((current) =>
-                            current.includes(matched) ? current : [...current, matched],
-                          );
-                          setDriverQuery('');
-                          setPage(1);
-                        }}
-                        className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDriverFilters([]);
-                      setPage(1);
-                    }}
-                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
-                  >
-                    Clear
-                  </button>
-                  {driverFilters.length > 0 ? (
-                    <span className="text-slate-500">{driverFilters.length} selected</span>
-                  ) : null}
-                </div>
+                </FilterGroup>
               ) : null}
             </div>
           </section>
