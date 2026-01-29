@@ -2,8 +2,25 @@
 
 import { useFormState } from 'react-dom';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
+import {
+  AdminCard,
+  AdminListCard,
+  AdminSection,
+  AdminSectionHeader,
+  AdminStat,
+  AdminStatGrid,
+} from '../admin-components';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
-import { ADMIN_DELETE_BUTTON, ADMIN_PRIMARY_BUTTON, ADMIN_SAVE_BUTTON } from '../admin-ui';
+import {
+  ADMIN_DELETE_BUTTON,
+  ADMIN_INPUT,
+  ADMIN_INPUT_WITH_PLACEHOLDER,
+  ADMIN_LABEL,
+  ADMIN_PRIMARY_BUTTON,
+  ADMIN_ROW_CARD,
+  ADMIN_SAVE_BUTTON,
+  ADMIN_TEXTAREA,
+} from '../admin-ui';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video'] as const;
@@ -33,31 +50,33 @@ function DashboardRow({
   useRefreshOnSuccess(state);
 
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.1fr_1.4fr_1fr_1fr_0.6fr_0.8fr_auto]">
+    <div
+      className={`${ADMIN_ROW_CARD} grid gap-4 rounded-2xl md:grid-cols-[1.1fr_1.4fr_1fr_1fr_0.6fr_0.8fr_auto]`}
+    >
       <form action={formAction} className="contents">
         <input type="hidden" name="dashboardId" value={dashboard.id} />
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-500 dark:text-slate-400">Dashboard name</label>
+          <label className={ADMIN_LABEL}>Dashboard name</label>
           <input
             name="dashboardName"
             defaultValue={dashboard.name ?? ''}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className={ADMIN_INPUT}
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-500 dark:text-slate-400">Sheet link</label>
+          <label className={ADMIN_LABEL}>Sheet link</label>
           <input
             name="sheetUrl"
             defaultValue={dashboard.sheetUrl ?? ''}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className={ADMIN_INPUT}
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-500 dark:text-slate-400">Company</label>
+          <label className={ADMIN_LABEL}>Company</label>
           <select
             name="companyId"
             defaultValue={dashboard.companyId ?? ''}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className={ADMIN_INPUT}
           >
             <option value="">Select company</option>
             {companies.map((company) => (
@@ -68,11 +87,11 @@ function DashboardRow({
           </select>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-500 dark:text-slate-400">Organization</label>
+          <label className={ADMIN_LABEL}>Organization</label>
           <select
             name="organizationId"
             defaultValue={dashboard.organizationId ?? ''}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className={ADMIN_INPUT}
           >
             <option value="">No organization</option>
             {organizations.map((organization) => (
@@ -83,20 +102,20 @@ function DashboardRow({
           </select>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-500 dark:text-slate-400">Notes</label>
+          <label className={ADMIN_LABEL}>Notes</label>
           <textarea
             name="dashboardNotes"
             defaultValue={dashboard.notes ?? ''}
             rows={1}
-            className="w-[148px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className={`w-[148px] ${ADMIN_TEXTAREA}`}
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-slate-500 dark:text-slate-400">Template</label>
+          <label className={ADMIN_LABEL}>Template</label>
           <select
             name="template"
             defaultValue={dashboard.template ?? 'Summary'}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className={ADMIN_INPUT}
           >
             {DASHBOARD_TEMPLATES.map((template) => (
               <option key={template} value={template}>
@@ -138,52 +157,32 @@ export default function DashboardsClient({
   useRefreshOnSuccess(dashboardCreateState);
 
   return (
-    <section className="grid gap-6 rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
-            Dashboard builder
-          </p>
-          <h2 className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">Dashboards</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            Create dashboards for a company, optionally filter by organization, and set the
-            template + sheet link.
-          </p>
-        </div>
-        <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300">
-          {totalDashboards} total
-        </span>
-      </header>
+    <AdminSection>
+      <AdminSectionHeader
+        kicker="Dashboard builder"
+        title="Dashboards"
+        description="Create dashboards for a company, optionally filter by organization, and set the template + sheet link."
+        badgeText={`${totalDashboards} total`}
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            Total dashboards
-          </p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{totalDashboards}</p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Available dashboards across companies.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            Companies
-          </p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{companies.length}</p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Dashboard assignments by company.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/70 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm dark:border-slate-800/70 dark:from-slate-950/60 dark:to-slate-950/30 sm:col-span-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            Setup guide
-          </p>
-          <ul className="mt-2 space-y-2 text-xs text-slate-600 dark:text-slate-300">
-            <li>Paste a full Google Sheet link for validation.</li>
-            <li>Use organization filters to control scope.</li>
-          </ul>
-        </div>
-      </div>
+      <AdminStatGrid>
+        <AdminStat
+          label="Total dashboards"
+          value={totalDashboards}
+          description="Available dashboards across companies."
+        />
+        <AdminStat
+          label="Companies"
+          value={companies.length}
+          description="Dashboard assignments by company."
+        />
+        <AdminListCard
+          title="Setup guide"
+          items={['Paste a full Google Sheet link for validation.', 'Use organization filters to control scope.']}
+          variant="gradient"
+          className="sm:col-span-2"
+        />
+      </AdminStatGrid>
 
       <div className="grid gap-6">
         <form
@@ -196,26 +195,26 @@ export default function DashboardsClient({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <label className="text-xs text-slate-500 dark:text-slate-400">Dashboard name *</label>
+              <label className={ADMIN_LABEL}>Dashboard name *</label>
               <input
                 name="dashboardName"
                 placeholder="Operations overview"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
+                className={ADMIN_INPUT_WITH_PLACEHOLDER}
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-xs text-slate-500 dark:text-slate-400">Google Sheet link *</label>
+              <label className={ADMIN_LABEL}>Google Sheet link *</label>
               <input
                 name="sheetUrl"
                 placeholder="https://docs.google.com/spreadsheets/d/..."
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
+                className={ADMIN_INPUT_WITH_PLACEHOLDER}
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-xs text-slate-500 dark:text-slate-400">Company *</label>
+              <label className={ADMIN_LABEL}>Company *</label>
               <select
                 name="companyId"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                className={ADMIN_INPUT}
               >
                 <option value="">Select company</option>
                 {companies.map((company) => (
@@ -226,10 +225,10 @@ export default function DashboardsClient({
               </select>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-xs text-slate-500 dark:text-slate-400">Organization (optional)</label>
+              <label className={ADMIN_LABEL}>Organization (optional)</label>
               <select
                 name="organizationId"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                className={ADMIN_INPUT}
               >
                 <option value="">No organization</option>
                 {organizations.map((organization) => (
@@ -240,10 +239,10 @@ export default function DashboardsClient({
               </select>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-xs text-slate-500 dark:text-slate-400">Template *</label>
+              <label className={ADMIN_LABEL}>Template *</label>
               <select
                 name="template"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                className={ADMIN_INPUT}
               >
                 {DASHBOARD_TEMPLATES.map((template) => (
                   <option key={template} value={template}>
@@ -253,19 +252,17 @@ export default function DashboardsClient({
               </select>
             </div>
             <div className="flex flex-col gap-2 sm:col-span-2">
-              <label className="text-xs text-slate-500 dark:text-slate-400">Dashboard notes (optional)</label>
+              <label className={ADMIN_LABEL}>Dashboard notes (optional)</label>
               <textarea
                 name="dashboardNotes"
                 rows={3}
                 placeholder="Add any notes that should appear on the dashboard."
-                className="resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
+                className={`resize-none ${ADMIN_INPUT_WITH_PLACEHOLDER}`}
               />
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Links are validated and parsed automatically.
-            </p>
+            <p className={ADMIN_LABEL}>Links are validated and parsed automatically.</p>
             <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
               Create dashboard
             </button>
@@ -273,7 +270,7 @@ export default function DashboardsClient({
           <StatusMessage state={dashboardCreateState} />
         </form>
 
-        <div className="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+        <AdminCard className="p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage dashboards</h3>
@@ -299,8 +296,8 @@ export default function DashboardsClient({
               ))
             )}
           </div>
-        </div>
+        </AdminCard>
       </div>
-    </section>
+    </AdminSection>
   );
 }
