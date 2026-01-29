@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -142,12 +143,87 @@ export default function DashboardsClient({
   manageDashboardAction,
 }: DashboardsClientProps) {
   const totalDashboards = dashboards.length;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [organizationFilter, setOrganizationFilter] = useState('all');
+  const [templateFilter, setTemplateFilter] = useState('all');
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
 
   const [dashboardCreateState, dashboardCreateAction] = useFormState(
     addDashboardAction,
     INITIAL_STATE,
   );
   useRefreshOnSuccess(dashboardCreateState);
+
+  const companyNameById = useMemo(
+    () =>
+      new Map(companies.map((company) => [String(company.id), company.name.toLowerCase()])),
+    [companies],
+  );
+  const organizationNameById = useMemo(
+    () =>
+      new Map(
+        organizations.map((organization) => [String(organization.id), organization.name.toLowerCase()]),
+      ),
+    [organizations],
+  );
+
+  const filteredDashboards = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return dashboards.filter((dashboard) => {
+      if (companyFilter !== 'all' && String(dashboard.companyId ?? '') !== companyFilter) {
+        return false;
+      }
+      if (
+        organizationFilter !== 'all' &&
+        String(dashboard.organizationId ?? '') !== organizationFilter
+      ) {
+        return false;
+      }
+      if (templateFilter !== 'all' && dashboard.template !== templateFilter) {
+        return false;
+      }
+      if (!normalizedSearch) {
+        return true;
+      }
+      const nameMatch = (dashboard.name ?? '').toLowerCase().includes(normalizedSearch);
+      const sheetMatch = (dashboard.sheetUrl ?? '').toLowerCase().includes(normalizedSearch);
+      const notesMatch = (dashboard.notes ?? '').toLowerCase().includes(normalizedSearch);
+      const companyMatch = companyNameById
+        .get(String(dashboard.companyId ?? ''))
+        ?.includes(normalizedSearch);
+      const organizationMatch = organizationNameById
+        .get(String(dashboard.organizationId ?? ''))
+        ?.includes(normalizedSearch);
+      return (
+        nameMatch ||
+        sheetMatch ||
+        notesMatch ||
+        companyMatch ||
+        organizationMatch
+      );
+    });
+  }, [
+    companyFilter,
+    companyNameById,
+    dashboards,
+    organizationFilter,
+    organizationNameById,
+    searchTerm,
+    templateFilter,
+  ]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, companyFilter, organizationFilter, templateFilter, pageSize]);
+
+  const totalFilteredDashboards = filteredDashboards.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredDashboards / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = totalFilteredDashboards === 0 ? 0 : (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalFilteredDashboards);
+  const pagedDashboards = filteredDashboards.slice(startIndex, endIndex);
 
   return (
     <AdminSection>
@@ -274,12 +350,112 @@ export default function DashboardsClient({
             </div>
           </div>
           <div className="mt-4 grid gap-4">
+            <div className="grid gap-3 xl:grid-cols-[1.6fr_1fr_1fr_1fr_0.7fr]">
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Search
+                <input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search name, sheet, notes, or org"
+                  className={ADMIN_INPUT}
+                />
+              </label>
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Company
+                <select
+                  value={companyFilter}
+                  onChange={(event) => setCompanyFilter(event.target.value)}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="all">All companies</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Organization
+                <select
+                  value={organizationFilter}
+                  onChange={(event) => setOrganizationFilter(event.target.value)}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="all">All organizations</option>
+                  {organizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Template
+                <select
+                  value={templateFilter}
+                  onChange={(event) => setTemplateFilter(event.target.value)}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="all">All templates</option>
+                  {DASHBOARD_TEMPLATES.map((template) => (
+                    <option key={template} value={template}>
+                      {template}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Per page
+                <select
+                  value={pageSize}
+                  onChange={(event) => setPageSize(Number(event.target.value))}
+                  className={ADMIN_SELECT}
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
+                {totalFilteredDashboards === 0
+                  ? 'No dashboards match these filters.'
+                  : `Showing ${startIndex + 1}-${endIndex} of ${totalFilteredDashboards} dashboards.`}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className={`${ADMIN_SAVE_BUTTON} disabled:cursor-not-allowed disabled:opacity-60`}
+                  disabled={currentPage === 1}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                >
+                  Previous
+                </button>
+                <span className={`text-xs font-semibold ${ADMIN_TEXT_SUBTLE}`}>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className={`${ADMIN_SAVE_BUTTON} disabled:cursor-not-allowed disabled:opacity-60`}
+                  disabled={currentPage === totalPages}
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
             {dashboards.length === 0 ? (
               <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
                 No dashboards yet. Create one to make it available to users.
               </p>
+            ) : pagedDashboards.length === 0 ? (
+              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                Try adjusting the filters to find dashboards.
+              </p>
             ) : (
-              dashboards.map((dashboard) => (
+              pagedDashboards.map((dashboard) => (
                 <DashboardRow
                   key={dashboard.id}
                   dashboard={dashboard}

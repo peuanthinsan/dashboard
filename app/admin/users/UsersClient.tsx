@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -135,9 +136,85 @@ export default function UsersClient({
   manageUserAction,
 }: UsersClientProps) {
   const adminCount = users.filter((user) => user.isAdmin).length;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [organizationFilter, setOrganizationFilter] = useState('all');
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
 
   const [userCreateState, userCreateAction] = useFormState(addUserAction, INITIAL_STATE);
   useRefreshOnSuccess(userCreateState);
+
+  const companyNameById = useMemo(
+    () =>
+      new Map(companies.map((company) => [String(company.id), company.name.toLowerCase()])),
+    [companies],
+  );
+  const organizationNameById = useMemo(
+    () =>
+      new Map(
+        organizations.map((organization) => [String(organization.id), organization.name.toLowerCase()]),
+      ),
+    [organizations],
+  );
+
+  const filteredUsers = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return users.filter((user) => {
+      if (roleFilter === 'admins' && !user.isAdmin) {
+        return false;
+      }
+      if (roleFilter === 'standard' && user.isAdmin) {
+        return false;
+      }
+      if (
+        companyFilter !== 'all' &&
+        !(user.companyIds ?? []).map(String).includes(companyFilter)
+      ) {
+        return false;
+      }
+      if (
+        organizationFilter !== 'all' &&
+        !(user.organizationIds ?? []).map(String).includes(organizationFilter)
+      ) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const emailMatch = (user.email ?? '').toLowerCase().includes(normalizedSearch);
+      const companyMatch = (user.companyIds ?? []).some((companyId) =>
+        companyNameById.get(String(companyId))?.includes(normalizedSearch),
+      );
+      const organizationMatch = (user.organizationIds ?? []).some((organizationId) =>
+        organizationNameById.get(String(organizationId))?.includes(normalizedSearch),
+      );
+
+      return emailMatch || companyMatch || organizationMatch;
+    });
+  }, [
+    companyFilter,
+    companyNameById,
+    organizationFilter,
+    organizationNameById,
+    roleFilter,
+    searchTerm,
+    users,
+  ]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, roleFilter, companyFilter, organizationFilter, pageSize]);
+
+  const totalFilteredUsers = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredUsers / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = totalFilteredUsers === 0 ? 0 : (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalFilteredUsers);
+  const pagedUsers = filteredUsers.slice(startIndex, endIndex);
 
   return (
     <AdminSection>
@@ -221,15 +298,114 @@ export default function UsersClient({
             </div>
           </div>
           <div className="mt-4 grid gap-4">
-            {users.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                companies={companies}
-                organizations={organizations}
-                action={manageUserAction}
-              />
-            ))}
+            <div className="grid gap-3 xl:grid-cols-[1.6fr_1fr_1fr_1fr_0.7fr]">
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Search
+                <input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search email, company, or organization"
+                  className={ADMIN_INPUT}
+                />
+              </label>
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Role
+                <select
+                  value={roleFilter}
+                  onChange={(event) => setRoleFilter(event.target.value)}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="all">All users</option>
+                  <option value="admins">Admins only</option>
+                  <option value="standard">Standard users</option>
+                </select>
+              </label>
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Company
+                <select
+                  value={companyFilter}
+                  onChange={(event) => setCompanyFilter(event.target.value)}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="all">All companies</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Organization
+                <select
+                  value={organizationFilter}
+                  onChange={(event) => setOrganizationFilter(event.target.value)}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="all">All organizations</option>
+                  {organizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Per page
+                <select
+                  value={pageSize}
+                  onChange={(event) => setPageSize(Number(event.target.value))}
+                  className={ADMIN_SELECT}
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
+                {totalFilteredUsers === 0
+                  ? 'No users match these filters.'
+                  : `Showing ${startIndex + 1}-${endIndex} of ${totalFilteredUsers} users.`}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className={`${ADMIN_SAVE_BUTTON} disabled:cursor-not-allowed disabled:opacity-60`}
+                  disabled={currentPage === 1}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                >
+                  Previous
+                </button>
+                <span className={`text-xs font-semibold ${ADMIN_TEXT_SUBTLE}`}>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className={`${ADMIN_SAVE_BUTTON} disabled:cursor-not-allowed disabled:opacity-60`}
+                  disabled={currentPage === totalPages}
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+            {pagedUsers.length === 0 ? (
+              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                Try adjusting the filters to find more users.
+              </p>
+            ) : (
+              pagedUsers.map((user) => (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  companies={companies}
+                  organizations={organizations}
+                  action={manageUserAction}
+                />
+              ))
+            )}
           </div>
         </AdminPanel>
       </div>
