@@ -66,6 +66,7 @@ type ConfirmDeleteDialogProps = {
   cancelClassName?: string;
   confirmLabel?: string;
   triggerLabel?: string;
+  formId?: string;
 };
 
 export default function ConfirmDeleteDialog({
@@ -76,6 +77,7 @@ export default function ConfirmDeleteDialog({
   cancelClassName,
   confirmLabel = 'Delete',
   triggerLabel = 'Delete',
+  formId,
 }: ConfirmDeleteDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -108,6 +110,7 @@ export default function ConfirmDeleteDialog({
             type="submit"
             name="intent"
             value="delete"
+            form={formId}
             className={confirmClassName}
           >
             {confirmLabel}
