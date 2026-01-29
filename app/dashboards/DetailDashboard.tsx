@@ -6,6 +6,7 @@ import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
+import FilterGroup from './FilterGroup';
 import {
   ALLOWED_ALERT_TYPES,
   ALLOWED_REMARK_TARGETS,
@@ -478,49 +479,101 @@ export default function DetailDashboard({
               </button>
             </div>
             <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
-              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
-                <span className="uppercase tracking-[0.2em] text-slate-500">Filter months</span>
-                <div className="flex w-full flex-1 flex-wrap items-center gap-2">
-                  <div className="flex flex-wrap gap-2">
-                    {monthFilters.map((monthKey) => {
-                      const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
-                      return (
-                        <FilterChip
-                          key={monthKey}
-                          onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
-                        >
-                          {monthLabel} ×
-                        </FilterChip>
+              <FilterGroup
+                label="Filter months"
+                onClear={() => {
+                  setMonthFilters([]);
+                  setPage(1);
+                }}
+                count={monthFilters.length}
+              >
+                <div className="flex flex-wrap gap-2">
+                  {monthFilters.map((monthKey) => {
+                    const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
+                    return (
+                      <FilterChip
+                        key={monthKey}
+                        onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
+                      >
+                        {monthLabel} ×
+                      </FilterChip>
+                    );
+                  })}
+                </div>
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                  <input
+                    list="month-options"
+                    value={monthSearch}
+                    onChange={(event) => setMonthSearch(event.target.value)}
+                    placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
+                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                  />
+                  <datalist id="month-options">
+                    {filteredMonthOptions.map((option) => (
+                      <option key={option.key} value={option.label} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trimmed = monthSearch.trim();
+                      if (!trimmed) return;
+                      const matched = monthOptions.find(
+                        (option) =>
+                          option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed),
                       );
-                    })}
+                      if (!matched) return;
+                      setMonthFilters((current) => (current.includes(matched.key) ? current : [...current, matched.key]));
+                      setMonthSearch('');
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                  >
+                    Add
+                  </button>
+                </div>
+              </FilterGroup>
+              {organizationName ? null : (
+                <FilterGroup
+                  label="Filter fleets"
+                  onClear={() => {
+                    setFleetFilters([]);
+                    setPage(1);
+                  }}
+                  count={fleetFilters.length}
+                >
+                  <div className="flex flex-wrap gap-2">
+                    {fleetFilters.map((fleet) => (
+                      <FilterChip
+                        key={fleet}
+                        onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
+                      >
+                        {fleet} ×
+                      </FilterChip>
+                    ))}
                   </div>
                   <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                     <input
-                      list="month-options"
-                      value={monthSearch}
-                      onChange={(event) => setMonthSearch(event.target.value)}
-                      placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
+                      list="fleet-options"
+                      value={fleetSearch}
+                      onChange={(event) => setFleetSearch(event.target.value)}
+                      placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
-                    <datalist id="month-options">
-                      {filteredMonthOptions.map((option) => (
-                        <option key={option.key} value={option.label} />
+                    <datalist id="fleet-options">
+                      {filteredFleetOptions.map((option) => (
+                        <option key={option} value={option} />
                       ))}
                     </datalist>
                     <button
                       type="button"
                       onClick={() => {
-                        const trimmed = monthSearch.trim();
+                        const trimmed = fleetSearch.trim();
                         if (!trimmed) return;
-                        const matched = monthOptions.find(
-                          (option) =>
-                            option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed),
-                        );
+                        const matched = fleetOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed));
                         if (!matched) return;
-                        setMonthFilters((current) =>
-                          current.includes(matched.key) ? current : [...current, matched.key],
-                        );
-                        setMonthSearch('');
+                        setFleetFilters((current) => (current.includes(matched) ? current : [...current, matched]));
+                        setFleetSearch('');
                         setPage(1);
                       }}
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
@@ -528,270 +581,157 @@ export default function DetailDashboard({
                       Add
                     </button>
                   </div>
+                </FilterGroup>
+              )}
+              <FilterGroup
+                label="Filter remark types"
+                onClear={() => {
+                  setRemarkFilters([]);
+                  setPage(1);
+                }}
+                count={remarkFilters.length}
+              >
+                <div className="flex flex-wrap gap-2">
+                  {remarkFilters.map((remark) => (
+                    <FilterChip
+                      key={remark}
+                      onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}
+                    >
+                      {remark} ×
+                    </FilterChip>
+                  ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMonthFilters([]);
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                  <input
+                    list="remark-options"
+                    value={remarkSearch}
+                    onChange={(event) => setRemarkSearch(event.target.value)}
+                    placeholder={remarkOptions.length === 0 ? 'No remarks available' : 'Search remarks'}
+                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                  />
+                  <datalist id="remark-options">
+                    {filteredRemarkOptions.map((option) => (
+                      <option key={option} value={option} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trimmed = remarkSearch.trim();
+                      if (!trimmed) return;
+                      const matched = remarkOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed));
+                      if (!matched) return;
+                      setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched]));
+                      setRemarkSearch('');
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                  >
+                    Add
+                  </button>
+                </div>
+              </FilterGroup>
+              <FilterGroup
+                label="Filter vehicles"
+                onClear={() => {
+                  setVehicleFilters([]);
+                  setPage(1);
+                }}
+                count={vehicleFilters.length}
+              >
+                <div className="flex flex-wrap gap-2">
+                  {vehicleFilters.map((vehicle) => (
+                    <FilterChip
+                      key={vehicle}
+                      onClick={() => setVehicleFilters((current) => current.filter((value) => value !== vehicle))}
+                    >
+                      {vehicle} ×
+                    </FilterChip>
+                  ))}
+                </div>
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                  <input
+                    list="vehicle-options"
+                    value={vehicleSearch}
+                    onChange={(event) => setVehicleSearch(event.target.value)}
+                    placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicles'}
+                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                  />
+                  <datalist id="vehicle-options">
+                    {filteredVehicleOptions.map((option) => (
+                      <option key={option} value={option} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trimmed = vehicleSearch.trim();
+                      if (!trimmed) return;
+                      const matched = vehicleOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed));
+                      if (!matched) return;
+                      setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched]));
+                      setVehicleSearch('');
+                      setPage(1);
+                    }}
+                    className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                  >
+                    Add
+                  </button>
+                </div>
+              </FilterGroup>
+              {driverOptions.length > 0 ? (
+                <FilterGroup
+                  label="Filter drivers"
+                  onClear={() => {
+                    setDriverFilters([]);
                     setPage(1);
                   }}
-                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
+                  count={driverFilters.length}
                 >
-                  Clear
-                </button>
-                {monthFilters.length > 0 ? (
-                  <span className="text-slate-500">{monthFilters.length} selected</span>
-                ) : null}
-              </div>
-                {organizationName ? null : (
-                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
-                    <span className="uppercase tracking-[0.2em] text-slate-500">Filter fleets</span>
-                    <div className="flex w-full flex-1 flex-wrap items-center gap-2">
-                      <div className="flex flex-wrap gap-2">
-                      {fleetFilters.map((fleet) => (
-                        <FilterChip
-                          key={fleet}
-                          onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
-                        >
-                          {fleet} ×
-                        </FilterChip>
+                  <div className="flex flex-wrap gap-2">
+                    {driverFilters.map((driver) => (
+                      <FilterChip
+                        key={driver}
+                        onClick={() => setDriverFilters((current) => current.filter((value) => value !== driver))}
+                      >
+                        {driver} ×
+                      </FilterChip>
+                    ))}
+                  </div>
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                    <input
+                      list="driver-options"
+                      value={driverSearch}
+                      onChange={(event) => setDriverSearch(event.target.value)}
+                      placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search drivers'}
+                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                    />
+                    <datalist id="driver-options">
+                      {filteredDriverOptions.map((option) => (
+                        <option key={option} value={option} />
                       ))}
-                      </div>
-                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                        <input
-                          list="fleet-options"
-                          value={fleetSearch}
-                          onChange={(event) => setFleetSearch(event.target.value)}
-                          placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
-                          className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
-                        />
-                        <datalist id="fleet-options">
-                          {filteredFleetOptions.map((option) => (
-                            <option key={option} value={option} />
-                          ))}
-                        </datalist>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const trimmed = fleetSearch.trim();
-                            if (!trimmed) return;
-                            const matched = fleetOptions.find(
-                              (option) => normalizeLabel(option) === normalizeLabel(trimmed),
-                            );
-                            if (!matched) return;
-                            setFleetFilters((current) =>
-                              current.includes(matched) ? current : [...current, matched],
-                            );
-                            setFleetSearch('');
-                            setPage(1);
-                          }}
-                          className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
+                    </datalist>
                     <button
                       type="button"
                       onClick={() => {
-                        setFleetFilters([]);
+                        const trimmed = driverSearch.trim();
+                        if (!trimmed) return;
+                        const matched = driverOptions.find(
+                          (option) => normalizeLabel(option) === normalizeLabel(trimmed),
+                        );
+                        if (!matched) return;
+                        setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched]));
+                        setDriverSearch('');
                         setPage(1);
                       }}
-                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
+                      className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
-                      Clear
+                      Add
                     </button>
-                    {fleetFilters.length > 0 ? (
-                      <span className="text-slate-500">{fleetFilters.length} selected</span>
-                    ) : null}
                   </div>
-                )}
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter remark types</span>
-                  <div className="flex w-full flex-1 flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      {remarkFilters.map((remark) => (
-                        <FilterChip
-                          key={remark}
-                          onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}
-                        >
-                          {remark} ×
-                        </FilterChip>
-                      ))}
-                    </div>
-                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                      <input
-                        list="remark-options"
-                        value={remarkSearch}
-                        onChange={(event) => setRemarkSearch(event.target.value)}
-                        placeholder={remarkOptions.length === 0 ? 'No remarks available' : 'Search remarks'}
-                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
-                      />
-                      <datalist id="remark-options">
-                        {filteredRemarkOptions.map((option) => (
-                          <option key={option} value={option} />
-                        ))}
-                      </datalist>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const trimmed = remarkSearch.trim();
-                          if (!trimmed) return;
-                          const matched = remarkOptions.find(
-                            (option) => normalizeLabel(option) === normalizeLabel(trimmed),
-                          );
-                          if (!matched) return;
-                          setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                          setRemarkSearch('');
-                          setPage(1);
-                        }}
-                        className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRemarkFilters([]);
-                      setPage(1);
-                    }}
-                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
-                  >
-                    Clear
-                  </button>
-                  {remarkFilters.length > 0 ? (
-                    <span className="text-slate-500">{remarkFilters.length} selected</span>
-                  ) : null}
-                </div>
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
-                  <div className="flex w-full flex-1 flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      {vehicleFilters.map((vehicle) => (
-                        <FilterChip
-                          key={vehicle}
-                          onClick={() =>
-                            setVehicleFilters((current) => current.filter((value) => value !== vehicle))
-                          }
-                        >
-                          {vehicle} ×
-                        </FilterChip>
-                      ))}
-                    </div>
-                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                      <input
-                        list="vehicle-options"
-                        value={vehicleSearch}
-                        onChange={(event) => setVehicleSearch(event.target.value)}
-                        placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicles'}
-                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
-                      />
-                      <datalist id="vehicle-options">
-                        {filteredVehicleOptions.map((option) => (
-                          <option key={option} value={option} />
-                        ))}
-                      </datalist>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const trimmed = vehicleSearch.trim();
-                          if (!trimmed) return;
-                          const matched = vehicleOptions.find(
-                            (option) => normalizeLabel(option) === normalizeLabel(trimmed),
-                          );
-                          if (!matched) return;
-                          setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                          setVehicleSearch('');
-                          setPage(1);
-                        }}
-                        className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVehicleFilters([]);
-                      setPage(1);
-                    }}
-                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
-                  >
-                    Clear
-                  </button>
-                  {vehicleFilters.length > 0 ? (
-                    <span className="text-slate-500">{vehicleFilters.length} selected</span>
-                  ) : null}
-                </div>
-                {driverOptions.length > 0 ? (
-                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
-                    <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
-                    <div className="flex w-full flex-1 flex-wrap items-center gap-2">
-                      <div className="flex flex-wrap gap-2">
-                        {driverFilters.map((driver) => (
-                          <FilterChip
-                            key={driver}
-                            onClick={() =>
-                              setDriverFilters((current) => current.filter((value) => value !== driver))
-                            }
-                          >
-                            {driver} ×
-                          </FilterChip>
-                        ))}
-                      </div>
-                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                        <input
-                          list="driver-options"
-                          value={driverSearch}
-                          onChange={(event) => setDriverSearch(event.target.value)}
-                          placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search drivers'}
-                          className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
-                        />
-                        <datalist id="driver-options">
-                          {filteredDriverOptions.map((option) => (
-                            <option key={option} value={option} />
-                          ))}
-                        </datalist>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const trimmed = driverSearch.trim();
-                            if (!trimmed) return;
-                            const matched = driverOptions.find(
-                              (option) => normalizeLabel(option) === normalizeLabel(trimmed),
-                            );
-                            if (!matched) return;
-                            setDriverFilters((current) =>
-                              current.includes(matched) ? current : [...current, matched],
-                            );
-                            setDriverSearch('');
-                            setPage(1);
-                          }}
-                          className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDriverFilters([]);
-                        setPage(1);
-                      }}
-                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
-                    >
-                      Clear
-                    </button>
-                    {driverFilters.length > 0 ? (
-                      <span className="text-slate-500">{driverFilters.length} selected</span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
+                </FilterGroup>
+              ) : null}
+            </div>
             </section>
 
             <section className={dashboardSectionClass}>
