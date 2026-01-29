@@ -43,94 +43,128 @@ function DashboardRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   useRefreshOnSuccess(state);
+  const formId = `dashboard-${dashboard.id}`;
 
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.1fr_1.4fr_1fr_1fr_0.6fr_0.8fr_auto]">
-      <form action={formAction} className="contents">
-        <input type="hidden" name="dashboardId" value={dashboard.id} />
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Dashboard name</label>
-          <input
-            name="dashboardName"
-            defaultValue={dashboard.name ?? ''}
-            className={ADMIN_INPUT}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Sheet link</label>
-          <input
-            name="sheetUrl"
-            defaultValue={dashboard.sheetUrl ?? ''}
-            className={ADMIN_INPUT}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Company</label>
-          <select
-            name="companyId"
-            defaultValue={dashboard.companyId ?? ''}
-            className={ADMIN_SELECT}
-          >
-            <option value="">Select company</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Organization</label>
-          <select
-            name="organizationId"
-            defaultValue={dashboard.organizationId ?? ''}
-            className={ADMIN_SELECT}
-          >
-            <option value="">No organization</option>
-            {organizations.map((organization) => (
-              <option key={organization.id} value={organization.id}>
-                {organization.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Notes</label>
-          <textarea
-            name="dashboardNotes"
-            defaultValue={dashboard.notes ?? ''}
-            rows={1}
-            className={`${ADMIN_TEXTAREA} w-[148px]`}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Template</label>
-          <select
-            name="template"
-            defaultValue={dashboard.template ?? 'Summary'}
-            className={ADMIN_SELECT}
-          >
-            {DASHBOARD_TEMPLATES.map((template) => (
-              <option key={template} value={template}>
-                {template}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
-          <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
-            Save
-          </button>
-          <ConfirmDeleteDialog
-            title="Delete dashboard"
-            description="This will permanently delete the dashboard entry."
-            triggerClassName={ADMIN_DELETE_BUTTON}
-            confirmClassName={ADMIN_DELETE_BUTTON}
-          />
-        </div>
-        <StatusMessage state={state} />
-      </form>
-    </div>
+    <>
+      <tr className="border-b border-slate-200/70 text-sm last:border-b-0 dark:border-slate-800/70">
+        <td className="p-3 align-top">
+          <form id={formId} action={formAction} className="hidden">
+            <input type="hidden" name="dashboardId" value={dashboard.id} />
+          </form>
+          <div className="flex flex-col gap-2">
+            <label className={ADMIN_LABEL}>Dashboard name</label>
+            <input
+              name="dashboardName"
+              form={formId}
+              defaultValue={dashboard.name ?? ''}
+              className={ADMIN_INPUT}
+            />
+          </div>
+        </td>
+        <td className="p-3 align-top">
+          <div className="flex flex-col gap-2">
+            <label className={ADMIN_LABEL}>Sheet link</label>
+            <input
+              name="sheetUrl"
+              form={formId}
+              defaultValue={dashboard.sheetUrl ?? ''}
+              className={ADMIN_INPUT}
+            />
+          </div>
+        </td>
+        <td className="p-3 align-top">
+          <div className="flex flex-col gap-2">
+            <label className={ADMIN_LABEL}>Company</label>
+            <select
+              name="companyId"
+              form={formId}
+              defaultValue={dashboard.companyId ?? ''}
+              className={ADMIN_SELECT}
+            >
+              <option value="">Select company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </td>
+        <td className="p-3 align-top">
+          <div className="flex flex-col gap-2">
+            <label className={ADMIN_LABEL}>Organization</label>
+            <select
+              name="organizationId"
+              form={formId}
+              defaultValue={dashboard.organizationId ?? ''}
+              className={ADMIN_SELECT}
+            >
+              <option value="">No organization</option>
+              {organizations.map((organization) => (
+                <option key={organization.id} value={organization.id}>
+                  {organization.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </td>
+        <td className="p-3 align-top">
+          <div className="flex flex-col gap-2">
+            <label className={ADMIN_LABEL}>Notes</label>
+            <textarea
+              name="dashboardNotes"
+              form={formId}
+              defaultValue={dashboard.notes ?? ''}
+              rows={2}
+              className={`${ADMIN_TEXTAREA} min-w-[160px]`}
+            />
+          </div>
+        </td>
+        <td className="p-3 align-top">
+          <div className="flex flex-col gap-2">
+            <label className={ADMIN_LABEL}>Template</label>
+            <select
+              name="template"
+              form={formId}
+              defaultValue={dashboard.template ?? 'Summary'}
+              className={ADMIN_SELECT}
+            >
+              {DASHBOARD_TEMPLATES.map((template) => (
+                <option key={template} value={template}>
+                  {template}
+                </option>
+              ))}
+            </select>
+          </div>
+        </td>
+        <td className="p-3 align-top">
+          <div className="flex flex-col items-start gap-2">
+            <button
+              type="submit"
+              form={formId}
+              name="intent"
+              value="save"
+              className={ADMIN_SAVE_BUTTON}
+            >
+              Save
+            </button>
+            <ConfirmDeleteDialog
+              title="Delete dashboard"
+              description="This will permanently delete the dashboard entry."
+              triggerClassName={ADMIN_DELETE_BUTTON}
+              confirmClassName={ADMIN_DELETE_BUTTON}
+              formId={formId}
+            />
+          </div>
+        </td>
+      </tr>
+      <tr className="border-b border-slate-200/70 last:border-b-0 dark:border-slate-800/70">
+        <td colSpan={7} className="px-3 pb-3">
+          <StatusMessage state={state} />
+        </td>
+      </tr>
+    </>
   );
 }
 
@@ -273,23 +307,54 @@ export default function DashboardsClient({
               </p>
             </div>
           </div>
-          <div className="mt-4 grid gap-4">
-            {dashboards.length === 0 ? (
-              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                No dashboards yet. Create one to make it available to users.
-              </p>
-            ) : (
-              dashboards.map((dashboard) => (
-                <DashboardRow
-                  key={dashboard.id}
-                  dashboard={dashboard}
-                  companies={companies}
-                  organizations={organizations}
-                  action={manageDashboardAction}
-                />
-              ))
-            )}
-          </div>
+          {dashboards.length === 0 ? (
+            <p className={`mt-4 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+              No dashboards yet. Create one to make it available to users.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/95 dark:border-slate-800/70 dark:bg-slate-950/60">
+              <div className="max-h-[560px] overflow-auto">
+                <table className="min-w-[1120px] w-full text-left text-sm">
+                  <thead className="sticky top-0 z-10 bg-slate-50/95 text-xs uppercase text-slate-500 backdrop-blur dark:bg-slate-950/90 dark:text-slate-400">
+                    <tr>
+                      <th scope="col" className="px-3 py-2 font-semibold">
+                        Dashboard
+                      </th>
+                      <th scope="col" className="px-3 py-2 font-semibold">
+                        Sheet link
+                      </th>
+                      <th scope="col" className="px-3 py-2 font-semibold">
+                        Company
+                      </th>
+                      <th scope="col" className="px-3 py-2 font-semibold">
+                        Organization
+                      </th>
+                      <th scope="col" className="px-3 py-2 font-semibold">
+                        Notes
+                      </th>
+                      <th scope="col" className="px-3 py-2 font-semibold">
+                        Template
+                      </th>
+                      <th scope="col" className="px-3 py-2 font-semibold">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboards.map((dashboard) => (
+                      <DashboardRow
+                        key={dashboard.id}
+                        dashboard={dashboard}
+                        companies={companies}
+                        organizations={organizations}
+                        action={manageDashboardAction}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </AdminPanel>
       </div>
     </AdminSection>
