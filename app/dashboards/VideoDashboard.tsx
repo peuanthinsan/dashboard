@@ -47,7 +47,7 @@ const parseDate = (value: unknown) => {
   return parsed;
 };
 
-export default function VideoSamplesDashboard({
+export default function VideoDashboard({
   dashboardName,
   sheetId,
   sheetGid,
@@ -98,9 +98,7 @@ export default function VideoSamplesDashboard({
                 <span aria-hidden="true">←</span>
                 Back to dashboards
               </Link>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
-                Video samples
-              </p>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Video</p>
               <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
             </div>
           </div>
@@ -124,7 +122,7 @@ export default function VideoSamplesDashboard({
 
         {loading ? (
           <div className="rounded-xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-            Loading video samples…
+            Loading videos…
           </div>
         ) : (
           <section className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-lg dark:border-slate-800 dark:bg-slate-900/60 sm:p-6">
@@ -136,7 +134,7 @@ export default function VideoSamplesDashboard({
             </div>
             {samples.length === 0 ? (
               <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-                No video samples available yet.
+                No videos available yet.
               </p>
             ) : (
               <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
