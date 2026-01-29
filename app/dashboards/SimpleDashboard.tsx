@@ -270,7 +270,7 @@ export default function SimpleDashboard({
   const summarizedRows = useMemo<AlertSummaryRow[]>(() => {
     const grouped = new Map<string, AlertSummaryRow>();
     filteredAlerts.forEach((row) => {
-      const dateLabel = row.parsedDate ? formatDateTimeGB(row.parsedDate) : '—';
+      const dateLabel = row.parsedDate ? row.parsedDate.toLocaleDateString('en-GB') : '—';
       const dateKey = row.parsedDate ? toDayKey(row.parsedDate) : `unknown-${row.vehicle}`;
       const groupKey = `${dateKey}-${row.vehicle}`;
       const existing = grouped.get(groupKey) ?? {
@@ -482,6 +482,7 @@ export default function SimpleDashboard({
                     <span className="text-slate-500 dark:text-slate-400">From</span>
                     <input
                       type="date"
+                      lang="en-GB"
                       value={dateRange.from}
                       min={dateBounds.min}
                       max={dateRange.to || dateBounds.max}
@@ -489,13 +490,14 @@ export default function SimpleDashboard({
                         setDateRange((current) => ({ ...current, from: event.target.value }));
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
+                      className="date-range-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
                     />
                   </label>
                   <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                     <span className="text-slate-500 dark:text-slate-400">To</span>
                     <input
                       type="date"
+                      lang="en-GB"
                       value={dateRange.to}
                       min={dateRange.from || dateBounds.min}
                       max={dateBounds.max}
@@ -503,7 +505,7 @@ export default function SimpleDashboard({
                         setDateRange((current) => ({ ...current, to: event.target.value }));
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
+                      className="date-range-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
                     />
                   </label>
                   <button
