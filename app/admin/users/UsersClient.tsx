@@ -8,7 +8,6 @@ import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
 import {
   ADMIN_DELETE_BUTTON,
-  ADMIN_FORM_PANEL,
   ADMIN_HINT_TEXT,
   ADMIN_INPUT,
   ADMIN_LABEL,
@@ -231,7 +230,14 @@ export default function UsersClient({
   );
 
   const [userCreateState, userCreateAction] = useFormState(addUserAction, INITIAL_STATE);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(userCreateState);
+
+  useEffect(() => {
+    if (userCreateState.status === 'success') {
+      setIsCreateOpen(false);
+    }
+  }, [userCreateState.status]);
 
   return (
     <AdminSection>
@@ -257,54 +263,6 @@ export default function UsersClient({
       </div>
 
       <div className="grid gap-6">
-        <form
-          action={userCreateAction}
-          className={`${ADMIN_FORM_PANEL} grid gap-4`}
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create user</h3>
-            <span className={ADMIN_LABEL}>Required *</span>
-          </div>
-          <div className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-                Email *
-                <input
-                  name="userEmail"
-                  placeholder="user@acme.com"
-                  className={ADMIN_INPUT}
-                />
-              </label>
-              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-                Temporary password *
-                <input
-                  type="password"
-                  name="userPassword"
-                  placeholder="Create a password"
-                  className={ADMIN_INPUT}
-                />
-              </label>
-            </div>
-            <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
-              <input
-                type="checkbox"
-                name="isAdmin"
-                className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
-              />
-              Admin access
-            </label>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
-              Provide a temporary password for first login.
-            </p>
-            <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
-              Create user
-            </button>
-          </div>
-          <StatusMessage state={userCreateState} />
-        </form>
-
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -313,6 +271,9 @@ export default function UsersClient({
                 View and update large user lists with quick edits.
               </p>
             </div>
+            <button type="button" onClick={() => setIsCreateOpen(true)} className={ADMIN_PRIMARY_BUTTON}>
+              Create user
+            </button>
           </div>
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
             <div className="max-h-[32rem] overflow-auto">
@@ -358,6 +319,57 @@ export default function UsersClient({
           </div>
         </AdminPanel>
       </div>
+
+      <AdminModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Create user"
+        description="Set up a new account and assign an initial role."
+      >
+        <form
+          action={userCreateAction}
+          className="grid gap-4"
+        >
+          <div className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Email *
+                <input
+                  name="userEmail"
+                  placeholder="user@acme.com"
+                  className={ADMIN_INPUT}
+                />
+              </label>
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Temporary password *
+                <input
+                  type="password"
+                  name="userPassword"
+                  placeholder="Create a password"
+                  className={ADMIN_INPUT}
+                />
+              </label>
+            </div>
+            <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
+              <input
+                type="checkbox"
+                name="isAdmin"
+                className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
+              />
+              Admin access
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
+              Provide a temporary password for first login.
+            </p>
+            <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
+              Create user
+            </button>
+          </div>
+          <StatusMessage state={userCreateState} />
+        </form>
+      </AdminModal>
     </AdminSection>
   );
 }
