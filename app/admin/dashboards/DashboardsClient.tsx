@@ -43,33 +43,39 @@ function DashboardRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   useRefreshOnSuccess(state);
+  const formId = `dashboard-${dashboard.id}`;
 
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.1fr_1.4fr_1fr_1fr_0.6fr_0.8fr_auto]">
-      <form action={formAction} className="contents">
-        <input type="hidden" name="dashboardId" value={dashboard.id} />
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Dashboard name</label>
+    <>
+      <tr className="align-top">
+        <td className="py-3 pr-4">
+          <form id={formId} action={formAction} className="hidden">
+            <input type="hidden" name="dashboardId" value={dashboard.id} />
+          </form>
           <input
+            form={formId}
             name="dashboardName"
             defaultValue={dashboard.name ?? ''}
-            className={ADMIN_INPUT}
+            className={`${ADMIN_INPUT} w-full min-w-[200px]`}
+            aria-label="Dashboard name"
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Sheet link</label>
+        </td>
+        <td className="py-3 pr-4">
           <input
+            form={formId}
             name="sheetUrl"
             defaultValue={dashboard.sheetUrl ?? ''}
-            className={ADMIN_INPUT}
+            className={`${ADMIN_INPUT} w-full min-w-[240px]`}
+            aria-label="Sheet link"
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Company</label>
+        </td>
+        <td className="py-3 pr-4">
           <select
+            form={formId}
             name="companyId"
             defaultValue={dashboard.companyId ?? ''}
-            className={ADMIN_SELECT}
+            className={`${ADMIN_SELECT} w-full min-w-[180px]`}
+            aria-label="Company"
           >
             <option value="">Select company</option>
             {companies.map((company) => (
@@ -78,13 +84,14 @@ function DashboardRow({
               </option>
             ))}
           </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Organization</label>
+        </td>
+        <td className="py-3 pr-4">
           <select
+            form={formId}
             name="organizationId"
             defaultValue={dashboard.organizationId ?? ''}
-            className={ADMIN_SELECT}
+            className={`${ADMIN_SELECT} w-full min-w-[180px]`}
+            aria-label="Organization"
           >
             <option value="">No organization</option>
             {organizations.map((organization) => (
@@ -93,22 +100,24 @@ function DashboardRow({
               </option>
             ))}
           </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Notes</label>
+        </td>
+        <td className="py-3 pr-4">
           <textarea
+            form={formId}
             name="dashboardNotes"
             defaultValue={dashboard.notes ?? ''}
-            rows={1}
-            className={`${ADMIN_TEXTAREA} w-[148px]`}
+            rows={2}
+            className={`${ADMIN_TEXTAREA} w-full min-w-[200px]`}
+            aria-label="Notes"
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={ADMIN_LABEL}>Template</label>
+        </td>
+        <td className="py-3 pr-4">
           <select
+            form={formId}
             name="template"
             defaultValue={dashboard.template ?? 'Summary'}
-            className={ADMIN_SELECT}
+            className={`${ADMIN_SELECT} w-full min-w-[140px]`}
+            aria-label="Template"
           >
             {DASHBOARD_TEMPLATES.map((template) => (
               <option key={template} value={template}>
@@ -116,21 +125,36 @@ function DashboardRow({
               </option>
             ))}
           </select>
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
-          <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
-            Save
-          </button>
-          <ConfirmDeleteDialog
-            title="Delete dashboard"
-            description="This will permanently delete the dashboard entry."
-            triggerClassName={ADMIN_DELETE_BUTTON}
-            confirmClassName={ADMIN_DELETE_BUTTON}
-          />
-        </div>
-        <StatusMessage state={state} />
-      </form>
-    </div>
+        </td>
+        <td className="py-3">
+          <div className="flex flex-col gap-2">
+            <button
+              form={formId}
+              type="submit"
+              name="intent"
+              value="save"
+              className={ADMIN_SAVE_BUTTON}
+            >
+              Save
+            </button>
+            <ConfirmDeleteDialog
+              title="Delete dashboard"
+              description="This will permanently delete the dashboard entry."
+              triggerClassName={ADMIN_DELETE_BUTTON}
+              confirmClassName={ADMIN_DELETE_BUTTON}
+              formId={formId}
+            />
+          </div>
+        </td>
+      </tr>
+      {state.status !== 'idle' ? (
+        <tr>
+          <td colSpan={7} className="pb-3">
+            <StatusMessage state={state} className="mt-1" />
+          </td>
+        </tr>
+      ) : null}
+    </>
   );
 }
 
@@ -273,21 +297,52 @@ export default function DashboardsClient({
               </p>
             </div>
           </div>
-          <div className="mt-4 grid gap-4">
+          <div className="mt-4 max-h-[70vh] overflow-auto">
             {dashboards.length === 0 ? (
               <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
                 No dashboards yet. Create one to make it available to users.
               </p>
             ) : (
-              dashboards.map((dashboard) => (
-                <DashboardRow
-                  key={dashboard.id}
-                  dashboard={dashboard}
-                  companies={companies}
-                  organizations={organizations}
-                  action={manageDashboardAction}
-                />
-              ))
+              <div className="min-w-[1080px]">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-slate-200/70 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800/70">
+                    <tr>
+                      <th scope="col" className="py-2 pr-4 font-medium">
+                        Name
+                      </th>
+                      <th scope="col" className="py-2 pr-4 font-medium">
+                        Sheet link
+                      </th>
+                      <th scope="col" className="py-2 pr-4 font-medium">
+                        Company
+                      </th>
+                      <th scope="col" className="py-2 pr-4 font-medium">
+                        Organization
+                      </th>
+                      <th scope="col" className="py-2 pr-4 font-medium">
+                        Notes
+                      </th>
+                      <th scope="col" className="py-2 pr-4 font-medium">
+                        Template
+                      </th>
+                      <th scope="col" className="py-2 font-medium">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
+                    {dashboards.map((dashboard) => (
+                      <DashboardRow
+                        key={dashboard.id}
+                        dashboard={dashboard}
+                        companies={companies}
+                        organizations={organizations}
+                        action={manageDashboardAction}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </AdminPanel>
