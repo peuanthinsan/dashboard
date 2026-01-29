@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
+import LoadingState from './LoadingState';
 import {
   findValue,
   hasRemark,
@@ -84,9 +85,7 @@ export default function VideoDashboard({
       ) : null}
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-          Loading videos…
-        </div>
+        <LoadingState message="Loading videos…" detail="Preparing the latest video alerts." />
       ) : (
         <section className={dashboardSectionClass}>
           <div className="flex flex-wrap items-center justify-between gap-3">
