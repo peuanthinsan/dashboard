@@ -118,6 +118,29 @@ export default function SimpleDashboard({
     });
   }, [dateRange, driverFilters, storageKey, trendRemarkFilter, vehicleFilters]);
 
+  const handleSearchAdd = <T,>(
+    searchValue: string,
+    findMatch: (trimmed: string) => T | undefined,
+    onMatch: (match: T) => void,
+    clearSearch: () => void,
+  ) => {
+    const trimmed = searchValue.trim();
+    if (!trimmed) return;
+    const matched = findMatch(trimmed);
+    if (!matched) return;
+    onMatch(matched);
+    clearSearch();
+  };
+
+  const resetFilters = () => {
+    setDateRange({ from: '', to: '' });
+    setVehicleFilters([]);
+    setVehicleQuery('');
+    setDriverFilters([]);
+    setDriverQuery('');
+    setPage(1);
+  };
+
   const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
     return rows
@@ -389,14 +412,7 @@ export default function SimpleDashboard({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setDateRange({ from: '', to: '' });
-                  setVehicleFilters([]);
-                  setVehicleQuery('');
-                  setDriverFilters([]);
-                  setDriverQuery('');
-                  setPage(1);
-                }}
+                onClick={resetFilters}
                 className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
               >
                 Reset filters
@@ -482,17 +498,19 @@ export default function SimpleDashboard({
                   </datalist>
                   <button
                     type="button"
-                    onClick={() => {
-                      const trimmed = vehicleQuery.trim();
-                      if (!trimmed) return;
-                      const matched = vehicleOptions.find(
-                        (vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase(),
-                      );
-                      if (!matched) return;
-                      setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                      setVehicleQuery('');
-                      setPage(1);
-                    }}
+                    onClick={() =>
+                      handleSearchAdd(
+                        vehicleQuery,
+                        (trimmed) =>
+                          vehicleOptions.find((vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase()),
+                        (matched) =>
+                          setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])),
+                        () => {
+                          setVehicleQuery('');
+                          setPage(1);
+                        },
+                      )
+                    }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
                     Add
@@ -536,17 +554,19 @@ export default function SimpleDashboard({
                     </datalist>
                     <button
                       type="button"
-                      onClick={() => {
-                        const trimmed = driverQuery.trim();
-                        if (!trimmed) return;
-                        const matched = driverOptions.find(
-                          (driver) => driver.toLowerCase() === trimmed.toLowerCase(),
-                        );
-                        if (!matched) return;
-                        setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                        setDriverQuery('');
-                        setPage(1);
-                      }}
+                      onClick={() =>
+                        handleSearchAdd(
+                          driverQuery,
+                          (trimmed) =>
+                            driverOptions.find((driver) => driver.toLowerCase() === trimmed.toLowerCase()),
+                          (matched) =>
+                            setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])),
+                          () => {
+                            setDriverQuery('');
+                            setPage(1);
+                          },
+                        )
+                      }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
                       Add

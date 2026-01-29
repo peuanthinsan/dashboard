@@ -157,6 +157,33 @@ export default function DetailDashboard({
     vehicleFilters,
   ]);
 
+  const handleSearchAdd = <T,>(
+    searchValue: string,
+    findMatch: (trimmed: string) => T | undefined,
+    onMatch: (match: T) => void,
+    clearSearch: () => void,
+  ) => {
+    const trimmed = searchValue.trim();
+    if (!trimmed) return;
+    const matched = findMatch(trimmed);
+    if (!matched) return;
+    onMatch(matched);
+    clearSearch();
+  };
+
+  const resetFilters = () => {
+    setMonthSearch('');
+    setMonthFilters([]);
+    setFleetSearch('');
+    setFleetFilters([]);
+    setRemarkSearch('');
+    setRemarkFilters([]);
+    setVehicleSearch('');
+    setVehicleFilters([]);
+    setDriverSearch('');
+    setDriverFilters([]);
+  };
+
   const allowedAlertTypes = useMemo(() => ALLOWED_ALERT_TYPES, []);
   const allowedRemarkTargets = useMemo(() => ALLOWED_REMARK_TARGETS, []);
 
@@ -461,18 +488,7 @@ export default function DetailDashboard({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setMonthSearch('');
-                  setMonthFilters([]);
-                  setFleetSearch('');
-                  setFleetFilters([]);
-                  setRemarkSearch('');
-                  setRemarkFilters([]);
-                  setVehicleSearch('');
-                  setVehicleFilters([]);
-                  setDriverSearch('');
-                  setDriverFilters([]);
-                }}
+                onClick={resetFilters}
                 className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
               >
                 Reset filters
@@ -515,18 +531,24 @@ export default function DetailDashboard({
                   </datalist>
                   <button
                     type="button"
-                    onClick={() => {
-                      const trimmed = monthSearch.trim();
-                      if (!trimmed) return;
-                      const matched = monthOptions.find(
-                        (option) =>
-                          option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed),
-                      );
-                      if (!matched) return;
-                      setMonthFilters((current) => (current.includes(matched.key) ? current : [...current, matched.key]));
-                      setMonthSearch('');
-                      setPage(1);
-                    }}
+                    onClick={() =>
+                      handleSearchAdd(
+                        monthSearch,
+                        (trimmed) =>
+                          monthOptions.find(
+                            (option) =>
+                              option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed),
+                          ),
+                        (matched) =>
+                          setMonthFilters((current) =>
+                            current.includes(matched.key) ? current : [...current, matched.key],
+                          ),
+                        () => {
+                          setMonthSearch('');
+                          setPage(1);
+                        },
+                      )
+                    }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
                     Add
@@ -567,15 +589,18 @@ export default function DetailDashboard({
                     </datalist>
                     <button
                       type="button"
-                      onClick={() => {
-                        const trimmed = fleetSearch.trim();
-                        if (!trimmed) return;
-                        const matched = fleetOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed));
-                        if (!matched) return;
-                        setFleetFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                        setFleetSearch('');
-                        setPage(1);
-                      }}
+                      onClick={() =>
+                        handleSearchAdd(
+                          fleetSearch,
+                          (trimmed) => fleetOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
+                          (matched) =>
+                            setFleetFilters((current) => (current.includes(matched) ? current : [...current, matched])),
+                          () => {
+                            setFleetSearch('');
+                            setPage(1);
+                          },
+                        )
+                      }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
                       Add
@@ -616,15 +641,19 @@ export default function DetailDashboard({
                   </datalist>
                   <button
                     type="button"
-                    onClick={() => {
-                      const trimmed = remarkSearch.trim();
-                      if (!trimmed) return;
-                      const matched = remarkOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed));
-                      if (!matched) return;
-                      setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                      setRemarkSearch('');
-                      setPage(1);
-                    }}
+                    onClick={() =>
+                      handleSearchAdd(
+                        remarkSearch,
+                        (trimmed) =>
+                          remarkOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
+                        (matched) =>
+                          setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched])),
+                        () => {
+                          setRemarkSearch('');
+                          setPage(1);
+                        },
+                      )
+                    }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
                     Add
@@ -664,15 +693,19 @@ export default function DetailDashboard({
                   </datalist>
                   <button
                     type="button"
-                    onClick={() => {
-                      const trimmed = vehicleSearch.trim();
-                      if (!trimmed) return;
-                      const matched = vehicleOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed));
-                      if (!matched) return;
-                      setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                      setVehicleSearch('');
-                      setPage(1);
-                    }}
+                    onClick={() =>
+                      handleSearchAdd(
+                        vehicleSearch,
+                        (trimmed) =>
+                          vehicleOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
+                        (matched) =>
+                          setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])),
+                        () => {
+                          setVehicleSearch('');
+                          setPage(1);
+                        },
+                      )
+                    }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
                     Add
@@ -713,17 +746,19 @@ export default function DetailDashboard({
                     </datalist>
                     <button
                       type="button"
-                      onClick={() => {
-                        const trimmed = driverSearch.trim();
-                        if (!trimmed) return;
-                        const matched = driverOptions.find(
-                          (option) => normalizeLabel(option) === normalizeLabel(trimmed),
-                        );
-                        if (!matched) return;
-                        setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched]));
-                        setDriverSearch('');
-                        setPage(1);
-                      }}
+                      onClick={() =>
+                        handleSearchAdd(
+                          driverSearch,
+                          (trimmed) =>
+                            driverOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
+                          (matched) =>
+                            setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])),
+                          () => {
+                            setDriverSearch('');
+                            setPage(1);
+                          },
+                        )
+                      }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
                       Add
