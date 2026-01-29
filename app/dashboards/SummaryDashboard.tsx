@@ -393,7 +393,7 @@ export default function SummaryDashboard({
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle="Summary dashboard"
+      subtitle="Summary"
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >

@@ -13,6 +13,8 @@ type DashboardShellProps = {
 
 export const dashboardSectionClass =
   'rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70';
+const dashboardBadgeClass =
+  'inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-800/80 dark:text-slate-300';
 
 export default function DashboardShell({
   title,
@@ -37,7 +39,10 @@ export default function DashboardShell({
               <span aria-hidden="true">←</span>
               Back to dashboards
             </Link>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">{subtitle}</p>
+            <div className={dashboardBadgeClass}>
+              <span className="h-2 w-2 rounded-full bg-emerald-400 dark:bg-emerald-300" />
+              {subtitle}
+            </div>
             <h1 className="text-2xl font-semibold sm:text-3xl">{title}</h1>
             {lastUpdated ? (
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">

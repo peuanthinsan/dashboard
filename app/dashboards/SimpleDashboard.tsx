@@ -386,7 +386,7 @@ export default function SimpleDashboard({
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle="Simple dashboard"
+      subtitle="Simple"
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >

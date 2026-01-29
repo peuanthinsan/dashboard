@@ -462,7 +462,7 @@ export default function DetailDashboard({
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle="Detail dashboard"
+      subtitle="Detail"
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >
