@@ -13,6 +13,7 @@ import {
   ADMIN_ROW_FORM,
   ADMIN_SAVE_BUTTON,
   ADMIN_TEXT_MUTED,
+  ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
 import type { ActionState, Company } from '../types';
 
@@ -95,6 +96,7 @@ export default function CompaniesClient({
           label="Workflow"
           className="sm:col-span-2"
           description="Create a company, then add dashboards and assign users to grant access."
+          descriptionTone="muted"
         />
       </div>
 
@@ -116,7 +118,7 @@ export default function CompaniesClient({
             />
           </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>Companies determine dashboard availability.</p>
+            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>Companies determine dashboard availability.</p>
             <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
               Add company
             </button>
@@ -128,14 +130,14 @@ export default function CompaniesClient({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage companies</h3>
-              <p className={`mt-1 text-sm ${ADMIN_TEXT_MUTED}`}>
+              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
                 Update names and remove unused companies.
               </p>
             </div>
           </div>
           <div className="mt-4 grid gap-4">
             {companies.length === 0 ? (
-              <p className={`text-sm ${ADMIN_TEXT_MUTED}`}>No companies yet.</p>
+              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>No companies yet.</p>
             ) : (
               <div className="grid gap-4">
                 {companies.map((company) => (

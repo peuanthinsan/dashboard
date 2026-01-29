@@ -14,6 +14,7 @@ import {
   ADMIN_SAVE_BUTTON,
   ADMIN_SELECT,
   ADMIN_TEXT_MUTED,
+  ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
 import type { ActionState, Company, Organization, User } from '../types';
 
@@ -200,7 +201,7 @@ export default function UsersClient({
             </label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>
+            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
               Provide a temporary password for first login.
             </p>
             <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
@@ -214,7 +215,7 @@ export default function UsersClient({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage users</h3>
-              <p className={`mt-1 text-sm ${ADMIN_TEXT_MUTED}`}>
+              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
                 Update profiles, assign companies, and manage access.
               </p>
             </div>

@@ -38,4 +38,6 @@ export const ADMIN_LABEL = 'text-xs text-slate-500 dark:text-slate-400';
 
 export const ADMIN_TEXT_MUTED = 'text-slate-600 dark:text-slate-300';
 
+export const ADMIN_TEXT_SUBTLE = 'text-slate-500 dark:text-slate-400';
+
 export const ADMIN_HINT_TEXT = 'text-[11px] text-slate-500 dark:text-slate-500';

@@ -13,6 +13,7 @@ import {
   ADMIN_ROW_FORM,
   ADMIN_SAVE_BUTTON,
   ADMIN_TEXT_MUTED,
+  ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
 import type { ActionState, Organization } from '../types';
 
@@ -101,6 +102,7 @@ export default function OrganizationsClient({
           label="Access flow"
           className="sm:col-span-2"
           description="Pair organizations with dashboards to scope what teams can see."
+          descriptionTone="muted"
         />
       </div>
 
@@ -122,7 +124,9 @@ export default function OrganizationsClient({
             />
           </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>Organizations can be optional on dashboards.</p>
+            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
+              Organizations can be optional on dashboards.
+            </p>
             <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
               Add organization
             </button>
@@ -134,14 +138,14 @@ export default function OrganizationsClient({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage organizations</h3>
-              <p className={`mt-1 text-sm ${ADMIN_TEXT_MUTED}`}>
+              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
                 Update organization names and maintain access rules.
               </p>
             </div>
           </div>
           <div className="mt-4 grid gap-4">
             {organizations.length === 0 ? (
-              <p className={`text-sm ${ADMIN_TEXT_MUTED}`}>No organizations yet.</p>
+              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>No organizations yet.</p>
             ) : (
               <div className="grid gap-4">
                 {organizations.map((organization) => (

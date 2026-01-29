@@ -5,6 +5,7 @@ import {
   ADMIN_PILL,
   ADMIN_SECTION,
   ADMIN_TEXT_MUTED,
+  ADMIN_TEXT_SUBTLE,
 } from './admin-ui';
 
 type AdminSectionProps = {
@@ -26,6 +27,7 @@ type AdminStatCardProps = {
   description?: ReactNode;
   children?: ReactNode;
   variant?: 'default' | 'gradient';
+  descriptionTone?: 'muted' | 'subtle';
   className?: string;
 };
 
@@ -69,9 +71,11 @@ export function AdminStatCard({
   description,
   children,
   variant = 'default',
+  descriptionTone = 'subtle',
   className,
 }: AdminStatCardProps) {
   const cardClassName = variant === 'gradient' ? ADMIN_CARD_GRADIENT : ADMIN_CARD;
+  const descriptionClassName = descriptionTone === 'muted' ? ADMIN_TEXT_MUTED : ADMIN_TEXT_SUBTLE;
   return (
     <div className={className ? `${cardClassName} ${className}` : cardClassName}>
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
@@ -80,7 +84,7 @@ export function AdminStatCard({
       {value !== undefined ? (
         <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{value}</p>
       ) : null}
-      {description ? <p className={`mt-1 text-xs ${ADMIN_TEXT_MUTED}`}>{description}</p> : null}
+      {description ? <p className={`mt-1 text-xs ${descriptionClassName}`}>{description}</p> : null}
       {children ? <div className="mt-2">{children}</div> : null}
     </div>
   );

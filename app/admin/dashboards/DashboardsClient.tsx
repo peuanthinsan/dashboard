@@ -14,6 +14,7 @@ import {
   ADMIN_SELECT,
   ADMIN_TEXTAREA,
   ADMIN_TEXT_MUTED,
+  ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
 
@@ -253,7 +254,9 @@ export default function DashboardsClient({
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>Links are validated and parsed automatically.</p>
+            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
+              Links are validated and parsed automatically.
+            </p>
             <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
               Create dashboard
             </button>
@@ -265,14 +268,14 @@ export default function DashboardsClient({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage dashboards</h3>
-              <p className={`mt-1 text-sm ${ADMIN_TEXT_MUTED}`}>
+              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
                 Update dashboard details, organization filters, and sheet links.
               </p>
             </div>
           </div>
           <div className="mt-4 grid gap-4">
             {dashboards.length === 0 ? (
-              <p className={`text-sm ${ADMIN_TEXT_MUTED}`}>
+              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
                 No dashboards yet. Create one to make it available to users.
               </p>
             ) : (
