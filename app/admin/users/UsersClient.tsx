@@ -166,7 +166,7 @@ function UserRow({
               </span>
             </label>
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-              Organizations
+              Fleets
               <select
                 name="organizationIds"
                 multiple
@@ -174,7 +174,7 @@ function UserRow({
                 className={`min-h-[10rem] ${ADMIN_SELECT}`}
               >
                 {organizations.length === 0 ? (
-                  <option disabled>No organizations available</option>
+                  <option disabled>No fleets available</option>
                 ) : null}
                 {organizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
@@ -224,7 +224,7 @@ export default function UsersClient({
       new Map(
         organizations.map((organization) => [
           organization.id,
-          organization.name ?? 'Unnamed organization',
+          organization.name ?? 'Unnamed fleet',
         ]),
       ),
     [organizations],
@@ -251,7 +251,7 @@ export default function UsersClient({
         <AdminStatCard label="Onboarding tips" variant="gradient" className="sm:col-span-2">
           <ul className={`space-y-2 text-xs ${ADMIN_TEXT_MUTED}`}>
             <li>Create a temporary password and share it securely.</li>
-            <li>Assign companies and organizations to limit scope.</li>
+            <li>Assign companies and fleets to limit scope.</li>
           </ul>
         </AdminStatCard>
       </div>
@@ -322,7 +322,7 @@ export default function UsersClient({
                     <th className="px-4 py-3 font-semibold">User</th>
                     <th className="px-4 py-3 font-semibold">Role</th>
                     <th className="px-4 py-3 font-semibold">Companies</th>
-                    <th className="px-4 py-3 font-semibold">Organizations</th>
+                    <th className="px-4 py-3 font-semibold">Fleets</th>
                     <th className="px-4 py-3 font-semibold">Actions</th>
                   </tr>
                 </thead>

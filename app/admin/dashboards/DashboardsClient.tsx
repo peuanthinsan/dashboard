@@ -133,13 +133,13 @@ function DashboardRow({
               </select>
             </label>
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-              Organization
+              Fleet
               <select
                 name="organizationId"
                 defaultValue={dashboard.organizationId ?? ''}
                 className={ADMIN_SELECT}
               >
-                <option value="">No organization</option>
+                <option value="">No fleet</option>
                 {organizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
@@ -206,7 +206,7 @@ export default function DashboardsClient({
     [companies],
   );
   const organizationMap = useMemo(
-    () => new Map(organizations.map((organization) => [organization.id, organization.name ?? 'None'])),
+    () => new Map(organizations.map((organization) => [organization.id, organization.name ?? 'No fleet'])),
     [organizations],
   );
 
@@ -221,7 +221,7 @@ export default function DashboardsClient({
       <AdminSectionHeader
         eyebrow="Dashboard builder"
         title="Dashboards"
-        description="Create dashboards for a company, optionally filter by organization, and set the template + sheet link."
+        description="Create dashboards for a company, optionally filter by fleet, and set the template + sheet link."
         count={totalDashboards}
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -238,7 +238,7 @@ export default function DashboardsClient({
         <AdminStatCard label="Setup guide" variant="gradient" className="sm:col-span-2">
           <ul className={`space-y-2 text-xs ${ADMIN_TEXT_MUTED}`}>
             <li>Paste a full Google Sheet link for validation.</li>
-            <li>Use organization filters to control scope.</li>
+            <li>Use fleet filters to control scope.</li>
           </ul>
         </AdminStatCard>
       </div>
@@ -284,12 +284,12 @@ export default function DashboardsClient({
               </select>
             </div>
             <div className="flex flex-col gap-2">
-              <label className={ADMIN_LABEL}>Organization (optional)</label>
+              <label className={ADMIN_LABEL}>Fleet (optional)</label>
               <select
                 name="organizationId"
                 className={ADMIN_SELECT}
               >
-                <option value="">No organization</option>
+                <option value="">No fleet</option>
                 {organizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
@@ -347,7 +347,7 @@ export default function DashboardsClient({
                   <tr>
                     <th className="px-4 py-3 font-semibold">Dashboard</th>
                     <th className="px-4 py-3 font-semibold">Company</th>
-                    <th className="px-4 py-3 font-semibold">Organization</th>
+                    <th className="px-4 py-3 font-semibold">Fleet</th>
                     <th className="px-4 py-3 font-semibold">Template</th>
                     <th className="px-4 py-3 font-semibold">Sheet link</th>
                     <th className="px-4 py-3 font-semibold">Actions</th>
@@ -366,8 +366,8 @@ export default function DashboardsClient({
                       }
                       organizationName={
                         dashboard.organizationId
-                          ? organizationMap.get(dashboard.organizationId) ?? 'None'
-                          : 'None'
+                          ? organizationMap.get(dashboard.organizationId) ?? 'No fleet'
+                          : 'No fleet'
                       }
                     />
                   ))}

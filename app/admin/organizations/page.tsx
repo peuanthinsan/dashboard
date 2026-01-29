@@ -17,17 +17,17 @@ export default async function AdminOrganizationsPage() {
     await requireAdmin();
     const name = (formData.get('organizationName') as string)?.trim();
     if (!name) {
-      return { status: 'error', message: 'Enter an organization name.' };
+      return { status: 'error', message: 'Enter a fleet name.' };
     }
     try {
       await createOrganization(name);
       revalidatePath('/admin/organizations');
       revalidatePath('/admin/users');
       revalidatePath('/admin/dashboards');
-      return { status: 'success', message: 'Organization created.' };
+      return { status: 'success', message: 'Fleet created.' };
     } catch (error) {
       console.error('Failed to create organization', error);
-      return { status: 'error', message: 'Unable to create organization.' };
+      return { status: 'error', message: 'Unable to create fleet.' };
     }
   }
 
@@ -40,7 +40,7 @@ export default async function AdminOrganizationsPage() {
     const organizationId = Number(formData.get('organizationId'));
     const intent = (formData.get('intent') as string) ?? 'save';
     if (!organizationId) {
-      return { status: 'error', message: 'Missing organization selection.' };
+      return { status: 'error', message: 'Missing fleet selection.' };
     }
     try {
       if (intent === 'delete') {
@@ -48,20 +48,20 @@ export default async function AdminOrganizationsPage() {
         revalidatePath('/admin/organizations');
         revalidatePath('/admin/users');
         revalidatePath('/admin/dashboards');
-        return { status: 'success', message: 'Organization deleted.' };
+        return { status: 'success', message: 'Fleet deleted.' };
       }
       const name = (formData.get('organizationName') as string)?.trim();
       if (!name) {
-        return { status: 'error', message: 'Enter an organization name.' };
+        return { status: 'error', message: 'Enter a fleet name.' };
       }
       await updateOrganization(organizationId, name);
       revalidatePath('/admin/organizations');
       revalidatePath('/admin/users');
       revalidatePath('/admin/dashboards');
-      return { status: 'success', message: 'Organization updated.' };
+      return { status: 'success', message: 'Fleet updated.' };
     } catch (error) {
       console.error('Failed to update organization', error);
-      return { status: 'error', message: 'Unable to update organization.' };
+      return { status: 'error', message: 'Unable to update fleet.' };
     }
   }
 
@@ -70,8 +70,8 @@ export default async function AdminOrganizationsPage() {
       backHref="/admin"
       backLabel="Back to admin overview"
       eyebrow="Administration"
-      title="Organizations"
-      description="Create and manage organization groups."
+      title="Fleets"
+      description="Create and manage fleet groups."
     >
       <OrganizationsClient
         organizations={organizations}

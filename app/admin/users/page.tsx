@@ -113,7 +113,7 @@ export default async function AdminUsersPage() {
       backLabel="Back to admin overview"
       eyebrow="Administration"
       title="Users"
-      description="Assign users to companies and organizations and manage admin access."
+      description="Assign users to companies and fleets and manage admin access."
     >
       <UsersClient
         users={users}
