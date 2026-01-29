@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -27,6 +28,8 @@ type UsersClientProps = {
   addUserAction: FormAction;
   manageUserAction: FormAction;
 };
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 function UserRow({
   user,
@@ -135,9 +138,87 @@ export default function UsersClient({
   manageUserAction,
 }: UsersClientProps) {
   const adminCount = users.filter((user) => user.isAdmin).length;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [organizationFilter, setOrganizationFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
+
+  const companyNameById = useMemo(
+    () => new Map(companies.map((company) => [company.id, company.name ?? ''])),
+    [companies],
+  );
+  const organizationNameById = useMemo(
+    () => new Map(organizations.map((organization) => [organization.id, organization.name ?? ''])),
+    [organizations],
+  );
+
+  const filteredUsers = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    return users.filter((user) => {
+      if (roleFilter === 'admins' && !user.isAdmin) {
+        return false;
+      }
+      if (roleFilter === 'non-admins' && user.isAdmin) {
+        return false;
+      }
+      if (companyFilter !== 'all') {
+        const companyId = Number(companyFilter);
+        if (!(user.companyIds ?? []).includes(companyId)) {
+          return false;
+        }
+      }
+      if (organizationFilter !== 'all') {
+        const organizationId = Number(organizationFilter);
+        if (!(user.organizationIds ?? []).includes(organizationId)) {
+          return false;
+        }
+      }
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const searchTokens = [
+        user.email ?? '',
+        ...(user.companyIds ?? []).map((id) => companyNameById.get(id) ?? ''),
+        ...(user.organizationIds ?? []).map((id) => organizationNameById.get(id) ?? ''),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return searchTokens.includes(normalizedQuery);
+    });
+  }, [
+    users,
+    companyFilter,
+    organizationFilter,
+    roleFilter,
+    searchQuery,
+    companyNameById,
+    organizationNameById,
+  ]);
+
+  const totalUsers = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalUsers / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = totalUsers === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = Math.min(currentPage * pageSize, totalUsers);
+  const pagedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const [userCreateState, userCreateAction] = useFormState(addUserAction, INITIAL_STATE);
   useRefreshOnSuccess(userCreateState);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, companyFilter, organizationFilter, roleFilter, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <AdminSection>
@@ -221,15 +302,117 @@ export default function UsersClient({
             </div>
           </div>
           <div className="mt-4 grid gap-4">
-            {users.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                companies={companies}
-                organizations={organizations}
-                action={manageUserAction}
-              />
-            ))}
+            <div className="grid gap-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4 text-sm shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.6fr_auto]">
+              <label className="flex flex-col gap-2">
+                <span className={ADMIN_LABEL}>Search</span>
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search email, company, or organization"
+                  className={ADMIN_INPUT}
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className={ADMIN_LABEL}>Company</span>
+                <select
+                  value={companyFilter}
+                  onChange={(event) => setCompanyFilter(event.target.value)}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="all">All companies</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name ?? `Company ${company.id}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className={ADMIN_LABEL}>Organization</span>
+                <select
+                  value={organizationFilter}
+                  onChange={(event) => setOrganizationFilter(event.target.value)}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="all">All organizations</option>
+                  {organizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>
+                      {organization.name ?? `Organization ${organization.id}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className={ADMIN_LABEL}>Role</span>
+                <select
+                  value={roleFilter}
+                  onChange={(event) => setRoleFilter(event.target.value)}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="all">All roles</option>
+                  <option value="admins">Admins</option>
+                  <option value="non-admins">Non-admins</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className={ADMIN_LABEL}>Page size</span>
+                <select
+                  value={pageSize}
+                  onChange={(event) => setPageSize(Number(event.target.value))}
+                  className={ADMIN_SELECT}
+                >
+                  {PAGE_SIZE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option} per page
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex flex-col justify-end gap-2">
+                <span className={ADMIN_LABEL}>Results</span>
+                <span className="text-sm text-slate-700 dark:text-slate-200">
+                  {totalUsers === 0 ? 'No matches' : `Showing ${pageStart}-${pageEnd} of ${totalUsers}`}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-300">
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className={ADMIN_SAVE_BUTTON}
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className={ADMIN_SAVE_BUTTON}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+            {pagedUsers.length === 0 ? (
+              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                No users match the current filters. Try clearing search or filters.
+              </p>
+            ) : (
+              pagedUsers.map((user) => (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  companies={companies}
+                  organizations={organizations}
+                  action={manageUserAction}
+                />
+              ))
+            )}
           </div>
         </AdminPanel>
       </div>
