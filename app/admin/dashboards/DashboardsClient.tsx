@@ -214,7 +214,14 @@ export default function DashboardsClient({
     addDashboardAction,
     INITIAL_STATE,
   );
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(dashboardCreateState);
+
+  useEffect(() => {
+    if (dashboardCreateState.status === 'success') {
+      setIsCreateOpen(false);
+    }
+  }, [dashboardCreateState.status]);
 
   return (
     <AdminSection>
@@ -244,92 +251,113 @@ export default function DashboardsClient({
       </div>
 
       <div className="grid gap-6">
-        <form
-          action={dashboardCreateAction}
-          className={`${ADMIN_FORM_PANEL} grid gap-4`}
-        >
-          <div className="flex items-center justify-between">
+        <div className={`${ADMIN_FORM_PANEL} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
+          <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create dashboard</h3>
-            <span className={ADMIN_LABEL}>Required fields *</span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <label className={ADMIN_LABEL}>Dashboard name *</label>
-              <input
-                name="dashboardName"
-                placeholder="Operations overview"
-                className={ADMIN_INPUT}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className={ADMIN_LABEL}>Google Sheet link *</label>
-              <input
-                name="sheetUrl"
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                className={ADMIN_INPUT}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className={ADMIN_LABEL}>Company *</label>
-              <select
-                name="companyId"
-                className={ADMIN_SELECT}
-              >
-                <option value="">Select company</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className={ADMIN_LABEL}>Fleet (optional)</label>
-              <select
-                name="organizationId"
-                className={ADMIN_SELECT}
-              >
-                <option value="">No fleet</option>
-                {organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className={ADMIN_LABEL}>Template *</label>
-              <select
-                name="template"
-                className={ADMIN_SELECT}
-              >
-                {DASHBOARD_TEMPLATES.map((template) => (
-                  <option key={template} value={template}>
-                    {template}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-2 sm:col-span-2">
-              <label className={ADMIN_LABEL}>Dashboard notes (optional)</label>
-              <textarea
-                name="dashboardNotes"
-                rows={3}
-                placeholder="Add any notes that should appear on the dashboard."
-                className={`${ADMIN_TEXTAREA} resize-none`}
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
-              Links are validated and parsed automatically.
+            <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+              Add a dashboard, choose a template, and connect the Google Sheet.
             </p>
-            <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
-              Create dashboard
-            </button>
           </div>
-          <StatusMessage state={dashboardCreateState} />
-        </form>
+          <button
+            type="button"
+            className={ADMIN_PRIMARY_BUTTON}
+            onClick={() => setIsCreateOpen(true)}
+          >
+            New dashboard
+          </button>
+        </div>
+        <AdminModal
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          title="Create dashboard"
+          description="Fill out the required fields to add a new dashboard."
+        >
+          <form
+            action={dashboardCreateAction}
+            className="grid gap-4"
+          >
+            <div className="flex items-center justify-between">
+              <span className={ADMIN_LABEL}>Required fields *</span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label className={ADMIN_LABEL}>Dashboard name *</label>
+                <input
+                  name="dashboardName"
+                  placeholder="Operations overview"
+                  className={ADMIN_INPUT}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className={ADMIN_LABEL}>Google Sheet link *</label>
+                <input
+                  name="sheetUrl"
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className={ADMIN_INPUT}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className={ADMIN_LABEL}>Company *</label>
+                <select
+                  name="companyId"
+                  className={ADMIN_SELECT}
+                >
+                  <option value="">Select company</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className={ADMIN_LABEL}>Fleet (optional)</label>
+                <select
+                  name="organizationId"
+                  className={ADMIN_SELECT}
+                >
+                  <option value="">No fleet</option>
+                  {organizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className={ADMIN_LABEL}>Template *</label>
+                <select
+                  name="template"
+                  className={ADMIN_SELECT}
+                >
+                  {DASHBOARD_TEMPLATES.map((template) => (
+                    <option key={template} value={template}>
+                      {template}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-2 sm:col-span-2">
+                <label className={ADMIN_LABEL}>Dashboard notes (optional)</label>
+                <textarea
+                  name="dashboardNotes"
+                  rows={3}
+                  placeholder="Add any notes that should appear on the dashboard."
+                  className={`${ADMIN_TEXTAREA} resize-none`}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
+                Links are validated and parsed automatically.
+              </p>
+              <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
+                Create dashboard
+              </button>
+            </div>
+            <StatusMessage state={dashboardCreateState} />
+          </form>
+        </AdminModal>
 
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">

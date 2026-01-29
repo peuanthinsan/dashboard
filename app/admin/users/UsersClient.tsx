@@ -231,7 +231,14 @@ export default function UsersClient({
   );
 
   const [userCreateState, userCreateAction] = useFormState(addUserAction, INITIAL_STATE);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(userCreateState);
+
+  useEffect(() => {
+    if (userCreateState.status === 'success') {
+      setIsCreateOpen(false);
+    }
+  }, [userCreateState.status]);
 
   return (
     <AdminSection>
@@ -257,53 +264,74 @@ export default function UsersClient({
       </div>
 
       <div className="grid gap-6">
-        <form
-          action={userCreateAction}
-          className={`${ADMIN_FORM_PANEL} grid gap-4`}
-        >
-          <div className="flex items-center justify-between">
+        <div className={`${ADMIN_FORM_PANEL} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
+          <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create user</h3>
-            <span className={ADMIN_LABEL}>Required *</span>
+            <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+              Invite a new user with a temporary password and optional admin access.
+            </p>
           </div>
-          <div className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-                Email *
+          <button
+            type="button"
+            className={ADMIN_PRIMARY_BUTTON}
+            onClick={() => setIsCreateOpen(true)}
+          >
+            New user
+          </button>
+        </div>
+        <AdminModal
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          title="Create user"
+          description="Add a new account and set the initial password."
+        >
+          <form
+            action={userCreateAction}
+            className="grid gap-4"
+          >
+            <div className="flex items-center justify-between">
+              <span className={ADMIN_LABEL}>Required *</span>
+            </div>
+            <div className="grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Email *
+                  <input
+                    name="userEmail"
+                    placeholder="user@acme.com"
+                    className={ADMIN_INPUT}
+                  />
+                </label>
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Temporary password *
+                  <input
+                    type="password"
+                    name="userPassword"
+                    placeholder="Create a password"
+                    className={ADMIN_INPUT}
+                  />
+                </label>
+              </div>
+              <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
                 <input
-                  name="userEmail"
-                  placeholder="user@acme.com"
-                  className={ADMIN_INPUT}
+                  type="checkbox"
+                  name="isAdmin"
+                  className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
                 />
-              </label>
-              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-                Temporary password *
-                <input
-                  type="password"
-                  name="userPassword"
-                  placeholder="Create a password"
-                  className={ADMIN_INPUT}
-                />
+                Admin access
               </label>
             </div>
-            <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
-              <input
-                type="checkbox"
-                name="isAdmin"
-                className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
-              />
-              Admin access
-            </label>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
-              Provide a temporary password for first login.
-            </p>
-            <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
-              Create user
-            </button>
-          </div>
-          <StatusMessage state={userCreateState} />
-        </form>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
+                Provide a temporary password for first login.
+              </p>
+              <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
+                Create user
+              </button>
+            </div>
+            <StatusMessage state={userCreateState} />
+          </form>
+        </AdminModal>
 
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
