@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import {
   createDashboard,
@@ -8,7 +7,7 @@ import {
   getOrganizations,
   updateDashboard,
 } from 'app/db';
-import AdminNav from '../AdminNav';
+import AdminShell from '../AdminShell';
 import { parseSheetLink, requireAdmin } from '../admin-utils';
 import DashboardsClient from './DashboardsClient';
 import type { ActionState } from '../types';
@@ -117,36 +116,20 @@ export default async function AdminDashboardsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 px-4 py-8 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-white sm:px-6 sm:py-10">
-      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
-        <header className="flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70">
-          <Link
-            href="/admin"
-            className="inline-flex w-fit items-center gap-2 text-sm text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-          >
-            <span aria-hidden="true">←</span>
-            Back to admin overview
-          </Link>
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
-              Admin tools
-            </p>
-            <h1 className="text-2xl font-semibold sm:text-3xl">Dashboards</h1>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Create dashboards for a company and link them to Google Sheets.
-            </p>
-          </div>
-          <AdminNav />
-        </header>
-
-        <DashboardsClient
-          dashboards={dashboards}
-          companies={companies}
-          organizations={organizations}
-          addDashboardAction={addDashboardAction}
-          manageDashboardAction={manageDashboardAction}
-        />
-      </div>
-    </div>
+    <AdminShell
+      backHref="/admin"
+      backLabel="Back to admin overview"
+      eyebrow="Admin tools"
+      title="Dashboards"
+      description="Create dashboards for a company and link them to Google Sheets."
+    >
+      <DashboardsClient
+        dashboards={dashboards}
+        companies={companies}
+        organizations={organizations}
+        addDashboardAction={addDashboardAction}
+        manageDashboardAction={manageDashboardAction}
+      />
+    </AdminShell>
   );
 }
