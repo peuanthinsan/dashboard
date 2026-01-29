@@ -5,6 +5,7 @@ import useGoogleSheet from './useGoogleSheet';
 import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
 import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import DashboardLoadingState from './DashboardLoadingState';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
 import {
@@ -397,9 +398,10 @@ export default function SimpleDashboard({
       ) : null}
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
-          Loading dashboard data…
-        </div>
+        <DashboardLoadingState
+          title="Loading simple dashboard"
+          description="Pulling the latest trend metrics and filter options."
+        />
       ) : (
         <>
           <section className={dashboardSectionClass}>

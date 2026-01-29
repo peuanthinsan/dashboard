@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
+import DashboardLoadingState from './DashboardLoadingState';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import {
   findValue,
@@ -84,9 +85,10 @@ export default function VideoDashboard({
       ) : null}
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-          Loading videos…
-        </div>
+        <DashboardLoadingState
+          title="Loading video samples"
+          description="Preparing the latest alert clips and counts."
+        />
       ) : (
         <section className={dashboardSectionClass}>
           <div className="flex flex-wrap items-center justify-between gap-3">

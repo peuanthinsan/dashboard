@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { FilterChip } from './FilterChip';
+import DashboardLoadingState from './DashboardLoadingState';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
 import {
@@ -404,9 +405,10 @@ export default function SummaryDashboard({
       ) : null}
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
-          Loading summary…
-        </div>
+        <DashboardLoadingState
+          title="Loading summary dashboard"
+          description="Gathering the latest alert totals and highlights."
+        />
       ) : (
         <div className="flex flex-col gap-6">
           <section className={dashboardSectionClass}>
