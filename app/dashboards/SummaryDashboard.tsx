@@ -1,11 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
-import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { FilterChip } from './FilterChip';
+import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 
 type DashboardProps = {
   dashboardId: string;
@@ -415,29 +414,12 @@ export default function SummaryDashboard({
   }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 sm:py-10">
-      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <Link
-              href="/dashboard"
-              className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-300 transition hover:text-slate-900 dark:hover:text-white"
-            >
-              <span aria-hidden="true">←</span>
-              Back to dashboards
-            </Link>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Summary dashboard</p>
-            <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
-            {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
-            ) : null}
-            {dashboardNotes ? (
-              <div className="mt-3 w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-sm text-slate-700 dark:text-slate-200">
-                {dashboardNotes}
-              </div>
-            ) : null}
-          </div>
-        </header>
+    <DashboardShell
+      title={dashboardName}
+      subtitle="Summary dashboard"
+      lastUpdated={lastUpdated}
+      notes={dashboardNotes}
+    >
 
         {error ? (
           <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -451,7 +433,7 @@ export default function SummaryDashboard({
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Filters</h2>
@@ -775,7 +757,7 @@ export default function SummaryDashboard({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className={dashboardSectionClass}>
               <div>
                 <h2 className="text-lg font-medium">Alert remark highlights</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -810,7 +792,7 @@ export default function SummaryDashboard({
             </section>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
+              <section className={dashboardSectionClass}>
                 <h2 className="text-lg font-medium">Fleet volume</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Fleet distribution based on alert activity.</p>
                 <div className="mt-4 space-y-3">
@@ -830,7 +812,7 @@ export default function SummaryDashboard({
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
+              <section className={dashboardSectionClass}>
                 <h2 className="text-lg font-medium">Remarks volume</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Most frequent remark tags in the filtered alerts.</p>
                 <div className="mt-4 space-y-3">
@@ -850,7 +832,7 @@ export default function SummaryDashboard({
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
+              <section className={dashboardSectionClass}>
                 <h2 className="text-lg font-medium">Vehicle volume</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Top vehicles based on alert activity.</p>
                 <div className="mt-4 space-y-3">
@@ -873,7 +855,6 @@ export default function SummaryDashboard({
 
           </div>
         )}
-      </div>
-    </div>
+    </DashboardShell>
   );
 }
