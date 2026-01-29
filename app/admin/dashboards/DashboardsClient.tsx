@@ -8,7 +8,6 @@ import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
 import {
   ADMIN_DELETE_BUTTON,
-  ADMIN_FORM_PANEL,
   ADMIN_INPUT,
   ADMIN_LABEL,
   ADMIN_PILL,
@@ -214,7 +213,14 @@ export default function DashboardsClient({
     addDashboardAction,
     INITIAL_STATE,
   );
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(dashboardCreateState);
+
+  useEffect(() => {
+    if (dashboardCreateState.status === 'success') {
+      setIsCreateOpen(false);
+    }
+  }, [dashboardCreateState.status]);
 
   return (
     <AdminSection>
@@ -244,12 +250,85 @@ export default function DashboardsClient({
       </div>
 
       <div className="grid gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create dashboard</h3>
+            <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+              Add a dashboard with a template, sheet link, and optional notes.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            className={ADMIN_PRIMARY_BUTTON}
+          >
+            New dashboard
+          </button>
+        </div>
+
+        <AdminPanel>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage dashboards</h3>
+              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                Scan and edit large dashboard lists quickly.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+            <div className="max-h-[32rem] overflow-auto">
+              <table className="min-w-full border-collapse text-left">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Dashboard</th>
+                    <th className="px-4 py-3 font-semibold">Company</th>
+                    <th className="px-4 py-3 font-semibold">Fleet</th>
+                    <th className="px-4 py-3 font-semibold">Template</th>
+                    <th className="px-4 py-3 font-semibold">Sheet link</th>
+                    <th className="px-4 py-3 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboards.map((dashboard) => (
+                    <DashboardRow
+                      key={dashboard.id}
+                      dashboard={dashboard}
+                      companies={companies}
+                      organizations={organizations}
+                      action={manageDashboardAction}
+                      companyName={
+                        dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'
+                      }
+                      organizationName={
+                        dashboard.organizationId
+                          ? organizationMap.get(dashboard.organizationId) ?? 'No fleet'
+                          : 'No fleet'
+                      }
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {dashboards.length === 0 ? (
+              <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                No dashboards yet. Create one to make it available to users.
+              </p>
+            ) : null}
+          </div>
+        </AdminPanel>
+      </div>
+
+      <AdminModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Create dashboard"
+        description="Set up a new dashboard with template, sheet link, and assignments."
+      >
         <form
           action={dashboardCreateAction}
-          className={`${ADMIN_FORM_PANEL} grid gap-4`}
+          className="grid gap-4"
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create dashboard</h3>
             <span className={ADMIN_LABEL}>Required fields *</span>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -330,58 +409,7 @@ export default function DashboardsClient({
           </div>
           <StatusMessage state={dashboardCreateState} />
         </form>
-
-        <AdminPanel>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage dashboards</h3>
-              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                Scan and edit large dashboard lists quickly.
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
-            <div className="max-h-[32rem] overflow-auto">
-              <table className="min-w-full border-collapse text-left">
-                <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Dashboard</th>
-                    <th className="px-4 py-3 font-semibold">Company</th>
-                    <th className="px-4 py-3 font-semibold">Fleet</th>
-                    <th className="px-4 py-3 font-semibold">Template</th>
-                    <th className="px-4 py-3 font-semibold">Sheet link</th>
-                    <th className="px-4 py-3 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboards.map((dashboard) => (
-                    <DashboardRow
-                      key={dashboard.id}
-                      dashboard={dashboard}
-                      companies={companies}
-                      organizations={organizations}
-                      action={manageDashboardAction}
-                      companyName={
-                        dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'
-                      }
-                      organizationName={
-                        dashboard.organizationId
-                          ? organizationMap.get(dashboard.organizationId) ?? 'No fleet'
-                          : 'No fleet'
-                      }
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {dashboards.length === 0 ? (
-              <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                No dashboards yet. Create one to make it available to users.
-              </p>
-            ) : null}
-          </div>
-        </AdminPanel>
-      </div>
+      </AdminModal>
     </AdminSection>
   );
 }
