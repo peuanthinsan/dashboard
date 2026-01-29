@@ -4,6 +4,13 @@ import { useMemo } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
+import {
+  findValue,
+  hasRemark,
+  normalizeLabel,
+  parseDate,
+  toDisplayString,
+} from './dashboardDataUtils';
 
 type DashboardProps = {
   dashboardId: string;
@@ -23,28 +30,6 @@ type VideoSample = {
   timestamp: number;
   videoUrl: string;
   fleet: string;
-};
-
-const normalizeLabel = (value: string) => value.trim().toLowerCase();
-
-const findValue = (row: Record<string, any>, labels: string[]) => {
-  const target = labels.map((label) => normalizeLabel(label));
-  const key = Object.keys(row).find((candidate) => target.includes(normalizeLabel(candidate)));
-  return key ? row[key] : null;
-};
-
-const toDisplayString = (value: unknown) => {
-  if (value == null || value === '') return '—';
-  return String(value);
-};
-
-const hasRemark = (value: string) => value !== '—' && value.trim() !== '';
-
-const parseDate = (value: unknown) => {
-  if (!value) return null;
-  const parsed = new Date(value as string);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed;
 };
 
 export default function VideoDashboard({
@@ -92,94 +77,83 @@ export default function VideoDashboard({
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >
+      {error ? (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
+          {error}
+        </div>
+      ) : null}
 
-        {error ? (
-          <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
-            {error}
+      {loading ? (
+        <div className="rounded-xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+          Loading videos…
+        </div>
+      ) : (
+        <section className={dashboardSectionClass}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-medium">Latest alert samples</h2>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {samples.length} videos
+            </span>
           </div>
-        ) : null}
-
-        {loading ? (
-          <div className="rounded-xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-            Loading videos…
-          </div>
-        ) : (
-          <section className={dashboardSectionClass}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-medium">Latest alert samples</h2>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {samples.length} videos
-              </span>
+          {samples.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No videos available yet.</p>
+          ) : (
+            <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {samples.map((sample) => (
+                <article
+                  key={sample.id}
+                  className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
+                >
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                        Vehicle
+                      </p>
+                      <p className="text-lg font-semibold text-slate-900 dark:text-white">
+                        {sample.vehicle}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                        Driver
+                      </p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200">{sample.driver}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                        Remark
+                      </p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200">{sample.remarks}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                        Alert date time
+                      </p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200">
+                        {sample.timeLabel}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-auto flex flex-col gap-3">
+                    {sample.videoUrl && sample.videoUrl !== '—' ? (
+                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
+                        <video controls preload="metadata" className="h-40 w-full bg-black/30">
+                          <source src={sample.videoUrl} type="video/mp4" />
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-500 dark:text-slate-500">
+                        Video link unavailable
+                      </span>
+                    )}
+                  </div>
+                </article>
+              ))}
             </div>
-            {samples.length === 0 ? (
-              <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-                No videos available yet.
-              </p>
-            ) : (
-              <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {samples.map((sample) => (
-                  <article
-                    key={sample.id}
-                    className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
-                  >
-                    <div className="flex flex-col gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                          Vehicle
-                        </p>
-                        <p className="text-lg font-semibold text-slate-900 dark:text-white">
-                          {sample.vehicle}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                          Driver
-                        </p>
-                        <p className="text-sm text-slate-700 dark:text-slate-200">
-                          {sample.driver}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                          Remark
-                        </p>
-                        <p className="text-sm text-slate-700 dark:text-slate-200">
-                          {sample.remarks}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                          Alert date time
-                        </p>
-                        <p className="text-sm text-slate-700 dark:text-slate-200">
-                          {sample.timeLabel}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-auto flex flex-col gap-3">
-                      {sample.videoUrl && sample.videoUrl !== '—' ? (
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
-                          <video
-                            controls
-                            preload="metadata"
-                            className="h-40 w-full bg-black/30"
-                          >
-                            <source src={sample.videoUrl} type="video/mp4" />
-                            Your browser does not support the video tag.
-                          </video>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-slate-500 dark:text-slate-500">
-                          Video link unavailable
-                        </span>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+          )}
+        </section>
+      )}
     </DashboardShell>
   );
 }

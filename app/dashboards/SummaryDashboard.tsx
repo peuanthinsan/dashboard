@@ -5,6 +5,17 @@ import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
+import {
+  ALLOWED_ALERT_TYPES,
+  ALLOWED_REMARK_TARGETS,
+  findValue,
+  hasRemark,
+  normalizeLabel,
+  parseDate,
+  toDisplayString,
+  toMonthKey,
+  toMonthLabel,
+} from './dashboardDataUtils';
 
 type DashboardProps = {
   dashboardId: string;
@@ -14,37 +25,6 @@ type DashboardProps = {
   dashboardNotes?: string | null;
   organizationName?: string | null;
 };
-
-const normalizeLabel = (value: string) => value.trim().toLowerCase();
-
-const findValue = (row: Record<string, any>, labels: string[]) => {
-  const target = labels.map((label) => normalizeLabel(label));
-  const key = Object.keys(row).find((candidate) => target.includes(normalizeLabel(candidate)));
-  return key ? row[key] : null;
-};
-
-const toDisplayString = (value: unknown) => {
-  if (value == null || value === '') return '—';
-  return String(value);
-};
-
-const hasRemark = (value: string) => value !== '—' && value.trim() !== '';
-
-const parseDate = (value: unknown) => {
-  if (!value) return null;
-  const parsed = new Date(value as string);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed;
-};
-
-const toMonthKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-const toMonthLabel = (date: Date) =>
-  date.toLocaleString('default', {
-    month: 'long',
-    year: 'numeric',
-  });
 
 const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
   const totals = new Map<string, number>();
@@ -146,39 +126,8 @@ export default function SummaryDashboard({
     });
   }, [driverFilters, fleetFilters, monthFilters, remarkFilters, storageKey, vehicleFilters]);
 
-  const allowedAlertTypes = useMemo(
-    () => [
-      'Distraction-A2',
-      'Eye Closing-A2',
-      'OverSpeed',
-      'Harsh Acceleration',
-      'Harsh Brake',
-      'Forward Collision-A2',
-      'Seatbelt-A2',
-      'Camera Cover',
-    ],
-    [],
-  );
-
-  const allowedRemarkTargets = useMemo(
-    () => [
-      'Fatigue',
-      'Yawning',
-      'Distraction',
-      'Smoking',
-      'Mobile Phone',
-      'Eating/Drinking',
-      'Seatbelt',
-      'Camera Cover',
-      'Harsh Brake',
-      'Harsh Acceleration',
-      'OverSpeed',
-      'Maintenance',
-      'Mirror Check',
-      'Speed Meter Check',
-    ],
-    [],
-  );
+  const allowedAlertTypes = useMemo(() => ALLOWED_ALERT_TYPES, []);
+  const allowedRemarkTargets = useMemo(() => ALLOWED_REMARK_TARGETS, []);
 
   const alertRows = useMemo(() => {
     const mappedRows = rows.map((row) => {
@@ -420,108 +369,107 @@ export default function SummaryDashboard({
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >
+      {error ? (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
+          {error}
+        </div>
+      ) : null}
 
-        {error ? (
-          <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
-            {error}
-          </div>
-        ) : null}
-
-        {loading ? (
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
-            Loading summary…
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            <section className={dashboardSectionClass}>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-medium">Filters</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Narrow alerts by remark, month, fleet, or vehicle.
-                  </p>
+      {loading ? (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
+          Loading summary…
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <section className={dashboardSectionClass}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-medium">Filters</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Narrow alerts by remark, month, fleet, or vehicle.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMonthSearch('');
+                  setMonthFilters([]);
+                  setFleetSearch('');
+                  setFleetFilters([]);
+                  setRemarkSearch('');
+                  setRemarkFilters([]);
+                  setVehicleSearch('');
+                  setVehicleFilters([]);
+                  setDriverSearch('');
+                  setDriverFilters([]);
+                }}
+                className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
+              >
+                Reset filters
+              </button>
+            </div>
+            <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Filter months</span>
+                <div className="flex w-full flex-1 flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {monthFilters.map((monthKey) => {
+                      const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
+                      return (
+                        <FilterChip
+                          key={monthKey}
+                          onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
+                        >
+                          {monthLabel} ×
+                        </FilterChip>
+                      );
+                    })}
+                  </div>
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                    <input
+                      list="month-options"
+                      value={monthSearch}
+                      onChange={(event) => setMonthSearch(event.target.value)}
+                      placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
+                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                    />
+                    <datalist id="month-options">
+                      {filteredMonthOptions.map((option) => (
+                        <option key={option.key} value={option.label} />
+                      ))}
+                    </datalist>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const trimmed = monthSearch.trim();
+                        if (!trimmed) return;
+                        const matched = monthOptions.find(
+                          (option) =>
+                            option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed),
+                        );
+                        if (!matched) return;
+                        setMonthFilters((current) =>
+                          current.includes(matched.key) ? current : [...current, matched.key],
+                        );
+                        setMonthSearch('');
+                      }}
+                      className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setMonthSearch('');
-                    setMonthFilters([]);
-                    setFleetSearch('');
-                    setFleetFilters([]);
-                    setRemarkSearch('');
-                    setRemarkFilters([]);
-                    setVehicleSearch('');
-                    setVehicleFilters([]);
-                    setDriverSearch('');
-                    setDriverFilters([]);
-                  }}
-                  className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
+                  onClick={() => setMonthFilters([])}
+                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                 >
-                  Reset filters
+                  Clear
                 </button>
+                {monthFilters.length > 0 ? (
+                  <span className="text-slate-500">{monthFilters.length} selected</span>
+                ) : null}
               </div>
-              <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter months</span>
-                  <div className="flex w-full flex-1 flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      {monthFilters.map((monthKey) => {
-                        const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
-                        return (
-                          <FilterChip
-                            key={monthKey}
-                            onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
-                          >
-                            {monthLabel} ×
-                          </FilterChip>
-                        );
-                      })}
-                    </div>
-                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                      <input
-                        list="month-options"
-                        value={monthSearch}
-                        onChange={(event) => setMonthSearch(event.target.value)}
-                        placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
-                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
-                      />
-                      <datalist id="month-options">
-                        {filteredMonthOptions.map((option) => (
-                          <option key={option.key} value={option.label} />
-                        ))}
-                      </datalist>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const trimmed = monthSearch.trim();
-                          if (!trimmed) return;
-                          const matched = monthOptions.find(
-                            (option) =>
-                              option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed),
-                          );
-                          if (!matched) return;
-                          setMonthFilters((current) =>
-                            current.includes(matched.key) ? current : [...current, matched.key],
-                          );
-                          setMonthSearch('');
-                        }}
-                        className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMonthFilters([])}
-                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
-                  >
-                    Clear
-                  </button>
-                  {monthFilters.length > 0 ? (
-                    <span className="text-slate-500">{monthFilters.length} selected</span>
-                  ) : null}
-                </div>
                 {organizationName ? null : (
                   <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
                     <span className="uppercase tracking-[0.2em] text-slate-500">Filter fleets</span>
