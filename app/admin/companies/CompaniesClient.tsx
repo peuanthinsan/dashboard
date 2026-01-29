@@ -1,16 +1,16 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useFormState } from 'react-dom';
+import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
 import {
   ADMIN_DELETE_BUTTON,
-  ADMIN_FORM_PANEL,
   ADMIN_INPUT,
   ADMIN_LABEL,
   ADMIN_PRIMARY_BUTTON,
-  ADMIN_ROW_FORM,
   ADMIN_SAVE_BUTTON,
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
@@ -27,35 +27,60 @@ type CompaniesClientProps = {
 
 function CompanyRow({ company, action }: { company: Company; action: FormAction }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
+  const [isOpen, setIsOpen] = useState(false);
   useRefreshOnSuccess(state);
 
+  useEffect(() => {
+    if (state.status === 'success') {
+      setIsOpen(false);
+    }
+  }, [state.status]);
+
   return (
-    <form
-      action={formAction}
-      className={ADMIN_ROW_FORM}
-    >
-      <input type="hidden" name="companyId" value={company.id} />
-      <div className="flex w-full flex-col gap-2 sm:flex-1">
-        <label className={ADMIN_LABEL}>Company name</label>
-        <input
-          name="companyName"
-          defaultValue={company.name ?? ''}
-          className={ADMIN_INPUT}
-        />
-      </div>
-      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-        <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
-          Save
-        </button>
-        <ConfirmDeleteDialog
-          title="Delete company"
-          description="This will permanently delete the company record."
-          triggerClassName={ADMIN_DELETE_BUTTON}
-          confirmClassName={ADMIN_DELETE_BUTTON}
-        />
-      </div>
-      <StatusMessage state={state} className="sm:basis-full" />
-    </form>
+    <>
+      <tr className="border-b border-slate-200/70 text-sm text-slate-700 last:border-b-0 dark:border-slate-800/70 dark:text-slate-200">
+        <td className="px-4 py-3">
+          <div className="text-sm font-semibold text-slate-900 dark:text-white">
+            {company.name ?? 'Unnamed company'}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">ID {company.id}</div>
+        </td>
+        <td className="px-4 py-3 text-right">
+          <button type="button" onClick={() => setIsOpen(true)} className={ADMIN_SAVE_BUTTON}>
+            Edit
+          </button>
+        </td>
+      </tr>
+
+      <AdminModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Edit company"
+        description="Update the company name or remove unused entries."
+      >
+        <form action={formAction} className="grid gap-4">
+          <input type="hidden" name="companyId" value={company.id} />
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company name
+            <input name="companyName" defaultValue={company.name ?? ''} className={ADMIN_INPUT} />
+          </label>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <StatusMessage state={state} />
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
+                Save changes
+              </button>
+              <ConfirmDeleteDialog
+                title="Delete company"
+                description="This will permanently delete the company record."
+                triggerClassName={ADMIN_DELETE_BUTTON}
+                confirmClassName={ADMIN_DELETE_BUTTON}
+              />
+            </div>
+          </div>
+        </form>
+      </AdminModal>
+    </>
   );
 }
 
@@ -70,7 +95,14 @@ export default function CompaniesClient({
     addCompanyAction,
     INITIAL_STATE,
   );
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(companyCreateState);
+
+  useEffect(() => {
+    if (companyCreateState.status === 'success') {
+      setIsCreateOpen(false);
+    }
+  }, [companyCreateState.status]);
 
   return (
     <AdminSection>
@@ -100,32 +132,7 @@ export default function CompaniesClient({
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1.6fr]">
-        <form
-          action={companyCreateAction}
-          className={`${ADMIN_FORM_PANEL} flex flex-col gap-4`}
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create company</h3>
-            <span className={ADMIN_LABEL}>Required *</span>
-          </div>
-          <label className={ADMIN_LABEL}>
-            Company name *
-            <input
-              name="companyName"
-              placeholder="Acme Corp"
-              className={`mt-2 w-full ${ADMIN_INPUT}`}
-            />
-          </label>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>Companies determine dashboard availability.</p>
-            <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
-              Add company
-            </button>
-          </div>
-          <StatusMessage state={companyCreateState} />
-        </form>
-
+      <div className="grid gap-6">
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -134,20 +141,55 @@ export default function CompaniesClient({
                 Update names and remove unused companies.
               </p>
             </div>
+            <button type="button" onClick={() => setIsCreateOpen(true)} className={ADMIN_PRIMARY_BUTTON}>
+              Create company
+            </button>
           </div>
-          <div className="mt-4 grid gap-4">
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+            <div className="max-h-[32rem] overflow-auto">
+              <table className="min-w-full border-collapse text-left">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Company</th>
+                    <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {companies.map((company) => (
+                    <CompanyRow key={company.id} company={company} action={manageCompanyAction} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {companies.length === 0 ? (
-              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>No companies yet.</p>
-            ) : (
-              <div className="grid gap-4">
-                {companies.map((company) => (
-                  <CompanyRow key={company.id} company={company} action={manageCompanyAction} />
-                ))}
-              </div>
-            )}
+              <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                No companies yet. Create one to begin assigning dashboards.
+              </p>
+            ) : null}
           </div>
         </AdminPanel>
       </div>
+
+      <AdminModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Create company"
+        description="Add a new company profile for dashboards and access rules."
+      >
+        <form action={companyCreateAction} className="grid gap-4">
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company name *
+            <input name="companyName" placeholder="Acme Corp" className={ADMIN_INPUT} />
+          </label>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>Companies determine dashboard availability.</p>
+            <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
+              Create company
+            </button>
+          </div>
+          <StatusMessage state={companyCreateState} />
+        </form>
+      </AdminModal>
     </AdminSection>
   );
 }
