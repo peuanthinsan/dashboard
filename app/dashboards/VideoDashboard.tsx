@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
+import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 
 type DashboardProps = {
   dashboardId: string;
@@ -86,33 +86,12 @@ export default function VideoDashboard({
   }, [normalizedOrganizationName, rows]);
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 sm:py-10">
-      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
-        <header className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <Link
-                href="/dashboard"
-                className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-              >
-                <span aria-hidden="true">←</span>
-                Back to dashboards
-              </Link>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Video</p>
-              <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
-            </div>
-          </div>
-          {lastUpdated ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Last updated {formatDateTimeGB(lastUpdated)}
-            </p>
-          ) : null}
-          {dashboardNotes ? (
-            <div className="mt-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200">
-              {dashboardNotes}
-            </div>
-          ) : null}
-        </header>
+    <DashboardShell
+      title={dashboardName}
+      subtitle="Video"
+      lastUpdated={lastUpdated}
+      notes={dashboardNotes}
+    >
 
         {error ? (
           <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -125,7 +104,7 @@ export default function VideoDashboard({
             Loading videos…
           </div>
         ) : (
-          <section className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-lg dark:border-slate-800 dark:bg-slate-900/60 sm:p-6">
+          <section className={dashboardSectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-medium">Latest alert samples</h2>
               <span className="text-sm text-slate-500 dark:text-slate-400">
@@ -201,7 +180,6 @@ export default function VideoDashboard({
             )}
           </section>
         )}
-      </div>
-    </div>
+    </DashboardShell>
   );
 }

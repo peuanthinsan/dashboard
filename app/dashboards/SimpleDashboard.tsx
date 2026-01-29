@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
 import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 
 type DashboardProps = {
   dashboardId: string;
@@ -414,33 +414,12 @@ export default function SimpleDashboard({
   const activePoint = hoverPoint;
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 sm:py-10">
-      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
-        <header className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <Link
-                href="/dashboard"
-                className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-300 transition hover:text-slate-900 dark:hover:text-white"
-              >
-                <span aria-hidden="true">←</span>
-                Back to dashboards
-              </Link>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
-                Simple Dashboard
-              </p>
-              <h1 className="text-2xl font-semibold sm:text-3xl">{dashboardName}</h1>
-            </div>
-          </div>
-          {lastUpdated ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400">Last updated {formatDateTimeGB(lastUpdated)}</p>
-          ) : null}
-          {dashboardNotes ? (
-            <div className="mt-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-sm text-slate-700 dark:text-slate-200">
-              {dashboardNotes}
-            </div>
-          ) : null}
-        </header>
+    <DashboardShell
+      title={dashboardName}
+      subtitle="Simple dashboard"
+      lastUpdated={lastUpdated}
+      notes={dashboardNotes}
+    >
 
         {error ? (
           <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -454,7 +433,7 @@ export default function SimpleDashboard({
           </div>
         ) : (
           <>
-            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Filters</h2>
@@ -657,7 +636,7 @@ export default function SimpleDashboard({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Daily alert trend</h2>
@@ -796,7 +775,7 @@ export default function SimpleDashboard({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Alert remark highlights</h2>
@@ -837,7 +816,7 @@ export default function SimpleDashboard({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-4 shadow-lg sm:p-6">
+            <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Alerts by vehicle and date</h2>
@@ -1014,7 +993,6 @@ export default function SimpleDashboard({
             </section>
           </>
         )}
-      </div>
-    </div>
+    </DashboardShell>
   );
 }
