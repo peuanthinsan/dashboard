@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -29,6 +30,8 @@ type DashboardsClientProps = {
   addDashboardAction: FormAction;
   manageDashboardAction: FormAction;
 };
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 function DashboardRow({
   dashboard,
@@ -142,6 +145,47 @@ export default function DashboardsClient({
   manageDashboardAction,
 }: DashboardsClientProps) {
   const totalDashboards = dashboards.length;
+
+  const [search, setSearch] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [organizationFilter, setOrganizationFilter] = useState('');
+  const [templateFilter, setTemplateFilter] = useState('');
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[1]);
+  const [page, setPage] = useState(1);
+
+  const filteredDashboards = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return dashboards.filter((dashboard) => {
+      if (companyFilter && String(dashboard.companyId ?? '') !== companyFilter) {
+        return false;
+      }
+      if (organizationFilter && String(dashboard.organizationId ?? '') !== organizationFilter) {
+        return false;
+      }
+      if (templateFilter && dashboard.template !== templateFilter) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      const name = (dashboard.name ?? '').toLowerCase();
+      const sheetUrl = (dashboard.sheetUrl ?? '').toLowerCase();
+      const notes = (dashboard.notes ?? '').toLowerCase();
+      return name.includes(query) || sheetUrl.includes(query) || notes.includes(query);
+    });
+  }, [companyFilter, dashboards, organizationFilter, search, templateFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, companyFilter, organizationFilter, templateFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDashboards.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, filteredDashboards.length);
+  const pagedDashboards = filteredDashboards.slice(pageStart, pageEnd);
 
   const [dashboardCreateState, dashboardCreateAction] = useFormState(
     addDashboardAction,
@@ -273,13 +317,110 @@ export default function DashboardsClient({
               </p>
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className={`flex w-full flex-col gap-2 text-sm sm:w-80 ${ADMIN_LABEL}`}>
+              Search dashboards
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by name, sheet link, or notes"
+                className={ADMIN_INPUT}
+              />
+            </label>
+            <label className={`flex flex-col gap-2 text-sm ${ADMIN_LABEL}`}>
+              Company
+              <select
+                value={companyFilter}
+                onChange={(event) => setCompanyFilter(event.target.value)}
+                className={ADMIN_SELECT}
+              >
+                <option value="">All companies</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={`flex flex-col gap-2 text-sm ${ADMIN_LABEL}`}>
+              Organization
+              <select
+                value={organizationFilter}
+                onChange={(event) => setOrganizationFilter(event.target.value)}
+                className={ADMIN_SELECT}
+              >
+                <option value="">All organizations</option>
+                {organizations.map((organization) => (
+                  <option key={organization.id} value={organization.id}>
+                    {organization.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={`flex flex-col gap-2 text-sm ${ADMIN_LABEL}`}>
+              Template
+              <select
+                value={templateFilter}
+                onChange={(event) => setTemplateFilter(event.target.value)}
+                className={ADMIN_SELECT}
+              >
+                <option value="">All templates</option>
+                {DASHBOARD_TEMPLATES.map((template) => (
+                  <option key={template} value={template}>
+                    {template}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={`flex flex-col gap-2 text-sm ${ADMIN_LABEL}`}>
+              Rows per page
+              <select
+                value={pageSize}
+                onChange={(event) => setPageSize(Number(event.target.value))}
+                className={ADMIN_SELECT}
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex flex-1 items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 sm:justify-end">
+              <span>
+                Showing {filteredDashboards.length === 0 ? 0 : pageStart + 1}-{pageEnd} of{' '}
+                {filteredDashboards.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className={ADMIN_SAVE_BUTTON}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className={ADMIN_SAVE_BUTTON}
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
           <div className="mt-4 grid gap-4">
-            {dashboards.length === 0 ? (
+            {pagedDashboards.length === 0 ? (
               <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                No dashboards yet. Create one to make it available to users.
+                No dashboards match the current filters. Adjust your search to see more.
               </p>
             ) : (
-              dashboards.map((dashboard) => (
+              pagedDashboards.map((dashboard) => (
                 <DashboardRow
                   key={dashboard.id}
                   dashboard={dashboard}

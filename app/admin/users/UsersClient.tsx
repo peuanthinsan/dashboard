@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -27,6 +28,8 @@ type UsersClientProps = {
   addUserAction: FormAction;
   manageUserAction: FormAction;
 };
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 function UserRow({
   user,
@@ -136,6 +139,50 @@ export default function UsersClient({
 }: UsersClientProps) {
   const adminCount = users.filter((user) => user.isAdmin).length;
 
+  const [search, setSearch] = useState('');
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[1]);
+  const [page, setPage] = useState(1);
+
+  const companyNameById = useMemo(
+    () => new Map(companies.map((company) => [company.id, company.name.toLowerCase()])),
+    [companies],
+  );
+  const organizationNameById = useMemo(
+    () => new Map(organizations.map((organization) => [organization.id, organization.name.toLowerCase()])),
+    [organizations],
+  );
+
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) {
+      return users;
+    }
+
+    return users.filter((user) => {
+      const email = (user.email ?? '').toLowerCase();
+      const companyMatches =
+        user.companyIds?.some((companyId) =>
+          companyNameById.get(companyId)?.includes(query),
+        ) ?? false;
+      const organizationMatches =
+        user.organizationIds?.some((organizationId) =>
+          organizationNameById.get(organizationId)?.includes(query),
+        ) ?? false;
+
+      return email.includes(query) || companyMatches || organizationMatches;
+    });
+  }, [companyNameById, organizationNameById, search, users]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, filteredUsers.length);
+  const pagedUsers = filteredUsers.slice(pageStart, pageEnd);
+
   const [userCreateState, userCreateAction] = useFormState(addUserAction, INITIAL_STATE);
   useRefreshOnSuccess(userCreateState);
 
@@ -220,8 +267,60 @@ export default function UsersClient({
               </p>
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className={`flex w-full flex-col gap-2 text-sm sm:w-80 ${ADMIN_LABEL}`}>
+              Search users
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by email, company, or organization"
+                className={ADMIN_INPUT}
+              />
+            </label>
+            <label className={`flex flex-col gap-2 text-sm ${ADMIN_LABEL}`}>
+              Rows per page
+              <select
+                value={pageSize}
+                onChange={(event) => setPageSize(Number(event.target.value))}
+                className={ADMIN_SELECT}
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex flex-1 items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 sm:justify-end">
+              <span>
+                Showing {filteredUsers.length === 0 ? 0 : pageStart + 1}-{pageEnd} of{' '}
+                {filteredUsers.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className={ADMIN_SAVE_BUTTON}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className={ADMIN_SAVE_BUTTON}
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
           <div className="mt-4 grid gap-4">
-            {users.map((user) => (
+            {pagedUsers.map((user) => (
               <UserRow
                 key={user.id}
                 user={user}
@@ -230,6 +329,11 @@ export default function UsersClient({
                 action={manageUserAction}
               />
             ))}
+            {pagedUsers.length === 0 ? (
+              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                No users match this search. Adjust your filters to see more results.
+              </p>
+            ) : null}
           </div>
         </AdminPanel>
       </div>
