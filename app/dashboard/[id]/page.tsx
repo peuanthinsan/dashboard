@@ -15,7 +15,6 @@ const resolveTemplate = (template: string | null) => {
     case 'Simple':
       return SimpleDashboard;
     case 'Video':
-    case 'Video Samples':
       return VideoDashboard;
     default:
       return SummaryDashboard;
