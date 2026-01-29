@@ -270,7 +270,7 @@ export default function SimpleDashboard({
   const summarizedRows = useMemo<AlertSummaryRow[]>(() => {
     const grouped = new Map<string, AlertSummaryRow>();
     filteredAlerts.forEach((row) => {
-      const dateLabel = row.parsedDate ? formatDateTimeGB(row.parsedDate) : '—';
+      const dateLabel = row.parsedDate ? row.parsedDate.toLocaleDateString('en-GB') : '—';
       const dateKey = row.parsedDate ? toDayKey(row.parsedDate) : `unknown-${row.vehicle}`;
       const groupKey = `${dateKey}-${row.vehicle}`;
       const existing = grouped.get(groupKey) ?? {
@@ -380,7 +380,7 @@ export default function SimpleDashboard({
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: item.date.toLocaleDateString() };
+      return { x, y, count: item.count, label: item.date.toLocaleDateString('en-GB') };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -405,7 +405,7 @@ export default function SimpleDashboard({
       const dataIndex = labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: item.date.toLocaleDateString(),
+        label: item.date.toLocaleDateString('en-GB'),
         position,
       };
     });
@@ -482,6 +482,7 @@ export default function SimpleDashboard({
                     <span className="text-slate-500 dark:text-slate-400">From</span>
                     <input
                       type="date"
+                      lang="en-GB"
                       value={dateRange.from}
                       min={dateBounds.min}
                       max={dateRange.to || dateBounds.max}
@@ -489,13 +490,14 @@ export default function SimpleDashboard({
                         setDateRange((current) => ({ ...current, from: event.target.value }));
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
+                      className="dashboard-date-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
                     />
                   </label>
                   <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                     <span className="text-slate-500 dark:text-slate-400">To</span>
                     <input
                       type="date"
+                      lang="en-GB"
                       value={dateRange.to}
                       min={dateRange.from || dateBounds.min}
                       max={dateBounds.max}
@@ -503,7 +505,7 @@ export default function SimpleDashboard({
                         setDateRange((current) => ({ ...current, to: event.target.value }));
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
+                      className="dashboard-date-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
                     />
                   </label>
                   <button

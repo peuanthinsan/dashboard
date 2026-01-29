@@ -27,6 +27,11 @@ html.dark input[type='month'] {
 
 html.dark input[type='date']::-webkit-calendar-picker-indicator,
 html.dark input[type='month']::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(1.2);
+  filter: invert(1) brightness(1.5);
+  opacity: 1;
+}
+
+html.dark .dashboard-date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.7);
   opacity: 1;
 }
