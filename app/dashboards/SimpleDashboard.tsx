@@ -380,7 +380,7 @@ export default function SimpleDashboard({
           ? padding.left + plotWidth / 2
           : padding.left + (index / (trendData.length - 1)) * plotWidth;
       const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: item.date.toLocaleDateString() };
+      return { x, y, count: item.count, label: item.date.toLocaleDateString('en-GB') };
     });
     const path = points
       .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -405,7 +405,7 @@ export default function SimpleDashboard({
       const dataIndex = labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
       const item = trendData[dataIndex];
       return {
-        label: item.date.toLocaleDateString(),
+        label: item.date.toLocaleDateString('en-GB'),
         position,
       };
     });
@@ -489,7 +489,7 @@ export default function SimpleDashboard({
                         setDateRange((current) => ({ ...current, from: event.target.value }));
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
+                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
                     />
                   </label>
                   <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -503,7 +503,7 @@ export default function SimpleDashboard({
                         setDateRange((current) => ({ ...current, to: event.target.value }));
                         setPage(1);
                       }}
-                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
+                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
                     />
                   </label>
                   <button
