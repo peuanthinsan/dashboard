@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
+import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
@@ -10,6 +12,7 @@ import {
   ADMIN_HINT_TEXT,
   ADMIN_INPUT,
   ADMIN_LABEL,
+  ADMIN_PILL,
   ADMIN_PRIMARY_BUTTON,
   ADMIN_SAVE_BUTTON,
   ADMIN_SELECT,
@@ -28,102 +31,179 @@ type UsersClientProps = {
   manageUserAction: FormAction;
 };
 
+function formatList(names: string[]) {
+  if (names.length === 0) {
+    return { label: '—', title: 'None assigned' };
+  }
+  if (names.length <= 2) {
+    return { label: names.join(', '), title: names.join(', ') };
+  }
+  return {
+    label: `${names.slice(0, 2).join(', ')} +${names.length - 2} more`,
+    title: names.join(', '),
+  };
+}
+
 function UserRow({
   user,
+  companyNames,
+  organizationNames,
   companies,
   organizations,
   action,
 }: {
   user: User;
+  companyNames: string[];
+  organizationNames: string[];
   companies: Company[];
   organizations: Organization[];
   action: FormAction;
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
+  const [isOpen, setIsOpen] = useState(false);
   useRefreshOnSuccess(state);
 
+  useEffect(() => {
+    if (state.status === 'success') {
+      setIsOpen(false);
+    }
+  }, [state.status]);
+
+  const companyDisplay = formatList(companyNames);
+  const organizationDisplay = formatList(organizationNames);
+
   return (
-    <form
-      action={formAction}
-      className="grid gap-4 rounded-xl border border-slate-200/70 bg-white/95 p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/60 md:grid-cols-[1.3fr_1.1fr_1fr_1fr_auto]"
-    >
-      <input type="hidden" name="userId" value={user.id} />
-      <div className="flex flex-col gap-2 text-sm">
-        <label className={ADMIN_LABEL}>Email</label>
-        <input
-          name="userEmail"
-          defaultValue={user.email ?? ''}
-          className={ADMIN_INPUT}
-        />
-        <label className={ADMIN_LABEL}>Reset password</label>
-        <input
-          type="password"
-          name="userPassword"
-          placeholder="Leave blank to keep"
-          className={ADMIN_INPUT}
-        />
-        <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
-          <input
-            type="checkbox"
-            name="isAdmin"
-            defaultChecked={!!user.isAdmin}
-            className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
-          />
-          Admin access
-        </label>
-      </div>
+    <>
+      <tr className="border-b border-slate-200/70 text-sm text-slate-700 last:border-b-0 dark:border-slate-800/70 dark:text-slate-200">
+        <td className="px-4 py-3">
+          <div className="text-sm font-semibold text-slate-900 dark:text-white">
+            {user.email ?? 'Unknown email'}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">ID {user.id}</div>
+        </td>
+        <td className="px-4 py-3">
+          <span className={`${ADMIN_PILL} ${user.isAdmin ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+            {user.isAdmin ? 'Admin' : 'Standard'}
+          </span>
+        </td>
+        <td className="px-4 py-3">
+          <span className="block text-sm" title={companyDisplay.title}>
+            {companyDisplay.label}
+          </span>
+        </td>
+        <td className="px-4 py-3">
+          <span className="block text-sm" title={organizationDisplay.title}>
+            {organizationDisplay.label}
+          </span>
+        </td>
+        <td className="px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className={ADMIN_SAVE_BUTTON}
+          >
+            Edit
+          </button>
+        </td>
+      </tr>
 
-      <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-        Companies
-        <select
-          name="companyIds"
-          multiple
-          defaultValue={(user.companyIds ?? []).map(String)}
-          className={`min-h-[7rem] ${ADMIN_SELECT}`}
-        >
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.name}
-            </option>
-          ))}
-        </select>
-        <span className={ADMIN_HINT_TEXT}>
-          Hold Ctrl (Windows) or Command (Mac) to select multiple.
-        </span>
-      </label>
-
-      <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-        Organizations
-        <select
-          name="organizationIds"
-          multiple
-          defaultValue={(user.organizationIds ?? []).map(String)}
-          className={`min-h-[7rem] ${ADMIN_SELECT}`}
-        >
-          {organizations.map((organization) => (
-            <option key={organization.id} value={organization.id}>
-              {organization.name}
-            </option>
-          ))}
-        </select>
-        <span className={ADMIN_HINT_TEXT}>
-          Leave empty to allow only company-level dashboards.
-        </span>
-      </label>
-
-      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
-        <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
-          Save
-        </button>
-        <ConfirmDeleteDialog
-          title="Delete user"
-          description="This will permanently delete the user account."
-          triggerClassName={ADMIN_DELETE_BUTTON}
-          confirmClassName={ADMIN_DELETE_BUTTON}
-        />
-      </div>
-      <StatusMessage state={state} className="md:col-span-full" />
-    </form>
+      <AdminModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Edit user"
+        description="Update profile details, reset passwords, and manage access."
+      >
+        <form action={formAction} className="grid gap-4">
+          <input type="hidden" name="userId" value={user.id} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+              Email
+              <input
+                name="userEmail"
+                defaultValue={user.email ?? ''}
+                className={ADMIN_INPUT}
+              />
+            </label>
+            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+              Reset password
+              <input
+                type="password"
+                name="userPassword"
+                placeholder="Leave blank to keep"
+                className={ADMIN_INPUT}
+              />
+            </label>
+          </div>
+          <label className={`flex items-center gap-2 ${ADMIN_LABEL}`}>
+            <input
+              type="checkbox"
+              name="isAdmin"
+              defaultChecked={!!user.isAdmin}
+              className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
+            />
+            Admin access
+          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+              Companies
+              <select
+                name="companyIds"
+                multiple
+                defaultValue={(user.companyIds ?? []).map(String)}
+                className={`min-h-[10rem] ${ADMIN_SELECT}`}
+              >
+                {companies.length === 0 ? (
+                  <option disabled>No companies available</option>
+                ) : null}
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+              <span className={ADMIN_HINT_TEXT}>
+                Hold Ctrl (Windows) or Command (Mac) to select multiple.
+              </span>
+            </label>
+            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+              Organizations
+              <select
+                name="organizationIds"
+                multiple
+                defaultValue={(user.organizationIds ?? []).map(String)}
+                className={`min-h-[10rem] ${ADMIN_SELECT}`}
+              >
+                {organizations.length === 0 ? (
+                  <option disabled>No organizations available</option>
+                ) : null}
+                {organizations.map((organization) => (
+                  <option key={organization.id} value={organization.id}>
+                    {organization.name}
+                  </option>
+                ))}
+              </select>
+              <span className={ADMIN_HINT_TEXT}>
+                Leave empty to allow only company-level dashboards.
+              </span>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <StatusMessage state={state} />
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="submit" name="intent" value="save" className={ADMIN_SAVE_BUTTON}>
+                Save changes
+              </button>
+              <ConfirmDeleteDialog
+                title="Delete user"
+                description="This will permanently delete the user account."
+                triggerClassName={ADMIN_DELETE_BUTTON}
+                confirmClassName={ADMIN_DELETE_BUTTON}
+              />
+            </div>
+          </div>
+        </form>
+      </AdminModal>
+    </>
   );
 }
 
@@ -135,6 +215,20 @@ export default function UsersClient({
   manageUserAction,
 }: UsersClientProps) {
   const adminCount = users.filter((user) => user.isAdmin).length;
+  const companyMap = useMemo(
+    () => new Map(companies.map((company) => [company.id, company.name ?? 'Unnamed company'])),
+    [companies],
+  );
+  const organizationMap = useMemo(
+    () =>
+      new Map(
+        organizations.map((organization) => [
+          organization.id,
+          organization.name ?? 'Unnamed organization',
+        ]),
+      ),
+    [organizations],
+  );
 
   const [userCreateState, userCreateAction] = useFormState(addUserAction, INITIAL_STATE);
   useRefreshOnSuccess(userCreateState);
@@ -216,20 +310,51 @@ export default function UsersClient({
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage users</h3>
               <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                Update profiles, assign companies, and manage access.
+                View and update large user lists with quick edits.
               </p>
             </div>
           </div>
-          <div className="mt-4 grid gap-4">
-            {users.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                companies={companies}
-                organizations={organizations}
-                action={manageUserAction}
-              />
-            ))}
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+            <div className="max-h-[32rem] overflow-auto">
+              <table className="min-w-full border-collapse text-left">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">User</th>
+                    <th className="px-4 py-3 font-semibold">Role</th>
+                    <th className="px-4 py-3 font-semibold">Companies</th>
+                    <th className="px-4 py-3 font-semibold">Organizations</th>
+                    <th className="px-4 py-3 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => {
+                    const companyNames = (user.companyIds ?? [])
+                      .map((id) => companyMap.get(id))
+                      .filter(Boolean) as string[];
+                    const organizationNames = (user.organizationIds ?? [])
+                      .map((id) => organizationMap.get(id))
+                      .filter(Boolean) as string[];
+
+                    return (
+                      <UserRow
+                        key={user.id}
+                        user={user}
+                        companyNames={companyNames}
+                        organizationNames={organizationNames}
+                        companies={companies}
+                        organizations={organizations}
+                        action={manageUserAction}
+                      />
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {users.length === 0 ? (
+              <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                No users yet. Create the first account to get started.
+              </p>
+            ) : null}
           </div>
         </AdminPanel>
       </div>
