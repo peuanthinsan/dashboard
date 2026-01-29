@@ -4,7 +4,7 @@ import { getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
-import VideoSamplesDashboard from 'app/dashboards/VideoSamplesDashboard';
+import VideoDashboard from 'app/dashboards/VideoDashboard';
 
 const resolveTemplate = (template: string | null) => {
   switch (template) {
@@ -14,8 +14,8 @@ const resolveTemplate = (template: string | null) => {
       return DetailDashboard;
     case 'Simple':
       return SimpleDashboard;
-    case 'Video Samples':
-      return VideoSamplesDashboard;
+    case 'Video':
+      return VideoDashboard;
     default:
       return SummaryDashboard;
   }

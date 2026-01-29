@@ -6,7 +6,7 @@ import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { ADMIN_DELETE_BUTTON, ADMIN_PRIMARY_BUTTON, ADMIN_SAVE_BUTTON } from '../admin-ui';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
 
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video Samples'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video'] as const;
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 
