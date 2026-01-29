@@ -6,6 +6,15 @@ import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
 import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
+import {
+  buildTrendGeometry,
+  buildXAxisLabels,
+  buildYAxisTicks,
+  findValue,
+  normalizeLabel,
+  parseDate,
+  toDayKey,
+} from './dashboardDataUtils';
 
 type DashboardProps = {
   dashboardId: string;
@@ -48,26 +57,6 @@ type SimpleFilterState = {
   driverFilters: string[];
   trendRemarkFilter: RemarkFilter;
 };
-
-const normalizeLabel = (value: string) => value.trim().toLowerCase();
-
-const findValue = (row: Record<string, any>, labels: string[]) => {
-  const target = labels.map((label) => normalizeLabel(label));
-  const key = Object.keys(row).find((candidate) => target.includes(normalizeLabel(candidate)));
-  return key ? row[key] : null;
-};
-
-const parseDate = (value: unknown) => {
-  if (!value) return null;
-  const parsed = new Date(value as string);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-  return parsed;
-};
-
-const toDayKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 export default function SimpleDashboard({
   dashboardId,
@@ -364,52 +353,9 @@ export default function SimpleDashboard({
   }, [filteredAlerts, trendRemarkFilter]);
 
   const maxTrendValue = trendData.reduce((max, item) => Math.max(max, item.count), 0);
-  const trendPoints = useMemo(() => {
-    const width = 1200;
-    const height = 300;
-    const padding = { top: 28, right: 32, bottom: 48, left: 60 };
-    const plotWidth = width - padding.left - padding.right;
-    const plotHeight = height - padding.top - padding.bottom;
-    if (trendData.length === 0) {
-      return { points: [], path: '', viewBox: `0 0 ${width} ${height}`, padding, width, height };
-    }
-    const maxValue = Math.max(1, maxTrendValue);
-    const points = trendData.map((item, index) => {
-      const x =
-        trendData.length === 1
-          ? padding.left + plotWidth / 2
-          : padding.left + (index / (trendData.length - 1)) * plotWidth;
-      const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-      return { x, y, count: item.count, label: item.date.toLocaleDateString('en-GB') };
-    });
-    const path = points
-      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-      .join(' ');
-    return { points, path, viewBox: `0 0 ${width} ${height}`, padding, width, height };
-  }, [maxTrendValue, trendData]);
-
-  const yAxisTicks = useMemo(() => {
-    const ticks = 4;
-    const maxValue = Math.max(1, maxTrendValue);
-    return Array.from({ length: ticks + 1 }, (_, index) => {
-      const value = Math.round((maxValue / ticks) * (ticks - index));
-      return { value, position: index / ticks };
-    });
-  }, [maxTrendValue]);
-
-  const xAxisLabels = useMemo(() => {
-    if (trendData.length === 0) return [];
-    const labelCount = Math.min(6, trendData.length);
-    return Array.from({ length: labelCount }, (_, index) => {
-      const position = labelCount === 1 ? 0 : index / (labelCount - 1);
-      const dataIndex = labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
-      const item = trendData[dataIndex];
-      return {
-        label: item.date.toLocaleDateString('en-GB'),
-        position,
-      };
-    });
-  }, [trendData]);
+  const trendPoints = useMemo(() => buildTrendGeometry(trendData, maxTrendValue), [maxTrendValue, trendData]);
+  const yAxisTicks = useMemo(() => buildYAxisTicks(maxTrendValue), [maxTrendValue]);
+  const xAxisLabels = useMemo(() => buildXAxisLabels(trendData), [trendData]);
 
   const activePoint = hoverPoint;
 
@@ -420,131 +366,197 @@ export default function SimpleDashboard({
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >
+      {error ? (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
+          {error}
+        </div>
+      ) : null}
 
-        {error ? (
-          <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
-            {error}
-          </div>
-        ) : null}
-
-        {loading ? (
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
-            Loading dashboard data…
-          </div>
-        ) : (
-          <>
-            <section className={dashboardSectionClass}>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-medium">Filters</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Narrow alerts by date range or vehicle.</p>
-                </div>
+      {loading ? (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
+          Loading dashboard data…
+        </div>
+      ) : (
+        <>
+          <section className={dashboardSectionClass}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-medium">Filters</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Narrow alerts by date range or vehicle.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDateRange({ from: '', to: '' });
+                  setVehicleFilters([]);
+                  setVehicleQuery('');
+                  setDriverFilters([]);
+                  setDriverQuery('');
+                  setPage(1);
+                }}
+                className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
+              >
+                Reset filters
+              </button>
+            </div>
+            <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Filter dates</span>
+                <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                  <span className="text-slate-500 dark:text-slate-400">From</span>
+                  <input
+                    type="date"
+                    lang="en-GB"
+                    value={dateRange.from}
+                    min={dateBounds.min}
+                    max={dateRange.to || dateBounds.max}
+                    onChange={(event) => {
+                      setDateRange((current) => ({ ...current, from: event.target.value }));
+                      setPage(1);
+                    }}
+                    className="date-range-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
+                  />
+                </label>
+                <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                  <span className="text-slate-500 dark:text-slate-400">To</span>
+                  <input
+                    type="date"
+                    lang="en-GB"
+                    value={dateRange.to}
+                    min={dateRange.from || dateBounds.min}
+                    max={dateBounds.max}
+                    onChange={(event) => {
+                      setDateRange((current) => ({ ...current, to: event.target.value }));
+                      setPage(1);
+                    }}
+                    className="date-range-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
+                  />
+                </label>
                 <button
                   type="button"
                   onClick={() => {
                     setDateRange({ from: '', to: '' });
-                    setVehicleFilters([]);
-                    setVehicleQuery('');
-                    setDriverFilters([]);
-                    setDriverQuery('');
                     setPage(1);
                   }}
-                  className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
+                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                 >
-                  Reset filters
+                  Clear
                 </button>
+                {dateBounds.min && dateBounds.max ? (
+                  <span className="text-slate-500">
+                    Data from {formatDateKeyGB(dateBounds.min)} to {formatDateKeyGB(dateBounds.max)}
+                  </span>
+                ) : null}
               </div>
-              <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter dates</span>
-                  <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                    <span className="text-slate-500 dark:text-slate-400">From</span>
+              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 text-xs text-slate-600 dark:text-slate-300 sm:flex-row sm:items-center">
+                <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
+                <div className="flex w-full flex-1 flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {vehicleFilters.map((vehicle) => (
+                      <FilterChip
+                        key={vehicle}
+                        onClick={() => {
+                          setVehicleFilters((current) => current.filter((item) => item !== vehicle));
+                          setPage(1);
+                        }}
+                      >
+                        {vehicle} ×
+                      </FilterChip>
+                    ))}
+                  </div>
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                     <input
-                      type="date"
-                      lang="en-GB"
-                      value={dateRange.from}
-                      min={dateBounds.min}
-                      max={dateRange.to || dateBounds.max}
-                      onChange={(event) => {
-                        setDateRange((current) => ({ ...current, from: event.target.value }));
+                      list="vehicle-options"
+                      value={vehicleQuery}
+                      onChange={(event) => setVehicleQuery(event.target.value)}
+                      placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
+                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                    />
+                    <datalist id="vehicle-options">
+                      {filteredVehicleOptions.map((vehicle) => (
+                        <option key={vehicle} value={vehicle} />
+                      ))}
+                    </datalist>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const trimmed = vehicleQuery.trim();
+                        if (!trimmed) return;
+                        const matched = vehicleOptions.find(
+                          (vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase(),
+                        );
+                        if (!matched) return;
+                        setVehicleFilters((current) =>
+                          current.includes(matched) ? current : [...current, matched],
+                        );
+                        setVehicleQuery('');
                         setPage(1);
                       }}
-                      className="date-range-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
-                    />
-                  </label>
-                  <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                    <span className="text-slate-500 dark:text-slate-400">To</span>
-                    <input
-                      type="date"
-                      lang="en-GB"
-                      value={dateRange.to}
-                      min={dateRange.from || dateBounds.min}
-                      max={dateBounds.max}
-                      onChange={(event) => {
-                        setDateRange((current) => ({ ...current, to: event.target.value }));
-                        setPage(1);
-                      }}
-                      className="date-range-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDateRange({ from: '', to: '' });
-                      setPage(1);
-                    }}
-                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
-                  >
-                    Clear
-                  </button>
-                  {dateBounds.min && dateBounds.max ? (
-                    <span className="text-slate-500">
-                      Data from {formatDateKeyGB(dateBounds.min)} to {formatDateKeyGB(dateBounds.max)}
-                    </span>
-                  ) : null}
+                      className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVehicleFilters([]);
+                    setPage(1);
+                  }}
+                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
+                >
+                  Clear
+                </button>
+                {vehicleFilters.length > 0 ? (
+                  <span className="text-slate-500">{vehicleFilters.length} selected</span>
+                ) : null}
+              </div>
+              {driverOptions.length > 0 ? (
                 <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 text-xs text-slate-600 dark:text-slate-300 sm:flex-row sm:items-center">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter vehicles</span>
+                  <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
                   <div className="flex w-full flex-1 flex-wrap items-center gap-2">
                     <div className="flex flex-wrap gap-2">
-                      {vehicleFilters.map((vehicle) => (
+                      {driverFilters.map((driver) => (
                         <FilterChip
-                          key={vehicle}
+                          key={driver}
                           onClick={() => {
-                            setVehicleFilters((current) => current.filter((item) => item !== vehicle));
+                            setDriverFilters((current) => current.filter((item) => item !== driver));
                             setPage(1);
                           }}
                         >
-                          {vehicle} ×
+                          {driver} ×
                         </FilterChip>
                       ))}
                     </div>
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                       <input
-                        list="vehicle-options"
-                        value={vehicleQuery}
-                        onChange={(event) => setVehicleQuery(event.target.value)}
-                        placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
+                        list="driver-options"
+                        value={driverQuery}
+                        onChange={(event) => setDriverQuery(event.target.value)}
+                        placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
                         className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                       />
-                      <datalist id="vehicle-options">
-                        {filteredVehicleOptions.map((vehicle) => (
-                          <option key={vehicle} value={vehicle} />
+                      <datalist id="driver-options">
+                        {filteredDriverOptions.map((driver) => (
+                          <option key={driver} value={driver} />
                         ))}
                       </datalist>
                       <button
                         type="button"
                         onClick={() => {
-                          const trimmed = vehicleQuery.trim();
+                          const trimmed = driverQuery.trim();
                           if (!trimmed) return;
-                          const matched = vehicleOptions.find(
-                            (vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase(),
+                          const matched = driverOptions.find(
+                            (driver) => driver.toLowerCase() === trimmed.toLowerCase(),
                           );
                           if (!matched) return;
-                          setVehicleFilters((current) =>
+                          setDriverFilters((current) =>
                             current.includes(matched) ? current : [...current, matched],
                           );
-                          setVehicleQuery('');
+                          setDriverQuery('');
                           setPage(1);
                         }}
                         className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
@@ -556,85 +568,20 @@ export default function SimpleDashboard({
                   <button
                     type="button"
                     onClick={() => {
-                      setVehicleFilters([]);
+                      setDriverFilters([]);
                       setPage(1);
                     }}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
                   >
                     Clear
                   </button>
-                  {vehicleFilters.length > 0 ? (
-                    <span className="text-slate-500">{vehicleFilters.length} selected</span>
+                  {driverFilters.length > 0 ? (
+                    <span className="text-slate-500">{driverFilters.length} selected</span>
                   ) : null}
                 </div>
-                {driverOptions.length > 0 ? (
-                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 px-4 py-3 text-xs text-slate-600 dark:text-slate-300 sm:flex-row sm:items-center">
-                    <span className="uppercase tracking-[0.2em] text-slate-500">Filter drivers</span>
-                    <div className="flex w-full flex-1 flex-wrap items-center gap-2">
-                      <div className="flex flex-wrap gap-2">
-                        {driverFilters.map((driver) => (
-                          <FilterChip
-                            key={driver}
-                            onClick={() => {
-                              setDriverFilters((current) => current.filter((item) => item !== driver));
-                              setPage(1);
-                            }}
-                          >
-                            {driver} ×
-                          </FilterChip>
-                        ))}
-                      </div>
-                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                        <input
-                          list="driver-options"
-                          value={driverQuery}
-                          onChange={(event) => setDriverQuery(event.target.value)}
-                          placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
-                          className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
-                        />
-                        <datalist id="driver-options">
-                          {filteredDriverOptions.map((driver) => (
-                            <option key={driver} value={driver} />
-                          ))}
-                        </datalist>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const trimmed = driverQuery.trim();
-                            if (!trimmed) return;
-                            const matched = driverOptions.find(
-                              (driver) => driver.toLowerCase() === trimmed.toLowerCase(),
-                            );
-                            if (!matched) return;
-                            setDriverFilters((current) =>
-                              current.includes(matched) ? current : [...current, matched],
-                            );
-                            setDriverQuery('');
-                            setPage(1);
-                          }}
-                          className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDriverFilters([]);
-                        setPage(1);
-                      }}
-                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
-                    >
-                      Clear
-                    </button>
-                    {driverFilters.length > 0 ? (
-                      <span className="text-slate-500">{driverFilters.length} selected</span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            </section>
+              ) : null}
+            </div>
+          </section>
 
             <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-4">
