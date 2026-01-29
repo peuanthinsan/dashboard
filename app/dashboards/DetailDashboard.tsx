@@ -6,6 +6,7 @@ import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
+import { DashboardLoading } from './DashboardLoading';
 import FilterGroup from './FilterGroup';
 import {
   ALLOWED_ALERT_TYPES,
@@ -473,9 +474,10 @@ export default function DetailDashboard({
       ) : null}
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
-          Loading detailed alerts…
-        </div>
+        <DashboardLoading
+          title="Loading detailed alerts…"
+          description="Preparing filters, charts, and alert tables."
+        />
       ) : (
         <>
           <section className={dashboardSectionClass}>

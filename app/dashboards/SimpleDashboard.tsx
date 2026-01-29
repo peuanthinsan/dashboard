@@ -6,6 +6,7 @@ import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
 import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
+import { DashboardLoading } from './DashboardLoading';
 import FilterGroup from './FilterGroup';
 import {
   buildTrendGeometry,
@@ -397,9 +398,10 @@ export default function SimpleDashboard({
       ) : null}
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
-          Loading dashboard data…
-        </div>
+        <DashboardLoading
+          title="Loading dashboard data…"
+          description="Syncing filters and rendering summary cards."
+        />
       ) : (
         <>
           <section className={dashboardSectionClass}>
