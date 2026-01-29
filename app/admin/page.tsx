@@ -13,12 +13,12 @@ export default async function AdminPage() {
       backLabel="Back to dashboards"
       eyebrow="Admin hub"
       title="Administration"
-      description="Choose a section to manage companies, organizations, users, and dashboards."
+      description="Choose a section to manage companies, fleets, users, and dashboards."
     >
       <AdminSection>
         <AdminSectionHeader
           title="Administration sections"
-          description="Manage company data, org structure, users, and dashboard templates."
+          description="Manage company data, fleet structure, users, and dashboard templates."
           count={4}
         />
         <div className="grid gap-4 md:grid-cols-2">
@@ -31,14 +31,14 @@ export default async function AdminPage() {
             },
             {
               href: '/admin/organizations',
-              title: 'Organizations',
-              description: 'Create and manage organization groups.',
+              title: 'Fleets',
+              description: 'Create and manage fleet groups.',
               badge: 'Groups',
             },
             {
               href: '/admin/users',
               title: 'Users',
-              description: 'Assign users, companies, and organizations.',
+              description: 'Assign users, companies, and fleets.',
               badge: 'Access',
             },
             {

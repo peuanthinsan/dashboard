@@ -42,7 +42,7 @@ function OrganizationRow({
     >
       <input type="hidden" name="organizationId" value={organization.id} />
       <div className="flex w-full flex-col gap-2 sm:flex-1">
-        <label className={ADMIN_LABEL}>Organization name</label>
+        <label className={ADMIN_LABEL}>Fleet name</label>
         <input
           name="organizationName"
           defaultValue={organization.name ?? ''}
@@ -54,8 +54,8 @@ function OrganizationRow({
           Save
         </button>
         <ConfirmDeleteDialog
-          title="Delete organization"
-          description="This will permanently delete the organization record."
+          title="Delete fleet"
+          description="This will permanently delete the fleet record."
           triggerClassName={ADMIN_DELETE_BUTTON}
           confirmClassName={ADMIN_DELETE_BUTTON}
         />
@@ -81,27 +81,27 @@ export default function OrganizationsClient({
   return (
     <AdminSection>
       <AdminSectionHeader
-        eyebrow="Organization setup"
-        title="Organizations"
+        eyebrow="Fleet setup"
+        title="Fleets"
         description="Group teams and departments to filter dashboard access."
         count={totalOrganizations}
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <AdminStatCard
-          label="Total organizations"
+          label="Total fleets"
           value={totalOrganizations}
           description="Group access by department or region."
         />
         <AdminStatCard label="Best practices" variant="gradient">
           <ul className={`space-y-2 text-xs ${ADMIN_TEXT_MUTED}`}>
             <li>Use team names that match internal reporting.</li>
-            <li>Optional organizations keep access flexible.</li>
+            <li>Optional fleets keep access flexible.</li>
           </ul>
         </AdminStatCard>
         <AdminStatCard
           label="Access flow"
           className="sm:col-span-2"
-          description="Pair organizations with dashboards to scope what teams can see."
+          description="Pair fleets with dashboards to scope what teams can see."
           descriptionTone="muted"
         />
       </div>
@@ -112,11 +112,11 @@ export default function OrganizationsClient({
           className={`${ADMIN_FORM_PANEL} flex flex-col gap-4`}
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create organization</h3>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create fleet</h3>
             <span className={ADMIN_LABEL}>Required *</span>
           </div>
           <label className={ADMIN_LABEL}>
-            Organization name *
+            Fleet name *
             <input
               name="organizationName"
               placeholder="Operations Team"
@@ -125,10 +125,10 @@ export default function OrganizationsClient({
           </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
-              Organizations can be optional on dashboards.
+              Fleets can be optional on dashboards.
             </p>
             <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
-              Add organization
+              Add fleet
             </button>
           </div>
           <StatusMessage state={organizationCreateState} />
@@ -137,15 +137,15 @@ export default function OrganizationsClient({
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage organizations</h3>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage fleets</h3>
               <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                Update organization names and maintain access rules.
+                Update fleet names and maintain access rules.
               </p>
             </div>
           </div>
           <div className="mt-4 grid gap-4">
             {organizations.length === 0 ? (
-              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>No organizations yet.</p>
+              <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>No fleets yet.</p>
             ) : (
               <div className="grid gap-4">
                 {organizations.map((organization) => (

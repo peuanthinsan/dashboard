@@ -38,7 +38,7 @@ export default function DashboardList({ dashboards }: DashboardListProps) {
         <div className={emptyStateClass}>
           <p className="text-base font-semibold text-slate-700 dark:text-slate-200">No dashboards assigned yet.</p>
           <p className="mt-2">
-            Ask an administrator to add a dashboard for your companies or organizations.
+            Ask an administrator to add a dashboard for your companies or fleets.
           </p>
         </div>
       ) : (
