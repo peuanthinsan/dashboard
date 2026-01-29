@@ -2,6 +2,7 @@ import { auth, signOut } from 'app/auth';
 import { getDashboardsForUser, getUser } from 'app/db';
 import AdminShortcut from './AdminShortcut';
 import DashboardList from './DashboardList';
+import { panelClass } from './styles';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -14,9 +15,6 @@ export default async function DashboardPage() {
           organizationIds: user[0].organizationIds ?? [],
         })
       : [];
-  const panelClass =
-    'rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70';
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 px-4 py-8 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
