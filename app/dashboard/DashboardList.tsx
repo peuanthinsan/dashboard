@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 type Dashboard = {
-  id: string;
-  publicId: string;
+  id: number;
+  publicId: string | null;
   name: string;
   template: string;
   sheetUrl: string;
@@ -122,7 +122,11 @@ export default function DashboardList({ dashboards }: DashboardListProps) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredDashboards.map((dashboard) => (
-            <Link key={dashboard.id} href={`/dashboard/${dashboard.publicId}`} className={cardClass}>
+            <Link
+              key={dashboard.id}
+              href={`/dashboard/${dashboard.publicId ?? ''}`}
+              className={cardClass}
+            >
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
