@@ -6,6 +6,7 @@ import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
+import LoadingState from './LoadingState';
 import {
   ALLOWED_ALERT_TYPES,
   ALLOWED_REMARK_TARGETS,
@@ -404,9 +405,7 @@ export default function SummaryDashboard({
       ) : null}
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-6 text-sm text-slate-600 dark:text-slate-300">
-          Loading summary…
-        </div>
+        <LoadingState message="Loading summary…" detail="Compiling high-level KPI totals." />
       ) : (
         <div className="flex flex-col gap-6">
           <section className={dashboardSectionClass}>
