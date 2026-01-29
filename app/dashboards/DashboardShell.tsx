@@ -12,7 +12,7 @@ type DashboardShellProps = {
 };
 
 export const dashboardSectionClass =
-  'rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-lg dark:border-slate-800 dark:bg-slate-900/60 sm:p-6';
+  'rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70';
 
 export default function DashboardShell({
   title,
@@ -22,10 +22,13 @@ export default function DashboardShell({
   actions,
   children,
 }: DashboardShellProps) {
+  const panelClass =
+    'rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70';
+
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 sm:py-10">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 px-4 py-8 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
-        <header className="flex flex-wrap items-start justify-between gap-4">
+        <header className={`flex flex-wrap items-start justify-between gap-4 ${panelClass}`}>
           <div>
             <Link
               href="/dashboard"
@@ -42,7 +45,7 @@ export default function DashboardShell({
               </p>
             ) : null}
             {notes ? (
-              <div className="mt-3 w-full rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200">
+              <div className="mt-3 w-full rounded-2xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-sm text-slate-700 dark:border-slate-800/70 dark:bg-slate-950/60 dark:text-slate-200">
                 {notes}
               </div>
             ) : null}
