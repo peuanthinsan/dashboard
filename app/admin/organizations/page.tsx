@@ -1,5 +1,11 @@
 import { revalidatePath } from 'next/cache';
-import { createOrganization, deleteOrganization, getOrganizations, updateOrganization } from 'app/db';
+import {
+  createOrganization,
+  deleteOrganization,
+  getCompanies,
+  getOrganizations,
+  updateOrganization,
+} from 'app/db';
 import AdminShell from '../AdminShell';
 import { requireAdmin } from '../admin-utils';
 import OrganizationsClient from './OrganizationsClient';
@@ -7,7 +13,7 @@ import type { ActionState } from '../types';
 
 export default async function AdminOrganizationsPage() {
   await requireAdmin();
-  const organizations = await getOrganizations();
+  const [organizations, companies] = await Promise.all([getOrganizations(), getCompanies()]);
 
   async function addOrganizationAction(
     _prevState: ActionState,
@@ -16,11 +22,15 @@ export default async function AdminOrganizationsPage() {
     'use server';
     await requireAdmin();
     const name = (formData.get('organizationName') as string)?.trim();
+    const companyValue = (formData.get('companyId') as string) ?? '';
     if (!name) {
       return { status: 'error', message: 'Enter a fleet name.' };
     }
+    if (!companyValue) {
+      return { status: 'error', message: 'Select a company.' };
+    }
     try {
-      await createOrganization(name);
+      await createOrganization(name, Number(companyValue));
       revalidatePath('/admin/organizations');
       revalidatePath('/admin/users');
       revalidatePath('/admin/dashboards');
@@ -51,10 +61,14 @@ export default async function AdminOrganizationsPage() {
         return { status: 'success', message: 'Fleet deleted.' };
       }
       const name = (formData.get('organizationName') as string)?.trim();
+      const companyValue = (formData.get('companyId') as string) ?? '';
       if (!name) {
         return { status: 'error', message: 'Enter a fleet name.' };
       }
-      await updateOrganization(organizationId, name);
+      if (!companyValue) {
+        return { status: 'error', message: 'Select a company.' };
+      }
+      await updateOrganization(organizationId, name, Number(companyValue));
       revalidatePath('/admin/organizations');
       revalidatePath('/admin/users');
       revalidatePath('/admin/dashboards');
@@ -75,6 +89,7 @@ export default async function AdminOrganizationsPage() {
     >
       <OrganizationsClient
         organizations={organizations}
+        companies={companies}
         addOrganizationAction={addOrganizationAction}
         manageOrganizationAction={manageOrganizationAction}
       />
