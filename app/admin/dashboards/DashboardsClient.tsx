@@ -49,6 +49,15 @@ function DashboardRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(String(dashboard.companyId ?? ''));
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState(String(dashboard.organizationId ?? ''));
+  const availableOrganizations = useMemo(
+    () =>
+      selectedCompanyId
+        ? organizations.filter((organization) => organization.companyId === Number(selectedCompanyId))
+        : organizations,
+    [organizations, selectedCompanyId],
+  );
   useRefreshOnSuccess(state);
 
   useEffect(() => {
@@ -56,6 +65,23 @@ function DashboardRow({
       setIsOpen(false);
     }
   }, [state.status]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedCompanyId(String(dashboard.companyId ?? ''));
+      setSelectedOrganizationId(String(dashboard.organizationId ?? ''));
+    }
+  }, [dashboard.companyId, dashboard.organizationId, isOpen]);
+
+  useEffect(() => {
+    if (!selectedOrganizationId) return;
+    const exists = availableOrganizations.some(
+      (organization) => String(organization.id) === selectedOrganizationId,
+    );
+    if (!exists) {
+      setSelectedOrganizationId('');
+    }
+  }, [availableOrganizations, selectedOrganizationId]);
 
   return (
     <>
@@ -120,7 +146,8 @@ function DashboardRow({
               Company
               <select
                 name="companyId"
-                defaultValue={dashboard.companyId ?? ''}
+                value={selectedCompanyId}
+                onChange={(event) => setSelectedCompanyId(event.target.value)}
                 className={ADMIN_SELECT}
               >
                 <option value="">Select company</option>
@@ -135,11 +162,12 @@ function DashboardRow({
               Fleet
               <select
                 name="organizationId"
-                defaultValue={dashboard.organizationId ?? ''}
+                value={selectedOrganizationId}
+                onChange={(event) => setSelectedOrganizationId(event.target.value)}
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
-                {organizations.map((organization) => (
+                {availableOrganizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>
@@ -214,13 +242,34 @@ export default function DashboardsClient({
     INITIAL_STATE,
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
+  const availableOrganizations = useMemo(
+    () =>
+      selectedCompanyId
+        ? organizations.filter((organization) => organization.companyId === Number(selectedCompanyId))
+        : organizations,
+    [organizations, selectedCompanyId],
+  );
   useRefreshOnSuccess(dashboardCreateState);
 
   useEffect(() => {
     if (dashboardCreateState.status === 'success') {
       setIsCreateOpen(false);
+      setSelectedCompanyId('');
+      setSelectedOrganizationId('');
     }
   }, [dashboardCreateState.status]);
+
+  useEffect(() => {
+    if (!selectedOrganizationId) return;
+    const exists = availableOrganizations.some(
+      (organization) => String(organization.id) === selectedOrganizationId,
+    );
+    if (!exists) {
+      setSelectedOrganizationId('');
+    }
+  }, [availableOrganizations, selectedOrganizationId]);
 
   return (
     <AdminSection>
@@ -337,6 +386,8 @@ export default function DashboardsClient({
               <select
                 name="companyId"
                 className={ADMIN_SELECT}
+                value={selectedCompanyId}
+                onChange={(event) => setSelectedCompanyId(event.target.value)}
               >
                 <option value="">Select company</option>
                 {companies.map((company) => (
@@ -350,10 +401,12 @@ export default function DashboardsClient({
               <label className={ADMIN_LABEL}>Fleet (optional)</label>
               <select
                 name="organizationId"
+                value={selectedOrganizationId}
+                onChange={(event) => setSelectedOrganizationId(event.target.value)}
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
-                {organizations.map((organization) => (
+                {availableOrganizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>

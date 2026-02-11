@@ -20,6 +20,9 @@ export default async function AdminDashboardsPage() {
     getOrganizations(),
   ]);
 
+  const isOrganizationInCompany = (organizationId: number, companyId: number) =>
+    organizations.some((organization) => organization.id === organizationId && organization.companyId === companyId);
+
   async function addDashboardAction(
     _prevState: ActionState,
     formData: FormData,
@@ -36,6 +39,10 @@ export default async function AdminDashboardsPage() {
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
     }
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    if (organizationId && !isOrganizationInCompany(organizationId, companyId)) {
+      return { status: 'error', message: 'Selected fleet must belong to the selected company.' };
+    }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
@@ -48,7 +55,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
@@ -91,6 +98,10 @@ export default async function AdminDashboardsPage() {
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
     }
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    if (organizationId && !isOrganizationInCompany(organizationId, companyId)) {
+      return { status: 'error', message: 'Selected fleet must belong to the selected company.' };
+    }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
@@ -104,7 +115,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
