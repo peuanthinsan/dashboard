@@ -49,6 +49,7 @@ function DashboardRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(dashboard.companyId?.toString() ?? '');
   useRefreshOnSuccess(state);
 
   useEffect(() => {
@@ -57,21 +58,22 @@ function DashboardRow({
     }
   }, [state.status]);
 
+  const organizationOptions = useMemo(
+    () => organizations.filter((organization) => organization.companyId?.toString() === selectedCompanyId),
+    [organizations, selectedCompanyId],
+  );
+
   return (
     <>
       <tr className="border-b border-slate-200/70 text-sm text-slate-700 last:border-b-0 dark:border-slate-800/70 dark:text-slate-200">
         <td className="px-4 py-3">
-          <div className="font-semibold text-slate-900 dark:text-white">
-            {dashboard.name ?? 'Untitled dashboard'}
-          </div>
+          <div className="font-semibold text-slate-900 dark:text-white">{dashboard.name ?? 'Untitled dashboard'}</div>
           <div className="mt-1 text-xs text-slate-500">ID {dashboard.id}</div>
         </td>
         <td className="px-4 py-3">{companyName}</td>
         <td className="px-4 py-3">{organizationName}</td>
         <td className="px-4 py-3">
-          <span className={`${ADMIN_PILL} bg-slate-100 text-slate-600`}>
-            {dashboard.template ?? 'Summary'}
-          </span>
+          <span className={`${ADMIN_PILL} bg-slate-100 text-slate-600`}>{dashboard.template ?? 'Summary'}</span>
         </td>
         <td className="px-4 py-3">
           <span className="block max-w-[14rem] truncate text-xs text-slate-500" title={dashboard.sheetUrl ?? ''}>
@@ -79,11 +81,7 @@ function DashboardRow({
           </span>
         </td>
         <td className="px-4 py-3">
-          <button
-            type="button"
-            onClick={() => setIsOpen(true)}
-            className={ADMIN_SAVE_BUTTON}
-          >
+          <button type="button" onClick={() => setIsOpen(true)} className={ADMIN_SAVE_BUTTON}>
             Edit
           </button>
         </td>
@@ -100,19 +98,11 @@ function DashboardRow({
           <div className="grid gap-4 md:grid-cols-2">
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
               Dashboard name
-              <input
-                name="dashboardName"
-                defaultValue={dashboard.name ?? ''}
-                className={ADMIN_INPUT}
-              />
+              <input name="dashboardName" defaultValue={dashboard.name ?? ''} className={ADMIN_INPUT} />
             </label>
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
               Sheet link
-              <input
-                name="sheetUrl"
-                defaultValue={dashboard.sheetUrl ?? ''}
-                className={ADMIN_INPUT}
-              />
+              <input name="sheetUrl" defaultValue={dashboard.sheetUrl ?? ''} className={ADMIN_INPUT} />
             </label>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -120,7 +110,8 @@ function DashboardRow({
               Company
               <select
                 name="companyId"
-                defaultValue={dashboard.companyId ?? ''}
+                value={selectedCompanyId}
+                onChange={(event) => setSelectedCompanyId(event.target.value)}
                 className={ADMIN_SELECT}
               >
                 <option value="">Select company</option>
@@ -134,12 +125,13 @@ function DashboardRow({
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
               Fleet
               <select
+                key={selectedCompanyId}
                 name="organizationId"
                 defaultValue={dashboard.organizationId ?? ''}
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
-                {organizations.map((organization) => (
+                {organizationOptions.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>
@@ -150,11 +142,7 @@ function DashboardRow({
           <div className="grid gap-4 md:grid-cols-2">
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
               Template
-              <select
-                name="template"
-                defaultValue={dashboard.template ?? 'Summary'}
-                className={ADMIN_SELECT}
-              >
+              <select name="template" defaultValue={dashboard.template ?? 'Summary'} className={ADMIN_SELECT}>
                 {DASHBOARD_TEMPLATES.map((template) => (
                   <option key={template} value={template}>
                     {template}
@@ -209,18 +197,22 @@ export default function DashboardsClient({
     [organizations],
   );
 
-  const [dashboardCreateState, dashboardCreateAction] = useFormState(
-    addDashboardAction,
-    INITIAL_STATE,
-  );
+  const [dashboardCreateState, dashboardCreateAction] = useFormState(addDashboardAction, INITIAL_STATE);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createCompanyId, setCreateCompanyId] = useState('');
   useRefreshOnSuccess(dashboardCreateState);
 
   useEffect(() => {
     if (dashboardCreateState.status === 'success') {
       setIsCreateOpen(false);
+      setCreateCompanyId('');
     }
   }, [dashboardCreateState.status]);
+
+  const createOrganizationOptions = useMemo(
+    () => organizations.filter((organization) => organization.companyId?.toString() === createCompanyId),
+    [organizations, createCompanyId],
+  );
 
   return (
     <AdminSection>
@@ -231,16 +223,8 @@ export default function DashboardsClient({
         count={totalDashboards}
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminStatCard
-          label="Total dashboards"
-          value={totalDashboards}
-          description="Available dashboards across companies."
-        />
-        <AdminStatCard
-          label="Companies"
-          value={companies.length}
-          description="Dashboard assignments by company."
-        />
+        <AdminStatCard label="Total dashboards" value={totalDashboards} description="Available dashboards across companies." />
+        <AdminStatCard label="Companies" value={companies.length} description="Dashboard assignments by company." />
         <AdminStatCard label="Setup guide" variant="gradient" className="sm:col-span-2">
           <ul className={`space-y-2 text-xs ${ADMIN_TEXT_MUTED}`}>
             <li>Paste a full Google Sheet link for validation.</li>
@@ -254,9 +238,7 @@ export default function DashboardsClient({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage dashboards</h3>
-              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                Scan and edit large dashboard lists quickly.
-              </p>
+              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>Scan and edit large dashboard lists quickly.</p>
             </div>
             <button type="button" onClick={() => setIsCreateOpen(true)} className={ADMIN_PRIMARY_BUTTON}>
               Create dashboard
@@ -283,13 +265,9 @@ export default function DashboardsClient({
                       companies={companies}
                       organizations={organizations}
                       action={manageDashboardAction}
-                      companyName={
-                        dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'
-                      }
+                      companyName={dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'}
                       organizationName={
-                        dashboard.organizationId
-                          ? organizationMap.get(dashboard.organizationId) ?? 'No fleet'
-                          : 'No fleet'
+                        dashboard.organizationId ? organizationMap.get(dashboard.organizationId) ?? 'No fleet' : 'No fleet'
                       }
                     />
                   ))}
@@ -311,32 +289,23 @@ export default function DashboardsClient({
         title="Create dashboard"
         description="Add a new dashboard, connect it to a sheet, and assign a company."
       >
-        <form
-          action={dashboardCreateAction}
-          className="grid gap-4"
-        >
+        <form action={dashboardCreateAction} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <label className={ADMIN_LABEL}>Dashboard name *</label>
-              <input
-                name="dashboardName"
-                placeholder="Operations overview"
-                className={ADMIN_INPUT}
-              />
+              <input name="dashboardName" placeholder="Operations overview" className={ADMIN_INPUT} />
             </div>
             <div className="flex flex-col gap-2">
               <label className={ADMIN_LABEL}>Google Sheet link *</label>
-              <input
-                name="sheetUrl"
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                className={ADMIN_INPUT}
-              />
+              <input name="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/..." className={ADMIN_INPUT} />
             </div>
             <div className="flex flex-col gap-2">
               <label className={ADMIN_LABEL}>Company *</label>
               <select
                 name="companyId"
                 className={ADMIN_SELECT}
+                value={createCompanyId}
+                onChange={(event) => setCreateCompanyId(event.target.value)}
               >
                 <option value="">Select company</option>
                 {companies.map((company) => (
@@ -348,12 +317,9 @@ export default function DashboardsClient({
             </div>
             <div className="flex flex-col gap-2">
               <label className={ADMIN_LABEL}>Fleet (optional)</label>
-              <select
-                name="organizationId"
-                className={ADMIN_SELECT}
-              >
+              <select key={createCompanyId} name="organizationId" className={ADMIN_SELECT}>
                 <option value="">No fleet</option>
-                {organizations.map((organization) => (
+                {createOrganizationOptions.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>
@@ -362,10 +328,7 @@ export default function DashboardsClient({
             </div>
             <div className="flex flex-col gap-2">
               <label className={ADMIN_LABEL}>Template *</label>
-              <select
-                name="template"
-                className={ADMIN_SELECT}
-              >
+              <select name="template" className={ADMIN_SELECT}>
                 {DASHBOARD_TEMPLATES.map((template) => (
                   <option key={template} value={template}>
                     {template}
@@ -384,9 +347,7 @@ export default function DashboardsClient({
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
-              Links are validated and parsed automatically.
-            </p>
+            <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>Links are validated and parsed automatically.</p>
             <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
               Create dashboard
             </button>

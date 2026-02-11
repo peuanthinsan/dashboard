@@ -4,6 +4,7 @@ import {
   deleteDashboard,
   getCompanies,
   getDashboards,
+  getOrganizationById,
   getOrganizations,
   updateDashboard,
 } from 'app/db';
@@ -39,6 +40,13 @@ export default async function AdminDashboardsPage() {
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
+    }
+    if (organizationValue) {
+      const organizationId = Number(organizationValue);
+      const organizations = await getOrganizationById(organizationId);
+      if (organizations.length === 0 || organizations[0].companyId !== companyId) {
+        return { status: 'error', message: 'Select a fleet that belongs to the selected company.' };
+      }
     }
     try {
       await createDashboard({
@@ -94,6 +102,13 @@ export default async function AdminDashboardsPage() {
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
+    }
+    if (organizationValue) {
+      const organizationId = Number(organizationValue);
+      const organizations = await getOrganizationById(organizationId);
+      if (organizations.length === 0 || organizations[0].companyId !== companyId) {
+        return { status: 'error', message: 'Select a fleet that belongs to the selected company.' };
+      }
     }
     try {
       await updateDashboard({
