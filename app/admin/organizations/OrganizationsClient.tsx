@@ -38,6 +38,7 @@ function OrganizationRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
+  const company = companies.find((entry) => entry.id === organization.companyId);
   useRefreshOnSuccess(state);
 
   useEffect(() => {
@@ -54,6 +55,12 @@ function OrganizationRow({
             {organization.name ?? 'Unnamed fleet'}
           </div>
           <div className="mt-1 text-xs text-slate-500">ID {organization.id}</div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="text-sm text-slate-900 dark:text-white">
+            {company?.name ?? 'No company assigned'}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">Company ID {organization.companyId ?? '—'}</div>
         </td>
         <td className="px-4 py-3 text-right">
           <button type="button" onClick={() => setIsOpen(true)} className={ADMIN_SAVE_BUTTON}>
@@ -80,6 +87,9 @@ function OrganizationRow({
           </label>
           <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
             Company
+            <span className="text-xs text-slate-500">
+              Current company ID: {organization.companyId ?? '—'}
+            </span>
             <select
               name="companyId"
               defaultValue={organization.companyId ?? ''}
@@ -181,6 +191,7 @@ export default function OrganizationsClient({
                 <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Fleet</th>
+                    <th className="px-4 py-3 font-semibold">Company</th>
                     <th className="px-4 py-3 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
