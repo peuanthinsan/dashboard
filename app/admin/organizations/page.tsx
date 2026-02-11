@@ -11,6 +11,13 @@ import { requireAdmin } from '../admin-utils';
 import OrganizationsClient from './OrganizationsClient';
 import type { ActionState } from '../types';
 
+
+function parseOptionalCompanyId(companyValue: string) {
+  if (!companyValue) return null;
+  const parsed = Number(companyValue);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 export default async function AdminOrganizationsPage() {
   await requireAdmin();
   const [organizations, companies] = await Promise.all([getOrganizations(), getCompanies()]);
@@ -26,11 +33,8 @@ export default async function AdminOrganizationsPage() {
     if (!name) {
       return { status: 'error', message: 'Enter a fleet name.' };
     }
-    if (!companyValue) {
-      return { status: 'error', message: 'Select a company.' };
-    }
     try {
-      await createOrganization(name, Number(companyValue));
+      await createOrganization(name, parseOptionalCompanyId(companyValue));
       revalidatePath('/admin/organizations');
       revalidatePath('/admin/users');
       revalidatePath('/admin/dashboards');
@@ -65,10 +69,7 @@ export default async function AdminOrganizationsPage() {
       if (!name) {
         return { status: 'error', message: 'Enter a fleet name.' };
       }
-      if (!companyValue) {
-        return { status: 'error', message: 'Select a company.' };
-      }
-      await updateOrganization(organizationId, name, Number(companyValue));
+      await updateOrganization(organizationId, name, parseOptionalCompanyId(companyValue));
       revalidatePath('/admin/organizations');
       revalidatePath('/admin/users');
       revalidatePath('/admin/dashboards');

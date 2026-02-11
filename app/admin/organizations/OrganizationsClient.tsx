@@ -95,7 +95,7 @@ function OrganizationRow({
               defaultValue={organization.companyId ?? ''}
               className={ADMIN_SELECT}
             >
-              <option value="">Select company</option>
+              <option value="">No company</option>
               {companies.map((company) => (
                 <option key={company.id} value={company.id}>
                   {company.name}
@@ -232,9 +232,9 @@ export default function OrganizationsClient({
             />
           </label>
           <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-            Company *
+            Company (optional)
             <select name="companyId" className={ADMIN_SELECT}>
-              <option value="">Select company</option>
+              <option value="">No company</option>
               {companies.map((company) => (
                 <option key={company.id} value={company.id}>
                   {company.name}
