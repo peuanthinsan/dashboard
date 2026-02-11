@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
@@ -12,24 +12,30 @@ import {
   ADMIN_LABEL,
   ADMIN_PRIMARY_BUTTON,
   ADMIN_SAVE_BUTTON,
+  ADMIN_SELECT,
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
-import type { ActionState, Organization } from '../types';
+import type { ActionState, Company, Organization } from '../types';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 
 type OrganizationsClientProps = {
   organizations: Organization[];
+  companies: Company[];
   addOrganizationAction: FormAction;
   manageOrganizationAction: FormAction;
 };
 
 function OrganizationRow({
   organization,
+  companies,
+  companyName,
   action,
 }: {
   organization: Organization;
+  companies: Company[];
+  companyName: string;
   action: FormAction;
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
@@ -51,6 +57,7 @@ function OrganizationRow({
           </div>
           <div className="mt-1 text-xs text-slate-500">ID {organization.id}</div>
         </td>
+        <td className="px-4 py-3">{companyName}</td>
         <td className="px-4 py-3 text-right">
           <button type="button" onClick={() => setIsOpen(true)} className={ADMIN_SAVE_BUTTON}>
             Edit
@@ -62,7 +69,7 @@ function OrganizationRow({
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         title="Edit fleet"
-        description="Update fleet names or remove unused fleets."
+        description="Update fleet names, company assignment, or remove unused fleets."
       >
         <form action={formAction} className="grid gap-4">
           <input type="hidden" name="organizationId" value={organization.id} />
@@ -73,6 +80,21 @@ function OrganizationRow({
               defaultValue={organization.name ?? ''}
               className={ADMIN_INPUT}
             />
+          </label>
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company
+            <select
+              name="companyId"
+              defaultValue={organization.companyId ?? ''}
+              className={ADMIN_SELECT}
+            >
+              <option value="">Select company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
@@ -96,10 +118,15 @@ function OrganizationRow({
 
 export default function OrganizationsClient({
   organizations,
+  companies,
   addOrganizationAction,
   manageOrganizationAction,
 }: OrganizationsClientProps) {
   const totalOrganizations = organizations.length;
+  const companyMap = useMemo(
+    () => new Map(companies.map((company) => [company.id, company.name ?? 'Unnamed company'])),
+    [companies],
+  );
 
   const [organizationCreateState, organizationCreateAction] = useFormState(
     addOrganizationAction,
@@ -131,7 +158,7 @@ export default function OrganizationsClient({
         <AdminStatCard label="Best practices" variant="gradient">
           <ul className={`space-y-2 text-xs ${ADMIN_TEXT_MUTED}`}>
             <li>Use team names that match internal reporting.</li>
-            <li>Optional fleets keep access flexible.</li>
+            <li>Assign each fleet to the right company.</li>
           </ul>
         </AdminStatCard>
         <AdminStatCard
@@ -148,7 +175,7 @@ export default function OrganizationsClient({
             <div>
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage fleets</h3>
               <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                Update fleet names and maintain access rules.
+                Update fleet names, company assignments, and access rules.
               </p>
             </div>
             <button type="button" onClick={() => setIsCreateOpen(true)} className={ADMIN_PRIMARY_BUTTON}>
@@ -161,6 +188,7 @@ export default function OrganizationsClient({
                 <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Fleet</th>
+                    <th className="px-4 py-3 font-semibold">Company</th>
                     <th className="px-4 py-3 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -169,6 +197,12 @@ export default function OrganizationsClient({
                     <OrganizationRow
                       key={organization.id}
                       organization={organization}
+                      companies={companies}
+                      companyName={
+                        organization.companyId
+                          ? companyMap.get(organization.companyId) ?? 'Unknown company'
+                          : 'Unassigned'
+                      }
                       action={manageOrganizationAction}
                     />
                   ))}
@@ -188,7 +222,7 @@ export default function OrganizationsClient({
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         title="Create fleet"
-        description="Add a fleet to scope dashboards to teams or regions."
+        description="Add a fleet and attach it to a company."
       >
         <form action={organizationCreateAction} className="grid gap-4">
           <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
@@ -199,9 +233,23 @@ export default function OrganizationsClient({
               className={ADMIN_INPUT}
             />
           </label>
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company *
+            <select
+              name="companyId"
+              className={ADMIN_SELECT}
+            >
+              <option value="">Select company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
-              Fleets can be optional on dashboards.
+              Fleets are company-specific and optional on dashboards.
             </p>
             <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
               Create fleet

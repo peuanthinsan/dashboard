@@ -20,6 +20,8 @@ export default async function AdminDashboardsPage() {
     getOrganizations(),
   ]);
 
+  const organizationsById = new Map(organizations.map((organization) => [organization.id, organization]));
+
   async function addDashboardAction(
     _prevState: ActionState,
     formData: FormData,
@@ -40,6 +42,13 @@ export default async function AdminDashboardsPage() {
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    if (organizationId) {
+      const organization = organizationsById.get(organizationId);
+      if (!organization || organization.companyId !== companyId) {
+        return { status: 'error', message: 'Select a fleet that belongs to the selected company.' };
+      }
+    }
     try {
       await createDashboard({
         name,
@@ -48,7 +57,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
@@ -95,6 +104,13 @@ export default async function AdminDashboardsPage() {
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    if (organizationId) {
+      const organization = organizationsById.get(organizationId);
+      if (!organization || organization.companyId !== companyId) {
+        return { status: 'error', message: 'Select a fleet that belongs to the selected company.' };
+      }
+    }
     try {
       await updateDashboard({
         id: dashboardId,
@@ -104,7 +120,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
