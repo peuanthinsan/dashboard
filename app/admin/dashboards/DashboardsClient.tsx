@@ -49,7 +49,21 @@ function DashboardRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
+  const [companySelection, setCompanySelection] = useState(
+    dashboard.companyId ? String(dashboard.companyId) : '',
+  );
   useRefreshOnSuccess(state);
+
+  const organizationsForCompany = useMemo(() => {
+    if (!companySelection) {
+      return [];
+    }
+    const selectedCompanyId = Number(companySelection);
+    if (Number.isNaN(selectedCompanyId)) {
+      return [];
+    }
+    return organizations.filter((organization) => organization.companyId === selectedCompanyId);
+  }, [companySelection, organizations]);
 
   useEffect(() => {
     if (state.status === 'success') {
@@ -122,6 +136,9 @@ function DashboardRow({
                 name="companyId"
                 defaultValue={dashboard.companyId ?? ''}
                 className={ADMIN_SELECT}
+                onChange={(event) => {
+                  setCompanySelection(event.currentTarget.value);
+                }}
               >
                 <option value="">Select company</option>
                 {companies.map((company) => (
@@ -139,7 +156,7 @@ function DashboardRow({
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
-                {organizations.map((organization) => (
+                {organizationsForCompany.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>
@@ -214,11 +231,24 @@ export default function DashboardsClient({
     INITIAL_STATE,
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createCompanySelection, setCreateCompanySelection] = useState('');
   useRefreshOnSuccess(dashboardCreateState);
+
+  const createOrganizations = useMemo(() => {
+    if (!createCompanySelection) {
+      return [];
+    }
+    const selectedCompanyId = Number(createCompanySelection);
+    if (Number.isNaN(selectedCompanyId)) {
+      return [];
+    }
+    return organizations.filter((organization) => organization.companyId === selectedCompanyId);
+  }, [createCompanySelection, organizations]);
 
   useEffect(() => {
     if (dashboardCreateState.status === 'success') {
       setIsCreateOpen(false);
+      setCreateCompanySelection('');
     }
   }, [dashboardCreateState.status]);
 
@@ -337,6 +367,10 @@ export default function DashboardsClient({
               <select
                 name="companyId"
                 className={ADMIN_SELECT}
+                value={createCompanySelection}
+                onChange={(event) => {
+                  setCreateCompanySelection(event.currentTarget.value);
+                }}
               >
                 <option value="">Select company</option>
                 {companies.map((company) => (
@@ -353,7 +387,7 @@ export default function DashboardsClient({
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
-                {organizations.map((organization) => (
+                {createOrganizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>
