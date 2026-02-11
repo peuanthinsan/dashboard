@@ -7,7 +7,6 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import {
   findValue,
-  hasRemark,
   normalizeLabel,
   parseDate,
   toDisplayString,
@@ -63,7 +62,7 @@ export default function VideoDashboard({
         };
       })
       .filter((row) => {
-        if (!hasRemark(row.remarks)) return false;
+        if (!row.videoUrl || row.videoUrl === '—') return false;
         if (!normalizedOrganizationName) return true;
         return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
