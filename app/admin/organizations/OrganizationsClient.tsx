@@ -23,6 +23,7 @@ type FormAction = (prevState: ActionState, formData: FormData) => Promise<Action
 type OrganizationsClientProps = {
   organizations: Organization[];
   companies: Company[];
+  supportsOrganizationCompany: boolean;
   addOrganizationAction: FormAction;
   manageOrganizationAction: FormAction;
 };
@@ -31,10 +32,12 @@ function OrganizationRow({
   organization,
   companies,
   action,
+  supportsOrganizationCompany,
 }: {
   organization: Organization;
   companies: Company[];
   action: FormAction;
+  supportsOrganizationCompany: boolean;
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
@@ -79,21 +82,23 @@ function OrganizationRow({
                 className={ADMIN_INPUT}
               />
             </label>
-            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-              Company
-              <select
-                name="companyId"
-                defaultValue={organization.companyId ?? ''}
-                className={ADMIN_SELECT}
-              >
-                <option value="">No company</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {supportsOrganizationCompany ? (
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Company
+                <select
+                  name="companyId"
+                  defaultValue={organization.companyId ?? ''}
+                  className={ADMIN_SELECT}
+                >
+                  <option value="">No company</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
@@ -120,6 +125,7 @@ export default function OrganizationsClient({
   companies,
   addOrganizationAction,
   manageOrganizationAction,
+  supportsOrganizationCompany,
 }: OrganizationsClientProps) {
   const totalOrganizations = organizations.length;
 
@@ -164,6 +170,12 @@ export default function OrganizationsClient({
         />
       </div>
 
+      {!supportsOrganizationCompany ? (
+        <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
+          Company assignment for fleets is disabled until the latest database migration is applied.
+        </p>
+      ) : null}
+
       <div className="grid gap-6">
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -193,6 +205,7 @@ export default function OrganizationsClient({
                       organization={organization}
                       companies={companies}
                       action={manageOrganizationAction}
+                      supportsOrganizationCompany={supportsOrganizationCompany}
                     />
                   ))}
                 </tbody>
@@ -223,17 +236,19 @@ export default function OrganizationsClient({
                 className={ADMIN_INPUT}
               />
             </label>
-            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-              Company
-              <select name="companyId" className={ADMIN_SELECT}>
-                <option value="">No company</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {supportsOrganizationCompany ? (
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Company
+                <select name="companyId" className={ADMIN_SELECT}>
+                  <option value="">No company</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>

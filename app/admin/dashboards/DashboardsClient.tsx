@@ -28,6 +28,7 @@ type DashboardsClientProps = {
   dashboards: Dashboard[];
   companies: Company[];
   organizations: Organization[];
+  supportsOrganizationCompany: boolean;
   addDashboardAction: FormAction;
   manageDashboardAction: FormAction;
 };
@@ -39,6 +40,7 @@ function DashboardRow({
   action,
   companyName,
   organizationName,
+  supportsOrganizationCompany,
 }: {
   dashboard: Dashboard;
   companies: Company[];
@@ -46,6 +48,7 @@ function DashboardRow({
   action: FormAction;
   companyName: string;
   organizationName: string;
+  supportsOrganizationCompany: boolean;
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
@@ -53,10 +56,10 @@ function DashboardRow({
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(String(dashboard.organizationId ?? ''));
   const availableOrganizations = useMemo(
     () =>
-      selectedCompanyId
+      selectedCompanyId && supportsOrganizationCompany
         ? organizations.filter((organization) => organization.companyId === Number(selectedCompanyId))
         : organizations,
-    [organizations, selectedCompanyId],
+    [organizations, selectedCompanyId, supportsOrganizationCompany],
   );
   useRefreshOnSuccess(state);
 
@@ -226,6 +229,7 @@ export default function DashboardsClient({
   organizations,
   addDashboardAction,
   manageDashboardAction,
+  supportsOrganizationCompany,
 }: DashboardsClientProps) {
   const totalDashboards = dashboards.length;
   const companyMap = useMemo(
@@ -246,10 +250,10 @@ export default function DashboardsClient({
   const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const availableOrganizations = useMemo(
     () =>
-      selectedCompanyId
+      selectedCompanyId && supportsOrganizationCompany
         ? organizations.filter((organization) => organization.companyId === Number(selectedCompanyId))
         : organizations,
-    [organizations, selectedCompanyId],
+    [organizations, selectedCompanyId, supportsOrganizationCompany],
   );
   useRefreshOnSuccess(dashboardCreateState);
 
@@ -298,6 +302,12 @@ export default function DashboardsClient({
         </AdminStatCard>
       </div>
 
+      {!supportsOrganizationCompany ? (
+        <p className={`text-sm ${ADMIN_TEXT_SUBTLE}`}>
+          Fleet-to-company matching is temporarily running in compatibility mode until the latest database migration is applied.
+        </p>
+      ) : null}
+
       <div className="grid gap-6">
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -332,6 +342,7 @@ export default function DashboardsClient({
                       companies={companies}
                       organizations={organizations}
                       action={manageDashboardAction}
+                      supportsOrganizationCompany={supportsOrganizationCompany}
                       companyName={
                         dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'
                       }

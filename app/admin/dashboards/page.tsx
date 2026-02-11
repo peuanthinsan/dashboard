@@ -5,6 +5,7 @@ import {
   getCompanies,
   getDashboards,
   getOrganizations,
+  hasOrganizationCompanyColumn,
   updateDashboard,
 } from 'app/db';
 import AdminShell from '../AdminShell';
@@ -14,14 +15,19 @@ import type { ActionState } from '../types';
 
 export default async function AdminDashboardsPage() {
   await requireAdmin();
-  const [dashboards, companies, organizations] = await Promise.all([
+  const [dashboards, companies, organizations, supportsOrganizationCompany] = await Promise.all([
     getDashboards(),
     getCompanies(),
     getOrganizations(),
+    hasOrganizationCompanyColumn(),
   ]);
 
   const isOrganizationInCompany = (organizationId: number, companyId: number) =>
-    organizations.some((organization) => organization.id === organizationId && organization.companyId === companyId);
+    supportsOrganizationCompany
+      ? organizations.some(
+          (organization) => organization.id === organizationId && organization.companyId === companyId,
+        )
+      : organizations.some((organization) => organization.id === organizationId);
 
   async function addDashboardAction(
     _prevState: ActionState,
@@ -138,6 +144,7 @@ export default async function AdminDashboardsPage() {
         dashboards={dashboards}
         companies={companies}
         organizations={organizations}
+        supportsOrganizationCompany={supportsOrganizationCompany}
         addDashboardAction={addDashboardAction}
         manageDashboardAction={manageDashboardAction}
       />

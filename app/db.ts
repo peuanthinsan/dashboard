@@ -430,7 +430,7 @@ export async function updateUserAssignments(
   });
 }
 
-const hasOrganizationCompanyColumn = cache(async () => {
+export const hasOrganizationCompanyColumn = cache(async () => {
   const result = await db.execute(sql`
     select exists (
       select 1

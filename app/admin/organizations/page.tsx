@@ -4,6 +4,7 @@ import {
   deleteOrganization,
   getCompanies,
   getOrganizations,
+  hasOrganizationCompanyColumn,
   updateOrganization,
 } from 'app/db';
 import AdminShell from '../AdminShell';
@@ -13,7 +14,11 @@ import type { ActionState } from '../types';
 
 export default async function AdminOrganizationsPage() {
   await requireAdmin();
-  const [organizations, companies] = await Promise.all([getOrganizations(), getCompanies()]);
+  const [organizations, companies, supportsOrganizationCompany] = await Promise.all([
+    getOrganizations(),
+    getCompanies(),
+    hasOrganizationCompanyColumn(),
+  ]);
 
   async function addOrganizationAction(
     _prevState: ActionState,
@@ -29,6 +34,9 @@ export default async function AdminOrganizationsPage() {
     const companyId = companyIdValue ? Number(companyIdValue) : null;
     if (companyIdValue && !companyId) {
       return { status: 'error', message: 'Select a valid company.' };
+    }
+    if (companyId && !supportsOrganizationCompany) {
+      return { status: 'error', message: 'Apply the latest migration before assigning fleets to companies.' };
     }
     try {
       await createOrganization(name, companyId);
@@ -70,6 +78,9 @@ export default async function AdminOrganizationsPage() {
       if (companyIdValue && !companyId) {
         return { status: 'error', message: 'Select a valid company.' };
       }
+      if (companyId && !supportsOrganizationCompany) {
+        return { status: 'error', message: 'Apply the latest migration before assigning fleets to companies.' };
+      }
       await updateOrganization(organizationId, name, companyId);
       revalidatePath('/admin/organizations');
       revalidatePath('/admin/users');
@@ -92,6 +103,7 @@ export default async function AdminOrganizationsPage() {
       <OrganizationsClient
         organizations={organizations}
         companies={companies}
+        supportsOrganizationCompany={supportsOrganizationCompany}
         addOrganizationAction={addOrganizationAction}
         manageOrganizationAction={manageOrganizationAction}
       />
