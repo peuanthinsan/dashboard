@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, index, integer, pgTable, primaryKey, serial, text, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
@@ -215,7 +215,7 @@ export const getDashboardsForUser = cache(async ({
   const companyFilter = inArray(dashboards.companyId, companyIds);
   const organizationFilter =
     organizationIds.length > 0
-      ? or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, organizationIds))
+      ? inArray(dashboards.organizationId, organizationIds)
       : isNull(dashboards.organizationId);
   return await db
     .select(dashboardListSelect)
