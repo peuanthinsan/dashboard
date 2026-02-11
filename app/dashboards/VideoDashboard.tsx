@@ -7,7 +7,6 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import {
   findValue,
-  hasRemark,
   normalizeLabel,
   parseDate,
   toDisplayString,
@@ -51,6 +50,7 @@ export default function VideoDashboard({
       .map((row, index) => {
         const timeValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
         const parsedDate = parseDate(timeValue);
+        const fleetValue = findValue(row, ['Fleet', 'Fleet Name', 'Organization', 'Org']);
         return {
           id: `${index}-${findValue(row, ['Vehicle No', 'Vehicle No TH']) ?? 'vehicle'}`,
           vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
@@ -59,11 +59,10 @@ export default function VideoDashboard({
           timeLabel: parsedDate ? formatDateTimeGB(parsedDate) : toDisplayString(timeValue),
           timestamp: parsedDate?.getTime() ?? 0,
           videoUrl: toDisplayString(findValue(row, ['videoURL', 'Videoit', 'Video URL'])),
-          fleet: toDisplayString(findValue(row, ['Fleet'])),
+          fleet: toDisplayString(fleetValue),
         };
       })
       .filter((row) => {
-        if (!hasRemark(row.remarks)) return false;
         if (!normalizedOrganizationName) return true;
         return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
