@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, index, integer, pgTable, primaryKey, serial, text, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
@@ -179,6 +179,13 @@ export const getCompanies = cache(async () => {
 });
 
 export const getOrganizations = cache(async () => {
+  if (!(await hasOrganizationCompanyColumn())) {
+    const rows = await db
+      .select({ id: organizations.id, name: organizations.name })
+      .from(organizations)
+      .orderBy(organizations.name);
+    return rows.map((row) => ({ ...row, companyId: null }));
+  }
   return await db
     .select()
     .from(organizations)
@@ -186,6 +193,13 @@ export const getOrganizations = cache(async () => {
 });
 
 export const getOrganizationById = cache(async (id: number) => {
+  if (!(await hasOrganizationCompanyColumn())) {
+    const rows = await db
+      .select({ id: organizations.id, name: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.id, id));
+    return rows.map((row) => ({ ...row, companyId: null }));
+  }
   return await db.select().from(organizations).where(eq(organizations.id, id));
 });
 
@@ -243,10 +257,16 @@ export async function deleteCompany(id: number) {
 }
 
 export async function createOrganization(name: string, companyId: number | null) {
+  if (!(await hasOrganizationCompanyColumn())) {
+    return await db.insert(organizations).values({ name });
+  }
   return await db.insert(organizations).values({ name, companyId });
 }
 
 export async function updateOrganization(id: number, name: string, companyId: number | null) {
+  if (!(await hasOrganizationCompanyColumn())) {
+    return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+  }
   return await db.update(organizations).set({ name, companyId }).where(eq(organizations.id, id));
 }
 
@@ -364,15 +384,18 @@ export async function updateUserAssignments(
   const validOrganizationIds =
     uniqueOrganizationIds.length === 0
       ? []
-      : (
-          await db
-            .select({ id: organizations.id, companyId: organizations.companyId })
-            .from(organizations)
-            .where(inArray(organizations.id, uniqueOrganizationIds))
-        )
-          .filter((organization) =>
-            organization.companyId !== null && uniqueCompanyIds.includes(organization.companyId))
-          .map((organization) => organization.id);
+      : await hasOrganizationCompanyColumn()
+        ? (
+            await db
+              .select({ id: organizations.id, companyId: organizations.companyId })
+              .from(organizations)
+              .where(inArray(organizations.id, uniqueOrganizationIds))
+          )
+            .filter((organization) =>
+              organization.companyId !== null && uniqueCompanyIds.includes(organization.companyId),
+            )
+            .map((organization) => organization.id)
+        : uniqueOrganizationIds;
 
   await db.transaction(async (tx) => {
     await tx
@@ -406,6 +429,20 @@ export async function updateUserAssignments(
     }
   });
 }
+
+const hasOrganizationCompanyColumn = cache(async () => {
+  const result = await db.execute(sql`
+    select exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'Organization'
+        and column_name = 'companyId'
+    ) as "exists"
+  `);
+  const row = result[0] as { exists?: boolean } | undefined;
+  return Boolean(row?.exists);
+});
 
 async function getUserAssignmentsByUserIds(userIds: number[]) {
   const uniqueUserIds = Array.from(new Set(userIds));
