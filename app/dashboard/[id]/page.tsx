@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from 'app/auth';
-import { getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
+import { canUserAccessDashboard, getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
@@ -40,11 +40,14 @@ export default async function DashboardPage({ params }: { params: { id: string }
 
   const userCompanyIds = user[0].companyIds ?? [];
   const userOrganizationIds = user[0].organizationIds ?? [];
-  const matchesCompany = userCompanyIds.includes(dashboard.companyId ?? -1);
-  const matchesOrganization =
-    !dashboard.organizationId || userOrganizationIds.includes(dashboard.organizationId);
+  const canAccessDashboard = await canUserAccessDashboard({
+    companyIds: userCompanyIds,
+    organizationIds: userOrganizationIds,
+    dashboardCompanyId: dashboard.companyId,
+    dashboardOrganizationId: dashboard.organizationId,
+  });
 
-  if (!matchesCompany || !matchesOrganization) {
+  if (!canAccessDashboard) {
     redirect('/dashboard');
   }
 
