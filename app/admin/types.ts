@@ -11,6 +11,7 @@ export type Company = {
 export type Organization = {
   id: number;
   name: string | null;
+  companyId?: number | null;
 };
 
 export type User = {

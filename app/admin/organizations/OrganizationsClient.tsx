@@ -15,21 +15,24 @@ import {
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
-import type { ActionState, Organization } from '../types';
+import type { ActionState, Company, Organization } from '../types';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 
 type OrganizationsClientProps = {
   organizations: Organization[];
+  companies: Company[];
   addOrganizationAction: FormAction;
   manageOrganizationAction: FormAction;
 };
 
 function OrganizationRow({
   organization,
+  companies,
   action,
 }: {
   organization: Organization;
+  companies: Company[];
   action: FormAction;
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
@@ -51,6 +54,7 @@ function OrganizationRow({
           </div>
           <div className="mt-1 text-xs text-slate-500">ID {organization.id}</div>
         </td>
+        <td className="px-4 py-3">{companies.find((company) => company.id === organization.companyId)?.name ?? 'No company'}</td>
         <td className="px-4 py-3 text-right">
           <button type="button" onClick={() => setIsOpen(true)} className={ADMIN_SAVE_BUTTON}>
             Edit
@@ -74,6 +78,17 @@ function OrganizationRow({
               className={ADMIN_INPUT}
             />
           </label>
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company
+            <select name="companyId" defaultValue={organization.companyId ?? ''} className={ADMIN_INPUT}>
+              <option value="">No company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -96,6 +111,7 @@ function OrganizationRow({
 
 export default function OrganizationsClient({
   organizations,
+  companies,
   addOrganizationAction,
   manageOrganizationAction,
 }: OrganizationsClientProps) {
@@ -161,6 +177,7 @@ export default function OrganizationsClient({
                 <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Fleet</th>
+                    <th className="px-4 py-3 font-semibold">Company</th>
                     <th className="px-4 py-3 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -169,6 +186,7 @@ export default function OrganizationsClient({
                     <OrganizationRow
                       key={organization.id}
                       organization={organization}
+                      companies={companies}
                       action={manageOrganizationAction}
                     />
                   ))}
@@ -198,6 +216,17 @@ export default function OrganizationsClient({
               placeholder="Operations Team"
               className={ADMIN_INPUT}
             />
+          </label>
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company
+            <select name="companyId" defaultValue="" className={ADMIN_INPUT}>
+              <option value="">No company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>

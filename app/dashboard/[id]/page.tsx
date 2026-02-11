@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from 'app/auth';
-import { getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
+import { getDashboardByPublicId, getFleetSelectionsByCompany, getOrganizationById, getUser } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
@@ -40,9 +40,13 @@ export default async function DashboardPage({ params }: { params: { id: string }
 
   const userCompanyIds = user[0].companyIds ?? [];
   const userOrganizationIds = user[0].organizationIds ?? [];
+  const fleetSelectionsByCompany = await getFleetSelectionsByCompany(userOrganizationIds);
+
   const matchesCompany = userCompanyIds.includes(dashboard.companyId ?? -1);
-  const matchesOrganization =
-    !dashboard.organizationId || userOrganizationIds.includes(dashboard.organizationId);
+  const selectedFleets = dashboard.companyId ? fleetSelectionsByCompany.get(dashboard.companyId) : undefined;
+  const matchesOrganization = selectedFleets?.size
+    ? !!dashboard.organizationId && selectedFleets.has(dashboard.organizationId)
+    : !dashboard.organizationId;
 
   if (!matchesCompany || !matchesOrganization) {
     redirect('/dashboard');

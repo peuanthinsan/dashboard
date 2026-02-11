@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, index, integer, pgTable, primaryKey, serial, text, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
@@ -50,7 +50,10 @@ const companies = pgTable('Company', {
 const organizations = pgTable('Organization', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 128 }).notNull().unique(),
-});
+  companyId: integer('companyId'),
+}, (table) => ({
+  companyIdIdx: index('Organization_companyId_idx').on(table.companyId),
+}));
 
 const dashboards = pgTable('Dashboard', {
   id: serial('id').primaryKey(),
@@ -205,23 +208,41 @@ export const getDashboardsForUser = cache(async ({
   if (companyIds.length === 0) {
     return [];
   }
-  const dashboardListSelect = {
-    id: dashboards.id,
-    publicId: dashboards.publicId,
-    name: dashboards.name,
-    template: dashboards.template,
-    sheetUrl: dashboards.sheetUrl,
-  };
-  const companyFilter = inArray(dashboards.companyId, companyIds);
-  const organizationFilter =
-    organizationIds.length > 0
-      ? inArray(dashboards.organizationId, organizationIds)
-      : isNull(dashboards.organizationId);
-  return await db
-    .select(dashboardListSelect)
+
+  const dashboardRows = await db
+    .select({
+      id: dashboards.id,
+      publicId: dashboards.publicId,
+      name: dashboards.name,
+      template: dashboards.template,
+      sheetUrl: dashboards.sheetUrl,
+      companyId: dashboards.companyId,
+      organizationId: dashboards.organizationId,
+    })
     .from(dashboards)
-    .where(and(companyFilter, organizationFilter))
+    .where(inArray(dashboards.companyId, companyIds))
     .orderBy(dashboards.name);
+
+  const fleetsByCompany = await getFleetSelectionsByCompany(organizationIds);
+
+  return dashboardRows
+    .filter((dashboard) => {
+      if (!dashboard.companyId) {
+        return false;
+      }
+      const selectedFleets = fleetsByCompany.get(dashboard.companyId);
+      if (!selectedFleets || selectedFleets.size === 0) {
+        return !dashboard.organizationId;
+      }
+      return !!dashboard.organizationId && selectedFleets.has(dashboard.organizationId);
+    })
+    .map(({ id, publicId, name, template, sheetUrl }) => ({
+      id,
+      publicId,
+      name,
+      template,
+      sheetUrl,
+    }));
 });
 
 export async function createCompany(name: string) {
@@ -236,12 +257,26 @@ export async function deleteCompany(id: number) {
   return await db.delete(companies).where(eq(companies.id, id));
 }
 
-export async function createOrganization(name: string) {
-  return await db.insert(organizations).values({ name });
+export async function createOrganization({
+  name,
+  companyId,
+}: {
+  name: string;
+  companyId: number | null;
+}) {
+  return await db.insert(organizations).values({ name, companyId });
 }
 
-export async function updateOrganization(id: number, name: string) {
-  return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+export async function updateOrganization({
+  id,
+  name,
+  companyId,
+}: {
+  id: number;
+  name: string;
+  companyId: number | null;
+}) {
+  return await db.update(organizations).set({ name, companyId }).where(eq(organizations.id, id));
 }
 
 export async function deleteOrganization(id: number) {
@@ -438,4 +473,29 @@ async function getUserAssignmentsByUserIds(userIds: number[]) {
       },
     ]),
   );
+}
+
+
+export async function getFleetSelectionsByCompany(organizationIds: number[]) {
+  const uniqueOrganizationIds = Array.from(new Set(organizationIds));
+  if (uniqueOrganizationIds.length === 0) {
+    return new Map<number, Set<number>>();
+  }
+
+  const organizationRows = await db
+    .select({ id: organizations.id, companyId: organizations.companyId })
+    .from(organizations)
+    .where(inArray(organizations.id, uniqueOrganizationIds));
+
+  const fleetsByCompany = new Map<number, Set<number>>();
+  for (const organization of organizationRows) {
+    if (!organization.companyId) {
+      continue;
+    }
+    const companyFleets = fleetsByCompany.get(organization.companyId) ?? new Set<number>();
+    companyFleets.add(organization.id);
+    fleetsByCompany.set(organization.companyId, companyFleets);
+  }
+
+  return fleetsByCompany;
 }
