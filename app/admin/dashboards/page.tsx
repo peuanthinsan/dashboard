@@ -40,6 +40,14 @@ export default async function AdminDashboardsPage() {
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    if (organizationId) {
+      const matchingOrganizations = await getOrganizations();
+      const organization = matchingOrganizations.find((row) => row.id === organizationId);
+      if (!organization || organization.companyId !== companyId) {
+        return { status: 'error', message: 'Selected fleet does not belong to the selected company.' };
+      }
+    }
     try {
       await createDashboard({
         name,
@@ -48,7 +56,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
@@ -95,6 +103,14 @@ export default async function AdminDashboardsPage() {
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    if (organizationId) {
+      const matchingOrganizations = await getOrganizations();
+      const organization = matchingOrganizations.find((row) => row.id === organizationId);
+      if (!organization || organization.companyId !== companyId) {
+        return { status: 'error', message: 'Selected fleet does not belong to the selected company.' };
+      }
+    }
     try {
       await updateDashboard({
         id: dashboardId,
@@ -104,7 +120,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');

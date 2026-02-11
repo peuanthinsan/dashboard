@@ -60,6 +60,7 @@ function UserRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>((user.companyIds ?? []).map(String));
   useRefreshOnSuccess(state);
 
   useEffect(() => {
@@ -67,6 +68,20 @@ function UserRow({
       setIsOpen(false);
     }
   }, [state.status]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedCompanyIds((user.companyIds ?? []).map(String));
+    }
+  }, [isOpen, user.companyIds]);
+
+  const availableOrganizations = useMemo(() => {
+    if (selectedCompanyIds.length === 0) return [];
+    const selected = new Set(selectedCompanyIds.map(Number));
+    return organizations.filter((organization) =>
+      organization.companyId ? selected.has(organization.companyId) : false,
+    );
+  }, [organizations, selectedCompanyIds]);
 
   const companyDisplay = formatList(companyNames);
   const organizationDisplay = formatList(organizationNames);
@@ -148,7 +163,11 @@ function UserRow({
               <select
                 name="companyIds"
                 multiple
-                defaultValue={(user.companyIds ?? []).map(String)}
+                value={selectedCompanyIds}
+                onChange={(event) => {
+                  const values = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
+                  setSelectedCompanyIds(values);
+                }}
                 className={`min-h-[10rem] ${ADMIN_SELECT}`}
               >
                 {companies.length === 0 ? (
@@ -172,17 +191,17 @@ function UserRow({
                 defaultValue={(user.organizationIds ?? []).map(String)}
                 className={`min-h-[10rem] ${ADMIN_SELECT}`}
               >
-                {organizations.length === 0 ? (
-                  <option disabled>No fleets available</option>
+                {availableOrganizations.length === 0 ? (
+                  <option disabled>No fleets available for selected companies</option>
                 ) : null}
-                {organizations.map((organization) => (
+                {availableOrganizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>
                 ))}
               </select>
               <span className={ADMIN_HINT_TEXT}>
-                Leave empty to allow only company-level dashboards.
+                Leave empty to allow only company-level dashboards (No fleet).
               </span>
             </label>
           </div>
