@@ -79,6 +79,17 @@ export default async function AdminUsersPage() {
     const organizationValues = formData.getAll('organizationIds') as string[];
     const isAdmin = formData.get('isAdmin') === 'on';
 
+    const companyIds = companyValues.map(Number).filter((value) => !Number.isNaN(value));
+    const selectedCompanySet = new Set(companyIds);
+    const requestedOrganizationIds = organizationValues
+      .map(Number)
+      .filter((value) => !Number.isNaN(value));
+    const allOrganizations = await getOrganizations();
+    const organizationIds = requestedOrganizationIds.filter((organizationId) => {
+      const organization = allOrganizations.find((item) => item.id === organizationId);
+      return !!organization?.companyId && selectedCompanySet.has(organization.companyId);
+    });
+
     if (adminUser.id === userId && !isAdmin) {
       return { status: 'error', message: 'You cannot remove your own admin access.' };
     }
@@ -93,10 +104,8 @@ export default async function AdminUsersPage() {
         password: password ? password : null,
       });
       await updateUserAssignments(userId, {
-        companyIds: companyValues.map(Number).filter((value) => !Number.isNaN(value)),
-        organizationIds: organizationValues
-          .map(Number)
-          .filter((value) => !Number.isNaN(value)),
+        companyIds,
+        organizationIds,
         isAdmin,
       });
       revalidatePath('/admin/users');

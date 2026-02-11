@@ -20,6 +20,18 @@ export default async function AdminDashboardsPage() {
     getOrganizations(),
   ]);
 
+  const getOrganizationIdForCompany = (organizationValue: string, companyId: number) => {
+    if (!organizationValue) return null;
+    const organizationId = Number(organizationValue);
+    if (!organizationId) return null;
+    const organization = organizations.find((item) => item.id === organizationId);
+    if (!organization || organization.companyId !== companyId) {
+      return null;
+    }
+    return organizationId;
+  };
+
+
   async function addDashboardAction(
     _prevState: ActionState,
     formData: FormData,
@@ -48,7 +60,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId: getOrganizationIdForCompany(organizationValue, companyId),
         notes,
       });
       revalidatePath('/admin/dashboards');
@@ -104,7 +116,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId: getOrganizationIdForCompany(organizationValue, companyId),
         notes,
       });
       revalidatePath('/admin/dashboards');

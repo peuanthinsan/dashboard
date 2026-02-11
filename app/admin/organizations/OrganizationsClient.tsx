@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useFormState } from 'react-dom';
 import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
@@ -12,24 +12,27 @@ import {
   ADMIN_LABEL,
   ADMIN_PRIMARY_BUTTON,
   ADMIN_SAVE_BUTTON,
-  ADMIN_TEXT_MUTED,
+  ADMIN_SELECT,
   ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
-import type { ActionState, Organization } from '../types';
+import type { ActionState, Company, Organization } from '../types';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 
 type OrganizationsClientProps = {
   organizations: Organization[];
+  companies: Company[];
   addOrganizationAction: FormAction;
   manageOrganizationAction: FormAction;
 };
 
 function OrganizationRow({
   organization,
+  companies,
   action,
 }: {
   organization: Organization;
+  companies: Company[];
   action: FormAction;
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
@@ -42,6 +45,8 @@ function OrganizationRow({
     }
   }, [state.status]);
 
+  const companyName = companies.find((company) => company.id === organization.companyId)?.name ?? 'Unassigned';
+
   return (
     <>
       <tr className="border-b border-slate-200/70 text-sm text-slate-700 last:border-b-0 dark:border-slate-800/70 dark:text-slate-200">
@@ -50,6 +55,7 @@ function OrganizationRow({
             {organization.name ?? 'Unnamed fleet'}
           </div>
           <div className="mt-1 text-xs text-slate-500">ID {organization.id}</div>
+          <div className="mt-1 text-xs text-slate-500">Company: {companyName}</div>
         </td>
         <td className="px-4 py-3 text-right">
           <button type="button" onClick={() => setIsOpen(true)} className={ADMIN_SAVE_BUTTON}>
@@ -74,6 +80,17 @@ function OrganizationRow({
               className={ADMIN_INPUT}
             />
           </label>
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company
+            <select name="companyId" defaultValue={organization.companyId ?? ''} className={ADMIN_SELECT}>
+              <option value="">Select company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -96,6 +113,7 @@ function OrganizationRow({
 
 export default function OrganizationsClient({
   organizations,
+  companies,
   addOrganizationAction,
   manageOrganizationAction,
 }: OrganizationsClientProps) {
@@ -114,6 +132,8 @@ export default function OrganizationsClient({
     }
   }, [organizationCreateState.status]);
 
+  const companyCount = useMemo(() => companies.length, [companies]);
+
   return (
     <AdminSection>
       <AdminSectionHeader
@@ -128,12 +148,7 @@ export default function OrganizationsClient({
           value={totalOrganizations}
           description="Group access by department or region."
         />
-        <AdminStatCard label="Best practices" variant="gradient">
-          <ul className={`space-y-2 text-xs ${ADMIN_TEXT_MUTED}`}>
-            <li>Use team names that match internal reporting.</li>
-            <li>Optional fleets keep access flexible.</li>
-          </ul>
-        </AdminStatCard>
+        <AdminStatCard label="Companies" value={companyCount} description="Fleets are scoped per company." />
         <AdminStatCard
           label="Access flow"
           className="sm:col-span-2"
@@ -169,6 +184,7 @@ export default function OrganizationsClient({
                     <OrganizationRow
                       key={organization.id}
                       organization={organization}
+                      companies={companies}
                       action={manageOrganizationAction}
                     />
                   ))}
@@ -198,6 +214,17 @@ export default function OrganizationsClient({
               placeholder="Operations Team"
               className={ADMIN_INPUT}
             />
+          </label>
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company *
+            <select name="companyId" className={ADMIN_SELECT}>
+              <option value="">Select company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
