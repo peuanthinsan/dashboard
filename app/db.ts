@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, index, integer, pgTable, primaryKey, serial, text, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
@@ -50,7 +50,10 @@ const companies = pgTable('Company', {
 const organizations = pgTable('Organization', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 128 }).notNull().unique(),
-});
+  companyId: integer('companyId'),
+}, (table) => ({
+  companyIdIdx: index('Organization_companyId_idx').on(table.companyId),
+}));
 
 const dashboards = pgTable('Dashboard', {
   id: serial('id').primaryKey(),
@@ -215,7 +218,7 @@ export const getDashboardsForUser = cache(async ({
   const companyFilter = inArray(dashboards.companyId, companyIds);
   const organizationFilter =
     organizationIds.length > 0
-      ? inArray(dashboards.organizationId, organizationIds)
+      ? or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, organizationIds))
       : isNull(dashboards.organizationId);
   return await db
     .select(dashboardListSelect)
@@ -236,12 +239,12 @@ export async function deleteCompany(id: number) {
   return await db.delete(companies).where(eq(companies.id, id));
 }
 
-export async function createOrganization(name: string) {
-  return await db.insert(organizations).values({ name });
+export async function createOrganization(name: string, companyId: number | null = null) {
+  return await db.insert(organizations).values({ name, companyId });
 }
 
-export async function updateOrganization(id: number, name: string) {
-  return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+export async function updateOrganization(id: number, name: string, companyId: number | null = null) {
+  return await db.update(organizations).set({ name, companyId }).where(eq(organizations.id, id));
 }
 
 export async function deleteOrganization(id: number) {

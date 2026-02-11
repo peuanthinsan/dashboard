@@ -15,21 +15,24 @@ import {
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
-import type { ActionState, Organization } from '../types';
+import type { ActionState, Company, Organization } from '../types';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 
 type OrganizationsClientProps = {
   organizations: Organization[];
+  companies: Company[];
   addOrganizationAction: FormAction;
   manageOrganizationAction: FormAction;
 };
 
 function OrganizationRow({
   organization,
+  companies,
   action,
 }: {
   organization: Organization;
+  companies: Company[];
   action: FormAction;
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
@@ -74,6 +77,22 @@ function OrganizationRow({
               className={ADMIN_INPUT}
             />
           </label>
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company
+            <select
+              name="companyId"
+              defaultValue={organization.companyId ?? ''}
+              className={ADMIN_INPUT}
+            >
+              <option value="">No company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -96,6 +115,7 @@ function OrganizationRow({
 
 export default function OrganizationsClient({
   organizations,
+  companies,
   addOrganizationAction,
   manageOrganizationAction,
 }: OrganizationsClientProps) {
@@ -169,6 +189,7 @@ export default function OrganizationsClient({
                     <OrganizationRow
                       key={organization.id}
                       organization={organization}
+                      companies={companies}
                       action={manageOrganizationAction}
                     />
                   ))}
@@ -198,6 +219,20 @@ export default function OrganizationsClient({
               placeholder="Operations Team"
               className={ADMIN_INPUT}
             />
+          </label>
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Company
+            <select
+              name="companyId"
+              className={ADMIN_INPUT}
+            >
+              <option value="">No company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
