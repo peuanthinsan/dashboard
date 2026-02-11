@@ -232,15 +232,42 @@ export const getDashboardsForUser = cache(async ({
     sheetUrl: dashboards.sheetUrl,
   };
   if (!(await hasOrganizationCompanyColumn())) {
-    const companyFilter = inArray(dashboards.companyId, uniqueCompanyIds);
-    const organizationFilter =
+    const organizationRows =
       uniqueOrganizationIds.length > 0
-        ? inArray(dashboards.organizationId, uniqueOrganizationIds)
-        : isNull(dashboards.organizationId);
+        ? await db
+            .select({ organizationId: dashboards.organizationId, companyId: dashboards.companyId })
+            .from(dashboards)
+            .where(
+              and(
+                inArray(dashboards.companyId, uniqueCompanyIds),
+                inArray(dashboards.organizationId, uniqueOrganizationIds),
+              ),
+            )
+        : [];
+
+    const organizationIdsByCompanyId = new Map<number, number[]>();
+    for (const row of organizationRows) {
+      if (!row.companyId || !row.organizationId) continue;
+      const organizationIdsForCompany = organizationIdsByCompanyId.get(row.companyId) ?? [];
+      organizationIdsForCompany.push(row.organizationId);
+      organizationIdsByCompanyId.set(row.companyId, organizationIdsForCompany);
+    }
+
+    const visibilityFilters = uniqueCompanyIds.map((companyId) => {
+      const scopedOrganizationIds = organizationIdsByCompanyId.get(companyId) ?? [];
+      if (scopedOrganizationIds.length === 0) {
+        return and(eq(dashboards.companyId, companyId), isNull(dashboards.organizationId));
+      }
+      return and(
+        eq(dashboards.companyId, companyId),
+        inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
+      );
+    });
+
     return await db
       .select(dashboardListSelect)
       .from(dashboards)
-      .where(and(companyFilter, organizationFilter))
+      .where(or(...visibilityFilters))
       .orderBy(dashboards.name);
   }
 
