@@ -50,7 +50,10 @@ const companies = pgTable('Company', {
 const organizations = pgTable('Organization', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 128 }).notNull().unique(),
-});
+  companyId: integer('companyId'),
+}, (table) => ({
+  companyIdIdx: index('Organization_companyId_idx').on(table.companyId),
+}));
 
 const dashboards = pgTable('Dashboard', {
   id: serial('id').primaryKey(),
@@ -176,7 +179,7 @@ export const getCompanies = cache(async () => {
 });
 
 export const getOrganizations = cache(async () => {
-  return await db.select().from(organizations).orderBy(organizations.name);
+  return await db.select().from(organizations).orderBy(organizations.companyId, organizations.name);
 });
 
 export const getOrganizationById = cache(async (id: number) => {
@@ -213,15 +216,47 @@ export const getDashboardsForUser = cache(async ({
     sheetUrl: dashboards.sheetUrl,
   };
   const companyFilter = inArray(dashboards.companyId, companyIds);
-  const organizationFilter =
-    organizationIds.length > 0
-      ? inArray(dashboards.organizationId, organizationIds)
-      : isNull(dashboards.organizationId);
-  return await db
-    .select(dashboardListSelect)
+  if (organizationIds.length === 0) {
+    return await db
+      .select(dashboardListSelect)
+      .from(dashboards)
+      .where(and(companyFilter, isNull(dashboards.organizationId)))
+      .orderBy(dashboards.name);
+  }
+
+  const selectedOrganizations = await db
+    .select({ id: organizations.id, companyId: organizations.companyId })
+    .from(organizations)
+    .where(inArray(organizations.id, organizationIds));
+
+  const organizationsByCompany = new Map<number, Set<number>>();
+  for (const organization of selectedOrganizations) {
+    if (!organization.companyId) continue;
+    const current = organizationsByCompany.get(organization.companyId) ?? new Set<number>();
+    current.add(organization.id);
+    organizationsByCompany.set(organization.companyId, current);
+  }
+
+  const dashboardRows = await db
+    .select({
+      ...dashboardListSelect,
+      companyId: dashboards.companyId,
+      organizationId: dashboards.organizationId,
+    })
     .from(dashboards)
-    .where(and(companyFilter, organizationFilter))
+    .where(companyFilter)
     .orderBy(dashboards.name);
+
+  return dashboardRows
+    .filter((dashboard) => {
+      const companyId = dashboard.companyId;
+      if (!companyId) return false;
+      if (!dashboard.organizationId) {
+        return !organizationsByCompany.has(companyId);
+      }
+      return organizationsByCompany.get(companyId)?.has(dashboard.organizationId) ?? false;
+    })
+    .map(({ companyId: _companyId, organizationId: _organizationId, ...dashboard }) => dashboard);
 });
 
 export async function createCompany(name: string) {
@@ -236,12 +271,12 @@ export async function deleteCompany(id: number) {
   return await db.delete(companies).where(eq(companies.id, id));
 }
 
-export async function createOrganization(name: string) {
-  return await db.insert(organizations).values({ name });
+export async function createOrganization(name: string, companyId: number | null) {
+  return await db.insert(organizations).values({ name, companyId });
 }
 
-export async function updateOrganization(id: number, name: string) {
-  return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+export async function updateOrganization(id: number, name: string, companyId: number | null) {
+  return await db.update(organizations).set({ name, companyId }).where(eq(organizations.id, id));
 }
 
 export async function deleteOrganization(id: number) {

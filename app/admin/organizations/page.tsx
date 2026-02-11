@@ -1,5 +1,11 @@
 import { revalidatePath } from 'next/cache';
-import { createOrganization, deleteOrganization, getOrganizations, updateOrganization } from 'app/db';
+import {
+  createOrganization,
+  deleteOrganization,
+  getCompanies,
+  getOrganizations,
+  updateOrganization,
+} from 'app/db';
 import AdminShell from '../AdminShell';
 import { requireAdmin } from '../admin-utils';
 import OrganizationsClient from './OrganizationsClient';
@@ -7,7 +13,7 @@ import type { ActionState } from '../types';
 
 export default async function AdminOrganizationsPage() {
   await requireAdmin();
-  const organizations = await getOrganizations();
+  const [organizations, companies] = await Promise.all([getOrganizations(), getCompanies()]);
 
   async function addOrganizationAction(
     _prevState: ActionState,
@@ -16,14 +22,16 @@ export default async function AdminOrganizationsPage() {
     'use server';
     await requireAdmin();
     const name = (formData.get('organizationName') as string)?.trim();
+    const companyValue = (formData.get('companyId') as string) ?? '';
     if (!name) {
       return { status: 'error', message: 'Enter a fleet name.' };
     }
     try {
-      await createOrganization(name);
+      await createOrganization(name, companyValue ? Number(companyValue) : null);
       revalidatePath('/admin/organizations');
       revalidatePath('/admin/users');
       revalidatePath('/admin/dashboards');
+      revalidatePath('/dashboard');
       return { status: 'success', message: 'Fleet created.' };
     } catch (error) {
       console.error('Failed to create organization', error);
@@ -48,16 +56,19 @@ export default async function AdminOrganizationsPage() {
         revalidatePath('/admin/organizations');
         revalidatePath('/admin/users');
         revalidatePath('/admin/dashboards');
+        revalidatePath('/dashboard');
         return { status: 'success', message: 'Fleet deleted.' };
       }
       const name = (formData.get('organizationName') as string)?.trim();
+      const companyValue = (formData.get('companyId') as string) ?? '';
       if (!name) {
         return { status: 'error', message: 'Enter a fleet name.' };
       }
-      await updateOrganization(organizationId, name);
+      await updateOrganization(organizationId, name, companyValue ? Number(companyValue) : null);
       revalidatePath('/admin/organizations');
       revalidatePath('/admin/users');
       revalidatePath('/admin/dashboards');
+      revalidatePath('/dashboard');
       return { status: 'success', message: 'Fleet updated.' };
     } catch (error) {
       console.error('Failed to update organization', error);
@@ -75,6 +86,7 @@ export default async function AdminOrganizationsPage() {
     >
       <OrganizationsClient
         organizations={organizations}
+        companies={companies}
         addOrganizationAction={addOrganizationAction}
         manageOrganizationAction={manageOrganizationAction}
       />
