@@ -20,6 +20,17 @@ export default async function AdminDashboardsPage() {
     getOrganizations(),
   ]);
 
+  function parseFleetAssignment(companyId: number, organizationValue: string): number | null {
+    if (!organizationValue) return null;
+    const organizationId = Number(organizationValue);
+    if (!organizationId) return null;
+    const organization = organizations.find((item) => item.id === organizationId);
+    if (!organization || organization.companyId !== companyId) {
+      throw new Error('INVALID_FLEET_COMPANY_COMBINATION');
+    }
+    return organizationId;
+  }
+
   async function addDashboardAction(
     _prevState: ActionState,
     formData: FormData,
@@ -41,6 +52,7 @@ export default async function AdminDashboardsPage() {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
     try {
+      const organizationId = parseFleetAssignment(companyId, organizationValue);
       await createDashboard({
         name,
         template,
@@ -48,13 +60,16 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard created.' };
     } catch (error) {
       console.error('Failed to create dashboard', error);
+      if (error instanceof Error && error.message === 'INVALID_FLEET_COMPANY_COMBINATION') {
+        return { status: 'error', message: 'Selected fleet is not available for that company.' };
+      }
       return { status: 'error', message: 'Unable to create dashboard.' };
     }
   }
@@ -96,6 +111,7 @@ export default async function AdminDashboardsPage() {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
     try {
+      const organizationId = parseFleetAssignment(companyId, organizationValue);
       await updateDashboard({
         id: dashboardId,
         name,
@@ -104,13 +120,16 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard updated.' };
     } catch (error) {
       console.error('Failed to update dashboard', error);
+      if (error instanceof Error && error.message === 'INVALID_FLEET_COMPANY_COMBINATION') {
+        return { status: 'error', message: 'Selected fleet is not available for that company.' };
+      }
       return { status: 'error', message: 'Unable to update dashboard.' };
     }
   }

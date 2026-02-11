@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { boolean, index, integer, pgTable, primaryKey, serial, text, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, primaryKey, serial, text, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
@@ -49,8 +49,12 @@ const companies = pgTable('Company', {
 
 const organizations = pgTable('Organization', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 128 }).notNull().unique(),
-});
+  name: varchar('name', { length: 128 }).notNull(),
+  companyId: integer('companyId'),
+}, (table) => ({
+  companyIdIdx: index('Organization_companyId_idx').on(table.companyId),
+  uniqueNamePerCompany: uniqueIndex('Organization_companyId_name_idx').on(table.companyId, table.name),
+}));
 
 const dashboards = pgTable('Dashboard', {
   id: serial('id').primaryKey(),
@@ -176,7 +180,10 @@ export const getCompanies = cache(async () => {
 });
 
 export const getOrganizations = cache(async () => {
-  return await db.select().from(organizations).orderBy(organizations.name);
+  return await db
+    .select()
+    .from(organizations)
+    .orderBy(organizations.companyId, organizations.name);
 });
 
 export const getOrganizationById = cache(async (id: number) => {
@@ -236,12 +243,15 @@ export async function deleteCompany(id: number) {
   return await db.delete(companies).where(eq(companies.id, id));
 }
 
-export async function createOrganization(name: string) {
-  return await db.insert(organizations).values({ name });
+export async function createOrganization(name: string, companyId: number) {
+  return await db.insert(organizations).values({ name, companyId });
 }
 
-export async function updateOrganization(id: number, name: string) {
-  return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+export async function updateOrganization(id: number, name: string, companyId: number) {
+  return await db
+    .update(organizations)
+    .set({ name, companyId })
+    .where(eq(organizations.id, id));
 }
 
 export async function deleteOrganization(id: number) {
