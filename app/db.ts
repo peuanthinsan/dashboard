@@ -319,15 +319,15 @@ export async function deleteCompany(id: number) {
 }
 
 export async function createOrganization(name: string, companyId: number | null) {
-  if (!(await hasOrganizationCompanyColumn())) {
-    return await db.insert(organizations).values({ name });
+  if (!(await ensureOrganizationCompanyColumn())) {
+    throw new Error('Fleet company assignment requires the companyId migration to be applied.');
   }
   return await db.insert(organizations).values({ name, companyId });
 }
 
 export async function updateOrganization(id: number, name: string, companyId: number | null) {
-  if (!(await hasOrganizationCompanyColumn())) {
-    return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+  if (!(await ensureOrganizationCompanyColumn())) {
+    throw new Error('Fleet company assignment requires the companyId migration to be applied.');
   }
   return await db.update(organizations).set({ name, companyId }).where(eq(organizations.id, id));
 }
@@ -545,7 +545,7 @@ async function assertOrganizationBelongsToCompany(
   }
 }
 
-const hasOrganizationCompanyColumn = cache(async () => {
+async function hasOrganizationCompanyColumn() {
   try {
     await db.execute(sql`SELECT "companyId" FROM "Organization" LIMIT 1`);
     return true;
@@ -555,7 +555,23 @@ const hasOrganizationCompanyColumn = cache(async () => {
     }
     throw error;
   }
-});
+}
+
+async function ensureOrganizationCompanyColumn() {
+  if (await hasOrganizationCompanyColumn()) {
+    return true;
+  }
+  try {
+    await db.execute(sql`
+      ALTER TABLE "Organization"
+      ADD COLUMN IF NOT EXISTS "companyId" INTEGER REFERENCES "Company"(id) ON DELETE SET NULL
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "Organization_companyId_idx" ON "Organization" ("companyId")`);
+    return await hasOrganizationCompanyColumn();
+  } catch {
+    return false;
+  }
+}
 
 function isMissingOrganizationCompanyIdError(error: unknown) {
   if (!error || typeof error !== 'object') {
