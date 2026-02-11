@@ -15,12 +15,13 @@ import {
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
-import type { ActionState, Organization } from '../types';
+import type { ActionState, Company, Organization } from '../types';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 
 type OrganizationsClientProps = {
   organizations: Organization[];
+  companies: Company[];
   addOrganizationAction: FormAction;
   manageOrganizationAction: FormAction;
 };
@@ -28,9 +29,13 @@ type OrganizationsClientProps = {
 function OrganizationRow({
   organization,
   action,
+  companies,
+  companyName,
 }: {
   organization: Organization;
   action: FormAction;
+  companies: Company[];
+  companyName: string;
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
@@ -51,6 +56,7 @@ function OrganizationRow({
           </div>
           <div className="mt-1 text-xs text-slate-500">ID {organization.id}</div>
         </td>
+        <td className="px-4 py-3">{companyName}</td>
         <td className="px-4 py-3 text-right">
           <button type="button" onClick={() => setIsOpen(true)} className={ADMIN_SAVE_BUTTON}>
             Edit
@@ -66,14 +72,31 @@ function OrganizationRow({
       >
         <form action={formAction} className="grid gap-4">
           <input type="hidden" name="organizationId" value={organization.id} />
-          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-            Fleet name
-            <input
-              name="organizationName"
-              defaultValue={organization.name ?? ''}
-              className={ADMIN_INPUT}
-            />
-          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+              Fleet name
+              <input
+                name="organizationName"
+                defaultValue={organization.name ?? ''}
+                className={ADMIN_INPUT}
+              />
+            </label>
+            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+              Company
+              <select
+                name="companyId"
+                defaultValue={organization.companyId ?? ''}
+                className={ADMIN_INPUT}
+              >
+                <option value="">Select company</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -96,10 +119,12 @@ function OrganizationRow({
 
 export default function OrganizationsClient({
   organizations,
+  companies,
   addOrganizationAction,
   manageOrganizationAction,
 }: OrganizationsClientProps) {
   const totalOrganizations = organizations.length;
+  const companyMap = new Map(companies.map((company) => [company.id, company.name ?? 'Unassigned']));
 
   const [organizationCreateState, organizationCreateAction] = useFormState(
     addOrganizationAction,
@@ -161,6 +186,7 @@ export default function OrganizationsClient({
                 <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Fleet</th>
+                    <th className="px-4 py-3 font-semibold">Company</th>
                     <th className="px-4 py-3 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -170,6 +196,8 @@ export default function OrganizationsClient({
                       key={organization.id}
                       organization={organization}
                       action={manageOrganizationAction}
+                      companies={companies}
+                      companyName={organization.companyId ? companyMap.get(organization.companyId) ?? 'Unassigned' : 'Unassigned'}
                     />
                   ))}
                 </tbody>
@@ -191,14 +219,30 @@ export default function OrganizationsClient({
         description="Add a fleet to scope dashboards to teams or regions."
       >
         <form action={organizationCreateAction} className="grid gap-4">
-          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-            Fleet name *
-            <input
-              name="organizationName"
-              placeholder="Operations Team"
-              className={ADMIN_INPUT}
-            />
-          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+              Fleet name *
+              <input
+                name="organizationName"
+                placeholder="Operations Team"
+                className={ADMIN_INPUT}
+              />
+            </label>
+            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+              Company *
+              <select
+                name="companyId"
+                className={ADMIN_INPUT}
+              >
+                <option value="">Select company</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
               Fleets can be optional on dashboards.

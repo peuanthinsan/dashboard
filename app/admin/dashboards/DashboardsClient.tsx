@@ -49,6 +49,12 @@ function DashboardRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(dashboard.companyId ? String(dashboard.companyId) : '');
+  const filteredOrganizations = useMemo(() => {
+    if (!selectedCompanyId) return [];
+    const numericCompanyId = Number(selectedCompanyId);
+    return organizations.filter((organization) => organization.companyId === numericCompanyId);
+  }, [organizations, selectedCompanyId]);
   useRefreshOnSuccess(state);
 
   useEffect(() => {
@@ -120,7 +126,8 @@ function DashboardRow({
               Company
               <select
                 name="companyId"
-                defaultValue={dashboard.companyId ?? ''}
+                value={selectedCompanyId}
+                onChange={(event) => setSelectedCompanyId(event.target.value)}
                 className={ADMIN_SELECT}
               >
                 <option value="">Select company</option>
@@ -139,7 +146,7 @@ function DashboardRow({
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
-                {organizations.map((organization) => (
+                {filteredOrganizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>
@@ -214,11 +221,18 @@ export default function DashboardsClient({
     INITIAL_STATE,
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createCompanyId, setCreateCompanyId] = useState('');
+  const createOrganizations = useMemo(() => {
+    if (!createCompanyId) return [];
+    const numericCompanyId = Number(createCompanyId);
+    return organizations.filter((organization) => organization.companyId === numericCompanyId);
+  }, [organizations, createCompanyId]);
   useRefreshOnSuccess(dashboardCreateState);
 
   useEffect(() => {
     if (dashboardCreateState.status === 'success') {
       setIsCreateOpen(false);
+      setCreateCompanyId('');
     }
   }, [dashboardCreateState.status]);
 
@@ -336,6 +350,8 @@ export default function DashboardsClient({
               <label className={ADMIN_LABEL}>Company *</label>
               <select
                 name="companyId"
+                value={createCompanyId}
+                onChange={(event) => setCreateCompanyId(event.target.value)}
                 className={ADMIN_SELECT}
               >
                 <option value="">Select company</option>
@@ -353,7 +369,7 @@ export default function DashboardsClient({
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
-                {organizations.map((organization) => (
+                {createOrganizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>

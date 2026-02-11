@@ -60,6 +60,14 @@ function UserRow({
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>((user.companyIds ?? []).map(String));
+  const filteredOrganizations = useMemo(() => {
+    if (selectedCompanyIds.length === 0) return [];
+    const companyIdSet = new Set(selectedCompanyIds.map(Number));
+    return organizations.filter((organization) =>
+      !!organization.companyId && companyIdSet.has(organization.companyId),
+    );
+  }, [organizations, selectedCompanyIds]);
   useRefreshOnSuccess(state);
 
   useEffect(() => {
@@ -148,7 +156,8 @@ function UserRow({
               <select
                 name="companyIds"
                 multiple
-                defaultValue={(user.companyIds ?? []).map(String)}
+                value={selectedCompanyIds}
+                onChange={(event) => setSelectedCompanyIds(Array.from(event.currentTarget.selectedOptions).map((option) => option.value))}
                 className={`min-h-[10rem] ${ADMIN_SELECT}`}
               >
                 {companies.length === 0 ? (
@@ -175,7 +184,7 @@ function UserRow({
                 {organizations.length === 0 ? (
                   <option disabled>No fleets available</option>
                 ) : null}
-                {organizations.map((organization) => (
+                {filteredOrganizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}
                   </option>

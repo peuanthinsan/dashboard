@@ -20,6 +20,10 @@ export default async function AdminDashboardsPage() {
     getOrganizations(),
   ]);
 
+  const organizationCompanyMap = new Map(
+    organizations.map((organization) => [organization.id, organization.companyId]),
+  );
+
   async function addDashboardAction(
     _prevState: ActionState,
     formData: FormData,
@@ -33,8 +37,15 @@ export default async function AdminDashboardsPage() {
     const notes = notesValue.trim() ? notesValue.trim() : null;
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const organizationId = organizationValue ? Number(organizationValue) : null;
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
+    }
+    if (organizationId) {
+      const organizationCompanyId = organizationCompanyMap.get(organizationId);
+      if (!organizationCompanyId || organizationCompanyId !== companyId) {
+        return { status: 'error', message: 'Selected fleet must belong to the selected company.' };
+      }
     }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
@@ -48,7 +59,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
@@ -88,8 +99,15 @@ export default async function AdminDashboardsPage() {
     const notes = notesValue.trim() ? notesValue.trim() : null;
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const organizationId = organizationValue ? Number(organizationValue) : null;
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
+    }
+    if (organizationId) {
+      const organizationCompanyId = organizationCompanyMap.get(organizationId);
+      if (!organizationCompanyId || organizationCompanyId !== companyId) {
+        return { status: 'error', message: 'Selected fleet must belong to the selected company.' };
+      }
     }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
@@ -104,7 +122,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');

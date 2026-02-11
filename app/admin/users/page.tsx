@@ -22,6 +22,10 @@ export default async function AdminUsersPage() {
     getOrganizations(),
   ]);
 
+  const organizationCompanyMap = new Map(
+    organizations.map((organization) => [organization.id, organization.companyId]),
+  );
+
   async function addUserAction(
     _prevState: ActionState,
     formData: FormData,
@@ -92,11 +96,19 @@ export default async function AdminUsersPage() {
         email,
         password: password ? password : null,
       });
+      const selectedCompanyIds = companyValues.map(Number).filter((value) => !Number.isNaN(value));
+      const selectedCompanyIdSet = new Set(selectedCompanyIds);
+      const selectedOrganizationIds = organizationValues
+        .map(Number)
+        .filter((value) => !Number.isNaN(value))
+        .filter((organizationId) => {
+          const organizationCompanyId = organizationCompanyMap.get(organizationId);
+          return !!organizationCompanyId && selectedCompanyIdSet.has(organizationCompanyId);
+        });
+
       await updateUserAssignments(userId, {
-        companyIds: companyValues.map(Number).filter((value) => !Number.isNaN(value)),
-        organizationIds: organizationValues
-          .map(Number)
-          .filter((value) => !Number.isNaN(value)),
+        companyIds: selectedCompanyIds,
+        organizationIds: selectedOrganizationIds,
         isAdmin,
       });
       revalidatePath('/admin/users');
