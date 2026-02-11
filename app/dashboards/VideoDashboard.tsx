@@ -33,6 +33,17 @@ type VideoSample = {
   fleet: string;
 };
 
+const FLEET_LABELS = ['Fleet', 'Fleet Name', 'Fleet/Branch', 'Organization', 'Group'];
+
+const matchesFleet = (fleet: string, organizationName: string) => {
+  const normalizedFleet = normalizeLabel(fleet);
+  return (
+    normalizedFleet === organizationName ||
+    normalizedFleet.includes(organizationName) ||
+    organizationName.includes(normalizedFleet)
+  );
+};
+
 export default function VideoDashboard({
   dashboardName,
   sheetId,
@@ -59,13 +70,14 @@ export default function VideoDashboard({
           timeLabel: parsedDate ? formatDateTimeGB(parsedDate) : toDisplayString(timeValue),
           timestamp: parsedDate?.getTime() ?? 0,
           videoUrl: toDisplayString(findValue(row, ['videoURL', 'Videoit', 'Video URL'])),
-          fleet: toDisplayString(findValue(row, ['Fleet'])),
+          fleet: toDisplayString(findValue(row, FLEET_LABELS)),
         };
       })
       .filter((row) => {
         if (!hasRemark(row.remarks)) return false;
         if (!normalizedOrganizationName) return true;
-        return normalizeLabel(row.fleet) === normalizedOrganizationName;
+        if (!row.fleet || row.fleet === '—') return false;
+        return matchesFleet(row.fleet, normalizedOrganizationName);
       })
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 9);
