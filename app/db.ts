@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, index, integer, pgTable, primaryKey, serial, text, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
@@ -50,7 +50,10 @@ const companies = pgTable('Company', {
 const organizations = pgTable('Organization', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 128 }).notNull().unique(),
-});
+  companyId: integer('companyId'),
+}, (table) => ({
+  companyIdIdx: index('Organization_companyId_idx').on(table.companyId),
+}));
 
 const dashboards = pgTable('Dashboard', {
   id: serial('id').primaryKey(),
@@ -183,6 +186,18 @@ export const getOrganizationById = cache(async (id: number) => {
   return await db.select().from(organizations).where(eq(organizations.id, id));
 });
 
+
+export const getOrganizationsByIds = cache(async (organizationIds: number[]) => {
+  const uniqueOrganizationIds = Array.from(new Set(organizationIds));
+  if (uniqueOrganizationIds.length === 0) {
+    return [];
+  }
+  return await db
+    .select({ id: organizations.id, companyId: organizations.companyId })
+    .from(organizations)
+    .where(inArray(organizations.id, uniqueOrganizationIds));
+});
+
 export const getDashboards = cache(async () => {
   return await db.select().from(dashboards).orderBy(dashboards.name);
 });
@@ -205,6 +220,25 @@ export const getDashboardsForUser = cache(async ({
   if (companyIds.length === 0) {
     return [];
   }
+
+  const organizationRows = await getOrganizationsByIds(organizationIds);
+  const organizationIdsByCompanyId = new Map<number, number[]>();
+  for (const row of organizationRows) {
+    if (!row.companyId) continue;
+    const companyOrganizationIds = organizationIdsByCompanyId.get(row.companyId) ?? [];
+    companyOrganizationIds.push(row.id);
+    organizationIdsByCompanyId.set(row.companyId, companyOrganizationIds);
+  }
+
+  const companyScopedFilters = companyIds.map((companyId) => {
+    const companyFilter = eq(dashboards.companyId, companyId);
+    const companyOrganizationIds = organizationIdsByCompanyId.get(companyId) ?? [];
+    if (companyOrganizationIds.length === 0) {
+      return and(companyFilter, isNull(dashboards.organizationId));
+    }
+    return and(companyFilter, inArray(dashboards.organizationId, companyOrganizationIds));
+  });
+
   const dashboardListSelect = {
     id: dashboards.id,
     publicId: dashboards.publicId,
@@ -212,15 +246,11 @@ export const getDashboardsForUser = cache(async ({
     template: dashboards.template,
     sheetUrl: dashboards.sheetUrl,
   };
-  const companyFilter = inArray(dashboards.companyId, companyIds);
-  const organizationFilter =
-    organizationIds.length > 0
-      ? inArray(dashboards.organizationId, organizationIds)
-      : isNull(dashboards.organizationId);
+
   return await db
     .select(dashboardListSelect)
     .from(dashboards)
-    .where(and(companyFilter, organizationFilter))
+    .where(or(...companyScopedFilters))
     .orderBy(dashboards.name);
 });
 
@@ -236,12 +266,12 @@ export async function deleteCompany(id: number) {
   return await db.delete(companies).where(eq(companies.id, id));
 }
 
-export async function createOrganization(name: string) {
-  return await db.insert(organizations).values({ name });
+export async function createOrganization(name: string, companyId: number | null) {
+  return await db.insert(organizations).values({ name, companyId });
 }
 
-export async function updateOrganization(id: number, name: string) {
-  return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+export async function updateOrganization(id: number, name: string, companyId: number | null) {
+  return await db.update(organizations).set({ name, companyId }).where(eq(organizations.id, id));
 }
 
 export async function deleteOrganization(id: number) {

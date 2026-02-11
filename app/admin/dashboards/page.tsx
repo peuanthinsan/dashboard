@@ -4,6 +4,7 @@ import {
   deleteDashboard,
   getCompanies,
   getDashboards,
+  getOrganizationById,
   getOrganizations,
   updateDashboard,
 } from 'app/db';
@@ -36,6 +37,16 @@ export default async function AdminDashboardsPage() {
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
     }
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    if (organizationValue && Number.isNaN(organizationId)) {
+      return { status: 'error', message: 'Select a valid fleet.' };
+    }
+    if (organizationId) {
+      const organization = await getOrganizationById(organizationId);
+      if (organization.length === 0 || organization[0].companyId !== companyId) {
+        return { status: 'error', message: 'Selected fleet must belong to the selected company.' };
+      }
+    }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
@@ -48,7 +59,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
@@ -91,6 +102,16 @@ export default async function AdminDashboardsPage() {
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
     }
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    if (organizationValue && Number.isNaN(organizationId)) {
+      return { status: 'error', message: 'Select a valid fleet.' };
+    }
+    if (organizationId) {
+      const organization = await getOrganizationById(organizationId);
+      if (organization.length === 0 || organization[0].companyId !== companyId) {
+        return { status: 'error', message: 'Selected fleet must belong to the selected company.' };
+      }
+    }
     const { sheetId, sheetGid } = parseSheetLink(sheetUrl);
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
@@ -104,7 +125,7 @@ export default async function AdminDashboardsPage() {
         sheetId,
         sheetGid,
         companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
+        organizationId,
         notes,
       });
       revalidatePath('/admin/dashboards');
