@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, index, integer, pgTable, primaryKey, serial, text, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
@@ -179,11 +179,25 @@ export const getCompanies = cache(async () => {
 });
 
 export const getOrganizations = cache(async () => {
-  return await db.select().from(organizations).orderBy(organizations.name);
+  if (await hasOrganizationCompanyColumn()) {
+    return await db.select().from(organizations).orderBy(organizations.name);
+  }
+  return await db.execute<{
+    id: number;
+    name: string;
+    companyId: number | null;
+  }>(sql`SELECT id, name, NULL::INTEGER AS "companyId" FROM "Organization" ORDER BY name`);
 });
 
 export const getOrganizationById = cache(async (id: number) => {
-  return await db.select().from(organizations).where(eq(organizations.id, id));
+  if (await hasOrganizationCompanyColumn()) {
+    return await db.select().from(organizations).where(eq(organizations.id, id));
+  }
+  return await db.execute<{
+    id: number;
+    name: string;
+    companyId: number | null;
+  }>(sql`SELECT id, name, NULL::INTEGER AS "companyId" FROM "Organization" WHERE id = ${id}`);
 });
 
 export const getDashboards = cache(async () => {
@@ -217,6 +231,19 @@ export const getDashboardsForUser = cache(async ({
     template: dashboards.template,
     sheetUrl: dashboards.sheetUrl,
   };
+  if (!(await hasOrganizationCompanyColumn())) {
+    const companyFilter = inArray(dashboards.companyId, uniqueCompanyIds);
+    const organizationFilter =
+      uniqueOrganizationIds.length > 0
+        ? inArray(dashboards.organizationId, uniqueOrganizationIds)
+        : isNull(dashboards.organizationId);
+    return await db
+      .select(dashboardListSelect)
+      .from(dashboards)
+      .where(and(companyFilter, organizationFilter))
+      .orderBy(dashboards.name);
+  }
+
   const organizationRows =
     uniqueOrganizationIds.length > 0
       ? await db
@@ -265,10 +292,16 @@ export async function deleteCompany(id: number) {
 }
 
 export async function createOrganization(name: string, companyId: number | null) {
+  if (!(await hasOrganizationCompanyColumn())) {
+    return await db.insert(organizations).values({ name });
+  }
   return await db.insert(organizations).values({ name, companyId });
 }
 
 export async function updateOrganization(id: number, name: string, companyId: number | null) {
+  if (!(await hasOrganizationCompanyColumn())) {
+    return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+  }
   return await db.update(organizations).set({ name, companyId }).where(eq(organizations.id, id));
 }
 
@@ -385,6 +418,41 @@ export async function updateUserAssignments(
 ) {
   const uniqueCompanyIds = Array.from(new Set(companyIds));
   const uniqueOrganizationIds = Array.from(new Set(organizationIds));
+  if (!(await hasOrganizationCompanyColumn())) {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({
+          companyId: uniqueCompanyIds[0] ?? null,
+          organizationId: uniqueOrganizationIds[0] ?? null,
+          isAdmin,
+        })
+        .where(eq(users.id, userId));
+
+      await tx.delete(userCompanies).where(eq(userCompanies.userId, userId));
+      await tx.delete(userOrganizations).where(eq(userOrganizations.userId, userId));
+
+      if (uniqueCompanyIds.length > 0) {
+        await tx.insert(userCompanies).values(
+          uniqueCompanyIds.map((companyId) => ({
+            userId,
+            companyId,
+          })),
+        );
+      }
+
+      if (uniqueOrganizationIds.length > 0) {
+        await tx.insert(userOrganizations).values(
+          uniqueOrganizationIds.map((organizationId) => ({
+            userId,
+            organizationId,
+          })),
+        );
+      }
+    });
+    return;
+  }
+
   const organizationRows =
     uniqueOrganizationIds.length > 0
       ? await db
@@ -437,6 +505,9 @@ async function assertOrganizationBelongsToCompany(
   if (!organizationId) {
     return;
   }
+  if (!(await hasOrganizationCompanyColumn())) {
+    return;
+  }
   const organizationRows = await db
     .select({ companyId: organizations.companyId })
     .from(organizations)
@@ -445,6 +516,29 @@ async function assertOrganizationBelongsToCompany(
   if (organizationRows.length === 0 || organizationRows[0].companyId !== companyId) {
     throw new Error('Fleet does not belong to the selected company.');
   }
+}
+
+const hasOrganizationCompanyColumn = cache(async () => {
+  try {
+    await db.execute(sql`SELECT "companyId" FROM "Organization" LIMIT 1`);
+    return true;
+  } catch (error) {
+    if (isMissingOrganizationCompanyIdError(error)) {
+      return false;
+    }
+    throw error;
+  }
+});
+
+function isMissingOrganizationCompanyIdError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  if (!("code" in error) || (error as { code?: unknown }).code !== '42703') {
+    return false;
+  }
+  const message = 'message' in error ? String((error as { message?: unknown }).message ?? '') : '';
+  return message.includes('companyId');
 }
 
 async function getUserAssignmentsByUserIds(userIds: number[]) {
