@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { boolean, index, integer, pgTable, primaryKey, serial, text, varchar } from 'drizzle-orm/pg-core';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
@@ -50,7 +50,10 @@ const companies = pgTable('Company', {
 const organizations = pgTable('Organization', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 128 }).notNull().unique(),
-});
+  companyId: integer('companyId'),
+}, (table) => ({
+  companyIdIdx: index('Organization_companyId_idx').on(table.companyId),
+}));
 
 const dashboards = pgTable('Dashboard', {
   id: serial('id').primaryKey(),
@@ -183,6 +186,13 @@ export const getOrganizationById = cache(async (id: number) => {
   return await db.select().from(organizations).where(eq(organizations.id, id));
 });
 
+export const getOrganizationsByIds = cache(async (ids: number[]) => {
+  if (ids.length === 0) {
+    return [];
+  }
+  return await db.select().from(organizations).where(inArray(organizations.id, ids));
+});
+
 export const getDashboards = cache(async () => {
   return await db.select().from(dashboards).orderBy(dashboards.name);
 });
@@ -211,17 +221,50 @@ export const getDashboardsForUser = cache(async ({
     name: dashboards.name,
     template: dashboards.template,
     sheetUrl: dashboards.sheetUrl,
+    companyId: dashboards.companyId,
+    organizationId: dashboards.organizationId,
   };
-  const companyFilter = inArray(dashboards.companyId, companyIds);
-  const organizationFilter =
+
+  const [dashboardRows, allowedOrganizations] = await Promise.all([
+    db
+      .select(dashboardListSelect)
+      .from(dashboards)
+      .where(inArray(dashboards.companyId, companyIds))
+      .orderBy(dashboards.name),
     organizationIds.length > 0
-      ? inArray(dashboards.organizationId, organizationIds)
-      : isNull(dashboards.organizationId);
-  return await db
-    .select(dashboardListSelect)
-    .from(dashboards)
-    .where(and(companyFilter, organizationFilter))
-    .orderBy(dashboards.name);
+      ? db
+          .select({
+            id: organizations.id,
+            companyId: organizations.companyId,
+          })
+          .from(organizations)
+          .where(inArray(organizations.id, organizationIds))
+      : Promise.resolve([]),
+  ]);
+
+  const organizationsByCompanyId = new Map<number, Set<number>>();
+  for (const organization of allowedOrganizations) {
+    if (!organization.companyId) {
+      continue;
+    }
+    const companyOrganizations = organizationsByCompanyId.get(organization.companyId) ?? new Set<number>();
+    companyOrganizations.add(organization.id);
+    organizationsByCompanyId.set(organization.companyId, companyOrganizations);
+  }
+
+  return dashboardRows.filter((dashboard) => {
+    if (!dashboard.companyId) {
+      return false;
+    }
+    const companyOrganizations = organizationsByCompanyId.get(dashboard.companyId);
+    if (!companyOrganizations || companyOrganizations.size === 0) {
+      return dashboard.organizationId === null;
+    }
+    if (dashboard.organizationId === null) {
+      return false;
+    }
+    return companyOrganizations.has(dashboard.organizationId);
+  });
 });
 
 export async function createCompany(name: string) {
@@ -236,12 +279,12 @@ export async function deleteCompany(id: number) {
   return await db.delete(companies).where(eq(companies.id, id));
 }
 
-export async function createOrganization(name: string) {
-  return await db.insert(organizations).values({ name });
+export async function createOrganization(name: string, companyId: number | null) {
+  return await db.insert(organizations).values({ name, companyId });
 }
 
-export async function updateOrganization(id: number, name: string) {
-  return await db.update(organizations).set({ name }).where(eq(organizations.id, id));
+export async function updateOrganization(id: number, name: string, companyId: number | null) {
+  return await db.update(organizations).set({ name, companyId }).where(eq(organizations.id, id));
 }
 
 export async function deleteOrganization(id: number) {
