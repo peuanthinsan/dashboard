@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useLanguage } from 'app/i18n';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
 import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
@@ -68,6 +69,7 @@ export default function SimpleDashboard({
   dashboardNotes,
   organizationName,
 }: DashboardProps) {
+  const { language } = useLanguage();
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
@@ -387,7 +389,7 @@ export default function SimpleDashboard({
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle="Simple dashboard"
+      subtitle={language === 'th' ? 'แดชบอร์ดแบบง่าย' : 'Simple dashboard'}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >
@@ -398,15 +400,15 @@ export default function SimpleDashboard({
       ) : null}
 
       {loading ? (
-        <LoadingState message="Loading dashboard data…" detail="Gathering alert activity and trends." />
+        <LoadingState message={language === 'th' ? 'กำลังโหลดข้อมูลแดชบอร์ด…' : 'Loading dashboard data…'} detail={language === 'th' ? 'กำลังรวบรวมกิจกรรมการแจ้งเตือนและแนวโน้ม' : 'Gathering alert activity and trends.'} />
       ) : (
         <>
           <section className={dashboardSectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-medium">Filters</h2>
+                <h2 className="text-lg font-medium">{language === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Narrow alerts by date range or vehicle.
+                  {language === 'th' ? 'กรองข้อมูลตามช่วงวันที่หรือทะเบียนรถ' : 'Narrow alerts by date range or vehicle.'}
                 </p>
               </div>
               <button
@@ -543,7 +545,7 @@ export default function SimpleDashboard({
                       list="driver-options"
                       value={driverQuery}
                       onChange={(event) => setDriverQuery(event.target.value)}
-                      placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
+                      placeholder={driverOptions.length === 0 ? language === 'th' ? 'ไม่มีข้อมูลผู้ขับขี่' : 'No drivers available' : language === 'th' ? 'ค้นหาชื่อผู้ขับขี่' : 'Search driver name'}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
                     <datalist id="driver-options">
@@ -587,7 +589,7 @@ export default function SimpleDashboard({
                 <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
                 {(
                   [
-                    { label: 'All remarks', value: 'all' },
+                    { label: language === 'th' ? 'ทั้งหมด' : 'All remarks', value: 'all' },
                     { label: 'Fatigue', value: 'fatigue' },
                     { label: 'Yawning', value: 'yawning' },
                     { label: 'Distraction', value: 'distraction' },
@@ -706,7 +708,7 @@ export default function SimpleDashboard({
                           transform: 'translate(-50%, -100%)',
                         }}
                       >
-                        <div className="font-semibold">{activePoint.count} alerts</div>
+                        <div className="font-semibold">{activePoint.count} {language === 'th' ? 'การแจ้งเตือน' : 'alerts'}</div>
                         <div className="text-[11px] text-slate-600 dark:text-slate-300">{activePoint.label}</div>
                       </div>
                     ) : null}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLanguage } from 'app/i18n';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
@@ -174,6 +175,7 @@ export default function DetailDashboard({
   dashboardNotes,
   organizationName,
 }: DashboardProps) {
+  const { language } = useLanguage();
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
@@ -554,7 +556,7 @@ export default function DetailDashboard({
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle="Detail dashboard"
+      subtitle={language === 'th' ? 'แดชบอร์ดแบบละเอียด' : 'Detail dashboard'}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLanguage } from 'app/i18n';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { FilterChip } from './FilterChip';
@@ -138,6 +139,7 @@ export default function SummaryDashboard({
   dashboardNotes,
   organizationName,
 }: DashboardProps) {
+  const { language } = useLanguage();
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
@@ -458,7 +460,7 @@ export default function SummaryDashboard({
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle="Summary dashboard"
+      subtitle={language === 'th' ? 'แดชบอร์ดสรุป' : 'Summary dashboard'}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >

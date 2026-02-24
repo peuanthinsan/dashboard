@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from 'app/i18n';
 
 const STORAGE_KEY = 'songdee-theme';
 
@@ -18,10 +19,11 @@ const getPreferredTheme = (): Theme => {
 };
 
 export const themeToggleClassName =
-  'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white';
+  'inline-flex items-center gap-2 rounded-full border border-fuchsia-200 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-fuchsia-700 shadow-sm transition hover:border-fuchsia-300 hover:text-fuchsia-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-fuchsia-400 dark:hover:text-white';
 
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('light');
+  const { language } = useLanguage();
 
   useEffect(() => {
     setTheme(getPreferredTheme());
@@ -40,11 +42,11 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(nextTheme)}
-      aria-label={`Switch to ${nextTheme} mode`}
+      aria-label={language === 'th' ? 'สลับโหมดสี' : `Switch to ${nextTheme} mode`}
       className={themeToggleClassName}
     >
       <span className="text-base">{theme === 'dark' ? '☾' : '☀'}</span>
-      {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+      {language === 'th' ? (theme === 'dark' ? 'โหมดมืด' : 'โหมดสว่าง') : theme === 'dark' ? 'Dark mode' : 'Light mode'}
     </button>
   );
 }
