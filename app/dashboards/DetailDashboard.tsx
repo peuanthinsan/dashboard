@@ -8,6 +8,7 @@ import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
+import PieBreakdownCard from './PieBreakdownCard';
 import {
   ALLOWED_ALERT_TYPES,
   ALLOWED_REMARK_TARGETS,
@@ -69,6 +70,19 @@ type DetailFilterState = {
   vehicleFilters: string[];
   driverFilters: string[];
   trendRemarkFilter: string;
+};
+
+
+const buildCounts = (rows: AlertRow[], field: 'fleet' | 'remarks' | 'vehicle') => {
+  const totals = new Map<string, number>();
+  rows.forEach((row) => {
+    const value = row[field];
+    const key = value == null || value === '' ? 'Unspecified' : String(value).trim() || 'Unspecified';
+    totals.set(key, (totals.get(key) ?? 0) + 1);
+  });
+  return Array.from(totals.entries())
+    .map(([label, total]) => ({ label, total }))
+    .sort((a, b) => b.total - a.total);
 };
 
 const toDateLabel = (value: unknown) => {
@@ -350,6 +364,10 @@ export default function DetailDashboard({
     if (monthFilters.length === 0) return baseFilteredRows;
     return baseFilteredRows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
   }, [baseFilteredRows, monthFilters]);
+
+  const fleetSummary = useMemo(() => buildCounts(filteredAlerts, 'fleet').slice(0, 6), [filteredAlerts]);
+  const remarkSummary = useMemo(() => buildCounts(filteredAlerts, 'remarks').slice(0, 6), [filteredAlerts]);
+  const vehicleSummary = useMemo(() => buildCounts(filteredAlerts, 'vehicle').slice(0, 6), [filteredAlerts]);
 
   const availableTrendRemarkOptions = useMemo(() => {
     const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
@@ -766,6 +784,34 @@ export default function DetailDashboard({
                 </FilterGroup>
               ) : null}
             </div>
+            </section>
+
+
+            <section className={dashboardSectionClass}>
+              <div>
+                <h2 className="text-lg font-medium">Alert distribution</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Colorful pie charts for top fleets, remarks, and vehicles.</p>
+              </div>
+              <div className="mt-5 grid gap-6 lg:grid-cols-3">
+                <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Fleet volume</h3>
+                  <div className="mt-3">
+                    <PieBreakdownCard items={fleetSummary} emptyMessage="No fleet data available." />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-violet-400/30 bg-violet-500/10 p-4">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Remarks volume</h3>
+                  <div className="mt-3">
+                    <PieBreakdownCard items={remarkSummary} emptyMessage="No remark data available." />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Vehicle volume</h3>
+                  <div className="mt-3">
+                    <PieBreakdownCard items={vehicleSummary} emptyMessage="No vehicle data available." />
+                  </div>
+                </div>
+              </div>
             </section>
 
             <section className={dashboardSectionClass}>
