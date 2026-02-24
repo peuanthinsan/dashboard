@@ -7,7 +7,6 @@ import { FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
-import PieBreakdownCard from './PieBreakdownCard';
 import {
   ALLOWED_ALERT_TYPES,
   ALLOWED_REMARK_TARGETS,
@@ -39,6 +38,15 @@ const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
   return Array.from(totals.entries())
     .map(([label, total]) => ({ label, total }))
     .sort((a, b) => b.total - a.total);
+};
+
+const Bar = ({ value, max }: { value: number; max: number }) => {
+  const width = max === 0 ? 0 : Math.round((value / max) * 100);
+  return (
+    <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800">
+      <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${width}%` }} />
+    </div>
+  );
 };
 
 const buildDeltaSummary = (current: number, previous: number) => {
@@ -341,6 +349,9 @@ export default function SummaryDashboard({
   const topFleets = fleetSummary.slice(0, 6);
   const topRemarks = remarkSummary.slice(0, 6);
   const topVehicles = vehicleSummary.slice(0, 6);
+  const maxFleetTotal = topFleets[0]?.total ?? 0;
+  const maxRemarkTotal = topRemarks[0]?.total ?? 0;
+  const maxVehicleTotal = topVehicles[0]?.total ?? 0;
 
   const countMatches = useCallback(
     (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {
@@ -695,24 +706,60 @@ export default function SummaryDashboard({
               <section className={dashboardSectionClass}>
                 <h2 className="text-lg font-medium">Fleet volume</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Fleet distribution based on alert activity.</p>
-                <div className="mt-4">
-                  <PieBreakdownCard items={topFleets} emptyMessage="No fleet data available." />
+                <div className="mt-4 space-y-3">
+                  {topFleets.length === 0 ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No fleet data available.</p>
+                  ) : (
+                    topFleets.map((row) => (
+                      <div key={row.label} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-700 dark:text-slate-200">{row.label}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{row.total}</span>
+                        </div>
+                        <Bar value={row.total} max={maxFleetTotal} />
+                      </div>
+                    ))
+                  )}
                 </div>
               </section>
 
               <section className={dashboardSectionClass}>
                 <h2 className="text-lg font-medium">Remarks volume</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Most frequent remark tags in the filtered alerts.</p>
-                <div className="mt-4">
-                  <PieBreakdownCard items={topRemarks} emptyMessage="No remark data available." />
+                <div className="mt-4 space-y-3">
+                  {topRemarks.length === 0 ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No remark data available.</p>
+                  ) : (
+                    topRemarks.map((row) => (
+                      <div key={row.label} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-700 dark:text-slate-200">{row.label}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{row.total}</span>
+                        </div>
+                        <Bar value={row.total} max={maxRemarkTotal} />
+                      </div>
+                    ))
+                  )}
                 </div>
               </section>
 
               <section className={dashboardSectionClass}>
                 <h2 className="text-lg font-medium">Vehicle volume</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Top vehicles based on alert activity.</p>
-                <div className="mt-4">
-                  <PieBreakdownCard items={topVehicles} emptyMessage="No vehicle data available." />
+                <div className="mt-4 space-y-3">
+                  {topVehicles.length === 0 ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No vehicle data available.</p>
+                  ) : (
+                    topVehicles.map((row) => (
+                      <div key={row.label} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-700 dark:text-slate-200">{row.label}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{row.total}</span>
+                        </div>
+                        <Bar value={row.total} max={maxVehicleTotal} />
+                      </div>
+                    ))
+                  )}
                 </div>
               </section>
             </div>
