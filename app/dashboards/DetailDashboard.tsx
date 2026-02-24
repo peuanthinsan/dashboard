@@ -8,6 +8,7 @@ import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
+import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
   ALLOWED_ALERT_TYPES,
   ALLOWED_REMARK_TARGETS,
@@ -31,6 +32,7 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  lang?: DashboardLang;
 };
 
 type AlertRow = {
@@ -173,7 +175,9 @@ export default function DetailDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  lang = 'en',
 }: DashboardProps) {
+  const copy = getDashboardCopy(lang);
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
@@ -554,7 +558,8 @@ export default function DetailDashboard({
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle="Detail dashboard"
+      subtitle={lang === 'th' ? 'แดชบอร์ดรายละเอียด' : 'Detail dashboard'}
+      lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >
@@ -565,15 +570,19 @@ export default function DetailDashboard({
       ) : null}
 
       {loading ? (
-        <LoadingState message="Loading detailed alerts…" detail="Building the latest alert timeline." />
+        <LoadingState
+          message={lang === 'th' ? 'กำลังโหลดการแจ้งเตือนแบบละเอียด…' : 'Loading detailed alerts…'}
+          detail={lang === 'th' ? 'กำลังสร้างไทม์ไลน์การแจ้งเตือนล่าสุด' : 'Building the latest alert timeline.'}
+          fallbackDetail={copy.loadingDetail}
+        />
       ) : (
         <>
           <section className={dashboardSectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-medium">Filters</h2>
+                <h2 className="text-lg font-medium">{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Narrow alerts by remark, month, fleet, or vehicle.
+                  {lang === 'th' ? 'กรองการแจ้งเตือนตามหมายเหตุ เดือน ฟลีท หรือรถ' : 'Narrow alerts by remark, month, fleet, or vehicle.'}
                 </p>
               </div>
               <button
@@ -581,12 +590,13 @@ export default function DetailDashboard({
                 onClick={resetFilters}
                 className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
               >
-                Reset filters
+                {lang === 'th' ? 'รีเซ็ตตัวกรอง' : 'Reset filters'}
               </button>
             </div>
             <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
               <FilterGroup
-                label="Filter months"
+                label={lang === 'th' ? 'กรองเดือน' : 'Filter months'}
+                lang={lang}
                 onClear={() => {
                   setMonthFilters([]);
                   setPage(1);
@@ -611,7 +621,7 @@ export default function DetailDashboard({
                     list="month-options"
                     value={monthSearch}
                     onChange={(event) => setMonthSearch(event.target.value)}
-                    placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
+                    placeholder={monthOptions.length === 0 ? (lang === 'th' ? 'ไม่มีเดือนให้เลือก' : 'No months available') : (lang === 'th' ? 'ค้นหาเดือน' : 'Search months')}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="month-options">
@@ -641,13 +651,14 @@ export default function DetailDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
                 </div>
               </FilterGroup>
               {organizationName ? null : (
                 <FilterGroup
-                  label="Filter fleets"
+                  label={lang === 'th' ? 'กรองฟลีท' : 'Filter fleets'}
+                  lang={lang}
                   onClear={() => {
                     setFleetFilters([]);
                     setPage(1);
@@ -669,7 +680,7 @@ export default function DetailDashboard({
                       list="fleet-options"
                       value={fleetSearch}
                       onChange={(event) => setFleetSearch(event.target.value)}
-                      placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
+                      placeholder={fleetOptions.length === 0 ? (lang === 'th' ? 'ไม่มีฟลีทให้เลือก' : 'No fleets available') : (lang === 'th' ? 'ค้นหาฟลีท' : 'Search fleets')}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
                     <datalist id="fleet-options">
@@ -693,13 +704,14 @@ export default function DetailDashboard({
                       }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
-                      Add
+                      {lang === 'th' ? 'เพิ่ม' : 'Add'}
                     </button>
                   </div>
                 </FilterGroup>
               )}
               <FilterGroup
-                label="Filter remark types"
+                label={lang === 'th' ? 'กรองประเภทหมายเหตุ' : 'Filter remark types'}
+                lang={lang}
                 onClear={() => {
                   setRemarkFilters([]);
                   setPage(1);
@@ -721,7 +733,7 @@ export default function DetailDashboard({
                     list="remark-options"
                     value={remarkSearch}
                     onChange={(event) => setRemarkSearch(event.target.value)}
-                    placeholder={remarkOptions.length === 0 ? 'No remarks available' : 'Search remarks'}
+                    placeholder={remarkOptions.length === 0 ? (lang === 'th' ? 'ไม่มีหมายเหตุให้เลือก' : 'No remarks available') : (lang === 'th' ? 'ค้นหาหมายเหตุ' : 'Search remarks')}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="remark-options">
@@ -746,12 +758,13 @@ export default function DetailDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
                 </div>
               </FilterGroup>
               <FilterGroup
-                label="Filter vehicles"
+                label={lang === 'th' ? 'กรองรถ' : 'Filter vehicles'}
+                lang={lang}
                 onClear={() => {
                   setVehicleFilters([]);
                   setPage(1);
@@ -773,7 +786,7 @@ export default function DetailDashboard({
                     list="vehicle-options"
                     value={vehicleSearch}
                     onChange={(event) => setVehicleSearch(event.target.value)}
-                    placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicles'}
+                    placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถให้เลือก' : 'No vehicles available') : (lang === 'th' ? 'ค้นหารถ' : 'Search vehicles')}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="vehicle-options">
@@ -798,13 +811,14 @@ export default function DetailDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
                 </div>
               </FilterGroup>
               {driverOptions.length > 0 ? (
                 <FilterGroup
-                  label="Filter drivers"
+                  label={lang === 'th' ? 'กรองคนขับ' : 'Filter drivers'}
+                  lang={lang}
                   onClear={() => {
                     setDriverFilters([]);
                     setPage(1);
@@ -826,7 +840,7 @@ export default function DetailDashboard({
                       list="driver-options"
                       value={driverSearch}
                       onChange={(event) => setDriverSearch(event.target.value)}
-                      placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search drivers'}
+                      placeholder={driverOptions.length === 0 ? (lang === 'th' ? 'ไม่มีคนขับให้เลือก' : 'No drivers available') : (lang === 'th' ? 'ค้นหาคนขับ' : 'Search drivers')}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
                     <datalist id="driver-options">
@@ -851,7 +865,7 @@ export default function DetailDashboard({
                       }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
-                      Add
+                      {lang === 'th' ? 'เพิ่ม' : 'Add'}
                     </button>
                   </div>
                 </FilterGroup>

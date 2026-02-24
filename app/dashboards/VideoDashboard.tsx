@@ -5,6 +5,7 @@ import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
+import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
   findValue,
   hasRemark,
@@ -20,6 +21,7 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  lang?: DashboardLang;
 };
 
 type VideoSample = {
@@ -39,7 +41,9 @@ export default function VideoDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  lang = 'en',
 }: DashboardProps) {
+  const copy = getDashboardCopy(lang);
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
@@ -74,7 +78,8 @@ export default function VideoDashboard({
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle="Video"
+      subtitle={lang === 'th' ? 'วิดีโอ' : 'Video'}
+      lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >
@@ -85,17 +90,21 @@ export default function VideoDashboard({
       ) : null}
 
       {loading ? (
-        <LoadingState message="Loading videos…" detail="Preparing the latest video alerts." />
+        <LoadingState
+          message={lang === 'th' ? 'กำลังโหลดวิดีโอ…' : 'Loading videos…'}
+          detail={lang === 'th' ? 'กำลังเตรียมการแจ้งเตือนวิดีโอล่าสุด' : 'Preparing the latest video alerts.'}
+          fallbackDetail={copy.loadingDetail}
+        />
       ) : (
         <section className={dashboardSectionClass}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium">Latest alert samples</h2>
+            <h2 className="text-lg font-medium">{lang === 'th' ? 'ตัวอย่างการแจ้งเตือนล่าสุด' : 'Latest alert samples'}</h2>
             <span className="text-sm text-slate-500 dark:text-slate-400">
-              {samples.length} videos
+              {samples.length} {lang === 'th' ? 'วิดีโอ' : 'videos'}
             </span>
           </div>
           {samples.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No videos available yet.</p>
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{lang === 'th' ? 'ยังไม่มีวิดีโอ' : 'No videos available yet.'}</p>
           ) : (
             <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {samples.map((sample) => (
@@ -106,7 +115,7 @@ export default function VideoDashboard({
                   <div className="flex flex-col gap-4">
                     <div>
                       <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        Vehicle
+                        {lang === 'th' ? 'รถ' : 'Vehicle'}
                       </p>
                       <p className="text-lg font-semibold text-slate-900 dark:text-white">
                         {sample.vehicle}
@@ -114,19 +123,19 @@ export default function VideoDashboard({
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        Driver
+                        {lang === 'th' ? 'คนขับ' : 'Driver'}
                       </p>
                       <p className="text-sm text-slate-700 dark:text-slate-200">{sample.driver}</p>
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        Remark
+                        {lang === 'th' ? 'หมายเหตุ' : 'Remark'}
                       </p>
                       <p className="text-sm text-slate-700 dark:text-slate-200">{sample.remarks}</p>
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        Alert date time
+                        {lang === 'th' ? 'วันเวลาแจ้งเตือน' : 'Alert date time'}
                       </p>
                       <p className="text-sm text-slate-700 dark:text-slate-200">
                         {sample.timeLabel}
@@ -138,12 +147,12 @@ export default function VideoDashboard({
                       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
                         <video controls preload="metadata" className="h-40 w-full bg-black/30">
                           <source src={sample.videoUrl} type="video/mp4" />
-                          Your browser does not support the video tag.
+                          {lang === 'th' ? 'เบราว์เซอร์ของคุณไม่รองรับแท็กวิดีโอ' : 'Your browser does not support the video tag.'}
                         </video>
                       </div>
                     ) : (
                       <span className="text-sm text-slate-500 dark:text-slate-500">
-                        Video link unavailable
+                        {lang === 'th' ? 'ไม่พบลิงก์วิดีโอ' : 'Video link unavailable'}
                       </span>
                     )}
                   </div>

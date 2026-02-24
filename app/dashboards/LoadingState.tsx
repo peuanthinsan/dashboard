@@ -1,9 +1,10 @@
 type LoadingStateProps = {
   message: string;
   detail?: string;
+  fallbackDetail?: string;
 };
 
-export default function LoadingState({ message, detail }: LoadingStateProps) {
+export default function LoadingState({ message, detail, fallbackDetail }: LoadingStateProps) {
   return (
     <section
       className="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70"
@@ -37,7 +38,7 @@ export default function LoadingState({ message, detail }: LoadingStateProps) {
         <div>
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{message}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {detail ?? 'Fetching the latest data and dashboard insights.'}
+            {detail ?? fallbackDetail ?? 'Fetching the latest data and dashboard insights.'}
           </p>
         </div>
       </div>

@@ -1,0 +1,52 @@
+export type DashboardLang = 'en' | 'th';
+
+export const DASHBOARD_LANG_COOKIE = 'dashboard_lang';
+
+export const dashboardCopy = {
+  en: {
+    loggedInAs: 'You are logged in as',
+    dashboardIntro: 'Review performance, drill into trends, and share the latest insights with your team.',
+    signOut: 'Sign out',
+    yourDashboards: 'Your dashboards',
+    dashboardsSubtitle: 'Jump right back into the dashboards you use most and explore the latest insights.',
+    total: 'Total',
+    templates: 'Templates',
+    noDashboards: 'No dashboards assigned yet.',
+    noDashboardsHelp: 'Ask an administrator to add a dashboard for your companies or fleets.',
+    liveData: 'Live data connected',
+    dataSource: 'Data source',
+    openDashboard: 'Open dashboard',
+    goToAdmin: 'Go to administration',
+    backToDashboards: 'Back to dashboards',
+    lastUpdated: 'Last updated',
+    selected: 'selected',
+    clear: 'Clear',
+    loadingDetail: 'Fetching the latest data and dashboard insights.',
+    thai: 'ไทย',
+    english: 'English',
+  },
+  th: {
+    loggedInAs: 'คุณเข้าสู่ระบบในชื่อ',
+    dashboardIntro: 'ติดตามผลการดำเนินงาน เจาะลึกแนวโน้ม และแชร์ข้อมูลล่าสุดให้ทีมของคุณ',
+    signOut: 'ออกจากระบบ',
+    yourDashboards: 'แดชบอร์ดของคุณ',
+    dashboardsSubtitle: 'กลับไปดูแดชบอร์ดที่ใช้บ่อย และสำรวจข้อมูลเชิงลึกล่าสุดได้ทันที',
+    total: 'ทั้งหมด',
+    templates: 'เทมเพลต',
+    noDashboards: 'ยังไม่มีแดชบอร์ดที่ถูกกำหนดให้',
+    noDashboardsHelp: 'โปรดติดต่อผู้ดูแลระบบเพื่อเพิ่มแดชบอร์ดสำหรับบริษัทหรือฟลีทของคุณ',
+    liveData: 'เชื่อมต่อข้อมูลสดแล้ว',
+    dataSource: 'แหล่งข้อมูล',
+    openDashboard: 'เปิดแดชบอร์ด',
+    goToAdmin: 'ไปยังหน้าผู้ดูแลระบบ',
+    backToDashboards: 'กลับไปหน้าแดชบอร์ด',
+    lastUpdated: 'อัปเดตล่าสุด',
+    selected: 'รายการที่เลือก',
+    clear: 'ล้าง',
+    loadingDetail: 'กำลังดึงข้อมูลล่าสุดและข้อมูลเชิงลึกของแดชบอร์ด',
+    thai: 'ไทย',
+    english: 'English',
+  },
+} as const;
+
+export const getDashboardCopy = (lang: DashboardLang) => dashboardCopy[lang];

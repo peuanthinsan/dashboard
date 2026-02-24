@@ -5,6 +5,7 @@ import DetailDashboard from 'app/dashboards/DetailDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
 import VideoDashboard from 'app/dashboards/VideoDashboard';
+import { getDashboardLang } from '../i18n';
 
 const resolveTemplate = (template: string | null) => {
   switch (template) {
@@ -22,6 +23,7 @@ const resolveTemplate = (template: string | null) => {
 };
 
 export default async function DashboardPage({ params }: { params: { id: string } }) {
+  const lang = getDashboardLang();
   const session = await auth();
   if (!session?.user?.email) {
     redirect('/login');
@@ -58,6 +60,7 @@ export default async function DashboardPage({ params }: { params: { id: string }
 
   return (
     <Template
+      lang={lang}
       dashboardId={params.id}
       dashboardName={dashboard.name ?? 'Company dashboard'}
       sheetId={dashboard.sheetId ?? ''}
