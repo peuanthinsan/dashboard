@@ -71,6 +71,8 @@ type DetailFilterState = {
   trendRemarkFilter: string;
 };
 
+const PIE_COLORS = ['#22d3ee', '#a78bfa', '#f472b6', '#34d399', '#f59e0b', '#fb7185'];
+
 const toDateLabel = (value: unknown) => {
   if (!value) return '—';
   const parsed = new Date(value as string);
@@ -457,6 +459,35 @@ export default function DetailDashboard({
   const trendPoints = useMemo(() => buildTrendGeometry(trendData, maxTrendValue), [maxTrendValue, trendData]);
   const yAxisTicks = useMemo(() => buildYAxisTicks(maxTrendValue), [maxTrendValue]);
   const xAxisLabels = useMemo(() => buildXAxisLabels(trendData), [trendData]);
+
+  const remarkBreakdown = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredAlerts.forEach((row) => {
+      const key = row.remarks && row.remarks !== '—' ? row.remarks : 'Unspecified';
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([label, total]) => ({ label, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
+  }, [filteredAlerts]);
+
+  const pieTotal = remarkBreakdown.reduce((sum, item) => sum + item.total, 0);
+  const pieGradient =
+    pieTotal === 0
+      ? 'conic-gradient(#334155 0deg 360deg)'
+      : (() => {
+          let current = 0;
+          return `conic-gradient(${remarkBreakdown
+            .map((item, index) => {
+              const angle = (item.total / pieTotal) * 360;
+              const start = current;
+              const end = current + angle;
+              current = end;
+              return `${PIE_COLORS[index % PIE_COLORS.length]} ${start}deg ${end}deg`;
+            })
+            .join(', ')})`;
+        })();
 
   const activePoint = pinnedPoint ?? hoverPoint;
 
@@ -935,6 +966,35 @@ export default function DetailDashboard({
                   </div>
                 ) : null}
               </div>
+            </section>
+
+            <section className={dashboardSectionClass}>
+              <h2 className="text-lg font-medium">Remark mix</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Colorful breakdown of top remarks in the current filter.</p>
+              {remarkBreakdown.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No remark activity available for the selected filters.</p>
+              ) : (
+                <div className="mt-4 flex flex-wrap items-center gap-6">
+                  <div className="relative h-36 w-36 rounded-full" style={{ background: pieGradient }}>
+                    <div className="absolute inset-5 rounded-full bg-slate-950/95" />
+                    <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-slate-100">
+                      {pieTotal}
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    {remarkBreakdown.map((item, index) => (
+                      <div key={item.label} className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
+                        />
+                        <span className="max-w-[260px] truncate text-slate-700 dark:text-slate-200">{item.label}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{item.total}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className={dashboardSectionClass}>
