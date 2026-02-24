@@ -789,24 +789,24 @@ export default function DetailDashboard({
 
             <section className={dashboardSectionClass}>
               <div>
-                <h2 className="text-lg font-medium">Alert distribution</h2>
+                <h2 className="text-lg font-semibold bg-gradient-to-r from-fuchsia-500 via-violet-500 to-cyan-500 bg-clip-text text-transparent">Alert distribution</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Colorful pie charts for top fleets, remarks, and vehicles.</p>
               </div>
               <div className="mt-5 grid gap-6 lg:grid-cols-3">
                 <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Fleet volume</h3>
+                  <h3 className="text-sm font-semibold text-sky-700 dark:text-sky-200">Fleet volume</h3>
                   <div className="mt-3">
                     <PieBreakdownCard items={fleetSummary} emptyMessage="No fleet data available." />
                   </div>
                 </div>
                 <div className="rounded-2xl border border-violet-400/30 bg-violet-500/10 p-4">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Remarks volume</h3>
+                  <h3 className="text-sm font-semibold text-violet-700 dark:text-violet-200">Remarks volume</h3>
                   <div className="mt-3">
                     <PieBreakdownCard items={remarkSummary} emptyMessage="No remark data available." />
                   </div>
                 </div>
                 <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Vehicle volume</h3>
+                  <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">Vehicle volume</h3>
                   <div className="mt-3">
                     <PieBreakdownCard items={vehicleSummary} emptyMessage="No vehicle data available." />
                   </div>
@@ -817,8 +817,8 @@ export default function DetailDashboard({
             <section className={dashboardSectionClass}>
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-medium">Daily alert trend</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Daily totals for the filtered alert set.</p>
+                  <h2 className="text-lg font-semibold text-violet-700 dark:text-violet-200">Daily alert trend</h2>
+                  <p className="text-sm text-violet-600 dark:text-violet-300">Daily totals for the filtered alert set.</p>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -969,7 +969,7 @@ export default function DetailDashboard({
                 )}
                 {activePoint ? (
                   <div
-                    className="pointer-events-none absolute rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-lg dark:border-indigo-400/40 dark:bg-slate-950/90 dark:text-indigo-100"
+                    className="pointer-events-none absolute rounded-lg border border-fuchsia-300/60 bg-gradient-to-r from-fuchsia-50 to-cyan-50 px-3 py-2 text-xs text-violet-700 shadow-lg dark:border-fuchsia-400/50 dark:bg-slate-950/90 dark:text-violet-100"
                     style={{
                       left: `${(activePoint.x / trendPoints.width) * 100}%`,
                       top: `${(Math.max(activePoint.y - 32, trendPoints.padding.top + 12) / trendPoints.height) * 100}%`,
@@ -977,7 +977,7 @@ export default function DetailDashboard({
                     }}
                   >
                     <div className="font-semibold">{activePoint.count} alerts</div>
-                    <div className="text-[11px] text-slate-600 dark:text-slate-300">{activePoint.label}</div>
+                    <div className="text-[11px] text-violet-600 dark:text-violet-300">{activePoint.label}</div>
                   </div>
                 ) : null}
               </div>
@@ -1087,7 +1087,7 @@ export default function DetailDashboard({
                                 });
                                 setPage(1);
                               }}
-                              className="flex items-center gap-2 text-left hover:text-slate-700 dark:text-slate-200"
+                              className="flex items-center gap-2 text-left text-violet-700 hover:text-fuchsia-600 dark:text-violet-200 dark:hover:text-fuchsia-200"
                             >
                               <span>{column.label}</span>
                               <span
@@ -1123,7 +1123,7 @@ export default function DetailDashboard({
                               href={row.videoUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-indigo-300 hover:text-indigo-200"
+                              className="font-semibold text-fuchsia-600 hover:text-fuchsia-500 dark:text-fuchsia-300 dark:hover:text-fuchsia-200"
                             >
                               View
                             </a>

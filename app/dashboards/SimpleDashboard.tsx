@@ -404,15 +404,15 @@ export default function SimpleDashboard({
           <section className={dashboardSectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-medium">Filters</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <h2 className="text-lg font-semibold bg-gradient-to-r from-fuchsia-500 via-violet-500 to-cyan-500 bg-clip-text text-transparent">Filters</h2>
+                <p className="text-sm text-violet-700 dark:text-violet-200">
                   Narrow alerts by date range or vehicle.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={resetFilters}
-                className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
+                className="rounded-full border border-fuchsia-300/50 bg-fuchsia-100/80 px-3 py-1 text-sm font-semibold text-fuchsia-700 hover:bg-fuchsia-200 dark:border-fuchsia-400/40 dark:bg-fuchsia-950/50 dark:text-fuchsia-200"
               >
                 Reset filters
               </button>
@@ -671,8 +671,8 @@ export default function SimpleDashboard({
                           cx={point.x}
                           cy={point.y}
                           r={index === trendPoints.points.length - 1 ? 4 : 3}
-                          fill="#0f172a"
-                          stroke="#C4B5FD"
+                          fill="#7c3aed"
+                          stroke="#22d3ee"
                           strokeWidth="2"
                           onMouseEnter={() => setHoverPoint(point)}
                           onMouseLeave={() => setHoverPoint(null)}
@@ -699,7 +699,7 @@ export default function SimpleDashboard({
                     </svg>
                     {activePoint ? (
                       <div
-                        className="pointer-events-none absolute rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-lg dark:border-indigo-400/40 dark:bg-slate-950/90 dark:text-indigo-100"
+                        className="pointer-events-none absolute rounded-lg border border-fuchsia-300/60 bg-gradient-to-r from-fuchsia-50 to-cyan-50 px-3 py-2 text-xs text-violet-700 shadow-lg dark:border-fuchsia-400/50 dark:bg-slate-950/90 dark:text-violet-100"
                         style={{
                           left: `${(activePoint.x / trendPoints.width) * 100}%`,
                           top: `${(Math.max(activePoint.y - 32, trendPoints.padding.top + 12) / trendPoints.height) * 100}%`,
@@ -707,7 +707,7 @@ export default function SimpleDashboard({
                         }}
                       >
                         <div className="font-semibold">{activePoint.count} alerts</div>
-                        <div className="text-[11px] text-slate-600 dark:text-slate-300">{activePoint.label}</div>
+                        <div className="text-[11px] text-violet-600 dark:text-violet-300">{activePoint.label}</div>
                       </div>
                     ) : null}
                   </div>
@@ -718,8 +718,8 @@ export default function SimpleDashboard({
             <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-medium">Alert remark highlights</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 alerts by remark.</p>
+                  <h2 className="text-lg font-semibold text-violet-700 dark:text-violet-200">Alert remark highlights</h2>
+                  <p className="text-sm text-violet-600 dark:text-violet-300">Eye Closing-A2 alerts by remark.</p>
                 </div>
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -744,13 +744,13 @@ export default function SimpleDashboard({
                 ).map((card) => (
                   <div
                     key={card.label}
-                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 p-5 shadow-sm"
+                    className="rounded-2xl border border-violet-300/50 dark:border-violet-500/40 bg-gradient-to-br from-white via-fuchsia-50 to-cyan-50 dark:from-slate-900 dark:via-violet-950/40 dark:to-cyan-950/30 p-5 shadow-[0_16px_40px_-24px_rgba(139,92,246,0.85)]"
                   >
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{card.label}</p>
+                    <p className="text-sm font-semibold text-violet-700 dark:text-violet-200">{card.label}</p>
                     <p className={`mt-3 text-4xl font-semibold ${card.accent}`}>
                       {card.value.toLocaleString()}
                     </p>
-                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">Alerts</p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-fuchsia-500 dark:text-fuchsia-300">Alerts</p>
                   </div>
                 ))}
               </div>
