@@ -8,6 +8,7 @@ import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
+import PieBreakdown from './PieBreakdown';
 import {
   ALLOWED_ALERT_TYPES,
   ALLOWED_REMARK_TARGETS,
@@ -69,6 +70,18 @@ type DetailFilterState = {
   vehicleFilters: string[];
   driverFilters: string[];
   trendRemarkFilter: string;
+};
+
+const buildCounts = (rows: AlertRow[], key: 'fleet' | 'remarks' | 'vehicle') => {
+  const totals = new Map<string, number>();
+  rows.forEach((row) => {
+    const value = row[key];
+    const label = value == null || value === '' ? 'Unspecified' : String(value).trim() || 'Unspecified';
+    totals.set(label, (totals.get(label) ?? 0) + 1);
+  });
+  return Array.from(totals.entries())
+    .map(([label, total]) => ({ label, total }))
+    .sort((a, b) => b.total - a.total);
 };
 
 const toDateLabel = (value: unknown) => {
@@ -457,6 +470,9 @@ export default function DetailDashboard({
   const trendPoints = useMemo(() => buildTrendGeometry(trendData, maxTrendValue), [maxTrendValue, trendData]);
   const yAxisTicks = useMemo(() => buildYAxisTicks(maxTrendValue), [maxTrendValue]);
   const xAxisLabels = useMemo(() => buildXAxisLabels(trendData), [trendData]);
+
+  const fleetSummary = useMemo(() => buildCounts(filteredAlerts, 'fleet').slice(0, 6), [filteredAlerts]);
+  const remarkSummary = useMemo(() => buildCounts(filteredAlerts, 'remarks').slice(0, 6), [filteredAlerts]);
 
   const activePoint = pinnedPoint ?? hoverPoint;
 
@@ -936,6 +952,21 @@ export default function DetailDashboard({
                 ) : null}
               </div>
             </section>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <PieBreakdown
+                title="Fleet mix"
+                description="Alert distribution by fleet for the active filters."
+                items={fleetSummary}
+                emptyMessage="No fleet data available."
+              />
+              <PieBreakdown
+                title="Remark mix"
+                description="Alert distribution by remark category for the active filters."
+                items={remarkSummary}
+                emptyMessage="No remark data available."
+              />
+            </div>
 
             <section className={dashboardSectionClass}>
               <div className="flex items-center justify-between">
