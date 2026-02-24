@@ -72,30 +72,21 @@ export default function VideoDashboard({
   }, [normalizedOrganizationName, rows]);
 
   return (
-    <DashboardShell
-      title={dashboardName}
-      subtitle="Video"
-      lastUpdated={lastUpdated}
-      notes={dashboardNotes}
-    >
+    <DashboardShell title={dashboardName} subtitle="วิดีโอ" lastUpdated={lastUpdated} notes={dashboardNotes}>
       {error ? (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
-          {error}
-        </div>
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">{error}</div>
       ) : null}
 
       {loading ? (
-        <LoadingState message="Loading videos…" detail="Preparing the latest video alerts." />
+        <LoadingState message="กำลังโหลดวิดีโอ…" detail="กำลังเตรียมวิดีโอการแจ้งเตือนล่าสุด" />
       ) : (
         <section className={dashboardSectionClass}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium">Latest alert samples</h2>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {samples.length} videos
-            </span>
+            <h2 className="text-lg font-medium">ตัวอย่างการแจ้งเตือนล่าสุด</h2>
+            <span className="text-sm text-slate-500 dark:text-slate-400">{samples.length} วิดีโอ</span>
           </div>
           {samples.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No videos available yet.</p>
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">ยังไม่มีวิดีโอ</p>
           ) : (
             <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {samples.map((sample) => (
@@ -105,46 +96,32 @@ export default function VideoDashboard({
                 >
                   <div className="flex flex-col gap-4">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        Vehicle
-                      </p>
-                      <p className="text-lg font-semibold text-slate-900 dark:text-white">
-                        {sample.vehicle}
-                      </p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">รถ</p>
+                      <p className="text-lg font-semibold text-slate-900 dark:text-white">{sample.vehicle}</p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        Driver
-                      </p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">คนขับ</p>
                       <p className="text-sm text-slate-700 dark:text-slate-200">{sample.driver}</p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        Remark
-                      </p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">หมายเหตุ</p>
                       <p className="text-sm text-slate-700 dark:text-slate-200">{sample.remarks}</p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        Alert date time
-                      </p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">
-                        {sample.timeLabel}
-                      </p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">เวลา</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200">{sample.timeLabel}</p>
                     </div>
                   </div>
+
                   <div className="mt-auto flex flex-col gap-3">
                     {sample.videoUrl && sample.videoUrl !== '—' ? (
                       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
                         <video controls preload="metadata" className="h-40 w-full bg-black/30">
                           <source src={sample.videoUrl} type="video/mp4" />
-                          Your browser does not support the video tag.
                         </video>
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-500 dark:text-slate-500">
-                        Video link unavailable
-                      </span>
+                      <span className="text-sm text-slate-500 dark:text-slate-500">ไม่มีวิดีโอ</span>
                     )}
                   </div>
                 </article>

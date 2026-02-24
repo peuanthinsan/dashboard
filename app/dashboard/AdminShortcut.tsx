@@ -19,7 +19,7 @@ export default function AdminShortcut() {
       <span className="text-base" aria-hidden="true">
         ⚙️
       </span>
-      Go to administration
+      ไปยังหน้าผู้ดูแลระบบ
     </Link>,
     container,
   );

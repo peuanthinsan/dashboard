@@ -37,7 +37,7 @@ export default function LoadingState({ message, detail }: LoadingStateProps) {
         <div>
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{message}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {detail ?? 'Fetching the latest data and dashboard insights.'}
+            {detail ?? 'กำลังดึงข้อมูลล่าสุดและข้อมูลเชิงลึกของแดชบอร์ด'}
           </p>
         </div>
       </div>

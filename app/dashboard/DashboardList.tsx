@@ -23,22 +23,22 @@ export default function DashboardList({ dashboards }: DashboardListProps) {
     <div className="grid gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">Your dashboards</h2>
+          <h2 className="text-lg font-semibold">แดชบอร์ดของคุณ</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Jump right back into the dashboards you use most and explore the latest insights.
+            กลับไปยังแดชบอร์ดที่คุณใช้งานบ่อย และสำรวจข้อมูลเชิงลึกล่าสุดได้ทันที
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className={pillClass}>{dashboardCount} Total</span>
-          <span className={pillClass}>{templateCount} Templates</span>
+          <span className={pillClass}>{dashboardCount} ทั้งหมด</span>
+          <span className={pillClass}>{templateCount} เทมเพลต</span>
         </div>
       </div>
 
       {!hasDashboards ? (
         <div className={emptyStateClass}>
-          <p className="text-base font-semibold text-slate-700 dark:text-slate-200">No dashboards assigned yet.</p>
+          <p className="text-base font-semibold text-slate-700 dark:text-slate-200">ยังไม่มีแดชบอร์ดที่ได้รับมอบหมาย</p>
           <p className="mt-2">
-            Ask an administrator to add a dashboard for your companies or fleets.
+            โปรดติดต่อผู้ดูแลระบบเพื่อเพิ่มแดชบอร์ดให้กับบริษัทหรือฟลีทของคุณ
           </p>
         </div>
       ) : (
@@ -48,7 +48,7 @@ export default function DashboardList({ dashboards }: DashboardListProps) {
               key={dashboard.id}
               href={`/dashboard/${dashboard.publicId ?? ''}`}
               className={cardClass}
-              aria-label={`Open ${dashboard.name} dashboard`}
+              aria-label={`เปิดแดชบอร์ด ${dashboard.name}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -61,7 +61,7 @@ export default function DashboardList({ dashboards }: DashboardListProps) {
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                     <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400/70" />
-                    Live data connected
+                    เชื่อมต่อข้อมูลสดแล้ว
                   </div>
                 </div>
                 <span className={iconButtonClass}>
@@ -81,7 +81,7 @@ export default function DashboardList({ dashboards }: DashboardListProps) {
               </div>
               <div className={dataSourceClass}>
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
-                  Data source
+                  แหล่งข้อมูล
                 </span>
                 <span className="mt-1 block truncate font-mono text-[11px]">{dashboard.sheetUrl}</span>
               </div>

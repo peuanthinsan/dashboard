@@ -54,13 +54,13 @@ export default function PieBreakdownCard({ items, emptyMessage }: PieBreakdownCa
   return (
     <div className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center">
       <div className="relative mx-auto h-40 w-40">
-        <svg viewBox="0 0 100 100" className="h-full w-full" role="img" aria-label="Pie chart breakdown">
+        <svg viewBox="0 0 100 100" className="h-full w-full" role="img" aria-label="สรุปกราฟวงกลม">
           {segments.map((segment) => (
             <path key={segment.label} d={segment.path} fill={segment.color} stroke="rgba(15,23,42,0.2)" strokeWidth="0.8" />
           ))}
           <circle cx="50" cy="50" r="16" fill="rgba(15,23,42,0.85)" />
           <text x="50" y="47" textAnchor="middle" className="fill-slate-200 text-[7px] uppercase tracking-wide">
-            Total
+            รวม
           </text>
           <text x="50" y="57" textAnchor="middle" className="fill-white text-[10px] font-semibold">
             {totalCount}
