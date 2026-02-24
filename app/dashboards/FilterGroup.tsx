@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 
 type FilterGroupProps = {
   label: string;
@@ -6,9 +7,11 @@ type FilterGroupProps = {
   onClear?: () => void;
   count?: number;
   helper?: ReactNode;
+  lang?: DashboardLang;
 };
 
-export default function FilterGroup({ label, children, onClear, count, helper }: FilterGroupProps) {
+export default function FilterGroup({ label, children, onClear, count, helper, lang = 'en' }: FilterGroupProps) {
+  const copy = getDashboardCopy(lang);
   const showCount = typeof count === 'number' && count > 0;
 
   return (
@@ -18,14 +21,14 @@ export default function FilterGroup({ label, children, onClear, count, helper }:
       {helper || showCount || onClear ? (
         <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
           {helper ? <span className="text-slate-500">{helper}</span> : null}
-          {showCount ? <span className="text-slate-500">{count} selected</span> : null}
+          {showCount ? <span className="text-slate-500">{count} {copy.selected}</span> : null}
           {onClear ? (
             <button
               type="button"
               onClick={onClear}
               className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500 sm:w-auto"
             >
-              Clear
+              {copy.clear}
             </button>
           ) : null}
         </div>
