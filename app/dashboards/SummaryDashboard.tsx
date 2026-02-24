@@ -659,7 +659,7 @@ export default function SummaryDashboard({
 
             <section className={dashboardSectionClass}>
               <div>
-                <h2 className="text-lg font-medium">Alert remark highlights</h2>
+                <h2 className="text-lg font-semibold bg-gradient-to-r from-rose-500 via-violet-500 to-cyan-500 bg-clip-text text-transparent">Alert remark highlights</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {activeMonthKey
                     ? `Showing ${activeMonthLabel} totals with change versus last month.`
@@ -670,7 +670,7 @@ export default function SummaryDashboard({
                 {highlightItems.map((item) => {
                   const summary = buildDeltaSummary(item.current, item.previous);
                   return (
-                    <div key={item.label} className="rounded-2xl border border-indigo-500/20 bg-white/70 dark:bg-slate-900/40 p-4">
+                    <div key={item.label} className="rounded-2xl border border-violet-300/60 bg-gradient-to-br from-violet-100/80 via-white to-cyan-100/80 p-4 shadow-[0_16px_36px_-26px_rgba(139,92,246,0.9)] dark:border-violet-500/40 dark:bg-gradient-to-br dark:from-slate-900/80 dark:via-violet-950/30 dark:to-cyan-950/30">
                       <div className="text-sm text-slate-600 dark:text-slate-300">{item.label}</div>
                       <div className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
                         {item.current}

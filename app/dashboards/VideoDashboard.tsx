@@ -89,7 +89,7 @@ export default function VideoDashboard({
       ) : (
         <section className={dashboardSectionClass}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium">Latest alert samples</h2>
+            <h2 className="text-lg font-semibold bg-gradient-to-r from-fuchsia-500 via-indigo-500 to-cyan-500 bg-clip-text text-transparent">Latest alert samples</h2>
             <span className="text-sm text-slate-500 dark:text-slate-400">
               {samples.length} videos
             </span>
@@ -101,7 +101,7 @@ export default function VideoDashboard({
               {samples.map((sample) => (
                 <article
                   key={sample.id}
-                  className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
+                  className="flex h-full flex-col gap-4 rounded-2xl border border-cyan-300/60 bg-gradient-to-br from-fuchsia-100/80 via-white to-cyan-100/80 p-5 shadow-[0_18px_40px_-26px_rgba(6,182,212,0.8)] dark:border-cyan-500/40 dark:bg-gradient-to-br dark:from-slate-900/80 dark:via-fuchsia-950/30 dark:to-cyan-950/30"
                 >
                   <div className="flex flex-col gap-4">
                     <div>
@@ -135,7 +135,7 @@ export default function VideoDashboard({
                   </div>
                   <div className="mt-auto flex flex-col gap-3">
                     {sample.videoUrl && sample.videoUrl !== '—' ? (
-                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
+                      <div className="overflow-hidden rounded-xl border border-fuchsia-300/60 bg-gradient-to-br from-white/90 to-fuchsia-100/70 dark:border-fuchsia-500/40 dark:bg-gradient-to-br dark:from-slate-900/80 dark:to-indigo-950/50">
                         <video controls preload="metadata" className="h-40 w-full bg-black/30">
                           <source src={sample.videoUrl} type="video/mp4" />
                           Your browser does not support the video tag.

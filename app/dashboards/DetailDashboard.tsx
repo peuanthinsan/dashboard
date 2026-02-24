@@ -506,7 +506,7 @@ export default function DetailDashboard({
               <button
                 type="button"
                 onClick={resetFilters}
-                className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
+                className="text-sm font-semibold text-fuchsia-300 hover:text-cyan-200"
               >
                 Reset filters
               </button>
@@ -1028,7 +1028,7 @@ export default function DetailDashboard({
                   <button
                     type="button"
                     onClick={() => setSortCriteria([])}
-                    className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
+                    className="text-xs font-semibold text-fuchsia-300 hover:text-cyan-200"
                   >
                     Clear sorting
                   </button>
@@ -1123,7 +1123,7 @@ export default function DetailDashboard({
                               href={row.videoUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-indigo-300 hover:text-indigo-200"
+                              className="text-fuchsia-300 hover:text-cyan-200"
                             >
                               View
                             </a>

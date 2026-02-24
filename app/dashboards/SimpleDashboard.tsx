@@ -718,7 +718,7 @@ export default function SimpleDashboard({
             <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-medium">Alert remark highlights</h2>
+                  <h2 className="text-lg font-semibold bg-gradient-to-r from-amber-500 via-fuchsia-500 to-indigo-500 bg-clip-text text-transparent">Alert remark highlights</h2>
                   <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 alerts by remark.</p>
                 </div>
               </div>
@@ -744,7 +744,7 @@ export default function SimpleDashboard({
                 ).map((card) => (
                   <div
                     key={card.label}
-                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 p-5 shadow-sm"
+                    className="rounded-2xl border border-amber-300/60 dark:border-fuchsia-500/40 bg-gradient-to-br from-amber-100/80 via-white to-fuchsia-100/80 dark:bg-gradient-to-br dark:from-slate-900/80 dark:via-fuchsia-950/30 dark:to-amber-950/30 p-5 shadow-[0_16px_36px_-26px_rgba(217,119,6,0.9)]"
                   >
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{card.label}</p>
                     <p className={`mt-3 text-4xl font-semibold ${card.accent}`}>

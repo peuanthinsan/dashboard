@@ -12,7 +12,7 @@ type DashboardShellProps = {
 };
 
 export const dashboardSectionClass =
-  'rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70';
+  'rounded-3xl border border-fuchsia-300/60 bg-gradient-to-br from-cyan-100/80 via-white to-fuchsia-100/80 p-6 shadow-[0_20px_60px_-25px_rgba(14,116,144,0.65)] backdrop-blur dark:border-fuchsia-500/40 dark:bg-gradient-to-br dark:from-slate-900/90 dark:via-fuchsia-950/40 dark:to-cyan-950/40';
 
 export default function DashboardShell({
   title,
@@ -23,10 +23,10 @@ export default function DashboardShell({
   children,
 }: DashboardShellProps) {
   const panelClass =
-    'rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70';
+    'rounded-3xl border border-cyan-300/60 bg-gradient-to-r from-fuchsia-100/80 via-white to-cyan-100/80 p-6 shadow-[0_20px_60px_-25px_rgba(168,85,247,0.7)] backdrop-blur dark:border-cyan-500/40 dark:bg-gradient-to-r dark:from-slate-900/90 dark:via-fuchsia-950/45 dark:to-cyan-950/45';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 px-4 py-8 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-white sm:px-6 sm:py-10">
+    <div className="min-h-screen bg-gradient-to-br from-fuchsia-100 via-sky-50 to-emerald-100 px-4 py-8 text-slate-900 dark:from-slate-950 dark:via-indigo-950 dark:to-cyan-950 dark:text-white sm:px-6 sm:py-10">
       <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
         <header className={`flex flex-wrap items-start justify-between gap-4 ${panelClass}`}>
           <div>
