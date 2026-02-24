@@ -1,5 +1,6 @@
 'use client';
 
+import { t, type DashboardLang } from 'app/dashboard/i18n';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
@@ -26,6 +27,8 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  lang?: DashboardLang;
+  dashboardPath?: string;
 };
 
 const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
@@ -71,7 +74,7 @@ const PieChartCard = ({
       <h2 className="text-lg font-medium">{title}</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
       {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No data available.</p>
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">ไม่มีข้อมูล</p>
       ) : (
         <div className="mt-4 flex flex-col gap-4">
           <div className="mx-auto w-full max-w-[200px]">
@@ -95,7 +98,7 @@ const PieChartCard = ({
                 {total}
               </text>
               <text x="21" y="24" textAnchor="middle" className="fill-slate-500 text-[2.8px] dark:fill-slate-400">
-                alerts
+                แจ้งเตือน
               </text>
             </svg>
           </div>
@@ -119,13 +122,13 @@ const PieChartCard = ({
 const buildDeltaSummary = (current: number, previous: number) => {
   const delta = current - previous;
   const isIncrease = delta >= 0;
-  const deltaLabel = delta === 0 ? 'No change from last month' : `${isIncrease ? '▲' : '▼'} ${Math.abs(delta)} from last month`;
-  let percentLabel = '0% change';
+  const deltaLabel = delta === 0 ? 'ไม่เปลี่ยนแปลงจากเดือนก่อน' : `${isIncrease ? '▲' : '▼'} ${Math.abs(delta)} จากเดือนก่อน`;
+  let percentLabel = '0% เปลี่ยนแปลง';
   if (previous === 0 && current > 0) {
-    percentLabel = '100% increase';
+    percentLabel = '100% เพิ่มขึ้น';
   } else if (previous > 0) {
     const percent = (delta / previous) * 100;
-    percentLabel = `${percent.toFixed(1)}% change`;
+    percentLabel = `${percent.toFixed(1)}% เปลี่ยนแปลง`;
   }
   return { delta, deltaLabel, percentLabel, isIncrease };
 };
@@ -137,6 +140,8 @@ export default function SummaryDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  lang = 'th',
+  dashboardPath,
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
@@ -195,7 +200,7 @@ export default function SummaryDashboard({
     });
   }, [driverFilters, fleetFilters, monthFilters, remarkFilters, storageKey, vehicleFilters]);
 
-  const handleSearchAdd = <T,>(
+  const handleSearchเพิ่ม = <T,>(
     searchValue: string,
     findMatch: (trimmed: string) => T | undefined,
     onMatch: (match: T) => void,
@@ -235,7 +240,7 @@ export default function SummaryDashboard({
       const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
       const parsedDate = parseDate(dateValue);
       const monthKey = parsedDate ? toMonthKey(parsedDate) : null;
-      const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'Unknown month';
+      const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'ไม่ทราบเดือน';
       return {
         alertType,
         driver,
@@ -387,10 +392,10 @@ export default function SummaryDashboard({
 
   const activeMonthLabel =
     activeMonthKey
-      ? monthOptions.find((option) => option.key === activeMonthKey)?.label ?? 'All months'
+      ? monthOptions.find((option) => option.key === activeMonthKey)?.label ?? 'ทุกเดือน'
       : monthFilters.length > 1
-        ? 'Selected months'
-        : 'All months';
+        ? 'เดือนที่เลือก'
+        : 'ทุกเดือน';
 
   const currentRows = useMemo(() => {
     if (monthFilters.length === 0) return baseFilteredRows;
@@ -461,6 +466,8 @@ export default function SummaryDashboard({
       subtitle="Summary dashboard"
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
+      lang={lang}
+      dashboardPath={dashboardPath}
     >
       {error ? (
         <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -469,7 +476,7 @@ export default function SummaryDashboard({
       ) : null}
 
       {loading ? (
-        <LoadingState message="Loading summary…" detail="Compiling high-level KPI totals." />
+        <LoadingState lang={lang} message="กำลังโหลดสรุป…" detail="กำลังประมวลผล KPI ระดับภาพรวม" />
       ) : (
         <div className="flex flex-col gap-6">
           <section className={dashboardSectionClass}>
@@ -477,7 +484,7 @@ export default function SummaryDashboard({
               <div>
                 <h2 className="text-lg font-medium">Filters</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Narrow alerts by remark, month, fleet, or vehicle.
+                  Narrow แจ้งเตือน by remark, month, fleet, or vehicle.
                 </p>
               </div>
               <button
@@ -512,7 +519,7 @@ export default function SummaryDashboard({
                     list="month-options"
                     value={monthSearch}
                     onChange={(event) => setMonthSearch(event.target.value)}
-                    placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
+                    placeholder={monthOptions.length === 0 ? 'ไม่มีเดือนให้เลือก' : 'ค้นหาเดือน'}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="month-options">
@@ -523,7 +530,7 @@ export default function SummaryDashboard({
                   <button
                     type="button"
                     onClick={() =>
-                      handleSearchAdd(
+                      handleSearchเพิ่ม(
                         monthSearch,
                         (trimmed) =>
                           monthOptions.find(
@@ -539,13 +546,13 @@ export default function SummaryDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    เพิ่ม
                   </button>
                 </div>
               </FilterGroup>
               {organizationName ? null : (
                 <FilterGroup
-                  label="Filter fleets"
+                  label="กรองกองรถ"
                   onClear={() => setFleetFilters([])}
                   count={fleetFilters.length}
                 >
@@ -564,7 +571,7 @@ export default function SummaryDashboard({
                       list="fleet-options"
                       value={fleetSearch}
                       onChange={(event) => setFleetSearch(event.target.value)}
-                      placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
+                      placeholder={fleetOptions.length === 0 ? 'ไม่มีกองรถให้เลือก' : 'ค้นหากองรถ'}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
                     <datalist id="fleet-options">
@@ -575,7 +582,7 @@ export default function SummaryDashboard({
                     <button
                       type="button"
                       onClick={() =>
-                        handleSearchAdd(
+                        handleSearchเพิ่ม(
                           fleetSearch,
                           (trimmed) => fleetOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
                           (matched) =>
@@ -585,13 +592,13 @@ export default function SummaryDashboard({
                       }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
-                      Add
+                      เพิ่ม
                     </button>
                   </div>
                 </FilterGroup>
               )}
               <FilterGroup
-                label="Filter remark types"
+                label="กรองประเภทหมายเหตุ"
                 onClear={() => setRemarkFilters([])}
                 count={remarkFilters.length}
               >
@@ -610,7 +617,7 @@ export default function SummaryDashboard({
                     list="remark-options"
                     value={remarkSearch}
                     onChange={(event) => setRemarkSearch(event.target.value)}
-                    placeholder={remarkOptions.length === 0 ? 'No remarks available' : 'Search remarks'}
+                    placeholder={remarkOptions.length === 0 ? 'ไม่มีหมายเหตุให้เลือก' : 'ค้นหาหมายเหตุ'}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="remark-options">
@@ -621,7 +628,7 @@ export default function SummaryDashboard({
                   <button
                     type="button"
                     onClick={() =>
-                      handleSearchAdd(
+                      handleSearchเพิ่ม(
                         remarkSearch,
                         (trimmed) =>
                           remarkOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
@@ -632,12 +639,12 @@ export default function SummaryDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    เพิ่ม
                   </button>
                 </div>
               </FilterGroup>
               <FilterGroup
-                label="Filter vehicles"
+                label="กรองรถ"
                 onClear={() => setVehicleFilters([])}
                 count={vehicleFilters.length}
               >
@@ -656,7 +663,7 @@ export default function SummaryDashboard({
                     list="vehicle-options"
                     value={vehicleSearch}
                     onChange={(event) => setVehicleSearch(event.target.value)}
-                    placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicles'}
+                    placeholder={vehicleOptions.length === 0 ? 'ไม่มีรถให้เลือก' : 'ค้นหารถ'}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="vehicle-options">
@@ -667,7 +674,7 @@ export default function SummaryDashboard({
                   <button
                     type="button"
                     onClick={() =>
-                      handleSearchAdd(
+                      handleSearchเพิ่ม(
                         vehicleSearch,
                         (trimmed) =>
                           vehicleOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
@@ -678,13 +685,13 @@ export default function SummaryDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    เพิ่ม
                   </button>
                 </div>
               </FilterGroup>
               {driverOptions.length > 0 ? (
                 <FilterGroup
-                  label="Filter drivers"
+                  label="กรองคนขับ"
                   onClear={() => setDriverFilters([])}
                   count={driverFilters.length}
                 >
@@ -703,7 +710,7 @@ export default function SummaryDashboard({
                       list="driver-options"
                       value={driverSearch}
                       onChange={(event) => setDriverSearch(event.target.value)}
-                      placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search drivers'}
+                      placeholder={driverOptions.length === 0 ? 'ไม่มีคนขับให้เลือก' : 'ค้นหาคนขับ'}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
                     <datalist id="driver-options">
@@ -714,7 +721,7 @@ export default function SummaryDashboard({
                     <button
                       type="button"
                       onClick={() =>
-                        handleSearchAdd(
+                        handleSearchเพิ่ม(
                           driverSearch,
                           (trimmed) => driverOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
                           (matched) =>
@@ -724,7 +731,7 @@ export default function SummaryDashboard({
                       }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
-                      Add
+                      เพิ่ม
                     </button>
                   </div>
                 </FilterGroup>
@@ -734,10 +741,10 @@ export default function SummaryDashboard({
 
             <section className={dashboardSectionClass}>
               <div>
-                <h2 className="text-lg font-medium">Alert remark highlights</h2>
+                <h2 className="text-lg font-medium">ไฮไลต์หมายเหตุการแจ้งเตือน</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {activeMonthKey
-                    ? `Showing ${activeMonthLabel} totals with change versus last month.`
+                    ? `Showing ${activeMonthLabel} totals with เปลี่ยนแปลง versus last month.`
                     : `Showing ${activeMonthLabel} totals.`}
                 </p>
               </div>
@@ -768,19 +775,19 @@ export default function SummaryDashboard({
 
             <div className="grid gap-6 lg:grid-cols-3">
               <PieChartCard
-                title="Fleet volume"
+                title="ปริมาณตามกองรถ"
                 subtitle="Fleet distribution based on alert activity."
                 rows={topFleets}
               />
 
               <PieChartCard
-                title="Remarks volume"
-                subtitle="Most frequent remark tags in the filtered alerts."
+                title="ปริมาณหมายเหตุ"
+                subtitle="Most frequent remark tags in the filtered แจ้งเตือน."
                 rows={topRemarks}
               />
 
               <PieChartCard
-                title="Vehicle volume"
+                title="ปริมาณตามรถ"
                 subtitle="Top vehicles based on alert activity."
                 rows={topVehicles}
               />

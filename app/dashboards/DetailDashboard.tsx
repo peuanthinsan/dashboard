@@ -1,5 +1,6 @@
 'use client';
 
+import { t, type DashboardLang } from 'app/dashboard/i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
@@ -31,6 +32,8 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  lang?: DashboardLang;
+  dashboardPath?: string;
 };
 
 type AlertRow = {
@@ -125,7 +128,7 @@ const PieChartCard = ({
       <h2 className="text-lg font-medium">{title}</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
       {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No data available.</p>
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">ไม่มีข้อมูล</p>
       ) : (
         <div className="mt-4 flex flex-col gap-4">
           <div className="mx-auto w-full max-w-[200px]">
@@ -146,7 +149,7 @@ const PieChartCard = ({
                 />
               ))}
               <text x="21" y="20" textAnchor="middle" className="fill-slate-900 text-[3.6px] font-semibold dark:fill-white">{total}</text>
-              <text x="21" y="24" textAnchor="middle" className="fill-slate-500 text-[2.8px] dark:fill-slate-400">alerts</text>
+              <text x="21" y="24" textAnchor="middle" className="fill-slate-500 text-[2.8px] dark:fill-slate-400">แจ้งเตือน</text>
             </svg>
           </div>
           <div className="space-y-2">
@@ -173,6 +176,8 @@ export default function DetailDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  lang = 'th',
+  dashboardPath,
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
@@ -244,7 +249,7 @@ export default function DetailDashboard({
     vehicleFilters,
   ]);
 
-  const handleSearchAdd = <T,>(
+  const handleSearchเพิ่ม = <T,>(
     searchValue: string,
     findMatch: (trimmed: string) => T | undefined,
     onMatch: (match: T) => void,
@@ -279,7 +284,7 @@ export default function DetailDashboard({
       const timeValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
       const parsedDate = parseDate(timeValue);
       const monthKey = parsedDate ? toMonthKey(parsedDate) : null;
-      const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'Unknown month';
+      const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'ไม่ทราบเดือน';
       return {
         id: `${index}-${findValue(row, ['Vehicle No']) ?? 'vehicle'}`,
         vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
@@ -557,6 +562,8 @@ export default function DetailDashboard({
       subtitle="Detail dashboard"
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
+      lang={lang}
+      dashboardPath={dashboardPath}
     >
       {error ? (
         <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -565,7 +572,7 @@ export default function DetailDashboard({
       ) : null}
 
       {loading ? (
-        <LoadingState message="Loading detailed alerts…" detail="Building the latest alert timeline." />
+        <LoadingState lang={lang} message="Loading detailed แจ้งเตือน…" detail="กำลังสร้างไทม์ไลน์การแจ้งเตือนล่าสุด" />
       ) : (
         <>
           <section className={dashboardSectionClass}>
@@ -573,7 +580,7 @@ export default function DetailDashboard({
               <div>
                 <h2 className="text-lg font-medium">Filters</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Narrow alerts by remark, month, fleet, or vehicle.
+                  Narrow แจ้งเตือน by remark, month, fleet, or vehicle.
                 </p>
               </div>
               <button
@@ -611,7 +618,7 @@ export default function DetailDashboard({
                     list="month-options"
                     value={monthSearch}
                     onChange={(event) => setMonthSearch(event.target.value)}
-                    placeholder={monthOptions.length === 0 ? 'No months available' : 'Search months'}
+                    placeholder={monthOptions.length === 0 ? 'ไม่มีเดือนให้เลือก' : 'ค้นหาเดือน'}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="month-options">
@@ -622,7 +629,7 @@ export default function DetailDashboard({
                   <button
                     type="button"
                     onClick={() =>
-                      handleSearchAdd(
+                      handleSearchเพิ่ม(
                         monthSearch,
                         (trimmed) =>
                           monthOptions.find(
@@ -641,13 +648,13 @@ export default function DetailDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    เพิ่ม
                   </button>
                 </div>
               </FilterGroup>
               {organizationName ? null : (
                 <FilterGroup
-                  label="Filter fleets"
+                  label="กรองกองรถ"
                   onClear={() => {
                     setFleetFilters([]);
                     setPage(1);
@@ -669,7 +676,7 @@ export default function DetailDashboard({
                       list="fleet-options"
                       value={fleetSearch}
                       onChange={(event) => setFleetSearch(event.target.value)}
-                      placeholder={fleetOptions.length === 0 ? 'No fleets available' : 'Search fleets'}
+                      placeholder={fleetOptions.length === 0 ? 'ไม่มีกองรถให้เลือก' : 'ค้นหากองรถ'}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
                     <datalist id="fleet-options">
@@ -680,7 +687,7 @@ export default function DetailDashboard({
                     <button
                       type="button"
                       onClick={() =>
-                        handleSearchAdd(
+                        handleSearchเพิ่ม(
                           fleetSearch,
                           (trimmed) => fleetOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
                           (matched) =>
@@ -693,13 +700,13 @@ export default function DetailDashboard({
                       }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
-                      Add
+                      เพิ่ม
                     </button>
                   </div>
                 </FilterGroup>
               )}
               <FilterGroup
-                label="Filter remark types"
+                label="กรองประเภทหมายเหตุ"
                 onClear={() => {
                   setRemarkFilters([]);
                   setPage(1);
@@ -721,7 +728,7 @@ export default function DetailDashboard({
                     list="remark-options"
                     value={remarkSearch}
                     onChange={(event) => setRemarkSearch(event.target.value)}
-                    placeholder={remarkOptions.length === 0 ? 'No remarks available' : 'Search remarks'}
+                    placeholder={remarkOptions.length === 0 ? 'ไม่มีหมายเหตุให้เลือก' : 'ค้นหาหมายเหตุ'}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="remark-options">
@@ -732,7 +739,7 @@ export default function DetailDashboard({
                   <button
                     type="button"
                     onClick={() =>
-                      handleSearchAdd(
+                      handleSearchเพิ่ม(
                         remarkSearch,
                         (trimmed) =>
                           remarkOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
@@ -746,12 +753,12 @@ export default function DetailDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    เพิ่ม
                   </button>
                 </div>
               </FilterGroup>
               <FilterGroup
-                label="Filter vehicles"
+                label="กรองรถ"
                 onClear={() => {
                   setVehicleFilters([]);
                   setPage(1);
@@ -773,7 +780,7 @@ export default function DetailDashboard({
                     list="vehicle-options"
                     value={vehicleSearch}
                     onChange={(event) => setVehicleSearch(event.target.value)}
-                    placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicles'}
+                    placeholder={vehicleOptions.length === 0 ? 'ไม่มีรถให้เลือก' : 'ค้นหารถ'}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="vehicle-options">
@@ -784,7 +791,7 @@ export default function DetailDashboard({
                   <button
                     type="button"
                     onClick={() =>
-                      handleSearchAdd(
+                      handleSearchเพิ่ม(
                         vehicleSearch,
                         (trimmed) =>
                           vehicleOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
@@ -798,13 +805,13 @@ export default function DetailDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    เพิ่ม
                   </button>
                 </div>
               </FilterGroup>
               {driverOptions.length > 0 ? (
                 <FilterGroup
-                  label="Filter drivers"
+                  label="กรองคนขับ"
                   onClear={() => {
                     setDriverFilters([]);
                     setPage(1);
@@ -826,7 +833,7 @@ export default function DetailDashboard({
                       list="driver-options"
                       value={driverSearch}
                       onChange={(event) => setDriverSearch(event.target.value)}
-                      placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search drivers'}
+                      placeholder={driverOptions.length === 0 ? 'ไม่มีคนขับให้เลือก' : 'ค้นหาคนขับ'}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
                     <datalist id="driver-options">
@@ -837,7 +844,7 @@ export default function DetailDashboard({
                     <button
                       type="button"
                       onClick={() =>
-                        handleSearchAdd(
+                        handleSearchเพิ่ม(
                           driverSearch,
                           (trimmed) =>
                             driverOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
@@ -851,7 +858,7 @@ export default function DetailDashboard({
                       }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
-                      Add
+                      เพิ่ม
                     </button>
                   </div>
                 </FilterGroup>
@@ -1021,7 +1028,7 @@ export default function DetailDashboard({
                       transform: 'translate(-50%, -100%)',
                     }}
                   >
-                    <div className="font-semibold">{activePoint.count} alerts</div>
+                    <div className="font-semibold">{activePoint.count} แจ้งเตือน</div>
                     <div className="text-[11px] text-slate-600 dark:text-slate-300">{activePoint.label}</div>
                   </div>
                 ) : null}
@@ -1073,7 +1080,7 @@ export default function DetailDashboard({
                   <span>Shift-click column headers to add multiple sorts.</span>
                 </div>
                 <span>
-                  {totalAlerts === 0 ? 'No alerts to show.' : `Showing ${startIndex + 1}-${endIndex} of ${totalAlerts}`}
+                  {totalAlerts === 0 ? 'No แจ้งเตือน to show.' : `Showing ${startIndex + 1}-${endIndex} of ${totalAlerts}`}
                 </span>
               </div>
               {sortCriteria.length > 0 ? (

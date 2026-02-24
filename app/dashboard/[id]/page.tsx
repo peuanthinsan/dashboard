@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { resolveDashboardLang } from '../i18n';
 import { auth } from 'app/auth';
 import { getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
@@ -21,7 +22,14 @@ const resolveTemplate = (template: string | null) => {
   }
 };
 
-export default async function DashboardPage({ params }: { params: { id: string } }) {
+export default async function DashboardPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { lang?: string };
+}) {
+  const lang = resolveDashboardLang(searchParams?.lang);
   const session = await auth();
   if (!session?.user?.email) {
     redirect('/login');
@@ -59,11 +67,13 @@ export default async function DashboardPage({ params }: { params: { id: string }
   return (
     <Template
       dashboardId={params.id}
-      dashboardName={dashboard.name ?? 'Company dashboard'}
+      dashboardName={dashboard.name ?? (lang === 'th' ? 'แดชบอร์ดบริษัท' : 'Company dashboard')}
       sheetId={dashboard.sheetId ?? ''}
       sheetGid={dashboard.sheetGid ?? '0'}
       dashboardNotes={dashboard.notes ?? null}
       organizationName={organizationName}
+      lang={lang}
+      dashboardPath={`/dashboard/${params.id}`}
     />
   );
 }

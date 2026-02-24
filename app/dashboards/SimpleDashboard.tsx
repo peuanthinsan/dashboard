@@ -1,5 +1,6 @@
 'use client';
 
+import { t, type DashboardLang } from 'app/dashboard/i18n';
 import { useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
@@ -25,6 +26,8 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  lang?: DashboardLang;
+  dashboardPath?: string;
 };
 
 type TrendPoint = {
@@ -67,6 +70,8 @@ export default function SimpleDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  lang = 'th',
+  dashboardPath,
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
@@ -119,7 +124,7 @@ export default function SimpleDashboard({
     });
   }, [dateRange, driverFilters, storageKey, trendRemarkFilter, vehicleFilters]);
 
-  const handleSearchAdd = <T,>(
+  const handleSearchเพิ่ม = <T,>(
     searchValue: string,
     findMatch: (trimmed: string) => T | undefined,
     onMatch: (match: T) => void,
@@ -220,16 +225,16 @@ export default function SimpleDashboard({
   }, [driverOptions]);
 
   const filteredAlerts = useMemo(() => {
-    let alerts = dateFilteredAlerts;
+    let แจ้งเตือน = dateFilteredAlerts;
     if (vehicleFilters.length > 0) {
       const activeVehicles = new Set(vehicleFilters);
-      alerts = alerts.filter((row) => activeVehicles.has(row.vehicle));
+      แจ้งเตือน = แจ้งเตือน.filter((row) => activeVehicles.has(row.vehicle));
     }
     if (driverFilters.length > 0) {
       const activeDrivers = new Set(driverFilters);
-      alerts = alerts.filter((row) => activeDrivers.has(row.driver));
+      แจ้งเตือน = แจ้งเตือน.filter((row) => activeDrivers.has(row.driver));
     }
-    return alerts;
+    return แจ้งเตือน;
   }, [dateFilteredAlerts, vehicleFilters, driverFilters]);
 
   const filteredVehicleOptions = useMemo(() => {
@@ -390,6 +395,8 @@ export default function SimpleDashboard({
       subtitle="Simple dashboard"
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
+      lang={lang}
+      dashboardPath={dashboardPath}
     >
       {error ? (
         <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -398,7 +405,7 @@ export default function SimpleDashboard({
       ) : null}
 
       {loading ? (
-        <LoadingState message="Loading dashboard data…" detail="Gathering alert activity and trends." />
+        <LoadingState lang={lang} message="กำลังโหลดข้อมูลแดชบอร์ด…" detail="กำลังรวบรวมกิจกรรมแจ้งเตือนและแนวโน้ม" />
       ) : (
         <>
           <section className={dashboardSectionClass}>
@@ -406,7 +413,7 @@ export default function SimpleDashboard({
               <div>
                 <h2 className="text-lg font-medium">Filters</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Narrow alerts by date range or vehicle.
+                  Narrow แจ้งเตือน by date range or vehicle.
                 </p>
               </div>
               <button
@@ -462,7 +469,7 @@ export default function SimpleDashboard({
                 </label>
               </FilterGroup>
               <FilterGroup
-                label="Filter vehicles"
+                label="กรองรถ"
                 onClear={() => {
                   setVehicleFilters([]);
                   setPage(1);
@@ -487,7 +494,7 @@ export default function SimpleDashboard({
                     list="vehicle-options"
                     value={vehicleQuery}
                     onChange={(event) => setVehicleQuery(event.target.value)}
-                    placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
+                    placeholder={vehicleOptions.length === 0 ? 'ไม่มีรถให้เลือก' : 'Search vehicle number'}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="vehicle-options">
@@ -498,7 +505,7 @@ export default function SimpleDashboard({
                   <button
                     type="button"
                     onClick={() =>
-                      handleSearchAdd(
+                      handleSearchเพิ่ม(
                         vehicleQuery,
                         (trimmed) =>
                           vehicleOptions.find((vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase()),
@@ -512,13 +519,13 @@ export default function SimpleDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    เพิ่ม
                   </button>
                 </div>
               </FilterGroup>
               {driverOptions.length > 0 ? (
                 <FilterGroup
-                  label="Filter drivers"
+                  label="กรองคนขับ"
                   onClear={() => {
                     setDriverFilters([]);
                     setPage(1);
@@ -543,7 +550,7 @@ export default function SimpleDashboard({
                       list="driver-options"
                       value={driverQuery}
                       onChange={(event) => setDriverQuery(event.target.value)}
-                      placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
+                      placeholder={driverOptions.length === 0 ? 'ไม่มีคนขับให้เลือก' : 'Search driver name'}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
                     <datalist id="driver-options">
@@ -554,7 +561,7 @@ export default function SimpleDashboard({
                     <button
                       type="button"
                       onClick={() =>
-                        handleSearchAdd(
+                        handleSearchเพิ่ม(
                           driverQuery,
                           (trimmed) =>
                             driverOptions.find((driver) => driver.toLowerCase() === trimmed.toLowerCase()),
@@ -568,7 +575,7 @@ export default function SimpleDashboard({
                       }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
-                      Add
+                      เพิ่ม
                     </button>
                   </div>
                 </FilterGroup>
@@ -580,7 +587,7 @@ export default function SimpleDashboard({
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Daily alert trend</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 alerts for fatigue, yawning, and distraction.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 แจ้งเตือน for fatigue, yawning, and distraction.</p>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -706,7 +713,7 @@ export default function SimpleDashboard({
                           transform: 'translate(-50%, -100%)',
                         }}
                       >
-                        <div className="font-semibold">{activePoint.count} alerts</div>
+                        <div className="font-semibold">{activePoint.count} แจ้งเตือน</div>
                         <div className="text-[11px] text-slate-600 dark:text-slate-300">{activePoint.label}</div>
                       </div>
                     ) : null}
@@ -718,8 +725,8 @@ export default function SimpleDashboard({
             <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-medium">Alert remark highlights</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 alerts by remark.</p>
+                  <h2 className="text-lg font-medium">ไฮไลต์หมายเหตุการแจ้งเตือน</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 แจ้งเตือน by remark.</p>
                 </div>
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -761,7 +768,7 @@ export default function SimpleDashboard({
                 <div>
                   <h2 className="text-lg font-medium">Alerts by vehicle and date</h2>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Eye Closing-A2 alerts with fatigue, yawning, and distraction remarks.
+                    Eye Closing-A2 แจ้งเตือน with fatigue, yawning, and distraction remarks.
                   </p>
                 </div>
               </div>
@@ -788,7 +795,7 @@ export default function SimpleDashboard({
                 </div>
                 <span>
                   {totalSummaries === 0
-                    ? 'No alerts to show.'
+                    ? 'No แจ้งเตือน to show.'
                     : `Showing ${startIndex + 1}-${endIndex} of ${totalSummaries}`}
                 </span>
               </div>
