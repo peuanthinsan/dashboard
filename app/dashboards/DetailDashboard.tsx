@@ -62,6 +62,89 @@ type SortCriterion = {
   field: SortField;
   direction: SortDirection;
 };
+
+const buildCounts = (rows: AlertRow[], key: 'fleet' | 'remarks' | 'vehicle') => {
+  const totals = new Map<string, number>();
+  rows.forEach((row) => {
+    const value = row[key];
+    const label = value == null || value === '' ? 'Unspecified' : String(value).trim() || 'Unspecified';
+    totals.set(label, (totals.get(label) ?? 0) + 1);
+  });
+  return Array.from(totals.entries())
+    .map(([label, total]) => ({ label, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 6);
+};
+
+const PIE_COLORS = ['#8b5cf6', '#06b6d4', '#f97316', '#22c55e', '#ec4899', '#eab308'];
+
+const PieChartCard = ({
+  title,
+  subtitle,
+  items,
+}: {
+  title: string;
+  subtitle: string;
+  items: { label: string; total: number }[];
+}) => {
+  const total = items.reduce((sum, item) => sum + item.total, 0);
+  if (total === 0) {
+    return (
+      <section className={dashboardSectionClass}>
+        <h2 className="text-lg font-medium">{title}</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No data available.</p>
+      </section>
+    );
+  }
+
+  let offset = 0;
+  const segments = items.map((item, index) => {
+    const percent = (item.total / total) * 100;
+    const segment = {
+      ...item,
+      color: PIE_COLORS[index % PIE_COLORS.length],
+      start: offset,
+      end: offset + percent,
+      percent,
+    };
+    offset += percent;
+    return segment;
+  });
+
+  const pieBackground = `conic-gradient(${segments
+    .map((segment) => `${segment.color} ${segment.start.toFixed(2)}% ${segment.end.toFixed(2)}%`)
+    .join(', ')})`;
+
+  return (
+    <section className={dashboardSectionClass}>
+      <h2 className="text-lg font-medium">{title}</h2>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+      <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="relative h-40 w-40 shrink-0 rounded-full border border-white/30 shadow-inner" style={{ background: pieBackground }}>
+          <div className="absolute inset-[22%] flex items-center justify-center rounded-full bg-slate-950/80 text-center text-xs font-semibold text-indigo-100">
+            {total}
+            <br />
+            alerts
+          </div>
+        </div>
+        <div className="w-full space-y-2">
+          {segments.map((segment) => (
+            <div key={segment.label} className="flex items-center justify-between gap-2 text-sm">
+              <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
+                {segment.label}
+              </span>
+              <span className="text-slate-500 dark:text-slate-400">
+                {segment.total} ({segment.percent.toFixed(1)}%)
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
 type DetailFilterState = {
   monthFilters: string[];
   fleetFilters: string[];
@@ -350,6 +433,10 @@ export default function DetailDashboard({
     if (monthFilters.length === 0) return baseFilteredRows;
     return baseFilteredRows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
   }, [baseFilteredRows, monthFilters]);
+
+  const topFleets = useMemo(() => buildCounts(filteredAlerts, 'fleet'), [filteredAlerts]);
+  const topRemarks = useMemo(() => buildCounts(filteredAlerts, 'remarks'), [filteredAlerts]);
+  const topVehicles = useMemo(() => buildCounts(filteredAlerts, 'vehicle'), [filteredAlerts]);
 
   const availableTrendRemarkOptions = useMemo(() => {
     const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
@@ -767,6 +854,24 @@ export default function DetailDashboard({
               ) : null}
             </div>
             </section>
+
+            <div className="grid gap-6 lg:grid-cols-3">
+              <PieChartCard
+                title="Fleet distribution"
+                subtitle="Top fleets for the filtered alert set."
+                items={topFleets}
+              />
+              <PieChartCard
+                title="Remark distribution"
+                subtitle="Most common remark tags in the filtered alert set."
+                items={topRemarks}
+              />
+              <PieChartCard
+                title="Vehicle distribution"
+                subtitle="Top vehicles for the filtered alert set."
+                items={topVehicles}
+              />
+            </div>
 
             <section className={dashboardSectionClass}>
               <div className="flex items-center justify-between gap-4">

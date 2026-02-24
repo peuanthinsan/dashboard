@@ -40,12 +40,73 @@ const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
     .sort((a, b) => b.total - a.total);
 };
 
-const Bar = ({ value, max }: { value: number; max: number }) => {
-  const width = max === 0 ? 0 : Math.round((value / max) * 100);
+const PIE_COLORS = ['#8b5cf6', '#06b6d4', '#f97316', '#22c55e', '#ec4899', '#eab308'];
+
+const PieChartCard = ({
+  title,
+  subtitle,
+  items,
+}: {
+  title: string;
+  subtitle: string;
+  items: { label: string; total: number }[];
+}) => {
+  const total = items.reduce((sum, item) => sum + item.total, 0);
+  if (total === 0) {
+    return (
+      <section className={dashboardSectionClass}>
+        <h2 className="text-lg font-medium">{title}</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No data available.</p>
+      </section>
+    );
+  }
+
+  let offset = 0;
+  const segments = items.map((item, index) => {
+    const percent = (item.total / total) * 100;
+    const segment = {
+      ...item,
+      color: PIE_COLORS[index % PIE_COLORS.length],
+      start: offset,
+      end: offset + percent,
+      percent,
+    };
+    offset += percent;
+    return segment;
+  });
+
+  const pieBackground = `conic-gradient(${segments
+    .map((segment) => `${segment.color} ${segment.start.toFixed(2)}% ${segment.end.toFixed(2)}%`)
+    .join(', ')})`;
+
   return (
-    <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800">
-      <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${width}%` }} />
-    </div>
+    <section className={dashboardSectionClass}>
+      <h2 className="text-lg font-medium">{title}</h2>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+      <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="relative h-40 w-40 shrink-0 rounded-full border border-white/30 shadow-inner" style={{ background: pieBackground }}>
+          <div className="absolute inset-[22%] flex items-center justify-center rounded-full bg-slate-950/80 text-center text-xs font-semibold text-indigo-100">
+            {total}
+            <br />
+            alerts
+          </div>
+        </div>
+        <div className="w-full space-y-2">
+          {segments.map((segment) => (
+            <div key={segment.label} className="flex items-center justify-between gap-2 text-sm">
+              <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
+                {segment.label}
+              </span>
+              <span className="text-slate-500 dark:text-slate-400">
+                {segment.total} ({segment.percent.toFixed(1)}%)
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 };
 
@@ -349,9 +410,6 @@ export default function SummaryDashboard({
   const topFleets = fleetSummary.slice(0, 6);
   const topRemarks = remarkSummary.slice(0, 6);
   const topVehicles = vehicleSummary.slice(0, 6);
-  const maxFleetTotal = topFleets[0]?.total ?? 0;
-  const maxRemarkTotal = topRemarks[0]?.total ?? 0;
-  const maxVehicleTotal = topVehicles[0]?.total ?? 0;
 
   const countMatches = useCallback(
     (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {
@@ -703,65 +761,21 @@ export default function SummaryDashboard({
             </section>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              <section className={dashboardSectionClass}>
-                <h2 className="text-lg font-medium">Fleet volume</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Fleet distribution based on alert activity.</p>
-                <div className="mt-4 space-y-3">
-                  {topFleets.length === 0 ? (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">No fleet data available.</p>
-                  ) : (
-                    topFleets.map((row) => (
-                      <div key={row.label} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-700 dark:text-slate-200">{row.label}</span>
-                          <span className="text-slate-500 dark:text-slate-400">{row.total}</span>
-                        </div>
-                        <Bar value={row.total} max={maxFleetTotal} />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-
-              <section className={dashboardSectionClass}>
-                <h2 className="text-lg font-medium">Remarks volume</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Most frequent remark tags in the filtered alerts.</p>
-                <div className="mt-4 space-y-3">
-                  {topRemarks.length === 0 ? (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">No remark data available.</p>
-                  ) : (
-                    topRemarks.map((row) => (
-                      <div key={row.label} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-700 dark:text-slate-200">{row.label}</span>
-                          <span className="text-slate-500 dark:text-slate-400">{row.total}</span>
-                        </div>
-                        <Bar value={row.total} max={maxRemarkTotal} />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-
-              <section className={dashboardSectionClass}>
-                <h2 className="text-lg font-medium">Vehicle volume</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Top vehicles based on alert activity.</p>
-                <div className="mt-4 space-y-3">
-                  {topVehicles.length === 0 ? (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">No vehicle data available.</p>
-                  ) : (
-                    topVehicles.map((row) => (
-                      <div key={row.label} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-700 dark:text-slate-200">{row.label}</span>
-                          <span className="text-slate-500 dark:text-slate-400">{row.total}</span>
-                        </div>
-                        <Bar value={row.total} max={maxVehicleTotal} />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
+              <PieChartCard
+                title="Fleet volume"
+                subtitle="Fleet distribution based on alert activity."
+                items={topFleets}
+              />
+              <PieChartCard
+                title="Remarks volume"
+                subtitle="Most frequent remark tags in the filtered alerts."
+                items={topRemarks}
+              />
+              <PieChartCard
+                title="Vehicle volume"
+                subtitle="Top vehicles based on alert activity."
+                items={topVehicles}
+              />
             </div>
 
           </div>
