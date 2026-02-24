@@ -1,6 +1,8 @@
 import './globals.css';
 
 import { GeistSans } from 'geist/font/sans';
+import LanguageToggle from './i18n/LanguageToggle';
+import { LanguageProvider } from './i18n/LanguageProvider';
 import ThemeToggle from './theme/ThemeToggle';
 
 let title = 'SongdeeGPS Dashboard';
@@ -26,13 +28,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={GeistSans.variable}>
-        <div
-          id="theme-controls"
-          className="fixed right-4 top-4 z-50 flex flex-row-reverse items-center gap-2"
-        >
-          <ThemeToggle />
-        </div>
-        {children}
+        <LanguageProvider>
+          <div
+            id="theme-controls"
+            className="fixed right-4 top-4 z-50 flex flex-row-reverse items-center gap-2"
+          >
+            <ThemeToggle />
+            <LanguageToggle />
+          </div>
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );
