@@ -101,7 +101,7 @@ export default function VideoDashboard({
               {samples.map((sample) => (
                 <article
                   key={sample.id}
-                  className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
+                  className="flex h-full flex-col gap-4 rounded-2xl border border-fuchsia-300/45 bg-gradient-to-br from-fuchsia-100/80 via-cyan-50 to-amber-100/70 p-5 shadow-lg shadow-fuchsia-500/10 dark:border-fuchsia-500/35 dark:bg-gradient-to-br dark:from-slate-900/85 dark:via-fuchsia-950/35 dark:to-cyan-950/35"
                 >
                   <div className="flex flex-col gap-4">
                     <div>
@@ -135,7 +135,7 @@ export default function VideoDashboard({
                   </div>
                   <div className="mt-auto flex flex-col gap-3">
                     {sample.videoUrl && sample.videoUrl !== '—' ? (
-                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
+                      <div className="overflow-hidden rounded-xl border border-cyan-300/45 bg-gradient-to-br from-cyan-100/70 to-white/80 dark:border-cyan-500/35 dark:bg-gradient-to-br dark:from-slate-900/80 dark:to-cyan-950/35">
                         <video controls preload="metadata" className="h-40 w-full bg-black/30">
                           <source src={sample.videoUrl} type="video/mp4" />
                           Your browser does not support the video tag.

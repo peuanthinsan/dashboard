@@ -607,7 +607,7 @@ export default function SimpleDashboard({
               </div>
               <div className="mt-6 overflow-x-auto">
                 {trendData.length === 0 ? (
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-950/30 p-6 text-sm text-slate-600 dark:text-slate-300">
+                  <div className="rounded-xl border border-cyan-300/40 dark:border-cyan-500/40 bg-gradient-to-br from-cyan-100/80 via-sky-50 to-violet-100/70 dark:bg-gradient-to-br dark:from-slate-900/80 dark:via-cyan-950/40 dark:to-violet-950/40 p-6 text-sm text-slate-700 dark:text-slate-200">
                     No daily alert data available yet.
                   </div>
                 ) : (
@@ -744,7 +744,7 @@ export default function SimpleDashboard({
                 ).map((card) => (
                   <div
                     key={card.label}
-                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 p-5 shadow-sm"
+                    className="rounded-2xl border border-violet-300/40 dark:border-violet-500/40 bg-gradient-to-br from-violet-100/80 via-fuchsia-50 to-cyan-100/70 dark:bg-gradient-to-br dark:from-slate-900/85 dark:via-violet-950/45 dark:to-cyan-950/35 p-5 shadow-lg shadow-violet-500/10"
                   >
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{card.label}</p>
                     <p className={`mt-3 text-4xl font-semibold ${card.accent}`}>

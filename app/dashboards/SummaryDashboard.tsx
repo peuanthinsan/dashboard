@@ -670,7 +670,7 @@ export default function SummaryDashboard({
                 {highlightItems.map((item) => {
                   const summary = buildDeltaSummary(item.current, item.previous);
                   return (
-                    <div key={item.label} className="rounded-2xl border border-indigo-500/20 bg-white/70 dark:bg-slate-900/40 p-4">
+                    <div key={item.label} className="rounded-2xl border border-indigo-400/40 bg-gradient-to-br from-indigo-100/75 via-fuchsia-50 to-cyan-100/70 dark:bg-gradient-to-br dark:from-slate-900/85 dark:via-indigo-950/45 dark:to-fuchsia-950/35 p-4">
                       <div className="text-sm text-slate-600 dark:text-slate-300">{item.label}</div>
                       <div className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
                         {item.current}
