@@ -8,6 +8,7 @@ import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
+import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
   buildTrendGeometry,
   buildXAxisLabels,
@@ -25,6 +26,7 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  lang?: DashboardLang;
 };
 
 type TrendPoint = {
@@ -67,7 +69,9 @@ export default function SimpleDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  lang = 'en',
 }: DashboardProps) {
+  const copy = getDashboardCopy(lang);
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
@@ -387,7 +391,8 @@ export default function SimpleDashboard({
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle="Simple dashboard"
+      subtitle={lang === 'th' ? 'แดชบอร์ดแบบง่าย' : 'Simple dashboard'}
+      lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >
@@ -398,15 +403,19 @@ export default function SimpleDashboard({
       ) : null}
 
       {loading ? (
-        <LoadingState message="Loading dashboard data…" detail="Gathering alert activity and trends." />
+        <LoadingState
+          message={lang === 'th' ? 'กำลังโหลดข้อมูลแดชบอร์ด…' : 'Loading dashboard data…'}
+          detail={lang === 'th' ? 'กำลังรวบรวมกิจกรรมการแจ้งเตือนและแนวโน้ม' : 'Gathering alert activity and trends.'}
+          fallbackDetail={copy.loadingDetail}
+        />
       ) : (
         <>
           <section className={dashboardSectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-medium">Filters</h2>
+                <h2 className="text-lg font-medium">{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Narrow alerts by date range or vehicle.
+                  {lang === 'th' ? 'กรองการแจ้งเตือนตามช่วงวันที่หรือรถ' : 'Narrow alerts by date range or vehicle.'}
                 </p>
               </div>
               <button
@@ -414,12 +423,13 @@ export default function SimpleDashboard({
                 onClick={resetFilters}
                 className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
               >
-                Reset filters
+                {lang === 'th' ? 'รีเซ็ตตัวกรอง' : 'Reset filters'}
               </button>
             </div>
             <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
               <FilterGroup
-                label="Filter dates"
+                label={lang === 'th' ? 'กรองวันที่' : 'Filter dates'}
+                lang={lang}
                 onClear={() => {
                   setDateRange({ from: '', to: '' });
                   setPage(1);
@@ -462,7 +472,8 @@ export default function SimpleDashboard({
                 </label>
               </FilterGroup>
               <FilterGroup
-                label="Filter vehicles"
+                label={lang === 'th' ? 'กรองรถ' : 'Filter vehicles'}
+                lang={lang}
                 onClear={() => {
                   setVehicleFilters([]);
                   setPage(1);
@@ -487,7 +498,7 @@ export default function SimpleDashboard({
                     list="vehicle-options"
                     value={vehicleQuery}
                     onChange={(event) => setVehicleQuery(event.target.value)}
-                    placeholder={vehicleOptions.length === 0 ? 'No vehicles available' : 'Search vehicle number'}
+                    placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถให้เลือก' : 'No vehicles available') : (lang === 'th' ? 'ค้นหาเลขรถ' : 'Search vehicle number')}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="vehicle-options">
@@ -512,13 +523,14 @@ export default function SimpleDashboard({
                     }
                     className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                   >
-                    Add
+                    {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
                 </div>
               </FilterGroup>
               {driverOptions.length > 0 ? (
                 <FilterGroup
-                  label="Filter drivers"
+                  label={lang === 'th' ? 'กรองคนขับ' : 'Filter drivers'}
+                  lang={lang}
                   onClear={() => {
                     setDriverFilters([]);
                     setPage(1);
@@ -543,7 +555,7 @@ export default function SimpleDashboard({
                       list="driver-options"
                       value={driverQuery}
                       onChange={(event) => setDriverQuery(event.target.value)}
-                      placeholder={driverOptions.length === 0 ? 'No drivers available' : 'Search driver name'}
+                      placeholder={driverOptions.length === 0 ? (lang === 'th' ? 'ไม่มีคนขับให้เลือก' : 'No drivers available') : (lang === 'th' ? 'ค้นหาชื่อคนขับ' : 'Search driver name')}
                       className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                     />
                     <datalist id="driver-options">
@@ -568,7 +580,7 @@ export default function SimpleDashboard({
                       }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
                     >
-                      Add
+                      {lang === 'th' ? 'เพิ่ม' : 'Add'}
                     </button>
                   </div>
                 </FilterGroup>
