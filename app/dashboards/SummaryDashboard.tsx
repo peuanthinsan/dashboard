@@ -659,7 +659,7 @@ export default function SummaryDashboard({
 
             <section className={dashboardSectionClass}>
               <div>
-                <h2 className="text-lg font-medium">Alert remark highlights</h2>
+                <h2 className="bg-gradient-to-r from-fuchsia-500 via-violet-500 to-cyan-500 bg-clip-text text-lg font-semibold text-transparent">Alert remark highlights</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {activeMonthKey
                     ? `Showing ${activeMonthLabel} totals with change versus last month.`
@@ -670,15 +670,15 @@ export default function SummaryDashboard({
                 {highlightItems.map((item) => {
                   const summary = buildDeltaSummary(item.current, item.previous);
                   return (
-                    <div key={item.label} className="rounded-2xl border border-indigo-500/20 bg-white/70 dark:bg-slate-900/40 p-4">
-                      <div className="text-sm text-slate-600 dark:text-slate-300">{item.label}</div>
-                      <div className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
+                    <div key={item.label} className="rounded-2xl border border-fuchsia-300/60 bg-gradient-to-br from-fuchsia-100/90 via-violet-100/80 to-cyan-100/80 p-4 shadow-[0_20px_40px_-30px_rgba(217,70,239,0.9)] dark:border-fuchsia-400/40 dark:bg-gradient-to-br dark:from-fuchsia-950/35 dark:via-violet-950/30 dark:to-cyan-950/30">
+                      <div className="text-sm text-violet-700 dark:text-violet-200">{item.label}</div>
+                      <div className="mt-2 text-2xl font-semibold text-fuchsia-900 dark:text-fuchsia-100">
                         {item.current}
                       </div>
                       {activeMonthKey ? (
                         <>
                           <div
-                            className={`mt-3 text-sm ${summary.isIncrease ? 'text-emerald-300' : 'text-rose-300'}`}
+                            className={`mt-3 text-sm ${summary.isIncrease ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'}`}
                           >
                             {summary.deltaLabel}
                           </div>
@@ -693,7 +693,7 @@ export default function SummaryDashboard({
 
             <div className="grid gap-6 lg:grid-cols-3">
               <section className={dashboardSectionClass}>
-                <h2 className="text-lg font-medium">Fleet volume</h2>
+                <h2 className="text-lg font-semibold text-sky-700 dark:text-sky-300">Fleet volume</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Fleet distribution based on alert activity.</p>
                 <div className="mt-4">
                   <PieBreakdownCard items={topFleets} emptyMessage="No fleet data available." />
@@ -701,7 +701,7 @@ export default function SummaryDashboard({
               </section>
 
               <section className={dashboardSectionClass}>
-                <h2 className="text-lg font-medium">Remarks volume</h2>
+                <h2 className="text-lg font-semibold text-violet-700 dark:text-violet-300">Remarks volume</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Most frequent remark tags in the filtered alerts.</p>
                 <div className="mt-4">
                   <PieBreakdownCard items={topRemarks} emptyMessage="No remark data available." />
@@ -709,7 +709,7 @@ export default function SummaryDashboard({
               </section>
 
               <section className={dashboardSectionClass}>
-                <h2 className="text-lg font-medium">Vehicle volume</h2>
+                <h2 className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">Vehicle volume</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Top vehicles based on alert activity.</p>
                 <div className="mt-4">
                   <PieBreakdownCard items={topVehicles} emptyMessage="No vehicle data available." />

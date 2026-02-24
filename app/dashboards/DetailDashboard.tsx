@@ -789,23 +789,23 @@ export default function DetailDashboard({
 
             <section className={dashboardSectionClass}>
               <div>
-                <h2 className="text-lg font-medium">Alert distribution</h2>
+                <h2 className="bg-gradient-to-r from-sky-500 via-violet-500 to-emerald-500 bg-clip-text text-lg font-semibold text-transparent">Alert distribution</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Colorful pie charts for top fleets, remarks, and vehicles.</p>
               </div>
               <div className="mt-5 grid gap-6 lg:grid-cols-3">
-                <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4">
+                <div className="rounded-2xl border border-sky-300/60 bg-gradient-to-br from-sky-100/90 via-cyan-100/80 to-blue-100/80 p-4 shadow-[0_20px_42px_-30px_rgba(14,165,233,0.85)] dark:border-sky-400/40 dark:bg-gradient-to-br dark:from-sky-950/35 dark:via-cyan-950/30 dark:to-blue-950/30">
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Fleet volume</h3>
                   <div className="mt-3">
                     <PieBreakdownCard items={fleetSummary} emptyMessage="No fleet data available." />
                   </div>
                 </div>
-                <div className="rounded-2xl border border-violet-400/30 bg-violet-500/10 p-4">
+                <div className="rounded-2xl border border-violet-300/60 bg-gradient-to-br from-fuchsia-100/90 via-violet-100/80 to-indigo-100/80 p-4 shadow-[0_20px_42px_-30px_rgba(139,92,246,0.85)] dark:border-violet-400/40 dark:bg-gradient-to-br dark:from-fuchsia-950/35 dark:via-violet-950/30 dark:to-indigo-950/30">
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Remarks volume</h3>
                   <div className="mt-3">
                     <PieBreakdownCard items={remarkSummary} emptyMessage="No remark data available." />
                   </div>
                 </div>
-                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
+                <div className="rounded-2xl border border-emerald-300/60 bg-gradient-to-br from-emerald-100/90 via-lime-100/80 to-teal-100/80 p-4 shadow-[0_20px_42px_-30px_rgba(16,185,129,0.85)] dark:border-emerald-400/40 dark:bg-gradient-to-br dark:from-emerald-950/35 dark:via-lime-950/25 dark:to-teal-950/30">
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Vehicle volume</h3>
                   <div className="mt-3">
                     <PieBreakdownCard items={vehicleSummary} emptyMessage="No vehicle data available." />

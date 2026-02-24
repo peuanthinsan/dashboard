@@ -89,60 +89,60 @@ export default function VideoDashboard({
       ) : (
         <section className={dashboardSectionClass}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium">Latest alert samples</h2>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
+            <h2 className="bg-gradient-to-r from-fuchsia-500 via-violet-500 to-cyan-500 bg-clip-text text-lg font-semibold text-transparent">Latest alert samples</h2>
+            <span className="text-sm text-violet-600 dark:text-violet-300">
               {samples.length} videos
             </span>
           </div>
           {samples.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No videos available yet.</p>
+            <p className="mt-4 text-sm text-violet-600 dark:text-violet-300">No videos available yet.</p>
           ) : (
             <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {samples.map((sample) => (
                 <article
                   key={sample.id}
-                  className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
+                  className="flex h-full flex-col gap-4 rounded-2xl border border-fuchsia-300/60 bg-gradient-to-br from-fuchsia-100/90 via-violet-100/80 to-cyan-100/80 p-5 shadow-[0_25px_45px_-30px_rgba(236,72,153,0.85)] dark:border-fuchsia-400/40 dark:bg-gradient-to-br dark:from-fuchsia-950/35 dark:via-violet-950/30 dark:to-cyan-950/30"
                 >
                   <div className="flex flex-col gap-4">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                      <p className="text-xs uppercase tracking-[0.3em] text-violet-600/80 dark:text-violet-300/80">
                         Vehicle
                       </p>
-                      <p className="text-lg font-semibold text-slate-900 dark:text-white">
+                      <p className="text-lg font-semibold text-fuchsia-900 dark:text-fuchsia-100">
                         {sample.vehicle}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                      <p className="text-xs uppercase tracking-[0.3em] text-violet-600/80 dark:text-violet-300/80">
                         Driver
                       </p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">{sample.driver}</p>
+                      <p className="text-sm text-violet-900 dark:text-violet-100">{sample.driver}</p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                      <p className="text-xs uppercase tracking-[0.3em] text-violet-600/80 dark:text-violet-300/80">
                         Remark
                       </p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">{sample.remarks}</p>
+                      <p className="text-sm text-violet-900 dark:text-violet-100">{sample.remarks}</p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                      <p className="text-xs uppercase tracking-[0.3em] text-violet-600/80 dark:text-violet-300/80">
                         Alert date time
                       </p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">
+                      <p className="text-sm text-violet-900 dark:text-violet-100">
                         {sample.timeLabel}
                       </p>
                     </div>
                   </div>
                   <div className="mt-auto flex flex-col gap-3">
                     {sample.videoUrl && sample.videoUrl !== '—' ? (
-                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
+                      <div className="overflow-hidden rounded-xl border border-cyan-300/60 bg-white/80 dark:border-cyan-400/40 dark:bg-slate-900/60">
                         <video controls preload="metadata" className="h-40 w-full bg-black/30">
                           <source src={sample.videoUrl} type="video/mp4" />
                           Your browser does not support the video tag.
                         </video>
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-500 dark:text-slate-500">
+                      <span className="text-sm text-violet-700 dark:text-violet-300">
                         Video link unavailable
                       </span>
                     )}

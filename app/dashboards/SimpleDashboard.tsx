@@ -728,23 +728,29 @@ export default function SimpleDashboard({
                     {
                       label: 'Fatigue',
                       value: stats.remarks.fatigue,
-                      accent: 'text-amber-500 dark:text-amber-200',
+                      accent: 'text-amber-600 dark:text-amber-200',
+                      cardClass:
+                        'border-amber-300/70 bg-gradient-to-br from-amber-100 via-orange-100 to-yellow-100 dark:border-amber-400/40 dark:from-amber-900/40 dark:via-orange-900/30 dark:to-yellow-900/30',
                     },
                     {
                       label: 'Yawning',
                       value: stats.remarks.yawning,
-                      accent: 'text-emerald-500 dark:text-emerald-200',
+                      accent: 'text-emerald-600 dark:text-emerald-200',
+                      cardClass:
+                        'border-emerald-300/70 bg-gradient-to-br from-emerald-100 via-teal-100 to-cyan-100 dark:border-emerald-400/40 dark:from-emerald-900/40 dark:via-teal-900/30 dark:to-cyan-900/30',
                     },
                     {
                       label: 'Distraction',
                       value: stats.remarks.distraction,
-                      accent: 'text-indigo-500 dark:text-indigo-200',
+                      accent: 'text-indigo-600 dark:text-indigo-200',
+                      cardClass:
+                        'border-fuchsia-300/70 bg-gradient-to-br from-fuchsia-100 via-violet-100 to-indigo-100 dark:border-fuchsia-400/40 dark:from-fuchsia-900/40 dark:via-violet-900/30 dark:to-indigo-900/30',
                     },
                   ] as const
                 ).map((card) => (
                   <div
                     key={card.label}
-                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 p-5 shadow-sm"
+                    className={`rounded-2xl border p-5 shadow-[0_20px_40px_-24px_rgba(79,70,229,0.55)] ${card.cardClass}`}
                   >
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{card.label}</p>
                     <p className={`mt-3 text-4xl font-semibold ${card.accent}`}>
