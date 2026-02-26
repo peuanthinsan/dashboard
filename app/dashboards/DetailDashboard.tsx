@@ -1134,12 +1134,6 @@ export default function DetailDashboard({
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                            {lang === 'th' ? 'หมายเหตุในเหตุการณ์' : 'Event remark'}
-                          </p>
-                          <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.remarks}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
                             {lang === 'th' ? 'วันเวลาแจ้งเตือน' : 'Alert date time'}
                           </p>
                           <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.time}</p>
