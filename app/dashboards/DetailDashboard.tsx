@@ -58,6 +58,11 @@ type TrendPoint = {
   label: string;
 };
 
+type RemarkVideoSample = {
+  remarkType: string;
+  row: AlertRow;
+};
+
 type SortField = 'time' | 'vehicle' | 'driver' | 'alertType' | 'speed' | 'fleet' | 'remarks';
 type SortDirection = 'asc' | 'desc';
 type SortCriterion = {
@@ -84,6 +89,8 @@ const toDateLabel = (value: unknown) => {
 
 
 const PIE_COLORS = ['#f472b6', '#818cf8', '#22d3ee', '#f59e0b', '#34d399', '#f87171'];
+
+const hasVideoLink = (videoUrl: string) => Boolean(videoUrl && videoUrl !== '—');
 
 const buildCounts = (rows: AlertRow[], field: 'fleet' | 'remarks' | 'vehicle') => {
   const totals = new Map<string, number>();
@@ -552,6 +559,29 @@ export default function DetailDashboard({
   const trendPoints = useMemo(() => buildTrendGeometry(trendData, maxTrendValue), [maxTrendValue, trendData]);
   const yAxisTicks = useMemo(() => buildYAxisTicks(maxTrendValue), [maxTrendValue]);
   const xAxisLabels = useMemo(() => buildXAxisLabels(trendData), [trendData]);
+  const latestRemarkVideoSamples = useMemo<RemarkVideoSample[]>(() => {
+    const rowsByLatest = [...filteredAlerts].sort((a, b) => {
+      const aTime = a.parsedDate?.getTime() ?? 0;
+      const bTime = b.parsedDate?.getTime() ?? 0;
+      return bTime - aTime;
+    });
+
+    return allowedRemarkTargets
+      .map((remarkType) => {
+        const normalizedRemarkType = normalizeLabel(remarkType);
+        const matchingRow = rowsByLatest.find((row) => {
+          const normalizedRemark = normalizeLabel(row.remarks);
+          return normalizedRemark.includes(normalizedRemarkType) && hasVideoLink(row.videoUrl);
+        });
+
+        if (!matchingRow) return null;
+        return {
+          remarkType,
+          row: matchingRow,
+        };
+      })
+      .filter((sample): sample is RemarkVideoSample => sample != null);
+  }, [allowedRemarkTargets, filteredAlerts]);
 
   const activePoint = pinnedPoint ?? hoverPoint;
 
@@ -1062,6 +1092,74 @@ export default function DetailDashboard({
             </div>
 
             <section className={dashboardSectionClass}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-medium">
+                  {lang === 'th' ? 'วิดีโอล่าสุดตามประเภทหมายเหตุ' : 'Latest videos by remark type'}
+                </h2>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {latestRemarkVideoSamples.length} {lang === 'th' ? 'ตัวอย่าง' : 'samples'}
+                </span>
+              </div>
+              {latestRemarkVideoSamples.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th'
+                    ? 'ยังไม่พบวิดีโอที่ตรงกับประเภทหมายเหตุที่เลือก'
+                    : 'No recent videos available for the selected remark types.'}
+                </p>
+              ) : (
+                <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {latestRemarkVideoSamples.map((sample) => (
+                    <article
+                      key={`${sample.remarkType}-${sample.row.id}`}
+                      className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
+                    >
+                      <div className="flex flex-col gap-4">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                            {lang === 'th' ? 'ประเภทหมายเหตุ' : 'Remark type'}
+                          </p>
+                          <p className="text-lg font-semibold text-slate-900 dark:text-white">{sample.remarkType}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                            {lang === 'th' ? 'รถ' : 'Vehicle'}
+                          </p>
+                          <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.vehicle}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                            {lang === 'th' ? 'คนขับ' : 'Driver'}
+                          </p>
+                          <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.driver}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                            {lang === 'th' ? 'หมายเหตุในเหตุการณ์' : 'Event remark'}
+                          </p>
+                          <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.remarks}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
+                            {lang === 'th' ? 'วันเวลาแจ้งเตือน' : 'Alert date time'}
+                          </p>
+                          <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.time}</p>
+                        </div>
+                      </div>
+                      <div className="mt-auto overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
+                        <video controls preload="metadata" className="h-40 w-full bg-black/30">
+                          <source src={sample.row.videoUrl} type="video/mp4" />
+                          {lang === 'th'
+                            ? 'เบราว์เซอร์ของคุณไม่รองรับแท็กวิดีโอ'
+                            : 'Your browser does not support the video tag.'}
+                        </video>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className={dashboardSectionClass}>
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Alerts</h2>
               </div>
@@ -1196,7 +1294,7 @@ export default function DetailDashboard({
                         <td className="py-3 pr-4">{row.fleet}</td>
                         <td className="py-3 pr-4">{row.remarks}</td>
                         <td className="py-3">
-                          {row.videoUrl !== '—' ? (
+                          {hasVideoLink(row.videoUrl) ? (
                             <a
                               href={row.videoUrl}
                               target="_blank"
