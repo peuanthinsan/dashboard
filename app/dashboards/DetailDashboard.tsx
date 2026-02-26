@@ -1145,13 +1145,15 @@ export default function DetailDashboard({
                           <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.time}</p>
                         </div>
                       </div>
-                      <div className="mt-auto overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
-                        <video controls preload="metadata" className="h-40 w-full bg-black/30">
-                          <source src={sample.row.videoUrl} type="video/mp4" />
-                          {lang === 'th'
-                            ? 'เบราว์เซอร์ของคุณไม่รองรับแท็กวิดีโอ'
-                            : 'Your browser does not support the video tag.'}
-                        </video>
+                      <div className="mt-auto rounded-xl border border-slate-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                        <a
+                          href={sample.row.videoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center rounded-md border border-indigo-300/60 bg-indigo-500/10 px-3 py-2 text-sm font-semibold text-indigo-300 hover:border-indigo-200 hover:text-indigo-200"
+                        >
+                          {lang === 'th' ? 'เปิดวิดีโอ' : 'View video'}
+                        </a>
                       </div>
                     </article>
                   ))}
