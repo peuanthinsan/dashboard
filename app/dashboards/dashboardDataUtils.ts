@@ -83,6 +83,7 @@ export const toDayKey = (date: Date) =>
 export const ALLOWED_ALERT_TYPES = [
   'Distraction-A2',
   'Eye Closing-A2',
+  'Yawning-A2',
   'OverSpeed',
   'Harsh Acceleration',
   'Harsh Brake',
@@ -107,6 +108,14 @@ export const ALLOWED_REMARK_TARGETS = [
   'Mirror Check',
   'Speed Meter Check',
 ];
+
+export const withDerivedRemark = (alertType: string, remarks: string) => {
+  const normalizedAlertType = normalizeLabel(alertType);
+  if (normalizedAlertType === normalizeLabel('Yawning-A2')) {
+    return 'Yawning';
+  }
+  return remarks;
+};
 
 export const buildTrendGeometry = (trendData: TrendDatum[], maxTrendValue: number): TrendGeometry => {
   const width = 1200;

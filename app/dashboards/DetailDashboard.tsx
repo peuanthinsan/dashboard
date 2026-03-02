@@ -23,6 +23,7 @@ import {
   toDisplayString,
   toMonthKey,
   toMonthLabel,
+  withDerivedRemark,
 } from './dashboardDataUtils';
 
 type DashboardProps = {
@@ -298,7 +299,10 @@ export default function DetailDashboard({
         alertType: toDisplayString(findValue(row, ['Alert Type'])),
         time: toDateLabel(timeValue),
         speed: toDisplayString(findValue(row, ['Speed'])),
-        remarks: toDisplayString(findValue(row, ['Remarks'])),
+        remarks: withDerivedRemark(
+          toDisplayString(findValue(row, ['Alert Type'])),
+          toDisplayString(findValue(row, ['Remarks'])),
+        ),
         fleet: toDisplayString(findValue(row, ['Fleet'])),
         videoUrl: toDisplayString(findValue(row, ['videoURL', 'Videoit'])),
         monthKey,

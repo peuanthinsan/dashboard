@@ -17,6 +17,7 @@ import {
   toDisplayString,
   toMonthKey,
   toMonthLabel,
+  withDerivedRemark,
 } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 
@@ -233,7 +234,10 @@ export default function SummaryDashboard({
       const alertType = toDisplayString(findValue(row, ['Alert Type']));
       const driver = toDisplayString(findValue(row, ['Driver Name']));
       const fleet = toDisplayString(findValue(row, ['Fleet']));
-      const remarks = toDisplayString(findValue(row, ['Remarks']));
+      const remarks = withDerivedRemark(
+        alertType,
+        toDisplayString(findValue(row, ['Remarks'])),
+      );
       const vehicle = toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH']));
       const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
       const parsedDate = parseDate(dateValue);

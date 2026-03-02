@@ -17,6 +17,7 @@ import {
   normalizeLabel,
   parseDate,
   toDayKey,
+  withDerivedRemark,
 } from './dashboardDataUtils';
 
 type DashboardProps = {
@@ -151,7 +152,10 @@ export default function SimpleDashboard({
     return rows
       .map((row) => {
         const alertType = String(findValue(row, ['Alert Type']) ?? '');
-        const remarks = String(findValue(row, ['Remarks']) ?? '');
+        const remarks = withDerivedRemark(
+          alertType,
+          String(findValue(row, ['Remarks']) ?? ''),
+        );
         const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
         const parsedDate = parseDate(dateValue);
         return {
@@ -168,7 +172,11 @@ export default function SimpleDashboard({
         return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
       .filter((row) => {
-        if (normalizeLabel(row.alertType) !== normalizeLabel('Eye Closing-A2')) return false;
+        const normalizedAlertType = normalizeLabel(row.alertType);
+        const isSupportedAlertType =
+          normalizedAlertType === normalizeLabel('Eye Closing-A2') ||
+          normalizedAlertType === normalizeLabel('Yawning-A2');
+        if (!isSupportedAlertType) return false;
         return allowedRemarks.has(normalizeLabel(row.remarks));
       })
       .filter((row) => row.parsedDate);
@@ -592,7 +600,7 @@ export default function SimpleDashboard({
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Daily alert trend</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 alerts for fatigue, yawning, and distraction.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 and Yawning-A2 alerts for fatigue, yawning, and distraction.</p>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -731,7 +739,7 @@ export default function SimpleDashboard({
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-medium">Alert remark highlights</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 alerts by remark.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 and Yawning-A2 alerts by remark.</p>
                 </div>
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -773,7 +781,7 @@ export default function SimpleDashboard({
                 <div>
                   <h2 className="text-lg font-medium">Alerts by vehicle and date</h2>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Eye Closing-A2 alerts with fatigue, yawning, and distraction remarks.
+                    Eye Closing-A2 and Yawning-A2 alerts with fatigue, yawning, and distraction remarks.
                   </p>
                 </div>
               </div>
