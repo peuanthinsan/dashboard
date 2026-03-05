@@ -3,6 +3,7 @@ import { auth } from 'app/auth';
 import { getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
+import DrivingDashboard from 'app/dashboards/DrivingDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
 import VideoDashboard from 'app/dashboards/VideoDashboard';
 import { getDashboardLang } from '../i18n';
@@ -17,6 +18,8 @@ const resolveTemplate = (template: string | null) => {
       return SimpleDashboard;
     case 'Video':
       return VideoDashboard;
+    case 'Driving':
+      return DrivingDashboard;
     default:
       return SummaryDashboard;
   }
