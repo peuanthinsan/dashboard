@@ -12,6 +12,7 @@ import {
   ALLOWED_REMARK_TARGETS,
   findValue,
   hasRemark,
+  isExcludedAlertRemark,
   normalizeLabel,
   parseDate,
   toDisplayString,
@@ -254,7 +255,7 @@ export default function SummaryDashboard({
         dateValue,
       };
     });
-    const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks));
+    const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks) && !isExcludedAlertRemark(row.remarks));
     if (!normalizedOrganizationName) {
       return remarkRows;
     }
@@ -421,8 +422,8 @@ export default function SummaryDashboard({
   const remarkSummary = useMemo(() => buildCounts(currentRows, ['remarks']), [currentRows]);
   const vehicleSummary = useMemo(() => buildCounts(currentRows, ['vehicle']), [currentRows]);
   const topFleets = fleetSummary.slice(0, 6);
-  const topRemarks = remarkSummary.slice(0, 6);
-  const topVehicles = vehicleSummary.slice(0, 6);
+  const topRemarks = remarkSummary;
+  const topVehicles = vehicleSummary;
 
   const countMatches = useCallback(
     (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {
@@ -485,7 +486,7 @@ export default function SummaryDashboard({
               <div>
                 <h2 className="text-lg font-medium">{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {lang === 'th' ? 'กรองการแจ้งเตือนด้วยหมายเหตุ เดือน ฟลีท หรือรถ' : 'Narrow alerts by remark, month, fleet, or vehicle.'}
+                  {lang === 'th' ? 'กรองการแจ้งเตือนด้วยหมายเหตุ เดือน ฟลีท หรือรถ' : 'Narrow alerts by alert type, month, fleet, or vehicle.'}
                 </p>
               </div>
               <button
@@ -601,7 +602,7 @@ export default function SummaryDashboard({
                 </FilterGroup>
               )}
               <FilterGroup
-                label={lang === 'th' ? 'กรองประเภทหมายเหตุ' : 'Filter remark types'}
+                label={lang === 'th' ? 'กรองประเภทหมายเหตุ' : 'Filter alert types'}
                 lang={lang}
                 onClear={() => setRemarkFilters([])}
                 count={remarkFilters.length}
@@ -621,7 +622,7 @@ export default function SummaryDashboard({
                     list="remark-options"
                     value={remarkSearch}
                     onChange={(event) => setRemarkSearch(event.target.value)}
-                    placeholder={remarkOptions.length === 0 ? (lang === 'th' ? 'ไม่มีหมายเหตุให้เลือก' : 'No remarks available') : (lang === 'th' ? 'ค้นหาหมายเหตุ' : 'Search remarks')}
+                    placeholder={remarkOptions.length === 0 ? (lang === 'th' ? 'ไม่มีหมายเหตุให้เลือก' : 'No alert types available') : (lang === 'th' ? 'ค้นหาหมายเหตุ' : 'Search alert types')}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="remark-options">
@@ -787,8 +788,8 @@ export default function SummaryDashboard({
               />
 
               <PieChartCard
-                title={lang === 'th' ? 'ปริมาณตามหมายเหตุ' : 'Remarks volume'}
-                subtitle={lang === 'th' ? 'แท็กหมายเหตุที่พบบ่อยที่สุดในข้อมูลที่กรองแล้ว' : 'Most frequent remark tags in the filtered alerts.'}
+                title={lang === 'th' ? 'สัดส่วนประเภทการแจ้งเตือน' : 'Alert type mix'}
+                subtitle={lang === 'th' ? 'ประเภทการแจ้งเตือนที่พบบ่อยที่สุดในข้อมูลที่กรองแล้ว' : 'Most frequent alert types in the filtered alerts.'}
                 rows={topRemarks}
               />
 

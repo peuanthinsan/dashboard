@@ -17,6 +17,7 @@ import {
   buildYAxisTicks,
   findValue,
   hasRemark,
+  isExcludedAlertRemark,
   normalizeLabel,
   parseDate,
   toDayKey,
@@ -64,7 +65,7 @@ type RemarkVideoSample = {
   row: AlertRow;
 };
 
-type SortField = 'time' | 'vehicle' | 'driver' | 'alertType' | 'speed' | 'fleet' | 'remarks';
+type SortField = 'time' | 'vehicle' | 'driver' | 'speed' | 'fleet' | 'remarks';
 type SortDirection = 'asc' | 'desc';
 type SortCriterion = {
   field: SortField;
@@ -93,7 +94,7 @@ const PIE_COLORS = ['#f472b6', '#818cf8', '#22d3ee', '#f59e0b', '#34d399', '#f87
 
 const hasVideoLink = (videoUrl: string) => Boolean(videoUrl && videoUrl !== '—');
 
-const buildCounts = (rows: AlertRow[], field: 'fleet' | 'remarks' | 'vehicle') => {
+const buildCounts = (rows: AlertRow[], field: 'fleet' | 'remarks' | 'vehicle', limit = 6) => {
   const totals = new Map<string, number>();
   rows.forEach((row) => {
     const value = row[field];
@@ -103,7 +104,7 @@ const buildCounts = (rows: AlertRow[], field: 'fleet' | 'remarks' | 'vehicle') =
   return Array.from(totals.entries())
     .map(([label, total]) => ({ label, total }))
     .sort((a, b) => b.total - a.total)
-    .slice(0, 6);
+    .slice(0, limit);
 };
 
 const PieChartCard = ({
@@ -311,7 +312,7 @@ export default function DetailDashboard({
         parsedDate,
       };
     });
-    const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks));
+    const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks) && !isExcludedAlertRemark(row.remarks));
     if (!normalizedOrganizationName) {
       return remarkRows;
     }
@@ -454,8 +455,8 @@ export default function DetailDashboard({
 
 
   const topFleets = useMemo(() => buildCounts(filteredAlerts, 'fleet'), [filteredAlerts]);
-  const topRemarks = useMemo(() => buildCounts(filteredAlerts, 'remarks'), [filteredAlerts]);
-  const topVehicles = useMemo(() => buildCounts(filteredAlerts, 'vehicle'), [filteredAlerts]);
+  const topRemarks = useMemo(() => buildCounts(filteredAlerts, 'remarks', Number.POSITIVE_INFINITY), [filteredAlerts]);
+  const topVehicles = useMemo(() => buildCounts(filteredAlerts, 'vehicle', Number.POSITIVE_INFINITY), [filteredAlerts]);
 
   const availableTrendRemarkOptions = useMemo(() => {
     const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
@@ -470,7 +471,7 @@ export default function DetailDashboard({
       });
     });
     return [
-      { label: 'All remarks', value: 'all' },
+      { label: 'All alert types', value: 'all' },
       ...Array.from(matching)
         .sort((a, b) => a.localeCompare(b))
         .map((option) => ({ label: option, value: option })),
@@ -494,8 +495,6 @@ export default function DetailDashboard({
           return row.vehicle;
         case 'driver':
           return row.driver;
-        case 'alertType':
-          return row.alertType;
         case 'speed': {
           const numeric = Number.parseFloat(String(row.speed).replace(/[^0-9.]/g, ''));
           return Number.isNaN(numeric) ? null : numeric;
@@ -616,7 +615,7 @@ export default function DetailDashboard({
               <div>
                 <h2 className="text-lg font-medium">{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {lang === 'th' ? 'กรองการแจ้งเตือนตามหมายเหตุ เดือน ฟลีท หรือรถ' : 'Narrow alerts by remark, month, fleet, or vehicle.'}
+                  {lang === 'th' ? 'กรองการแจ้งเตือนตามหมายเหตุ เดือน ฟลีท หรือรถ' : 'Narrow alerts by alert type, month, fleet, or vehicle.'}
                 </p>
               </div>
               <button
@@ -744,7 +743,7 @@ export default function DetailDashboard({
                 </FilterGroup>
               )}
               <FilterGroup
-                label={lang === 'th' ? 'กรองประเภทหมายเหตุ' : 'Filter remark types'}
+                label={lang === 'th' ? 'กรองประเภทหมายเหตุ' : 'Filter alert types'}
                 lang={lang}
                 onClear={() => {
                   setRemarkFilters([]);
@@ -767,7 +766,7 @@ export default function DetailDashboard({
                     list="remark-options"
                     value={remarkSearch}
                     onChange={(event) => setRemarkSearch(event.target.value)}
-                    placeholder={remarkOptions.length === 0 ? (lang === 'th' ? 'ไม่มีหมายเหตุให้เลือก' : 'No remarks available') : (lang === 'th' ? 'ค้นหาหมายเหตุ' : 'Search remarks')}
+                    placeholder={remarkOptions.length === 0 ? (lang === 'th' ? 'ไม่มีหมายเหตุให้เลือก' : 'No alert types available') : (lang === 'th' ? 'ค้นหาหมายเหตุ' : 'Search alert types')}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
                   />
                   <datalist id="remark-options">
@@ -1084,8 +1083,8 @@ export default function DetailDashboard({
                 rows={topFleets}
               />
               <PieChartCard
-                title="Remark mix"
-                subtitle="Most frequent remarks after filters are applied."
+                title="Alert type mix"
+                subtitle="Most frequent alert types after filters are applied."
                 rows={topRemarks}
               />
               <PieChartCard
@@ -1098,7 +1097,7 @@ export default function DetailDashboard({
             <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-medium">
-                  {lang === 'th' ? 'วิดีโอล่าสุดตามประเภทหมายเหตุ' : 'Latest videos by remark type'}
+                  {lang === 'th' ? 'วิดีโอล่าสุดตามประเภทหมายเหตุ' : 'Latest videos by alert type'}
                 </h2>
                 <span className="text-sm text-slate-500 dark:text-slate-400">
                   {latestRemarkVideoSamples.length} {lang === 'th' ? 'ตัวอย่าง' : 'samples'}
@@ -1108,7 +1107,7 @@ export default function DetailDashboard({
                 <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
                   {lang === 'th'
                     ? 'ยังไม่พบวิดีโอที่ตรงกับประเภทหมายเหตุที่เลือก'
-                    : 'No recent videos available for the selected remark types.'}
+                    : 'No recent videos available for the selected alert types.'}
                 </p>
               ) : (
                 <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1120,7 +1119,7 @@ export default function DetailDashboard({
                       <div className="flex flex-col gap-4">
                         <div>
                           <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                            {lang === 'th' ? 'ประเภทหมายเหตุ' : 'Remark type'}
+                            {lang === 'th' ? 'ประเภทหมายเหตุ' : 'Alert type'}
                           </p>
                           <p className="text-lg font-semibold text-slate-900 dark:text-white">{sample.remarkType}</p>
                         </div>
@@ -1219,10 +1218,9 @@ export default function DetailDashboard({
                           { label: 'Alert time', field: 'time' },
                           { label: 'Vehicle', field: 'vehicle' },
                           { label: 'Driver', field: 'driver' },
-                          { label: 'Alert type', field: 'alertType' },
                           { label: 'Speed', field: 'speed' },
                           { label: 'Fleet', field: 'fleet' },
-                          { label: 'Remarks', field: 'remarks' },
+                          { label: 'Alert type', field: 'remarks' },
                         ] as const
                       ).map((column) => {
                         const sortIndex = sortCriteria.findIndex((criterion) => criterion.field === column.field);
@@ -1289,7 +1287,6 @@ export default function DetailDashboard({
                           {row.vehicle}
                         </td>
                         <td className="py-3 pr-4">{row.driver}</td>
-                        <td className="py-3 pr-4">{row.alertType}</td>
                         <td className="py-3 pr-4">{row.speed}</td>
                         <td className="py-3 pr-4">{row.fleet}</td>
                         <td className="py-3 pr-4">{row.remarks}</td>

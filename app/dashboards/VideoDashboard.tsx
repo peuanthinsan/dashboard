@@ -9,6 +9,7 @@ import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
   findValue,
   hasRemark,
+  isExcludedAlertRemark,
   normalizeLabel,
   parseDate,
   toDisplayString,
@@ -67,7 +68,7 @@ export default function VideoDashboard({
         };
       })
       .filter((row) => {
-        if (!hasRemark(row.remarks)) return false;
+        if (!hasRemark(row.remarks) || isExcludedAlertRemark(row.remarks)) return false;
         if (!normalizedOrganizationName) return true;
         return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
@@ -129,7 +130,7 @@ export default function VideoDashboard({
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        {lang === 'th' ? 'หมายเหตุ' : 'Remark'}
+                        {lang === 'th' ? 'ประเภทการแจ้งเตือน' : 'Alert type'}
                       </p>
                       <p className="text-sm text-slate-700 dark:text-slate-200">{sample.remarks}</p>
                     </div>
