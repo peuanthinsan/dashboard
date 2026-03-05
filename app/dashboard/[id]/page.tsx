@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { auth } from 'app/auth';
 import { getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
+import DrivingDashboard from 'app/dashboards/DrivingDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
 import VideoDashboard from 'app/dashboards/VideoDashboard';
@@ -17,6 +18,8 @@ const resolveTemplate = (template: string | null) => {
       return SimpleDashboard;
     case 'Video':
       return VideoDashboard;
+    case 'Driving':
+      return DrivingDashboard;
     default:
       return SummaryDashboard;
   }
