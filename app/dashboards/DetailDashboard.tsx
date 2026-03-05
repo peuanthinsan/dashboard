@@ -456,7 +456,7 @@ export default function DetailDashboard({
 
   const topFleets = useMemo(() => buildCounts(filteredAlerts, 'fleet'), [filteredAlerts]);
   const topRemarks = useMemo(() => buildCounts(filteredAlerts, 'remarks', Number.POSITIVE_INFINITY), [filteredAlerts]);
-  const topVehicles = useMemo(() => buildCounts(filteredAlerts, 'vehicle'), [filteredAlerts]);
+  const topVehicles = useMemo(() => buildCounts(filteredAlerts, 'vehicle', Number.POSITIVE_INFINITY), [filteredAlerts]);
 
   const availableTrendRemarkOptions = useMemo(() => {
     const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
@@ -1083,8 +1083,8 @@ export default function DetailDashboard({
                 rows={topFleets}
               />
               <PieChartCard
-                title="Remark mix"
-                subtitle="Most frequent remarks after filters are applied."
+                title="Alert type mix"
+                subtitle="Most frequent alert types after filters are applied."
                 rows={topRemarks}
               />
               <PieChartCard

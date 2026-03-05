@@ -422,8 +422,8 @@ export default function SummaryDashboard({
   const remarkSummary = useMemo(() => buildCounts(currentRows, ['remarks']), [currentRows]);
   const vehicleSummary = useMemo(() => buildCounts(currentRows, ['vehicle']), [currentRows]);
   const topFleets = fleetSummary.slice(0, 6);
-  const topRemarks = remarkSummary.slice(0, 6);
-  const topVehicles = vehicleSummary.slice(0, 6);
+  const topRemarks = remarkSummary;
+  const topVehicles = vehicleSummary;
 
   const countMatches = useCallback(
     (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {
@@ -788,8 +788,8 @@ export default function SummaryDashboard({
               />
 
               <PieChartCard
-                title={lang === 'th' ? 'ปริมาณตามหมายเหตุ' : 'Remarks volume'}
-                subtitle={lang === 'th' ? 'แท็กหมายเหตุที่พบบ่อยที่สุดในข้อมูลที่กรองแล้ว' : 'Most frequent remark tags in the filtered alerts.'}
+                title={lang === 'th' ? 'สัดส่วนประเภทการแจ้งเตือน' : 'Alert type mix'}
+                subtitle={lang === 'th' ? 'ประเภทการแจ้งเตือนที่พบบ่อยที่สุดในข้อมูลที่กรองแล้ว' : 'Most frequent alert types in the filtered alerts.'}
                 rows={topRemarks}
               />
 
