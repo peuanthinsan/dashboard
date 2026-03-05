@@ -5,6 +5,7 @@ import DetailDashboard from 'app/dashboards/DetailDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
 import VideoDashboard from 'app/dashboards/VideoDashboard';
+import DrivingDashboard from 'app/dashboards/DrivingDashboard';
 import { getDashboardLang } from '../i18n';
 
 const resolveTemplate = (template: string | null) => {
@@ -17,6 +18,8 @@ const resolveTemplate = (template: string | null) => {
       return SimpleDashboard;
     case 'Video':
       return VideoDashboard;
+    case 'Driving':
+      return DrivingDashboard;
     default:
       return SummaryDashboard;
   }

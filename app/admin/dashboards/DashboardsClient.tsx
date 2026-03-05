@@ -20,7 +20,7 @@ import {
 } from '../admin-ui';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
 
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving'] as const;
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 
