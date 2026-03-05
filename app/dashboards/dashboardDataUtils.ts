@@ -61,6 +61,16 @@ export const toDisplayString = (value: unknown) => {
 
 export const hasRemark = (value: string) => value !== '—' && value.trim() !== '';
 
+export const isExcludedAlertRemark = (value: string) => {
+  if (!hasRemark(value)) return false;
+  const normalizedValue = normalizeLabel(value);
+  return (
+    normalizedValue.includes('false alert') ||
+    normalizedValue.includes('no video') ||
+    normalizedValue.includes('no-video')
+  );
+};
+
 export const parseDate = (value: unknown) => {
   if (!value) return null;
   const parsed = new Date(value as string);
