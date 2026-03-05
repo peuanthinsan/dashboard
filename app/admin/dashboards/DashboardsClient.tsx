@@ -20,7 +20,7 @@ import {
 } from '../admin-ui';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
 
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving'] as const;
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -244,6 +244,7 @@ export default function DashboardsClient({
         <AdminStatCard label="Setup guide" variant="gradient" className="sm:col-span-2">
           <ul className={`space-y-2 text-xs ${ADMIN_TEXT_MUTED}`}>
             <li>Paste a full Google Sheet link for validation.</li>
+            <li>Use template <strong>Driving</strong> with this data source: https://docs.google.com/spreadsheets/d/163ouJ7fsWiVXzrkKq1CssL47wM0V3G3WxHCBZSpJMZw/edit?gid=412401625#gid=412401625</li>
             <li>Use fleet filters to control scope.</li>
           </ul>
         </AdminStatCard>
