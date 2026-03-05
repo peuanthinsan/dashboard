@@ -60,9 +60,9 @@ type TrendPoint = {
   label: string;
 };
 
-type RemarkVideoSample = {
+type RemarkVideoGroup = {
   remarkType: string;
-  row: AlertRow;
+  rows: AlertRow[];
 };
 
 type SortField = 'time' | 'vehicle' | 'driver' | 'speed' | 'fleet' | 'remarks';
@@ -562,7 +562,7 @@ export default function DetailDashboard({
   const trendPoints = useMemo(() => buildTrendGeometry(trendData, maxTrendValue), [maxTrendValue, trendData]);
   const yAxisTicks = useMemo(() => buildYAxisTicks(maxTrendValue), [maxTrendValue]);
   const xAxisLabels = useMemo(() => buildXAxisLabels(trendData), [trendData]);
-  const latestRemarkVideoSamples = useMemo<RemarkVideoSample[]>(() => {
+  const latestRemarkVideoGroups = useMemo<RemarkVideoGroup[]>(() => {
     const rowsByLatest = [...filteredAlerts].sort((a, b) => {
       const aTime = a.parsedDate?.getTime() ?? 0;
       const bTime = b.parsedDate?.getTime() ?? 0;
@@ -572,19 +572,21 @@ export default function DetailDashboard({
     return allowedRemarkTargets
       .map((remarkType) => {
         const normalizedRemarkType = normalizeLabel(remarkType);
-        const matchingRow = rowsByLatest.find((row) => {
+        const matchingRows = rowsByLatest.filter((row) => {
           const normalizedRemark = normalizeLabel(row.remarks);
           return normalizedRemark.includes(normalizedRemarkType) && hasVideoLink(row.videoUrl);
-        });
+        }).slice(0, 10);
 
-        if (!matchingRow) return null;
+        if (matchingRows.length === 0) return null;
         return {
           remarkType,
-          row: matchingRow,
+          rows: matchingRows,
         };
       })
-      .filter((sample): sample is RemarkVideoSample => sample != null);
+      .filter((group): group is RemarkVideoGroup => group != null);
   }, [allowedRemarkTargets, filteredAlerts]);
+
+  const latestRemarkVideoSampleCount = latestRemarkVideoGroups.reduce((total, group) => total + group.rows.length, 0);
 
   const activePoint = pinnedPoint ?? hoverPoint;
 
@@ -1100,57 +1102,58 @@ export default function DetailDashboard({
                   {lang === 'th' ? 'วิดีโอล่าสุดตามประเภทหมายเหตุ' : 'Latest videos by alert type'}
                 </h2>
                 <span className="text-sm text-slate-500 dark:text-slate-400">
-                  {latestRemarkVideoSamples.length} {lang === 'th' ? 'ตัวอย่าง' : 'samples'}
+                  {latestRemarkVideoSampleCount} {lang === 'th' ? 'ตัวอย่าง' : 'samples'}
                 </span>
               </div>
-              {latestRemarkVideoSamples.length === 0 ? (
+              {latestRemarkVideoGroups.length === 0 ? (
                 <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
                   {lang === 'th'
                     ? 'ยังไม่พบวิดีโอที่ตรงกับประเภทหมายเหตุที่เลือก'
                     : 'No recent videos available for the selected alert types.'}
                 </p>
               ) : (
-                <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {latestRemarkVideoSamples.map((sample) => (
+                <div className="mt-6 space-y-6">
+                  {latestRemarkVideoGroups.map((group) => (
                     <article
-                      key={`${sample.remarkType}-${sample.row.id}`}
-                      className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
+                      key={group.remarkType}
+                      className="rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
                     >
-                      <div className="flex flex-col gap-4">
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                            {lang === 'th' ? 'ประเภทหมายเหตุ' : 'Alert type'}
-                          </p>
-                          <p className="text-lg font-semibold text-slate-900 dark:text-white">{sample.remarkType}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                            {lang === 'th' ? 'รถ' : 'Vehicle'}
-                          </p>
-                          <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.vehicle}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                            {lang === 'th' ? 'คนขับ' : 'Driver'}
-                          </p>
-                          <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.driver}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                            {lang === 'th' ? 'วันเวลาแจ้งเตือน' : 'Alert date time'}
-                          </p>
-                          <p className="text-sm text-slate-700 dark:text-slate-200">{sample.row.time}</p>
-                        </div>
+                      <div className="mb-4 flex items-center justify-between gap-2">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{group.remarkType}</h3>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {group.rows.length} / 10 {lang === 'th' ? 'รายการล่าสุด' : 'latest videos'}
+                        </span>
                       </div>
-                      <div className="mt-auto rounded-xl border border-slate-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
-                        <a
-                          href={sample.row.videoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center rounded-md border border-indigo-300/60 bg-indigo-500/10 px-3 py-2 text-sm font-semibold text-indigo-300 hover:border-indigo-200 hover:text-indigo-200"
-                        >
-                          {lang === 'th' ? 'เปิดวิดีโอ' : 'View video'}
-                        </a>
+                      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
+                        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+                          <thead className="bg-slate-100/80 text-xs uppercase tracking-[0.18em] text-slate-600 dark:bg-slate-900/80 dark:text-slate-400">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-semibold">{lang === 'th' ? 'รถ' : 'Vehicle'}</th>
+                              <th className="px-4 py-3 text-left font-semibold">{lang === 'th' ? 'คนขับ' : 'Driver'}</th>
+                              <th className="px-4 py-3 text-left font-semibold">{lang === 'th' ? 'วันเวลาแจ้งเตือน' : 'Alert date time'}</th>
+                              <th className="px-4 py-3 text-left font-semibold">{lang === 'th' ? 'วิดีโอ' : 'Video'}</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 text-slate-700 dark:divide-slate-800 dark:text-slate-200">
+                            {group.rows.map((row) => (
+                              <tr key={row.id}>
+                                <td className="px-4 py-3">{row.vehicle}</td>
+                                <td className="px-4 py-3">{row.driver}</td>
+                                <td className="px-4 py-3">{row.time}</td>
+                                <td className="px-4 py-3">
+                                  <a
+                                    href={row.videoUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center rounded-md border border-indigo-300/60 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:border-indigo-200 hover:text-indigo-200"
+                                  >
+                                    {lang === 'th' ? 'เปิดวิดีโอ' : 'View video'}
+                                  </a>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </article>
                   ))}
