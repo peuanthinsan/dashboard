@@ -89,93 +89,7 @@ const toDateLabel = (value: unknown) => {
   return formatDateTimeGB(parsed);
 };
 
-
-const PIE_COLORS = ['#f472b6', '#818cf8', '#22d3ee', '#f59e0b', '#34d399', '#f87171'];
-
 const hasVideoLink = (videoUrl: string) => Boolean(videoUrl && videoUrl !== '—');
-
-const buildCounts = (rows: AlertRow[], field: 'fleet' | 'remarks' | 'vehicle', limit = 6) => {
-  const totals = new Map<string, number>();
-  rows.forEach((row) => {
-    const value = row[field];
-    const key = value == null || value === '' ? 'Unspecified' : String(value).trim() || 'Unspecified';
-    totals.set(key, (totals.get(key) ?? 0) + 1);
-  });
-  return Array.from(totals.entries())
-    .map(([label, total]) => ({ label, total }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, limit);
-};
-
-const PieChartCard = ({
-  title,
-  subtitle,
-  rows,
-}: {
-  title: string;
-  subtitle: string;
-  rows: { label: string; total: number }[];
-}) => {
-  const total = rows.reduce((sum, row) => sum + row.total, 0);
-  let cumulative = 0;
-  const slices = rows.map((row, index) => {
-    const start = cumulative;
-    cumulative += row.total;
-    const percent = total === 0 ? 0 : row.total / total;
-    return {
-      ...row,
-      color: PIE_COLORS[index % PIE_COLORS.length],
-      dashArray: `${Math.max(percent * 100, 0)} ${Math.max(100 - percent * 100, 0)}`,
-      dashOffset: -start,
-      percent,
-    };
-  });
-
-  return (
-    <section className={dashboardSectionClass}>
-      <h2 className="text-lg font-medium">{title}</h2>
-      <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
-      {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No data available.</p>
-      ) : (
-        <div className="mt-4 flex flex-col gap-4">
-          <div className="mx-auto w-full max-w-[200px]">
-            <svg viewBox="0 0 42 42" className="h-auto w-full" role="img" aria-label={title}>
-              <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#1e293b" strokeWidth="4" opacity="0.2" />
-              {slices.map((slice) => (
-                <circle
-                  key={slice.label}
-                  cx="21"
-                  cy="21"
-                  r="15.9"
-                  fill="transparent"
-                  stroke={slice.color}
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeDasharray={slice.dashArray}
-                  strokeDashoffset={slice.dashOffset}
-                />
-              ))}
-              <text x="21" y="20" textAnchor="middle" className="fill-slate-900 text-[3.6px] font-semibold dark:fill-white">{total}</text>
-              <text x="21" y="24" textAnchor="middle" className="fill-slate-500 text-[2.8px] dark:fill-slate-400">alerts</text>
-            </svg>
-          </div>
-          <div className="space-y-2">
-            {slices.map((slice) => (
-              <div key={`${slice.label}-legend`} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
-                  <span className="line-clamp-1">{slice.label}</span>
-                </div>
-                <span className="text-slate-500 dark:text-slate-400">{slice.total} ({(slice.percent * 100).toFixed(0)}%)</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
-  );
-};
 
 export default function DetailDashboard({
   dashboardId,
@@ -452,11 +366,6 @@ export default function DetailDashboard({
     if (monthFilters.length === 0) return baseFilteredRows;
     return baseFilteredRows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
   }, [baseFilteredRows, monthFilters]);
-
-
-  const topFleets = useMemo(() => buildCounts(filteredAlerts, 'fleet'), [filteredAlerts]);
-  const topRemarks = useMemo(() => buildCounts(filteredAlerts, 'remarks', Number.POSITIVE_INFINITY), [filteredAlerts]);
-  const topVehicles = useMemo(() => buildCounts(filteredAlerts, 'vehicle', Number.POSITIVE_INFINITY), [filteredAlerts]);
 
   const availableTrendRemarkOptions = useMemo(() => {
     const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
@@ -1076,25 +985,6 @@ export default function DetailDashboard({
                 ) : null}
               </div>
             </section>
-
-
-            <div className="grid gap-6 lg:grid-cols-3">
-              <PieChartCard
-                title="Fleet mix"
-                subtitle="Top fleets in the current filtered alert set."
-                rows={topFleets}
-              />
-              <PieChartCard
-                title="Alert type mix"
-                subtitle="Most frequent alert types after filters are applied."
-                rows={topRemarks}
-              />
-              <PieChartCard
-                title="Vehicle mix"
-                subtitle="Top vehicles by alert count in this detail view."
-                rows={topVehicles}
-              />
-            </div>
 
             <section className={dashboardSectionClass}>
               <div className="flex flex-wrap items-center justify-between gap-3">
