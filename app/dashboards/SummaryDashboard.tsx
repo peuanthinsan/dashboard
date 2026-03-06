@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { FilterChip } from './FilterChip';
@@ -149,7 +149,6 @@ export default function SummaryDashboard({
     [organizationName],
   );
 
-  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
   const [monthSearch, setMonthSearch] = useState('');
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [fleetSearch, setFleetSearch] = useState('');
@@ -160,7 +159,6 @@ export default function SummaryDashboard({
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [driverSearch, setDriverSearch] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
-  const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
   useEffect(() => {
@@ -172,7 +170,6 @@ export default function SummaryDashboard({
       driverFilters: string[];
     }>(storageKey);
     if (!stored) return;
-    didSetDefaultMonth.current = true;
     if (Array.isArray(stored.monthFilters)) {
       setMonthFilters(stored.monthFilters.filter((value) => typeof value === 'string'));
     }
@@ -348,19 +345,6 @@ export default function SummaryDashboard({
     return monthOptions.filter((option) => normalizeLabel(option.label).includes(normalizedSearch));
   }, [monthOptions, monthSearch]);
 
-  useEffect(() => {
-    if (didSetDefaultMonth.current) return;
-    if (monthOptions.length === 0) return;
-    if (monthFilters.length > 0) {
-      didSetDefaultMonth.current = true;
-      return;
-    }
-    didSetDefaultMonth.current = true;
-    if (monthOptions.some((option) => option.key === currentMonthKey)) {
-      setMonthFilters([currentMonthKey]);
-    }
-  }, [currentMonthKey, monthFilters, monthOptions]);
-
   const baseFilteredRows = useMemo(() => {
     const normalizedAllowedAlertTypes = allowedAlertTypes.map((alert) => normalizeLabel(alert));
     const normalizedFleetFilters = fleetFilters.map((fleet) => normalizeLabel(fleet));
@@ -462,6 +446,47 @@ export default function SummaryDashboard({
     });
     return items.filter((item) => item.current > 0);
   }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
+
+  const monthComparison = useMemo(() => {
+    const comparisonKeys = (monthFilters.length > 0 ? monthFilters : monthOptions.map((option) => option.key))
+      .filter((key, index, keys) => keys.indexOf(key) === index)
+      .sort((a, b) => a.localeCompare(b));
+
+    if (comparisonKeys.length === 0) {
+      return { months: [] as { key: string; label: string }[], rows: [] as { label: string; values: number[] }[] };
+    }
+
+    const rowsByMonth = new Map<string, typeof baseFilteredRows>();
+    comparisonKeys.forEach((key) => {
+      rowsByMonth.set(
+        key,
+        baseFilteredRows.filter((row) => row.monthKey === key),
+      );
+    });
+
+    const months = comparisonKeys.map((key) => ({
+      key,
+      label: monthOptions.find((option) => option.key === key)?.label ?? key,
+    }));
+
+    const metrics: { label: string; field: 'remarks' | 'alertType' }[] = [
+      ...allowedRemarkTargets.map((label) => ({ label, field: 'remarks' as const })),
+      { label: 'Forward Collision-A2', field: 'alertType' as const },
+    ];
+
+    const rows = [
+      {
+        label: lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total alerts',
+        values: comparisonKeys.map((monthKey) => rowsByMonth.get(monthKey)?.length ?? 0),
+      },
+      ...metrics.map((metric) => ({
+        label: metric.label,
+        values: comparisonKeys.map((monthKey) => countMatches(metric.label, metric.field, rowsByMonth.get(monthKey) ?? [])),
+      })),
+    ];
+
+    return { months, rows };
+  }, [allowedRemarkTargets, baseFilteredRows, countMatches, lang, monthFilters, monthOptions]);
 
   return (
     <DashboardShell
@@ -744,6 +769,57 @@ export default function SummaryDashboard({
                 </FilterGroup>
               ) : null}
             </div>
+            </section>
+
+            <section className={dashboardSectionClass}>
+              <div>
+                <h2 className="text-lg font-medium">{lang === 'th' ? 'เปรียบเทียบรายเดือน' : 'Monthly comparison'}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th'
+                    ? 'เปรียบเทียบการแจ้งเตือนของทุกเดือนที่เลือกแบบเดือนต่อเดือน'
+                    : 'Compare alert totals month-by-month across all selected months.'}
+                </p>
+              </div>
+              {monthComparison.months.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th' ? 'ไม่มีข้อมูลรายเดือนให้เปรียบเทียบ' : 'No monthly data available for comparison.'}
+                </p>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+                    <thead>
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
+                          {lang === 'th' ? 'ตัวชี้วัด' : 'Metric'}
+                        </th>
+                        {monthComparison.months.map((month) => (
+                          <th
+                            key={month.key}
+                            className="whitespace-nowrap px-3 py-2 text-right font-medium text-slate-600 dark:text-slate-300"
+                          >
+                            {month.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {monthComparison.rows.map((row) => (
+                        <tr key={row.label}>
+                          <td className="whitespace-nowrap px-3 py-2 text-slate-700 dark:text-slate-200">{row.label}</td>
+                          {row.values.map((value, index) => (
+                            <td
+                              key={`${row.label}-${monthComparison.months[index]?.key ?? index}`}
+                              className="px-3 py-2 text-right text-slate-700 dark:text-slate-200"
+                            >
+                              {value}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
 
             <section className={dashboardSectionClass}>
