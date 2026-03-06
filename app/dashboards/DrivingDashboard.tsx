@@ -32,6 +32,14 @@ type DriverAggregate = {
   totalCntDrvDurationHours: number;
 };
 
+type MonthlyTrendPoint = {
+  monthKey: string;
+  monthLabel: string;
+  totalDistanceKm: number;
+  totalCntDrvDurationHours: number;
+  tripCount: number;
+};
+
 const parseNumber = (value: unknown) => {
   if (value == null || value === '') return 0;
   const cleaned = String(value).replace(/,/g, '').trim();
@@ -60,6 +68,14 @@ const parseDurationHours = (value: unknown) => {
 
 const formatHours = (hours: number) => `${hours.toFixed(2)} h`;
 const formatDistance = (distanceKm: number) => `${distanceKm.toFixed(1)} km`;
+
+const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+const getMonthLabel = (monthKey: string) => {
+  const [year, month] = monthKey.split('-').map(Number);
+  if (!year || !month) return monthKey;
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+};
 
 export default function DrivingDashboard({
   dashboardName,
@@ -162,6 +178,43 @@ export default function DrivingDashboard({
     return { top, maxDuration, maxDistance };
   }, [aggregates]);
 
+  const monthlyTrend = useMemo<MonthlyTrendPoint[]>(() => {
+    const monthTotals = new Map<string, MonthlyTrendPoint>();
+    filteredRows.forEach((row) => {
+      if (!row.date) return;
+      const monthKey = getMonthKey(row.date);
+      const current = monthTotals.get(monthKey) ?? {
+        monthKey,
+        monthLabel: getMonthLabel(monthKey),
+        totalDistanceKm: 0,
+        totalCntDrvDurationHours: 0,
+        tripCount: 0,
+      };
+      current.totalDistanceKm += row.distanceKm;
+      current.totalCntDrvDurationHours += row.cntDrvDurationHours;
+      current.tripCount += 1;
+      monthTotals.set(monthKey, current);
+    });
+    return Array.from(monthTotals.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
+  }, [filteredRows]);
+
+  const maxMonthlyDistance = useMemo(
+    () => Math.max(1, ...monthlyTrend.map((point) => point.totalDistanceKm)),
+    [monthlyTrend],
+  );
+
+  const topEfficiencyDrivers = useMemo(
+    () => aggregates
+      .filter((row) => row.totalCntDrvDurationHours > 0)
+      .map((row) => ({
+        ...row,
+        efficiencyKmh: row.totalDistanceKm / row.totalCntDrvDurationHours,
+      }))
+      .sort((a, b) => b.efficiencyKmh - a.efficiencyKmh)
+      .slice(0, 5),
+    [aggregates],
+  );
+
   if (loading) {
     return (
       <DashboardShell title={dashboardName} subtitle="Driving dashboard" lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
@@ -234,15 +287,66 @@ export default function DrivingDashboard({
               </div>
               <div className="space-y-1">
                 <div className="h-2 rounded bg-slate-200 dark:bg-slate-800">
-                  <div className="h-2 rounded bg-indigo-500" style={{ width: `${(row.totalCntDrvDurationHours / chartData.maxDuration) * 100}%` }} />
+                  <div className="h-2 rounded bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500" style={{ width: `${(row.totalCntDrvDurationHours / chartData.maxDuration) * 100}%` }} />
                 </div>
                 <div className="h-2 rounded bg-slate-200 dark:bg-slate-800">
-                  <div className="h-2 rounded bg-cyan-500" style={{ width: `${(row.totalDistanceKm / chartData.maxDistance) * 100}%` }} />
+                  <div className="h-2 rounded bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600" style={{ width: `${(row.totalDistanceKm / chartData.maxDistance) * 100}%` }} />
                 </div>
               </div>
             </div>
           ))}
-          <div className="pt-2 text-xs text-slate-500 dark:text-slate-400">Indigo = Cnt Drv duration, Cyan = Distance</div>
+          <div className="pt-2 text-xs text-slate-500 dark:text-slate-400">Purple gradient = Cnt Drv duration, Blue gradient = Distance</div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <div className={dashboardSectionClass}>
+          <h2 className="text-lg font-medium">Distance trend by month</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Last 8 months of filtered trips.</p>
+          {monthlyTrend.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No dated trip data available.</p>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {monthlyTrend.map((point) => (
+                <div key={point.monthKey}>
+                  <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                    <span className="text-sm text-slate-700 dark:text-slate-200">{point.monthLabel}</span>
+                    <span>{formatDistance(point.totalDistanceKm)} • {point.tripCount} trips</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800">
+                    <div
+                      className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500"
+                      style={{ width: `${(point.totalDistanceKm / maxMonthlyDistance) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className={dashboardSectionClass}>
+          <h2 className="text-lg font-medium">Most efficient drivers</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Top drivers ranked by average km/h (distance ÷ drive duration).</p>
+          {topEfficiencyDrivers.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No data available to calculate efficiency.</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {topEfficiencyDrivers.map((row, index) => (
+                <div key={`efficiency-${row.driver}`} className="rounded-xl border border-slate-200 bg-gradient-to-r from-white via-amber-50 to-rose-50 px-4 py-3 dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">#{index + 1} {row.driver}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{row.tripCount} trips • {formatDistance(row.totalDistanceKm)} • {formatHours(row.totalCntDrvDurationHours)}</p>
+                    </div>
+                    <p className="rounded-full bg-gradient-to-r from-orange-400 to-pink-500 px-3 py-1 text-sm font-semibold text-white">
+                      {row.efficiencyKmh.toFixed(1)} km/h
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
