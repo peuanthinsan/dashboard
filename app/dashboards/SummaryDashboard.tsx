@@ -134,6 +134,41 @@ const buildDeltaSummary = (current: number, previous: number) => {
   return { delta, deltaLabel, percentLabel, isIncrease };
 };
 
+const buildMonthlyComparisons = (
+  rows: {
+    monthKey: string | null;
+    monthLabel: string;
+  }[],
+  allowedMonthKeys?: Set<string>,
+) => {
+  const totals = new Map<string, { label: string; total: number }>();
+  rows.forEach((row) => {
+    if (!row.monthKey || !row.monthLabel) return;
+    if (allowedMonthKeys && !allowedMonthKeys.has(row.monthKey)) return;
+    const existing = totals.get(row.monthKey);
+    if (existing) {
+      existing.total += 1;
+      return;
+    }
+    totals.set(row.monthKey, { label: row.monthLabel, total: 1 });
+  });
+
+  const ordered = Array.from(totals.entries())
+    .map(([monthKey, value]) => ({ monthKey, ...value }))
+    .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+
+  return ordered.map((entry, index) => {
+    const previous = ordered[index + 1]?.total ?? 0;
+    const delta = entry.total - previous;
+    return {
+      ...entry,
+      previous,
+      delta,
+      percentChange: previous === 0 ? (entry.total > 0 ? 100 : 0) : (delta / previous) * 100,
+    };
+  });
+};
+
 export default function SummaryDashboard({
   dashboardId,
   dashboardName,
@@ -417,6 +452,16 @@ export default function SummaryDashboard({
     if (!previousMonthKey) return [];
     return baseFilteredRows.filter((row) => row.monthKey === previousMonthKey);
   }, [baseFilteredRows, previousMonthKey]);
+
+  const monthKeySet = useMemo(
+    () => (monthFilters.length > 0 ? new Set(monthFilters) : undefined),
+    [monthFilters],
+  );
+
+  const monthlyComparisons = useMemo(
+    () => buildMonthlyComparisons(baseFilteredRows, monthKeySet),
+    [baseFilteredRows, monthKeySet],
+  );
 
   const fleetSummary = useMemo(() => buildCounts(currentRows, ['fleet']), [currentRows]);
   const remarkSummary = useMemo(() => buildCounts(currentRows, ['remarks']), [currentRows]);
@@ -778,6 +823,51 @@ export default function SummaryDashboard({
                   );
                 })}
               </div>
+            </section>
+
+            <section className={dashboardSectionClass}>
+              <div>
+                <h2 className="text-lg font-medium">{lang === 'th' ? 'เปรียบเทียบรายเดือน' : 'Monthly comparison'}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th'
+                    ? 'เปรียบเทียบจำนวนการแจ้งเตือนของแต่ละเดือนและการเปลี่ยนแปลงเทียบเดือนก่อนหน้า'
+                    : 'Compare alert totals for each month and see the change from the prior month.'}
+                </p>
+              </div>
+              {monthlyComparisons.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th' ? 'ไม่มีข้อมูลรายเดือนสำหรับการเปรียบเทียบ' : 'No monthly data available for comparison.'}
+                </p>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full min-w-[480px] text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        <th className="pb-2">{lang === 'th' ? 'เดือน' : 'Month'}</th>
+                        <th className="pb-2">{lang === 'th' ? 'จำนวนการแจ้งเตือน' : 'Alerts'}</th>
+                        <th className="pb-2">{lang === 'th' ? 'เดือนก่อนหน้า' : 'Previous month'}</th>
+                        <th className="pb-2">{lang === 'th' ? 'การเปลี่ยนแปลง' : 'Change'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthlyComparisons.map((month) => (
+                        <tr key={month.monthKey} className="border-t border-slate-200/80 dark:border-slate-700/80">
+                          <td className="py-2 text-slate-900 dark:text-white">{month.label}</td>
+                          <td className="py-2 text-slate-700 dark:text-slate-200">{month.total}</td>
+                          <td className="py-2 text-slate-700 dark:text-slate-200">{month.previous}</td>
+                          <td
+                            className={`py-2 ${month.delta >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}
+                          >
+                            {month.delta === 0
+                              ? (lang === 'th' ? 'ไม่มีการเปลี่ยนแปลง' : 'No change')
+                              : `${month.delta > 0 ? '▲' : '▼'} ${Math.abs(month.delta)} (${Math.abs(month.percentChange).toFixed(1)}%)`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
 
             <div className="grid gap-6 lg:grid-cols-3">
