@@ -134,6 +134,12 @@ const buildDeltaSummary = (current: number, previous: number) => {
   return { delta, deltaLabel, percentLabel, isIncrease };
 };
 
+const formatMonthDelta = (current: number, previous: number, lang: DashboardLang) => {
+  const { delta, isIncrease } = buildDeltaSummary(current, previous);
+  if (delta === 0) return lang === 'th' ? 'คงที่' : 'No change';
+  return `${isIncrease ? '▲' : '▼'} ${Math.abs(delta)}`;
+};
+
 export default function SummaryDashboard({
   dashboardId,
   dashboardName,
@@ -463,6 +469,33 @@ export default function SummaryDashboard({
     return items.filter((item) => item.current > 0);
   }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
 
+  const monthlyComparisonRows = useMemo(() => {
+    const monthlyTotals = new Map<string, number>();
+    baseFilteredRows.forEach((row) => {
+      if (!row.monthKey) return;
+      monthlyTotals.set(row.monthKey, (monthlyTotals.get(row.monthKey) ?? 0) + 1);
+    });
+
+    const sortedMonthKeys = Array.from(monthlyTotals.keys()).sort((a, b) => a.localeCompare(b));
+
+    return sortedMonthKeys
+      .map((monthKey, index) => {
+        const total = monthlyTotals.get(monthKey) ?? 0;
+        const previousMonthKey = sortedMonthKeys[index - 1];
+        const previousTotal = previousMonthKey ? (monthlyTotals.get(previousMonthKey) ?? 0) : 0;
+        const label = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
+
+        return {
+          monthKey,
+          monthLabel: label,
+          total,
+          previousTotal,
+          isSelected: monthFilters.includes(monthKey),
+        };
+      })
+      .reverse();
+  }, [baseFilteredRows, monthFilters, monthOptions]);
+
   return (
     <DashboardShell
       title={dashboardName}
@@ -778,6 +811,55 @@ export default function SummaryDashboard({
                   );
                 })}
               </div>
+            </section>
+
+            <section className={dashboardSectionClass}>
+              <div>
+                <h2 className="text-lg font-medium">{lang === 'th' ? 'เปรียบเทียบรายเดือน' : 'Monthly comparison'}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th'
+                    ? 'เปรียบเทียบจำนวนการแจ้งเตือนของทุกเดือนหลังจากใช้ตัวกรองอื่น ๆ แล้ว'
+                    : 'Compare total alert volume across all months after applying non-month filters.'}
+                </p>
+              </div>
+              {monthlyComparisonRows.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th' ? 'ไม่มีข้อมูลรายเดือนที่สามารถเปรียบเทียบได้' : 'No monthly data available to compare.'}
+                </p>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+                    <thead>
+                      <tr className="text-left text-slate-500 dark:text-slate-400">
+                        <th className="px-3 py-2 font-medium">{lang === 'th' ? 'เดือน' : 'Month'}</th>
+                        <th className="px-3 py-2 font-medium">{lang === 'th' ? 'จำนวนทั้งหมด' : 'Total alerts'}</th>
+                        <th className="px-3 py-2 font-medium">{lang === 'th' ? 'เทียบเดือนก่อน' : 'Vs previous month'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                      {monthlyComparisonRows.map((row) => {
+                        const deltaSummary = buildDeltaSummary(row.total, row.previousTotal);
+                        return (
+                          <tr
+                            key={row.monthKey}
+                            className={row.isSelected ? 'bg-indigo-500/10' : undefined}
+                          >
+                            <td className="px-3 py-2 text-slate-700 dark:text-slate-200">{row.monthLabel}</td>
+                            <td className="px-3 py-2 text-slate-900 dark:text-white">{row.total}</td>
+                            <td className="px-3 py-2">
+                              <span
+                                className={`font-medium ${deltaSummary.isIncrease ? 'text-emerald-400' : 'text-rose-400'}`}
+                              >
+                                {formatMonthDelta(row.total, row.previousTotal, lang)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
 
             <div className="grid gap-6 lg:grid-cols-3">
