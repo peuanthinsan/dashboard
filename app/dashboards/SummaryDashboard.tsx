@@ -45,6 +45,7 @@ const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
 };
 
 const PIE_COLORS = ['#f472b6', '#818cf8', '#22d3ee', '#f59e0b', '#34d399', '#f87171'];
+const MONTHLY_COMPARISON_COLORS = ['#a855f7', '#facc15', '#c0d63b', '#38bdf8', '#fb7185', '#34d399'];
 
 const PieChartCard = ({
   title,
@@ -114,6 +115,51 @@ const PieChartCard = ({
               </div>
             ))}
           </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+const MonthlyComparisonCard = ({
+  title,
+  color,
+  rows,
+}: {
+  title: string;
+  color: string;
+  rows: { monthKey: string; monthLabel: string; total: number }[];
+}) => {
+  const highestTotal = rows.reduce((max, row) => Math.max(max, row.total), 0);
+
+  return (
+    <section className={dashboardSectionClass}>
+      <div className="flex items-center gap-2 text-lg font-medium">
+        <span className="inline-block h-4 w-7 rounded-sm" style={{ backgroundColor: color }} />
+        <h3>{title}</h3>
+      </div>
+      {rows.length === 0 ? (
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No monthly data available.</p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {rows.map((row) => {
+            const widthPercent = highestTotal === 0 ? 0 : Math.max((row.total / highestTotal) * 100, 1);
+            return (
+              <div key={`${title}-${row.monthKey}`}>
+                <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                  <span className="text-slate-700 dark:text-slate-200">{row.monthLabel}</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{row.total}</span>
+                </div>
+                <div className="h-7 rounded-md bg-slate-100 p-1 dark:bg-slate-800/60">
+                  <div
+                    className="h-full rounded-sm transition-[width]"
+                    style={{ width: `${widthPercent}%`, backgroundColor: color }}
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </section>
@@ -463,6 +509,30 @@ export default function SummaryDashboard({
     return items.filter((item) => item.current > 0);
   }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
 
+  const monthlyComparisons = useMemo(() => {
+    const monthsAscending = [...monthOptions].sort((a, b) => a.key.localeCompare(b.key));
+    return highlightItems.map((item, index) => {
+      const rows = monthsAscending
+        .map((month) => {
+          const monthRows = baseFilteredRows.filter((row) => row.monthKey === month.key);
+          const total = countMatches(item.label, item.field, monthRows);
+          return {
+            monthKey: month.key,
+            monthLabel: month.label,
+            total,
+          };
+        })
+        .filter((month) => month.total > 0)
+        .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+
+      return {
+        label: item.label,
+        color: MONTHLY_COMPARISON_COLORS[index % MONTHLY_COMPARISON_COLORS.length],
+        rows,
+      };
+    });
+  }, [baseFilteredRows, countMatches, highlightItems, monthOptions]);
+
   return (
     <DashboardShell
       title={dashboardName}
@@ -799,6 +869,27 @@ export default function SummaryDashboard({
                 rows={topVehicles}
               />
             </div>
+
+            <section className={dashboardSectionClass}>
+              <div>
+                <h2 className="text-lg font-medium">{lang === 'th' ? 'เปรียบเทียบรายเดือนตามประเภทการแจ้งเตือน' : 'Monthly comparison by alert type'}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th'
+                    ? 'เปรียบเทียบทุกเดือนของแต่ละประเภทการแจ้งเตือนหรือหมายเหตุ โดยอิงจากตัวกรองปัจจุบัน (ไม่จำกัดเฉพาะเดือนที่เลือก)'
+                    : 'Compare every month for each alert type/remark using the current filters (not limited to selected month chips).'}
+                </p>
+              </div>
+              <div className="mt-5 grid gap-6 xl:grid-cols-3">
+                {monthlyComparisons.map((comparison) => (
+                  <MonthlyComparisonCard
+                    key={comparison.label}
+                    title={comparison.label}
+                    color={comparison.color}
+                    rows={comparison.rows}
+                  />
+                ))}
+              </div>
+            </section>
 
           </div>
         )}
