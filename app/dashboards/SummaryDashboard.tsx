@@ -418,6 +418,32 @@ export default function SummaryDashboard({
     return baseFilteredRows.filter((row) => row.monthKey === previousMonthKey);
   }, [baseFilteredRows, previousMonthKey]);
 
+  const monthComparisonRows = useMemo(() => {
+    const countsByMonth = new Map<string, { label: string; total: number }>();
+    baseFilteredRows.forEach((row) => {
+      if (!row.monthKey || !row.monthLabel || row.monthLabel === 'Unknown month') return;
+      const existing = countsByMonth.get(row.monthKey);
+      if (existing) {
+        existing.total += 1;
+        return;
+      }
+      countsByMonth.set(row.monthKey, { label: row.monthLabel, total: 1 });
+    });
+
+    const sortedMonths = Array.from(countsByMonth.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    return sortedMonths.map(([key, value], index) => {
+      const previousTotal = index > 0 ? sortedMonths[index - 1][1].total : 0;
+      const summary = buildDeltaSummary(value.total, previousTotal);
+      return {
+        key,
+        label: value.label,
+        total: value.total,
+        previousTotal,
+        ...summary,
+      };
+    });
+  }, [baseFilteredRows]);
+
   const fleetSummary = useMemo(() => buildCounts(currentRows, ['fleet']), [currentRows]);
   const remarkSummary = useMemo(() => buildCounts(currentRows, ['remarks']), [currentRows]);
   const vehicleSummary = useMemo(() => buildCounts(currentRows, ['vehicle']), [currentRows]);
@@ -778,6 +804,51 @@ export default function SummaryDashboard({
                   );
                 })}
               </div>
+            </section>
+
+            <section className={dashboardSectionClass}>
+              <div>
+                <h2 className="text-lg font-medium">{lang === 'th' ? 'เปรียบเทียบรายเดือน' : 'Monthly comparison'}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th'
+                    ? 'เปรียบเทียบจำนวนการแจ้งเตือนในทุกเดือนตามตัวกรองปัจจุบัน (ไม่รวมตัวกรองเดือน)'
+                    : 'Compare alert totals across every month using the current non-month filters.'}
+                </p>
+              </div>
+              {monthComparisonRows.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+                  {lang === 'th' ? 'ไม่มีข้อมูลรายเดือนให้เปรียบเทียบ' : 'No monthly data available for comparison.'}
+                </p>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        <th className="px-2 py-2 font-medium">{lang === 'th' ? 'เดือน' : 'Month'}</th>
+                        <th className="px-2 py-2 font-medium">{lang === 'th' ? 'ทั้งหมด' : 'Total'}</th>
+                        <th className="px-2 py-2 font-medium">{lang === 'th' ? 'เดือนก่อนหน้า' : 'Previous month'}</th>
+                        <th className="px-2 py-2 font-medium">{lang === 'th' ? 'การเปลี่ยนแปลง' : 'Change'}</th>
+                        <th className="px-2 py-2 font-medium">{lang === 'th' ? 'เปอร์เซ็นต์' : 'Percent'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthComparisonRows.map((monthRow) => (
+                        <tr key={monthRow.key} className="border-b border-slate-100 dark:border-slate-800">
+                          <td className="px-2 py-2 text-slate-700 dark:text-slate-200">{monthRow.label}</td>
+                          <td className="px-2 py-2 font-semibold text-slate-900 dark:text-white">{monthRow.total}</td>
+                          <td className="px-2 py-2 text-slate-600 dark:text-slate-300">{monthRow.previousTotal}</td>
+                          <td
+                            className={`px-2 py-2 ${monthRow.isIncrease ? 'text-emerald-300' : 'text-rose-300'}`}
+                          >
+                            {monthRow.deltaLabel}
+                          </td>
+                          <td className="px-2 py-2 text-slate-600 dark:text-slate-300">{monthRow.percentLabel}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
 
             <div className="grid gap-6 lg:grid-cols-3">
