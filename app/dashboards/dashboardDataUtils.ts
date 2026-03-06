@@ -114,6 +114,7 @@ export const ALLOWED_REMARK_TARGETS = [
   'Harsh Brake',
   'Harsh Acceleration',
   'OverSpeed',
+  'Forward Collision',
   'Maintenance',
   'Mirror Check',
   'Speed Meter Check',
@@ -121,9 +122,19 @@ export const ALLOWED_REMARK_TARGETS = [
 
 export const withDerivedRemark = (alertType: string, remarks: string) => {
   const normalizedAlertType = normalizeLabel(alertType);
-  if (normalizedAlertType === normalizeLabel('Yawning-A2')) {
-    return 'Yawning';
+  const derivedRemarkByAlertType: Record<string, string> = {
+    [normalizeLabel('Yawning-A2')]: 'Yawning',
+    [normalizeLabel('OverSpeed')]: 'OverSpeed',
+    [normalizeLabel('Harsh Acceleration')]: 'Harsh Acceleration',
+    [normalizeLabel('Harsh Brake')]: 'Harsh Brake',
+    [normalizeLabel('Forward Collision-A2')]: 'Forward Collision',
+  };
+
+  const derivedRemark = derivedRemarkByAlertType[normalizedAlertType];
+  if (derivedRemark) {
+    return derivedRemark;
   }
+
   return remarks;
 };
 
