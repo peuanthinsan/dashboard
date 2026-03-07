@@ -143,7 +143,7 @@ const MonthlyComparisonCard = ({
       ) : (
         <div className="mt-4 space-y-3">
           {rows.map((row) => {
-            const widthPercent = highestTotal === 0 ? 0 : Math.max((row.total / highestTotal) * 100, 1);
+            const widthPercent = highestTotal === 0 || row.total === 0 ? 0 : Math.max((row.total / highestTotal) * 100, 1);
             return (
               <div key={`${title}-${row.monthKey}`}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
@@ -511,27 +511,35 @@ export default function SummaryDashboard({
 
   const monthlyComparisons = useMemo(() => {
     const monthsAscending = [...monthOptions].sort((a, b) => a.key.localeCompare(b.key));
-    return highlightItems.map((item, index) => {
-      const rows = monthsAscending
-        .map((month) => {
-          const monthRows = baseFilteredRows.filter((row) => row.monthKey === month.key);
-          const total = countMatches(item.label, item.field, monthRows);
-          return {
-            monthKey: month.key,
-            monthLabel: month.label,
-            total,
-          };
-        })
-        .filter((month) => month.total > 0)
-        .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+    const comparisonTargets = [
+      ...allowedRemarkTargets.map((label) => ({ label, field: 'remarks' as const })),
+      { label: 'Forward Collision-A2', field: 'alertType' as const },
+    ];
 
-      return {
-        label: item.label,
-        color: MONTHLY_COMPARISON_COLORS[index % MONTHLY_COMPARISON_COLORS.length],
-        rows,
-      };
-    });
-  }, [baseFilteredRows, countMatches, highlightItems, monthOptions]);
+    return comparisonTargets
+      .map((item, index) => {
+        const rows = monthsAscending
+          .map((month) => {
+            const monthRows = baseFilteredRows.filter((row) => row.monthKey === month.key);
+            const total = countMatches(item.label, item.field, monthRows);
+            return {
+              monthKey: month.key,
+              monthLabel: month.label,
+              total,
+            };
+          })
+          .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+
+        return {
+          label: item.label,
+          color: MONTHLY_COMPARISON_COLORS[index % MONTHLY_COMPARISON_COLORS.length],
+          rows,
+          total: rows.reduce((sum, row) => sum + row.total, 0),
+        };
+      })
+      .filter((comparison) => comparison.total > 0)
+      .map(({ total: _total, ...comparison }) => comparison);
+  }, [allowedRemarkTargets, baseFilteredRows, countMatches, monthOptions]);
 
   return (
     <DashboardShell
