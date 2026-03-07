@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { FilterChip } from './FilterChip';
@@ -134,6 +134,69 @@ const buildDeltaSummary = (current: number, previous: number) => {
   return { delta, deltaLabel, percentLabel, isIncrease };
 };
 
+const buildMonthlyComparison = (
+  rows: { remarks: string; alertType: string; monthKey: string | null; monthLabel: string }[],
+  targetLabel: string,
+  field: 'remarks' | 'alertType',
+) => {
+  const normalizedTarget = normalizeLabel(targetLabel);
+  const totals = new Map<string, { monthLabel: string; total: number }>();
+  rows.forEach((row) => {
+    if (!row.monthKey) return;
+    const value = field === 'remarks' ? row.remarks : row.alertType;
+    if (!value || value === '—') return;
+    const normalizedValue = normalizeLabel(value);
+    const isMatch = field === 'remarks'
+      ? normalizedValue.includes(normalizedTarget)
+      : normalizedValue === normalizedTarget;
+    if (!isMatch) return;
+    const existing = totals.get(row.monthKey);
+    if (existing) {
+      totals.set(row.monthKey, { ...existing, total: existing.total + 1 });
+      return;
+    }
+    totals.set(row.monthKey, { monthLabel: row.monthLabel, total: 1 });
+  });
+  return Array.from(totals.entries())
+    .map(([monthKey, value]) => ({ monthKey, monthLabel: value.monthLabel, total: value.total }))
+    .sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+};
+
+const MonthlyComparisonCard = ({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { monthKey: string; monthLabel: string; total: number }[];
+}) => {
+  const maxTotal = rows.reduce((max, row) => Math.max(max, row.total), 0);
+  return (
+    <section className={dashboardSectionClass}>
+      <h3 className="text-base font-medium">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No data available.</p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {rows.map((row) => {
+            const widthPercent = maxTotal === 0 ? 0 : (row.total / maxTotal) * 100;
+            return (
+              <div key={`${title}-${row.monthKey}`}>
+                <div className="mb-1 flex items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300">
+                  <span>{row.monthLabel}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{row.total}</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-200/70 dark:bg-slate-800/80">
+                  <div className="h-2 rounded-full bg-indigo-400" style={{ width: `${widthPercent}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+};
+
 export default function SummaryDashboard({
   dashboardId,
   dashboardName,
@@ -149,7 +212,6 @@ export default function SummaryDashboard({
     [organizationName],
   );
 
-  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
   const [monthSearch, setMonthSearch] = useState('');
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [fleetSearch, setFleetSearch] = useState('');
@@ -160,7 +222,6 @@ export default function SummaryDashboard({
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [driverSearch, setDriverSearch] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
-  const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
   useEffect(() => {
@@ -172,7 +233,6 @@ export default function SummaryDashboard({
       driverFilters: string[];
     }>(storageKey);
     if (!stored) return;
-    didSetDefaultMonth.current = true;
     if (Array.isArray(stored.monthFilters)) {
       setMonthFilters(stored.monthFilters.filter((value) => typeof value === 'string'));
     }
@@ -348,19 +408,6 @@ export default function SummaryDashboard({
     return monthOptions.filter((option) => normalizeLabel(option.label).includes(normalizedSearch));
   }, [monthOptions, monthSearch]);
 
-  useEffect(() => {
-    if (didSetDefaultMonth.current) return;
-    if (monthOptions.length === 0) return;
-    if (monthFilters.length > 0) {
-      didSetDefaultMonth.current = true;
-      return;
-    }
-    didSetDefaultMonth.current = true;
-    if (monthOptions.some((option) => option.key === currentMonthKey)) {
-      setMonthFilters([currentMonthKey]);
-    }
-  }, [currentMonthKey, monthFilters, monthOptions]);
-
   const baseFilteredRows = useMemo(() => {
     const normalizedAllowedAlertTypes = allowedAlertTypes.map((alert) => normalizeLabel(alert));
     const normalizedFleetFilters = fleetFilters.map((fleet) => normalizeLabel(fleet));
@@ -462,6 +509,20 @@ export default function SummaryDashboard({
     });
     return items.filter((item) => item.current > 0);
   }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
+
+  const monthlyComparisonItems = useMemo(() => {
+    const remarkItems = allowedRemarkTargets
+      .map((label) => ({
+        label,
+        rows: buildMonthlyComparison(currentRows, label, 'remarks'),
+      }))
+      .filter((item) => item.rows.length > 0);
+    const collisionRows = buildMonthlyComparison(currentRows, 'Forward Collision-A2', 'alertType');
+    if (collisionRows.length > 0) {
+      remarkItems.push({ label: 'Forward Collision-A2', rows: collisionRows });
+    }
+    return remarkItems;
+  }, [allowedRemarkTargets, currentRows]);
 
   return (
     <DashboardShell
@@ -778,6 +839,24 @@ export default function SummaryDashboard({
                   );
                 })}
               </div>
+            </section>
+
+            <section className={dashboardSectionClass}>
+              <h2 className="text-lg font-medium">{lang === 'th' ? 'เปรียบเทียบรายเดือนตามประเภทการแจ้งเตือน' : 'Monthly comparison by alert type/remark'}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {lang === 'th'
+                  ? 'เปรียบเทียบผลรวมของแต่ละประเภทแยกรายเดือนภายใต้ตัวกรองปัจจุบัน'
+                  : 'Compare each alert type/remark across all months in the current filter scope.'}
+              </p>
+              {monthlyComparisonItems.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No monthly comparison data available.</p>
+              ) : (
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {monthlyComparisonItems.map((item) => (
+                    <MonthlyComparisonCard key={item.label} title={item.label} rows={item.rows} />
+                  ))}
+                </div>
+              )}
             </section>
 
             <div className="grid gap-6 lg:grid-cols-3">
