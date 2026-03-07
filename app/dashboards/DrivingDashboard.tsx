@@ -30,6 +30,9 @@ type DriverAggregate = {
   tripCount: number;
   totalDistanceKm: number;
   totalCntDrvDurationHours: number;
+  datedTripCount: number;
+  firstTripDate: Date | null;
+  lastTripDate: Date | null;
 };
 
 type MonthlyTrendPoint = {
@@ -64,6 +67,18 @@ const parseDurationHours = (value: unknown) => {
   }
 
   return parseNumber(raw);
+};
+
+const formatPercent = (value: number) => `${value.toFixed(1)}%`;
+
+const median = (values: number[]) => {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
 };
 
 const formatHours = (hours: number) => `${hours.toFixed(2)} h`;
@@ -146,10 +161,22 @@ export default function DrivingDashboard({
         tripCount: 0,
         totalDistanceKm: 0,
         totalCntDrvDurationHours: 0,
+        datedTripCount: 0,
+        firstTripDate: null,
+        lastTripDate: null,
       };
       current.tripCount += 1;
       current.totalDistanceKm += row.distanceKm;
       current.totalCntDrvDurationHours += row.cntDrvDurationHours;
+      if (row.date) {
+        current.datedTripCount += 1;
+        if (!current.firstTripDate || row.date < current.firstTripDate) {
+          current.firstTripDate = row.date;
+        }
+        if (!current.lastTripDate || row.date > current.lastTripDate) {
+          current.lastTripDate = row.date;
+        }
+      }
       totals.set(row.driver, current);
     });
 
@@ -161,14 +188,49 @@ export default function DrivingDashboard({
     const totalDistanceKm = filteredRows.reduce((sum, row) => sum + row.distanceKm, 0);
     const totalCntDrvDurationHours = filteredRows.reduce((sum, row) => sum + row.cntDrvDurationHours, 0);
     const activeDrivers = aggregates.length;
+    const avgTripDistanceKm = totalTrips > 0 ? totalDistanceKm / totalTrips : 0;
+    const avgTripDurationHours = totalTrips > 0 ? totalCntDrvDurationHours / totalTrips : 0;
+    const avgSpeedKmh = totalCntDrvDurationHours > 0 ? totalDistanceKm / totalCntDrvDurationHours : 0;
+    const medianTripDistanceKm = median(filteredRows.map((row) => row.distanceKm));
+    const medianTripDurationHours = median(filteredRows.map((row) => row.cntDrvDurationHours));
 
     return {
       totalTrips,
       totalDistanceKm,
       totalCntDrvDurationHours,
       activeDrivers,
+      avgTripDistanceKm,
+      avgTripDurationHours,
+      avgSpeedKmh,
+      medianTripDistanceKm,
+      medianTripDurationHours,
     };
   }, [filteredRows, aggregates.length]);
+
+  const dataQuality = useMemo(() => {
+    const missingDriver = filteredRows.filter((row) => row.driver === '—').length;
+    const missingDate = filteredRows.filter((row) => !row.date).length;
+    const zeroDistance = filteredRows.filter((row) => row.distanceKm <= 0).length;
+    const zeroDuration = filteredRows.filter((row) => row.cntDrvDurationHours <= 0).length;
+    const total = Math.max(filteredRows.length, 1);
+    return {
+      missingDriver,
+      missingDate,
+      zeroDistance,
+      zeroDuration,
+      completeRows: filteredRows.length - new Set(
+        filteredRows.flatMap((row, index) => {
+          const issues: number[] = [];
+          if (row.driver === '—') issues.push(index);
+          if (!row.date) issues.push(index);
+          if (row.distanceKm <= 0) issues.push(index);
+          if (row.cntDrvDurationHours <= 0) issues.push(index);
+          return issues;
+        }),
+      ).size,
+      completenessPct: ((filteredRows.length - (missingDriver + missingDate + zeroDistance + zeroDuration) / 4) / total) * 100,
+    };
+  }, [filteredRows]);
 
   const chartData = useMemo(() => {
     const top = aggregates.slice(0, 10);
@@ -214,6 +276,61 @@ export default function DrivingDashboard({
       .slice(0, 5),
     [aggregates],
   );
+
+  const utilizationBands = useMemo(() => {
+    const bands = {
+      low: 0,
+      medium: 0,
+      high: 0,
+    };
+
+    aggregates.forEach((driver) => {
+      const avgHoursPerTrip = driver.tripCount > 0 ? driver.totalCntDrvDurationHours / driver.tripCount : 0;
+      if (avgHoursPerTrip < 1) bands.low += 1;
+      else if (avgHoursPerTrip < 2.5) bands.medium += 1;
+      else bands.high += 1;
+    });
+
+    return bands;
+  }, [aggregates]);
+
+  const recentActivity = useMemo(() => {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    let trips7d = 0;
+    let trips30d = 0;
+
+    filteredRows.forEach((row) => {
+      if (!row.date) return;
+      if (row.date >= sevenDaysAgo && row.date <= now) trips7d += 1;
+      if (row.date >= thirtyDaysAgo && row.date <= now) trips30d += 1;
+    });
+
+    return { trips7d, trips30d };
+  }, [filteredRows]);
+
+  const dayOfWeekBreakdown = useMemo(() => {
+    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const buckets = labels.map((label) => ({ label, trips: 0, distanceKm: 0, durationHours: 0 }));
+    filteredRows.forEach((row) => {
+      if (!row.date) return;
+      const idx = row.date.getDay();
+      buckets[idx].trips += 1;
+      buckets[idx].distanceKm += row.distanceKm;
+      buckets[idx].durationHours += row.cntDrvDurationHours;
+    });
+    return buckets;
+  }, [filteredRows]);
+
+  const maxTripsByDay = useMemo(() => Math.max(1, ...dayOfWeekBreakdown.map((day) => day.trips)), [dayOfWeekBreakdown]);
+
+  const topDistanceDrivers = useMemo(() => aggregates.slice().sort((a, b) => b.totalDistanceKm - a.totalDistanceKm).slice(0, 5), [aggregates]);
+
+  const mostActiveDrivers = useMemo(() => aggregates.slice().sort((a, b) => b.tripCount - a.tripCount).slice(0, 5), [aggregates]);
 
   if (loading) {
     return (
@@ -272,6 +389,58 @@ export default function DrivingDashboard({
         <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Active drivers</p><p className="mt-2 text-2xl font-semibold">{kpis.activeDrivers}</p></div>
         <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Cnt Drv duration</p><p className="mt-2 text-2xl font-semibold">{formatHours(kpis.totalCntDrvDurationHours)}</p></div>
         <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Distance</p><p className="mt-2 text-2xl font-semibold">{formatDistance(kpis.totalDistanceKm)}</p></div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Avg trip distance</p><p className="mt-2 text-xl font-semibold">{formatDistance(kpis.avgTripDistanceKm)}</p></div>
+        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Avg trip duration</p><p className="mt-2 text-xl font-semibold">{formatHours(kpis.avgTripDurationHours)}</p></div>
+        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Median trip distance</p><p className="mt-2 text-xl font-semibold">{formatDistance(kpis.medianTripDistanceKm)}</p></div>
+        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Median trip duration</p><p className="mt-2 text-xl font-semibold">{formatHours(kpis.medianTripDurationHours)}</p></div>
+        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Fleet avg speed</p><p className="mt-2 text-xl font-semibold">{kpis.avgSpeedKmh.toFixed(1)} km/h</p></div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-3">
+        <div className={dashboardSectionClass}>
+          <h2 className="text-lg font-medium">Operational pulse</h2>
+          <div className="mt-4 space-y-3 text-sm">
+            <div className="flex items-center justify-between"><span className="text-slate-500">Trips in last 7 days</span><strong>{recentActivity.trips7d}</strong></div>
+            <div className="flex items-center justify-between"><span className="text-slate-500">Trips in last 30 days</span><strong>{recentActivity.trips30d}</strong></div>
+            <div className="flex items-center justify-between"><span className="text-slate-500">Utilization: short trips (&lt;1h)</span><strong>{utilizationBands.low} drivers</strong></div>
+            <div className="flex items-center justify-between"><span className="text-slate-500">Utilization: balanced (1h–2.5h)</span><strong>{utilizationBands.medium} drivers</strong></div>
+            <div className="flex items-center justify-between"><span className="text-slate-500">Utilization: heavy (&gt;2.5h)</span><strong>{utilizationBands.high} drivers</strong></div>
+          </div>
+        </div>
+
+        <div className={dashboardSectionClass}>
+          <h2 className="text-lg font-medium">Data quality snapshot</h2>
+          <div className="mt-4 space-y-3 text-sm">
+            <div className="flex items-center justify-between"><span className="text-slate-500">Rows missing driver name</span><strong>{dataQuality.missingDriver}</strong></div>
+            <div className="flex items-center justify-between"><span className="text-slate-500">Rows missing date</span><strong>{dataQuality.missingDate}</strong></div>
+            <div className="flex items-center justify-between"><span className="text-slate-500">Rows with zero distance</span><strong>{dataQuality.zeroDistance}</strong></div>
+            <div className="flex items-center justify-between"><span className="text-slate-500">Rows with zero duration</span><strong>{dataQuality.zeroDuration}</strong></div>
+            <div className="mt-3 rounded-lg bg-slate-100 p-3 dark:bg-slate-900">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Estimated completeness</p>
+              <p className="mt-1 text-lg font-semibold">{formatPercent(dataQuality.completenessPct)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className={dashboardSectionClass}>
+          <h2 className="text-lg font-medium">When trips happen</h2>
+          <div className="mt-4 space-y-2">
+            {dayOfWeekBreakdown.map((day) => (
+              <div key={day.label}>
+                <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span className="text-sm text-slate-700 dark:text-slate-200">{day.label}</span>
+                  <span>{day.trips} trips • {formatDistance(day.distanceKm)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800">
+                  <div className="h-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" style={{ width: `${(day.trips / maxTripsByDay) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className={dashboardSectionClass}>
@@ -350,6 +519,36 @@ export default function DrivingDashboard({
         </div>
       </section>
 
+      <section className="grid gap-4 xl:grid-cols-2">
+        <div className={dashboardSectionClass}>
+          <h2 className="text-lg font-medium">Top drivers by total distance</h2>
+          <div className="mt-4 space-y-3">
+            {topDistanceDrivers.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">No data available.</p>
+            ) : topDistanceDrivers.map((driver, index) => (
+              <div key={`distance-rank-${driver.driver}`} className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-800">
+                <p className="text-sm font-semibold">#{index + 1} {driver.driver}</p>
+                <p className="text-xs text-slate-500">{formatDistance(driver.totalDistanceKm)} • {driver.tripCount} trips • {formatHours(driver.totalCntDrvDurationHours)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={dashboardSectionClass}>
+          <h2 className="text-lg font-medium">Most active drivers</h2>
+          <div className="mt-4 space-y-3">
+            {mostActiveDrivers.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">No data available.</p>
+            ) : mostActiveDrivers.map((driver, index) => (
+              <div key={`activity-rank-${driver.driver}`} className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-800">
+                <p className="text-sm font-semibold">#{index + 1} {driver.driver}</p>
+                <p className="text-xs text-slate-500">{driver.tripCount} trips • {formatDistance(driver.totalDistanceKm)} • {formatHours(driver.totalCntDrvDurationHours)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className={dashboardSectionClass}>
         <h2 className="text-lg font-medium">Cnt Drv duration table</h2>
         {error ? <p className="mt-2 text-sm text-rose-500">{error}</p> : null}
@@ -361,6 +560,8 @@ export default function DrivingDashboard({
                 <th className="px-3 py-2 font-medium">Trips</th>
                 <th className="px-3 py-2 font-medium">Cnt Drv duration</th>
                 <th className="px-3 py-2 font-medium">Distance</th>
+                <th className="px-3 py-2 font-medium">Avg speed</th>
+                <th className="px-3 py-2 font-medium">Date range</th>
               </tr>
             </thead>
             <tbody>
@@ -370,6 +571,10 @@ export default function DrivingDashboard({
                   <td className="px-3 py-2">{row.tripCount}</td>
                   <td className="px-3 py-2">{formatHours(row.totalCntDrvDurationHours)}</td>
                   <td className="px-3 py-2">{formatDistance(row.totalDistanceKm)}</td>
+                  <td className="px-3 py-2">{row.totalCntDrvDurationHours > 0 ? `${(row.totalDistanceKm / row.totalCntDrvDurationHours).toFixed(1)} km/h` : '—'}</td>
+                  <td className="px-3 py-2 text-xs text-slate-500">
+                    {row.firstTripDate ? row.firstTripDate.toLocaleDateString() : '—'} → {row.lastTripDate ? row.lastTripDate.toLocaleDateString() : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
