@@ -22,6 +22,13 @@ type DrivingRow = {
   date: Date | null;
   distanceKm: number;
   cntDrvDurationHours: number;
+  idleHours: number;
+  overspeedEvents: number;
+  harshEvents: number;
+  fuelLiters: number;
+  score: number;
+  nightTrips: number;
+  maxSpeedKmh: number;
   fleet?: string;
 };
 
@@ -30,6 +37,14 @@ type DriverAggregate = {
   tripCount: number;
   totalDistanceKm: number;
   totalCntDrvDurationHours: number;
+  totalIdleHours: number;
+  totalOverspeedEvents: number;
+  totalHarshEvents: number;
+  totalFuelLiters: number;
+  nightTripCount: number;
+  maxSpeedKmh: number;
+  averageScore: number;
+  scoredTrips: number;
 };
 
 type MonthlyTrendPoint = {
@@ -38,6 +53,8 @@ type MonthlyTrendPoint = {
   totalDistanceKm: number;
   totalCntDrvDurationHours: number;
   tripCount: number;
+  totalOverspeedEvents: number;
+  totalFuelLiters: number;
 };
 
 const parseNumber = (value: unknown) => {
@@ -68,6 +85,8 @@ const parseDurationHours = (value: unknown) => {
 
 const formatHours = (hours: number) => `${hours.toFixed(2)} h`;
 const formatDistance = (distanceKm: number) => `${distanceKm.toFixed(1)} km`;
+const formatLiters = (liters: number) => `${liters.toFixed(1)} L`;
+const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
 const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
@@ -76,6 +95,8 @@ const getMonthLabel = (monthKey: string) => {
   if (!year || !month) return monthKey;
   return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 };
+
+const normalizeDateOnly = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
 export default function DrivingDashboard({
   dashboardName,
@@ -101,6 +122,15 @@ export default function DrivingDashboard({
     const cntDrvDurationHours = parseDurationHours(
       findValue(row, ['Cnt Drv duration', 'Cnt Drv Hr', 'DriveHrs duration']),
     );
+    const idleHours = parseDurationHours(findValue(row, ['Idle duration', 'Idle Hr', 'Idling Hours']));
+    const overspeedEvents = parseNumber(findValue(row, ['Overspeed Count', 'Over Speed Count', 'Over-speed events']));
+    const harshEvents = parseNumber(
+      findValue(row, ['Harsh Event Count', 'Harsh Break + Harsh Accel + Harsh Cornering', 'Harsh Driving Count']),
+    );
+    const fuelLiters = parseNumber(findValue(row, ['Fuel Used (L)', 'Fuel Consumed', 'Fuel']));
+    const score = parseNumber(findValue(row, ['Safety Score', 'Driver Score', 'Score']));
+    const nightTrips = parseNumber(findValue(row, ['Night Trip Count', 'Night Trips']));
+    const maxSpeedKmh = parseNumber(findValue(row, ['Max Speed', 'Top Speed (km/h)', 'Highest Speed']));
     const date = parseDate(findValue(row, ['DateTime', 'Start Time', 'Date', 'Alert Date Time']));
     const fleet = toDisplayString(findValue(row, ['Fleet']));
 
@@ -109,6 +139,13 @@ export default function DrivingDashboard({
       date,
       distanceKm,
       cntDrvDurationHours,
+      idleHours,
+      overspeedEvents,
+      harshEvents,
+      fuelLiters,
+      score,
+      nightTrips,
+      maxSpeedKmh,
       fleet,
     };
   }).filter((row) => {
@@ -119,6 +156,13 @@ export default function DrivingDashboard({
     date: row.date,
     distanceKm: row.distanceKm,
     cntDrvDurationHours: row.cntDrvDurationHours,
+    idleHours: row.idleHours,
+    overspeedEvents: row.overspeedEvents,
+    harshEvents: row.harshEvents,
+    fuelLiters: row.fuelLiters,
+    score: row.score,
+    nightTrips: row.nightTrips,
+    maxSpeedKmh: row.maxSpeedKmh,
   })), [rows, normalizedOrganizationName]);
 
   const driverOptions = useMemo(
@@ -146,27 +190,87 @@ export default function DrivingDashboard({
         tripCount: 0,
         totalDistanceKm: 0,
         totalCntDrvDurationHours: 0,
+        totalIdleHours: 0,
+        totalOverspeedEvents: 0,
+        totalHarshEvents: 0,
+        totalFuelLiters: 0,
+        nightTripCount: 0,
+        maxSpeedKmh: 0,
+        averageScore: 0,
+        scoredTrips: 0,
       };
       current.tripCount += 1;
       current.totalDistanceKm += row.distanceKm;
       current.totalCntDrvDurationHours += row.cntDrvDurationHours;
+      current.totalIdleHours += row.idleHours;
+      current.totalOverspeedEvents += row.overspeedEvents;
+      current.totalHarshEvents += row.harshEvents;
+      current.totalFuelLiters += row.fuelLiters;
+      current.nightTripCount += row.nightTrips;
+      current.maxSpeedKmh = Math.max(current.maxSpeedKmh, row.maxSpeedKmh);
+      if (row.score > 0) {
+        current.averageScore += row.score;
+        current.scoredTrips += 1;
+      }
       totals.set(row.driver, current);
     });
 
-    return Array.from(totals.values()).sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours);
+    return Array.from(totals.values())
+      .map((row) => ({
+        ...row,
+        averageScore: row.scoredTrips > 0 ? row.averageScore / row.scoredTrips : 0,
+      }))
+      .sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours);
   }, [filteredRows]);
 
   const kpis = useMemo(() => {
     const totalTrips = filteredRows.length;
     const totalDistanceKm = filteredRows.reduce((sum, row) => sum + row.distanceKm, 0);
     const totalCntDrvDurationHours = filteredRows.reduce((sum, row) => sum + row.cntDrvDurationHours, 0);
+    const totalIdleHours = filteredRows.reduce((sum, row) => sum + row.idleHours, 0);
+    const totalOverspeedEvents = filteredRows.reduce((sum, row) => sum + row.overspeedEvents, 0);
+    const totalHarshEvents = filteredRows.reduce((sum, row) => sum + row.harshEvents, 0);
+    const totalFuelLiters = filteredRows.reduce((sum, row) => sum + row.fuelLiters, 0);
+    const totalNightTrips = filteredRows.reduce((sum, row) => sum + row.nightTrips, 0);
     const activeDrivers = aggregates.length;
+    const utilizationPct = totalCntDrvDurationHours > 0
+      ? (totalCntDrvDurationHours / (totalCntDrvDurationHours + totalIdleHours)) * 100
+      : 0;
+    const eventRatePer100Trips = totalTrips > 0 ? ((totalOverspeedEvents + totalHarshEvents) / totalTrips) * 100 : 0;
+    const kmPerLiter = totalFuelLiters > 0 ? totalDistanceKm / totalFuelLiters : 0;
+    const kmPerTrip = totalTrips > 0 ? totalDistanceKm / totalTrips : 0;
+    const hoursPerTrip = totalTrips > 0 ? totalCntDrvDurationHours / totalTrips : 0;
+    const speedWeighted = totalCntDrvDurationHours > 0 ? totalDistanceKm / totalCntDrvDurationHours : 0;
+    const datePoints = filteredRows.filter((row) => row.date).map((row) => row.date as Date).sort((a, b) => a.getTime() - b.getTime());
+    const firstTripDate = datePoints[0] ?? null;
+    const lastTripDate = datePoints[datePoints.length - 1] ?? null;
+    const daysCovered = firstTripDate && lastTripDate
+      ? Math.max(1, Math.round((normalizeDateOnly(lastTripDate) - normalizeDateOnly(firstTripDate)) / (1000 * 60 * 60 * 24)) + 1)
+      : 0;
+    const tripsPerDay = daysCovered > 0 ? totalTrips / daysCovered : 0;
+    const overspeedPer100Km = totalDistanceKm > 0 ? (totalOverspeedEvents / totalDistanceKm) * 100 : 0;
 
     return {
       totalTrips,
       totalDistanceKm,
       totalCntDrvDurationHours,
+      totalIdleHours,
+      totalOverspeedEvents,
+      totalHarshEvents,
+      totalFuelLiters,
+      totalNightTrips,
       activeDrivers,
+      utilizationPct,
+      eventRatePer100Trips,
+      kmPerLiter,
+      kmPerTrip,
+      hoursPerTrip,
+      speedWeighted,
+      daysCovered,
+      firstTripDate,
+      lastTripDate,
+      tripsPerDay,
+      overspeedPer100Km,
     };
   }, [filteredRows, aggregates.length]);
 
@@ -189,10 +293,14 @@ export default function DrivingDashboard({
         totalDistanceKm: 0,
         totalCntDrvDurationHours: 0,
         tripCount: 0,
+        totalOverspeedEvents: 0,
+        totalFuelLiters: 0,
       };
       current.totalDistanceKm += row.distanceKm;
       current.totalCntDrvDurationHours += row.cntDrvDurationHours;
       current.tripCount += 1;
+      current.totalOverspeedEvents += row.overspeedEvents;
+      current.totalFuelLiters += row.fuelLiters;
       monthTotals.set(monthKey, current);
     });
     return Array.from(monthTotals.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
@@ -211,6 +319,33 @@ export default function DrivingDashboard({
         efficiencyKmh: row.totalDistanceKm / row.totalCntDrvDurationHours,
       }))
       .sort((a, b) => b.efficiencyKmh - a.efficiencyKmh)
+      .slice(0, 5),
+    [aggregates],
+  );
+
+  const topRiskDrivers = useMemo(
+    () => aggregates
+      .map((row) => ({
+        ...row,
+        riskScore: (row.totalOverspeedEvents * 2) + row.totalHarshEvents + (row.nightTripCount * 0.5),
+      }))
+      .filter((row) => row.riskScore > 0)
+      .sort((a, b) => b.riskScore - a.riskScore)
+      .slice(0, 5),
+    [aggregates],
+  );
+
+  const bestPerformers = useMemo(
+    () => aggregates
+      .filter((row) => row.tripCount >= 3)
+      .map((row) => {
+        const eventRate = row.tripCount > 0 ? (row.totalOverspeedEvents + row.totalHarshEvents) / row.tripCount : 0;
+        return {
+          ...row,
+          composite: (row.averageScore || 80) - (eventRate * 8) + ((row.totalDistanceKm / Math.max(1, row.totalCntDrvDurationHours)) / 2),
+        };
+      })
+      .sort((a, b) => b.composite - a.composite)
       .slice(0, 5),
     [aggregates],
   );
@@ -274,6 +409,43 @@ export default function DrivingDashboard({
         <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Distance</p><p className="mt-2 text-2xl font-semibold">{formatDistance(kpis.totalDistanceKm)}</p></div>
       </section>
 
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Idle duration</p><p className="mt-2 text-2xl font-semibold">{formatHours(kpis.totalIdleHours)}</p><p className="mt-1 text-xs text-slate-500">Utilization {formatPercent(kpis.utilizationPct)}</p></div>
+        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Safety events</p><p className="mt-2 text-2xl font-semibold">{kpis.totalOverspeedEvents + kpis.totalHarshEvents}</p><p className="mt-1 text-xs text-slate-500">{kpis.eventRatePer100Trips.toFixed(1)} / 100 trips</p></div>
+        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Fuel used</p><p className="mt-2 text-2xl font-semibold">{formatLiters(kpis.totalFuelLiters)}</p><p className="mt-1 text-xs text-slate-500">Efficiency {kpis.kmPerLiter.toFixed(2)} km/L</p></div>
+        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Night trips</p><p className="mt-2 text-2xl font-semibold">{kpis.totalNightTrips.toFixed(0)}</p><p className="mt-1 text-xs text-slate-500">Overspeed intensity {kpis.overspeedPer100Km.toFixed(2)} / 100 km</p></div>
+      </section>
+
+      <section className={dashboardSectionClass}>
+        <h2 className="text-lg font-medium">Operational snapshot</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Date coverage</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+              {kpis.firstTripDate ? kpis.firstTripDate.toLocaleDateString() : '—'} → {kpis.lastTripDate ? kpis.lastTripDate.toLocaleDateString() : '—'}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">{kpis.daysCovered} days</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Trip intensity</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{kpis.tripsPerDay.toFixed(2)} trips/day</p>
+            <p className="mt-1 text-xs text-slate-500">{kpis.kmPerTrip.toFixed(1)} km/trip</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Drive quality</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{kpis.hoursPerTrip.toFixed(2)} h/trip</p>
+            <p className="mt-1 text-xs text-slate-500">{kpis.speedWeighted.toFixed(1)} average km/h</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">What this means</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-slate-500">
+              <li>High idle % can indicate route congestion or excessive warm-up time.</li>
+              <li>Event rate spikes usually correlate with specific drivers, routes, or shifts.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       <section className={dashboardSectionClass}>
         <h2 className="text-lg font-medium">Cnt Drv duration and distance by driver (Top 10)</h2>
         <div className="mt-4 space-y-4">
@@ -311,7 +483,7 @@ export default function DrivingDashboard({
                 <div key={point.monthKey}>
                   <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                     <span className="text-sm text-slate-700 dark:text-slate-200">{point.monthLabel}</span>
-                    <span>{formatDistance(point.totalDistanceKm)} • {point.tripCount} trips</span>
+                    <span>{formatDistance(point.totalDistanceKm)} • {point.tripCount} trips • {point.totalOverspeedEvents.toFixed(0)} overspeed</span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800">
                     <div
@@ -350,6 +522,48 @@ export default function DrivingDashboard({
         </div>
       </section>
 
+      <section className="grid gap-4 xl:grid-cols-2">
+        <div className={dashboardSectionClass}>
+          <h2 className="text-lg font-medium">Drivers needing coaching</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Ranked by overspeed + harsh events + night driving pressure.</p>
+          {topRiskDrivers.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No risk events found in selected data.</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {topRiskDrivers.map((row, index) => (
+                <div key={`risk-${row.driver}`} className="rounded-lg border border-rose-200 bg-rose-50/70 p-3 dark:border-rose-900/60 dark:bg-rose-900/10">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">#{index + 1} {row.driver}</p>
+                    <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">Risk {row.riskScore.toFixed(1)}</p>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Overspeed {row.totalOverspeedEvents.toFixed(0)} • Harsh {row.totalHarshEvents.toFixed(0)} • Night trips {row.nightTripCount.toFixed(0)} • Top speed {row.maxSpeedKmh.toFixed(0)} km/h</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className={dashboardSectionClass}>
+          <h2 className="text-lg font-medium">High performers</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Balanced by safety score, event rate, and productivity.</p>
+          {bestPerformers.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Need at least 3 trips/driver to rank fairly.</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {bestPerformers.map((row, index) => (
+                <div key={`best-${row.driver}`} className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900/60 dark:bg-emerald-900/10">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">#{index + 1} {row.driver}</p>
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Score {row.composite.toFixed(1)}</p>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Safety {row.averageScore > 0 ? row.averageScore.toFixed(1) : '—'} • {formatDistance(row.totalDistanceKm)} • {formatHours(row.totalCntDrvDurationHours)} • Fuel {formatLiters(row.totalFuelLiters)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className={dashboardSectionClass}>
         <h2 className="text-lg font-medium">Cnt Drv duration table</h2>
         {error ? <p className="mt-2 text-sm text-rose-500">{error}</p> : null}
@@ -361,6 +575,11 @@ export default function DrivingDashboard({
                 <th className="px-3 py-2 font-medium">Trips</th>
                 <th className="px-3 py-2 font-medium">Cnt Drv duration</th>
                 <th className="px-3 py-2 font-medium">Distance</th>
+                <th className="px-3 py-2 font-medium">Idle</th>
+                <th className="px-3 py-2 font-medium">Fuel</th>
+                <th className="px-3 py-2 font-medium">Events</th>
+                <th className="px-3 py-2 font-medium">Night trips</th>
+                <th className="px-3 py-2 font-medium">Avg safety score</th>
               </tr>
             </thead>
             <tbody>
@@ -370,6 +589,11 @@ export default function DrivingDashboard({
                   <td className="px-3 py-2">{row.tripCount}</td>
                   <td className="px-3 py-2">{formatHours(row.totalCntDrvDurationHours)}</td>
                   <td className="px-3 py-2">{formatDistance(row.totalDistanceKm)}</td>
+                  <td className="px-3 py-2">{formatHours(row.totalIdleHours)}</td>
+                  <td className="px-3 py-2">{formatLiters(row.totalFuelLiters)}</td>
+                  <td className="px-3 py-2">{(row.totalOverspeedEvents + row.totalHarshEvents).toFixed(0)}</td>
+                  <td className="px-3 py-2">{row.nightTripCount.toFixed(0)}</td>
+                  <td className="px-3 py-2">{row.averageScore > 0 ? row.averageScore.toFixed(1) : '—'}</td>
                 </tr>
               ))}
             </tbody>
