@@ -1,11 +1,53 @@
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
-import { badgeClass, cardClass, iconButtonClass } from 'app/ui/classNames';
 import AdminShell from './AdminShell';
-import { AdminSection, AdminSectionHeader } from './admin-components';
+import { AdminSection, AdminSectionHeader, AdminStatCard } from './admin-components';
 import { requireAdmin } from './admin-utils';
+import { getCompanies, getOrganizations, getUsers, getDashboards } from 'app/db';
+import { btnPrimary, cardHover, badgeInfo, heading3, textSecondary } from 'app/ui/design-tokens';
 
 export default async function AdminPage() {
   await requireAdmin();
+  const [companies, organizations, users, dashboards] = await Promise.all([
+    getCompanies(),
+    getOrganizations(),
+    getUsers(),
+    getDashboards(),
+  ]);
+
+  const adminCount = users.filter((u) => u.isAdmin).length;
+
+  const sections = [
+    {
+      href: '/admin/companies',
+      title: 'Companies',
+      description: 'Create and manage company profiles.',
+      count: companies.length,
+      badge: 'Profiles',
+    },
+    {
+      href: '/admin/organizations',
+      title: 'Fleets',
+      description: 'Create and manage fleet groups.',
+      count: organizations.length,
+      badge: 'Groups',
+    },
+    {
+      href: '/admin/users',
+      title: 'Users',
+      description: 'Assign users, companies, and fleets.',
+      count: users.length,
+      badge: 'Access',
+    },
+    {
+      href: '/admin/dashboards',
+      title: 'Dashboards',
+      description: 'Set templates and Google Sheet links.',
+      count: dashboards.length,
+      badge: 'Templates',
+    },
+  ];
 
   return (
     <AdminShell
@@ -13,8 +55,15 @@ export default async function AdminPage() {
       backLabel="Back to dashboards"
       eyebrow="Admin hub"
       title="Administration"
-      description="Choose a section to manage companies, fleets, users, and dashboards."
+      description="Manage companies, fleets, users, and dashboards from one place."
     >
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <AdminStatCard label="Companies" value={companies.length} description="Active company profiles" />
+        <AdminStatCard label="Fleets" value={organizations.length} description="Fleet groups configured" />
+        <AdminStatCard label="Users" value={users.length} description={`${adminCount} admin${adminCount !== 1 ? 's' : ''}`} />
+        <AdminStatCard label="Dashboards" value={dashboards.length} description="Across all companies" />
+      </div>
+
       <AdminSection>
         <AdminSectionHeader
           title="Administration sections"
@@ -22,53 +71,21 @@ export default async function AdminPage() {
           count={4}
         />
         <div className="grid gap-4 md:grid-cols-2">
-          {[
-            {
-              href: '/admin/companies',
-              title: 'Companies',
-              description: 'Create and manage company profiles.',
-              badge: 'Profiles',
-            },
-            {
-              href: '/admin/organizations',
-              title: 'Fleets',
-              description: 'Create and manage fleet groups.',
-              badge: 'Groups',
-            },
-            {
-              href: '/admin/users',
-              title: 'Users',
-              description: 'Assign users, companies, and fleets.',
-              badge: 'Access',
-            },
-            {
-              href: '/admin/dashboards',
-              title: 'Dashboards',
-              description: 'Set templates and Google Sheet links.',
-              badge: 'Templates',
-            },
-          ].map((card) => (
+          {sections.map((card) => (
             <Link
               key={card.href}
               href={card.href}
-              className={cardClass}
+              className={`${cardHover} group flex flex-col gap-3`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-base font-semibold text-slate-900 dark:text-white">
-                      {card.title}
-                    </span>
-                    <div className={badgeClass}>
-                      <span className="h-2 w-2 rounded-full bg-emerald-400/80 dark:bg-emerald-300" />
-                      {card.badge}
-                    </div>
+                    <span className={heading3}>{card.title}</span>
+                    <span className={badgeInfo}>{card.count}</span>
                   </div>
-                  <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                    {card.description}
-                  </p>
+                  <p className={`mt-2 ${textSecondary}`}>{card.description}</p>
                 </div>
-                <span className={iconButtonClass}>
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition group-hover:bg-zinc-100 group-hover:text-zinc-600 dark:group-hover:bg-zinc-800 dark:group-hover:text-zinc-300">
                   <svg
                     aria-hidden="true"
                     viewBox="0 0 24 24"
@@ -83,11 +100,25 @@ export default async function AdminPage() {
                   </svg>
                 </span>
               </div>
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+              <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
                 Open section
               </span>
             </Link>
           ))}
+        </div>
+      </AdminSection>
+
+      <AdminSection className="sm:col-span-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className={heading3}>Quick setup</h2>
+            <p className={`mt-1 ${textSecondary}`}>
+              Onboard a new customer in minutes — create company, fleet, user, and dashboard in one flow.
+            </p>
+          </div>
+          <Link href="/admin/quick-setup" className={btnPrimary}>
+            Start quick setup
+          </Link>
         </div>
       </AdminSection>
     </AdminShell>
