@@ -9,6 +9,11 @@ import {
   getOrganizations,
   updateDashboard,
 } from 'app/db';
+import {
+  bulkCreateDashboards,
+  bulkReassignDashboards,
+  bulkDeleteDashboards,
+} from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { parseSheetLink, requireAdmin } from '../admin-utils';
 import DashboardsClient from './DashboardsClient';
@@ -131,6 +136,9 @@ export default async function AdminDashboardsPage() {
         organizations={organizations}
         addDashboardAction={addDashboardAction}
         manageDashboardAction={manageDashboardAction}
+        bulkCreateAction={bulkCreateDashboards}
+        bulkReassignAction={bulkReassignDashboards}
+        bulkDeleteAction={bulkDeleteDashboards}
       />
     </AdminShell>
   );

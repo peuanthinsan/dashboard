@@ -11,6 +11,13 @@ import {
   updateUserAssignments,
   updateUserProfile,
 } from 'app/db';
+import {
+  bulkCreateUsers,
+  bulkAssignUsersToCompany,
+  bulkAssignUsersToOrganization,
+  bulkSetAdmin,
+  bulkDeleteUsers,
+} from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { requireAdmin } from '../admin-utils';
 import UsersClient from './UsersClient';
@@ -123,6 +130,11 @@ export default async function AdminUsersPage() {
         organizations={organizations}
         addUserAction={addUserAction}
         manageUserAction={manageUserAction}
+        bulkCreateAction={bulkCreateUsers}
+        bulkAssignCompanyAction={bulkAssignUsersToCompany}
+        bulkAssignOrgAction={bulkAssignUsersToOrganization}
+        bulkSetAdminAction={bulkSetAdmin}
+        bulkDeleteAction={bulkDeleteUsers}
       />
     </AdminShell>
   );

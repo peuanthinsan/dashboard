@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { revalidatePath } from 'next/cache';
 import { createCompany, deleteCompany, getCompanies, updateCompany } from 'app/db';
+import { bulkCreateCompanies, bulkDeleteCompanies } from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { requireAdmin } from '../admin-utils';
 import CompaniesClient from './CompaniesClient';
@@ -79,6 +80,8 @@ export default async function AdminCompaniesPage() {
         companies={companies}
         addCompanyAction={addCompanyAction}
         manageCompanyAction={manageCompanyAction}
+        bulkCreateAction={bulkCreateCompanies}
+        bulkDeleteAction={bulkDeleteCompanies}
       />
     </AdminShell>
   );

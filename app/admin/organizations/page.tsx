@@ -8,6 +8,11 @@ import {
   getOrganizations,
   updateOrganization,
 } from 'app/db';
+import {
+  bulkCreateOrganizations,
+  bulkReassignOrganizations,
+  bulkDeleteOrganizations,
+} from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { requireAdmin } from '../admin-utils';
 import OrganizationsClient from './OrganizationsClient';
@@ -95,6 +100,9 @@ export default async function AdminOrganizationsPage() {
         companies={companies}
         addOrganizationAction={addOrganizationAction}
         manageOrganizationAction={manageOrganizationAction}
+        bulkCreateAction={bulkCreateOrganizations}
+        bulkReassignAction={bulkReassignOrganizations}
+        bulkDeleteAction={bulkDeleteOrganizations}
       />
     </AdminShell>
   );

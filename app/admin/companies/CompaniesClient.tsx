@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useFormState } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -12,6 +13,7 @@ import {
   ADMIN_LABEL,
   ADMIN_PRIMARY_BUTTON,
   ADMIN_SAVE_BUTTON,
+  ADMIN_TEXTAREA,
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
@@ -22,18 +24,35 @@ import {
   tableCell,
   heading3,
   textSecondary,
+  btnDanger,
+  btnSmall,
 } from 'app/ui/design-tokens';
 import type { ActionState, Company } from '../types';
+import type { bulkCreateCompanies, bulkDeleteCompanies } from 'app/db-bulk';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
+type BulkCreateFn = typeof bulkCreateCompanies;
+type BulkDeleteFn = typeof bulkDeleteCompanies;
 
 type CompaniesClientProps = {
   companies: Company[];
   addCompanyAction: FormAction;
   manageCompanyAction: FormAction;
+  bulkCreateAction: BulkCreateFn;
+  bulkDeleteAction: BulkDeleteFn;
 };
 
-function CompanyRow({ company, action }: { company: Company; action: FormAction }) {
+function CompanyRow({
+  company,
+  action,
+  checked,
+  onCheck,
+}: {
+  company: Company;
+  action: FormAction;
+  checked: boolean;
+  onCheck: (id: number, checked: boolean) => void;
+}) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
   useRefreshOnSuccess(state);
@@ -47,6 +66,14 @@ function CompanyRow({ company, action }: { company: Company; action: FormAction 
   return (
     <>
       <tr className={tableRow}>
+        <td className="px-4 py-3">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onCheck(company.id, e.target.checked)}
+            className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+          />
+        </td>
         <td className={tableCell}>
           <div className="font-semibold text-zinc-900 dark:text-white">
             {company.name ?? 'Unnamed company'}
@@ -96,13 +123,13 @@ export default function CompaniesClient({
   companies,
   addCompanyAction,
   manageCompanyAction,
+  bulkCreateAction,
+  bulkDeleteAction,
 }: CompaniesClientProps) {
+  const router = useRouter();
   const totalCompanies = companies.length;
 
-  const [companyCreateState, companyCreateAction] = useFormState(
-    addCompanyAction,
-    INITIAL_STATE,
-  );
+  const [companyCreateState, companyCreateAction] = useFormState(addCompanyAction, INITIAL_STATE);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(companyCreateState);
 
@@ -111,6 +138,53 @@ export default function CompaniesClient({
       setIsCreateOpen(false);
     }
   }, [companyCreateState.status]);
+
+  // Bulk state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkNames, setBulkNames] = useState('');
+  const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [isPending, startTransition] = useTransition();
+
+  function handleCheck(id: number, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function handleSelectAll(checked: boolean) {
+    if (checked) {
+      setSelectedIds(new Set(companies.map((c) => c.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  }
+
+  function handleBulkCreate() {
+    const names = bulkNames.split('\n').map((n) => n.trim()).filter(Boolean);
+    if (names.length === 0) return;
+    startTransition(async () => {
+      const result = await bulkCreateAction(names);
+      setBulkStatus(`Created ${result.created}, skipped ${result.skipped} duplicates.`);
+      setBulkNames('');
+      router.refresh();
+    });
+  }
+
+  function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      await bulkDeleteAction(ids);
+      setSelectedIds(new Set());
+      router.refresh();
+    });
+  }
+
+  const allChecked = companies.length > 0 && selectedIds.size === companies.length;
 
   return (
     <AdminSection>
@@ -141,6 +215,53 @@ export default function CompaniesClient({
       </div>
 
       <div className="grid gap-6">
+        {/* Bulk Create Panel */}
+        <AdminPanel>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className={heading3}>Bulk create companies</h3>
+              <p className={`mt-1 ${textSecondary}`}>
+                Enter one company name per line to create multiple at once.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsBulkCreateOpen((v) => !v)}
+              className={ADMIN_SAVE_BUTTON}
+            >
+              {isBulkCreateOpen ? 'Hide bulk create' : 'Bulk create'}
+            </button>
+          </div>
+          {isBulkCreateOpen && (
+            <div className="mt-4 grid gap-3">
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Company names (one per line)
+                <textarea
+                  value={bulkNames}
+                  onChange={(e) => setBulkNames(e.target.value)}
+                  rows={5}
+                  placeholder={'Acme Corp\nGlobex\nInitech'}
+                  className={`${ADMIN_TEXTAREA} resize-y`}
+                />
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleBulkCreate}
+                  disabled={isPending || !bulkNames.trim()}
+                  className={ADMIN_PRIMARY_BUTTON}
+                >
+                  {isPending ? 'Creating…' : 'Create all'}
+                </button>
+                {bulkStatus && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">{bulkStatus}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </AdminPanel>
+
+        {/* Manage Panel */}
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -149,22 +270,54 @@ export default function CompaniesClient({
                 Update names and remove unused companies.
               </p>
             </div>
-            <button type="button" onClick={() => setIsCreateOpen(true)} className={ADMIN_PRIMARY_BUTTON}>
-              Create company
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={isPending}
+                  className={`${btnDanger} ${btnSmall}`}
+                >
+                  {isPending ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(true)}
+                className={ADMIN_PRIMARY_BUTTON}
+              >
+                Create company
+              </button>
+            </div>
           </div>
           <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
             <div className="max-h-[32rem] overflow-auto">
               <table className="min-w-full border-collapse text-left">
-                <thead className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}>
+                <thead
+                  className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}
+                >
                   <tr>
+                    <th className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                      />
+                    </th>
                     <th className={tableHeadCell}>Company</th>
                     <th className={`${tableHeadCell} text-right`}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {companies.map((company) => (
-                    <CompanyRow key={company.id} company={company} action={manageCompanyAction} />
+                    <CompanyRow
+                      key={company.id}
+                      company={company}
+                      action={manageCompanyAction}
+                      checked={selectedIds.has(company.id)}
+                      onCheck={handleCheck}
+                    />
                   ))}
                 </tbody>
               </table>

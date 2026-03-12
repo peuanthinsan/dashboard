@@ -24,6 +24,7 @@ export type User = {
 
 export type Dashboard = {
   id: number;
+  publicId?: string | null;
   name: string | null;
   sheetUrl: string | null;
   template: string | null;

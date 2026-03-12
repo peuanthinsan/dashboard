@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useFormState } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
@@ -25,12 +26,19 @@ import {
   heading3,
   textSecondary,
   badgeDefault,
+  btnDanger,
+  btnSmall,
+  btnSecondary,
 } from 'app/ui/design-tokens';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
+import type { bulkCreateDashboards, bulkReassignDashboards, bulkDeleteDashboards } from 'app/db-bulk';
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving'] as const;
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
+type BulkCreateFn = typeof bulkCreateDashboards;
+type BulkReassignFn = typeof bulkReassignDashboards;
+type BulkDeleteFn = typeof bulkDeleteDashboards;
 
 type DashboardsClientProps = {
   dashboards: Dashboard[];
@@ -38,6 +46,9 @@ type DashboardsClientProps = {
   organizations: Organization[];
   addDashboardAction: FormAction;
   manageDashboardAction: FormAction;
+  bulkCreateAction: BulkCreateFn;
+  bulkReassignAction: BulkReassignFn;
+  bulkDeleteAction: BulkDeleteFn;
 };
 
 function DashboardRow({
@@ -47,6 +58,8 @@ function DashboardRow({
   action,
   companyName,
   organizationName,
+  checked,
+  onCheck,
 }: {
   dashboard: Dashboard;
   companies: Company[];
@@ -54,6 +67,8 @@ function DashboardRow({
   action: FormAction;
   companyName: string;
   organizationName: string;
+  checked: boolean;
+  onCheck: (id: number, checked: boolean) => void;
 }) {
   const [state, formAction] = useFormState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
@@ -68,11 +83,31 @@ function DashboardRow({
   return (
     <>
       <tr className={tableRow}>
+        <td className="px-4 py-3">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onCheck(dashboard.id, e.target.checked)}
+            className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+          />
+        </td>
         <td className={tableCell}>
           <div className="font-semibold text-zinc-900 dark:text-white">
             {dashboard.name ?? 'Untitled dashboard'}
           </div>
-          <div className="mt-0.5 text-xs text-zinc-400">ID {dashboard.id}</div>
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-zinc-400">
+            <span>ID {dashboard.id}</span>
+            {dashboard.publicId && (
+              <a
+                href={`/dashboard/${dashboard.publicId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-500 hover:underline dark:text-indigo-400"
+              >
+                Preview ↗
+              </a>
+            )}
+          </div>
         </td>
         <td className={tableCell}>{companyName}</td>
         <td className={tableCell}>{organizationName}</td>
@@ -206,7 +241,11 @@ export default function DashboardsClient({
   organizations,
   addDashboardAction,
   manageDashboardAction,
+  bulkCreateAction,
+  bulkReassignAction,
+  bulkDeleteAction,
 }: DashboardsClientProps) {
+  const router = useRouter();
   const totalDashboards = dashboards.length;
   const companyMap = useMemo(
     () => new Map(companies.map((company) => [company.id, company.name ?? 'Unassigned'])),
@@ -229,6 +268,122 @@ export default function DashboardsClient({
       setIsCreateOpen(false);
     }
   }, [dashboardCreateState.status]);
+
+  // Bulk state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
+  const [isReassignOpen, setIsReassignOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [isPending, startTransition] = useTransition();
+
+  // Bulk create form state
+  const [bulkTemplate, setBulkTemplate] = useState<string>(DASHBOARD_TEMPLATES[0]);
+  const [bulkSheetUrl, setBulkSheetUrl] = useState('');
+  const [bulkCompanyId, setBulkCompanyId] = useState('');
+  const [bulkOrgIds, setBulkOrgIds] = useState<Set<number>>(new Set());
+  const [bulkDashboardName, setBulkDashboardName] = useState('');
+  const [bulkNotes, setBulkNotes] = useState('');
+
+  // Reassign state
+  const [reassignOrgId, setReassignOrgId] = useState('');
+
+  function handleCheck(id: number, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function handleSelectAll(checked: boolean) {
+    if (checked) {
+      setSelectedIds(new Set(dashboards.map((d) => d.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  }
+
+  function toggleBulkOrg(id: number) {
+    setBulkOrgIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleBulkCreate() {
+    const compId = parseInt(bulkCompanyId, 10);
+    if (!bulkDashboardName.trim() || !bulkSheetUrl.trim() || !compId) return;
+
+    const orgIds = Array.from(bulkOrgIds);
+    const items =
+      orgIds.length > 0
+        ? orgIds.map((orgId) => ({
+            name: bulkDashboardName.trim(),
+            template: bulkTemplate,
+            sheetId: '',
+            sheetGid: '',
+            sheetUrl: bulkSheetUrl.trim(),
+            companyId: compId,
+            organizationId: orgId,
+            notes: bulkNotes.trim() || undefined,
+          }))
+        : [
+            {
+              name: bulkDashboardName.trim(),
+              template: bulkTemplate,
+              sheetId: '',
+              sheetGid: '',
+              sheetUrl: bulkSheetUrl.trim(),
+              companyId: compId,
+              organizationId: undefined,
+              notes: bulkNotes.trim() || undefined,
+            },
+          ];
+
+    startTransition(async () => {
+      const result = await bulkCreateAction(items);
+      setBulkStatus(`Created ${result.created} dashboard(s).`);
+      setBulkDashboardName('');
+      setBulkSheetUrl('');
+      setBulkOrgIds(new Set());
+      setBulkNotes('');
+      router.refresh();
+    });
+  }
+
+  function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      await bulkDeleteAction(ids);
+      setSelectedIds(new Set());
+      router.refresh();
+    });
+  }
+
+  function handleBulkReassign() {
+    const ids = Array.from(selectedIds);
+    const oId = parseInt(reassignOrgId, 10);
+    if (ids.length === 0 || !oId) return;
+    startTransition(async () => {
+      await bulkReassignAction(ids, oId);
+      setSelectedIds(new Set());
+      setIsReassignOpen(false);
+      router.refresh();
+    });
+  }
+
+  // Filter orgs for the selected bulk company
+  const filteredOrgs = useMemo(() => {
+    const cId = parseInt(bulkCompanyId, 10);
+    if (!cId) return organizations;
+    return organizations.filter((o) => o.companyId === cId || o.companyId === null);
+  }, [organizations, bulkCompanyId]);
+
+  const allChecked = dashboards.length > 0 && selectedIds.size === dashboards.length;
 
   return (
     <AdminSection>
@@ -257,7 +412,158 @@ export default function DashboardsClient({
         </AdminStatCard>
       </div>
 
+      {/* Reassign Modal */}
+      <AdminModal
+        isOpen={isReassignOpen}
+        onClose={() => setIsReassignOpen(false)}
+        title="Reassign dashboards to fleet"
+        description={`Reassign ${selectedIds.size} dashboard(s) to a different fleet.`}
+      >
+        <div className="grid gap-4">
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Fleet
+            <select
+              value={reassignOrgId}
+              onChange={(e) => setReassignOrgId(e.target.value)}
+              className={ADMIN_SELECT}
+            >
+              <option value="">Select fleet</option>
+              {organizations.map((o) => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setIsReassignOpen(false)} className={ADMIN_SAVE_BUTTON}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkReassign}
+              disabled={isPending || !reassignOrgId}
+              className={ADMIN_PRIMARY_BUTTON}
+            >
+              {isPending ? 'Reassigning…' : 'Reassign'}
+            </button>
+          </div>
+        </div>
+      </AdminModal>
+
       <div className="grid gap-6">
+        {/* Bulk Create Panel */}
+        <AdminPanel>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className={heading3}>Bulk create from template</h3>
+              <p className={`mt-1 ${textSecondary}`}>
+                Create one dashboard per selected fleet, all sharing the same template and sheet.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsBulkCreateOpen((v) => !v)}
+              className={ADMIN_SAVE_BUTTON}
+            >
+              {isBulkCreateOpen ? 'Hide bulk create' : 'Bulk create'}
+            </button>
+          </div>
+          {isBulkCreateOpen && (
+            <div className="mt-4 grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Dashboard name *
+                  <input
+                    value={bulkDashboardName}
+                    onChange={(e) => setBulkDashboardName(e.target.value)}
+                    placeholder="Fleet Overview"
+                    className={ADMIN_INPUT}
+                  />
+                </label>
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Google Sheet link *
+                  <input
+                    value={bulkSheetUrl}
+                    onChange={(e) => setBulkSheetUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className={ADMIN_INPUT}
+                  />
+                </label>
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Template *
+                  <select
+                    value={bulkTemplate}
+                    onChange={(e) => setBulkTemplate(e.target.value)}
+                    className={ADMIN_SELECT}
+                  >
+                    {DASHBOARD_TEMPLATES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Company *
+                  <select
+                    value={bulkCompanyId}
+                    onChange={(e) => {
+                      setBulkCompanyId(e.target.value);
+                      setBulkOrgIds(new Set());
+                    }}
+                    className={ADMIN_SELECT}
+                  >
+                    <option value="">Select company</option>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {filteredOrgs.length > 0 && (
+                <div>
+                  <p className={`mb-2 ${ADMIN_LABEL}`}>
+                    Fleets (optional — one dashboard per checked fleet)
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {filteredOrgs.map((o) => (
+                      <label key={o.id} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
+                        <input
+                          type="checkbox"
+                          checked={bulkOrgIds.has(o.id)}
+                          onChange={() => toggleBulkOrg(o.id)}
+                          className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                        />
+                        {o.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                Notes (optional)
+                <textarea
+                  value={bulkNotes}
+                  onChange={(e) => setBulkNotes(e.target.value)}
+                  rows={2}
+                  className={`${ADMIN_TEXTAREA} resize-none`}
+                />
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleBulkCreate}
+                  disabled={isPending || !bulkDashboardName.trim() || !bulkSheetUrl.trim() || !bulkCompanyId}
+                  className={ADMIN_PRIMARY_BUTTON}
+                >
+                  {isPending ? 'Creating…' : 'Create dashboards'}
+                </button>
+                {bulkStatus && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">{bulkStatus}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </AdminPanel>
+
+        {/* Manage Panel */}
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -266,15 +572,45 @@ export default function DashboardsClient({
                 Scan and edit large dashboard lists quickly.
               </p>
             </div>
-            <button type="button" onClick={() => setIsCreateOpen(true)} className={ADMIN_PRIMARY_BUTTON}>
-              Create dashboard
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedIds.size > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsReassignOpen(true)}
+                    disabled={isPending}
+                    className={`${btnSecondary} ${btnSmall}`}
+                  >
+                    Reassign to fleet ({selectedIds.size})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    disabled={isPending}
+                    className={`${btnDanger} ${btnSmall}`}
+                  >
+                    {isPending ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
+                  </button>
+                </>
+              )}
+              <button type="button" onClick={() => setIsCreateOpen(true)} className={ADMIN_PRIMARY_BUTTON}>
+                Create dashboard
+              </button>
+            </div>
           </div>
           <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
             <div className="max-h-[32rem] overflow-auto">
               <table className="min-w-full border-collapse text-left">
                 <thead className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}>
                   <tr>
+                    <th className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                      />
+                    </th>
                     <th className={tableHeadCell}>Dashboard</th>
                     <th className={tableHeadCell}>Company</th>
                     <th className={tableHeadCell}>Fleet</th>
@@ -299,6 +635,8 @@ export default function DashboardsClient({
                           ? organizationMap.get(dashboard.organizationId) ?? 'No fleet'
                           : 'No fleet'
                       }
+                      checked={selectedIds.has(dashboard.id)}
+                      onCheck={handleCheck}
                     />
                   ))}
                 </tbody>
