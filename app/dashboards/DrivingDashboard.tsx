@@ -6,6 +6,16 @@ import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { findValue, normalizeLabel, parseDate, toDisplayString } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
+import KpiCard from 'app/ui/KpiCard';
+import ExportButton from 'app/ui/ExportButton';
+import EmptyState from 'app/ui/EmptyState';
+import TrendChart from 'app/ui/TrendChart';
+import { DataTable, type Column } from 'app/ui/DataTable';
+import Sparkline from 'app/ui/Sparkline';
+import TrendIndicator from 'app/ui/TrendIndicator';
+import {
+  heading2, textSecondary, inputBase, selectBase, cardSection,
+} from 'app/ui/design-tokens';
 
 type DashboardProps = {
   dashboardId: string;
@@ -17,28 +27,17 @@ type DashboardProps = {
   lang?: DashboardLang;
 };
 
-type DrivingRow = {
-  driver: string;
-  date: Date | null;
-  distanceKm: number;
-  cntDrvDurationHours: number;
-  fleet?: string;
-};
-
+type DrivingRow = { driver: string; date: Date | null; distanceKm: number; cntDrvDurationHours: number; fleet?: string };
 type DriverAggregate = {
   driver: string;
   tripCount: number;
   totalDistanceKm: number;
   totalCntDrvDurationHours: number;
+  avgDistancePerTrip: number;
+  avgDurationPerTrip: number;
+  monthlyDistances: number[];
 };
-
-type MonthlyTrendPoint = {
-  monthKey: string;
-  monthLabel: string;
-  totalDistanceKm: number;
-  totalCntDrvDurationHours: number;
-  tripCount: number;
-};
+type MonthlyTrendPoint = { monthKey: string; monthLabel: string; totalDistanceKm: number; totalCntDrvDurationHours: number; tripCount: number };
 
 const parseNumber = (value: unknown) => {
   if (value == null || value === '') return 0;
@@ -51,85 +50,50 @@ const parseDurationHours = (value: unknown) => {
   if (value == null || value === '') return 0;
   const raw = String(value).trim();
   if (!raw) return 0;
-
   if (raw.includes(':')) {
     const parts = raw.split(':').map((part) => Number(part));
     if (parts.some((part) => Number.isNaN(part))) return 0;
-    if (parts.length === 3) {
-      return parts[0] + parts[1] / 60 + parts[2] / 3600;
-    }
-    if (parts.length === 2) {
-      return parts[0] + parts[1] / 60;
-    }
+    if (parts.length === 3) return parts[0] + parts[1] / 60 + parts[2] / 3600;
+    if (parts.length === 2) return parts[0] + parts[1] / 60;
   }
-
   return parseNumber(raw);
 };
 
 const formatHours = (hours: number) => `${hours.toFixed(2)} h`;
-const formatDistance = (distanceKm: number) => `${distanceKm.toFixed(1)} km`;
-
+const formatDistance = (km: number) => `${km.toFixed(1)} km`;
 const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-const getMonthLabel = (monthKey: string) => {
-  const [year, month] = monthKey.split('-').map(Number);
-  if (!year || !month) return monthKey;
-  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+const getMonthLabel = (key: string) => {
+  const [y, m] = key.split('-').map(Number);
+  if (!y || !m) return key;
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 };
 
 export default function DrivingDashboard({
-  dashboardName,
-  sheetId,
-  sheetGid,
-  dashboardNotes,
-  organizationName,
-  lang = 'en',
+  dashboardName, sheetId, sheetGid, dashboardNotes, organizationName, lang = 'en',
 }: DashboardProps) {
-  const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
   const [driverFilter, setDriverFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const normalizedOrganizationName = useMemo(
-    () => (organizationName ? normalizeLabel(organizationName) : null),
-    [organizationName],
-  );
+  const normalizedOrganizationName = useMemo(() => (organizationName ? normalizeLabel(organizationName) : null), [organizationName]);
 
-  const drivingRows = useMemo<DrivingRow[]>(() => rows.map((row) => {
-    const driver = toDisplayString(findValue(row, ['Driver Name']));
-    const distanceKm = parseNumber(findValue(row, ['Distance']));
-    const cntDrvDurationHours = parseDurationHours(
-      findValue(row, ['Cnt Drv duration', 'Cnt Drv Hr', 'DriveHrs duration']),
-    );
-    const date = parseDate(findValue(row, ['DateTime', 'Start Time', 'Date', 'Alert Date Time']));
-    const fleet = toDisplayString(findValue(row, ['Fleet']));
-
-    return {
-      driver,
-      date,
-      distanceKm,
-      cntDrvDurationHours,
-      fleet,
-    };
-  }).filter((row) => {
+  const drivingRows = useMemo<DrivingRow[]>(() => rows.map((row) => ({
+    driver: toDisplayString(findValue(row, ['Driver Name'])),
+    date: parseDate(findValue(row, ['DateTime', 'Start Time', 'Date', 'Alert Date Time'])),
+    distanceKm: parseNumber(findValue(row, ['Distance'])),
+    cntDrvDurationHours: parseDurationHours(findValue(row, ['Cnt Drv duration', 'Cnt Drv Hr', 'DriveHrs duration'])),
+    fleet: toDisplayString(findValue(row, ['Fleet'])),
+  })).filter((row) => {
     if (!normalizedOrganizationName) return true;
     return normalizeLabel(row.fleet ?? '') === normalizedOrganizationName;
-  }).map((row) => ({
-    driver: row.driver,
-    date: row.date,
-    distanceKm: row.distanceKm,
-    cntDrvDurationHours: row.cntDrvDurationHours,
-  })), [rows, normalizedOrganizationName]);
+  }).map((row) => ({ driver: row.driver, date: row.date, distanceKm: row.distanceKm, cntDrvDurationHours: row.cntDrvDurationHours })), [rows, normalizedOrganizationName]);
 
-  const driverOptions = useMemo(
-    () => Array.from(new Set(drivingRows.map((row) => row.driver).filter((name) => name !== '—'))).sort(),
-    [drivingRows],
-  );
+  const driverOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.driver).filter((n) => n !== '—'))).sort(), [drivingRows]);
 
   const filteredRows = useMemo(() => {
     const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
     const end = endDate ? new Date(`${endDate}T23:59:59`) : null;
-
     return drivingRows.filter((row) => {
       if (driverFilter && row.driver !== driverFilter) return false;
       if (start && (!row.date || row.date < start)) return false;
@@ -138,242 +102,330 @@ export default function DrivingDashboard({
     });
   }, [drivingRows, driverFilter, startDate, endDate]);
 
-  const aggregates = useMemo<DriverAggregate[]>(() => {
-    const totals = new Map<string, DriverAggregate>();
-    filteredRows.forEach((row) => {
-      const current = totals.get(row.driver) ?? {
-        driver: row.driver,
-        tripCount: 0,
-        totalDistanceKm: 0,
-        totalCntDrvDurationHours: 0,
-      };
-      current.tripCount += 1;
-      current.totalDistanceKm += row.distanceKm;
-      current.totalCntDrvDurationHours += row.cntDrvDurationHours;
-      totals.set(row.driver, current);
-    });
+  // Active filter count for DashboardShell badge
+  const activeFilterCount = useMemo(() => [driverFilter, startDate, endDate].filter(Boolean).length, [driverFilter, startDate, endDate]);
 
-    return Array.from(totals.values()).sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours);
+  // Date range string for ExportButton
+  const dateRange = useMemo(() => {
+    if (startDate && endDate) return `${startDate}_${endDate}`;
+    if (startDate) return startDate;
+    if (endDate) return endDate;
+    return undefined;
+  }, [startDate, endDate]);
+
+  // All months in filtered data (sorted)
+  const allMonthKeys = useMemo(() => {
+    const keys = new Set<string>();
+    filteredRows.forEach((row) => { if (row.date) keys.add(getMonthKey(row.date)); });
+    return Array.from(keys).sort();
   }, [filteredRows]);
 
-  const kpis = useMemo(() => {
-    const totalTrips = filteredRows.length;
-    const totalDistanceKm = filteredRows.reduce((sum, row) => sum + row.distanceKm, 0);
-    const totalCntDrvDurationHours = filteredRows.reduce((sum, row) => sum + row.cntDrvDurationHours, 0);
-    const activeDrivers = aggregates.length;
+  const aggregates = useMemo<DriverAggregate[]>(() => {
+    const totals = new Map<string, { driver: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; monthlyMap: Map<string, number> }>();
+    filteredRows.forEach((row) => {
+      const c = totals.get(row.driver) ?? { driver: row.driver, tripCount: 0, totalDistanceKm: 0, totalCntDrvDurationHours: 0, monthlyMap: new Map() };
+      c.tripCount += 1;
+      c.totalDistanceKm += row.distanceKm;
+      c.totalCntDrvDurationHours += row.cntDrvDurationHours;
+      if (row.date) {
+        const mk = getMonthKey(row.date);
+        c.monthlyMap.set(mk, (c.monthlyMap.get(mk) ?? 0) + row.distanceKm);
+      }
+      totals.set(row.driver, c);
+    });
+    return Array.from(totals.values())
+      .map((c) => ({
+        driver: c.driver,
+        tripCount: c.tripCount,
+        totalDistanceKm: c.totalDistanceKm,
+        totalCntDrvDurationHours: c.totalCntDrvDurationHours,
+        avgDistancePerTrip: c.tripCount > 0 ? c.totalDistanceKm / c.tripCount : 0,
+        avgDurationPerTrip: c.tripCount > 0 ? c.totalCntDrvDurationHours / c.tripCount : 0,
+        // sparkline: monthly distance in order of allMonthKeys
+        monthlyDistances: allMonthKeys.map((mk) => c.monthlyMap.get(mk) ?? 0),
+      }))
+      .sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
+  }, [filteredRows, allMonthKeys]);
 
+  // KPI trend: split filteredRows by date into first/second half
+  const kpiTrend = useMemo(() => {
+    const dated = filteredRows.filter((r) => r.date).sort((a, b) => a.date!.getTime() - b.date!.getTime());
+    if (dated.length < 4) return null;
+    const half = Math.floor(dated.length / 2);
+    const first = dated.slice(0, half);
+    const second = dated.slice(half);
     return {
-      totalTrips,
-      totalDistanceKm,
-      totalCntDrvDurationHours,
-      activeDrivers,
+      tripsFirst: first.length,
+      tripsSecond: second.length,
+      distFirst: first.reduce((s, r) => s + r.distanceKm, 0),
+      distSecond: second.reduce((s, r) => s + r.distanceKm, 0),
+      durFirst: first.reduce((s, r) => s + r.cntDrvDurationHours, 0),
+      durSecond: second.reduce((s, r) => s + r.cntDrvDurationHours, 0),
     };
-  }, [filteredRows, aggregates.length]);
+  }, [filteredRows]);
 
-  const chartData = useMemo(() => {
-    const top = aggregates.slice(0, 10);
-    const maxDuration = Math.max(1, ...top.map((row) => row.totalCntDrvDurationHours));
-    const maxDistance = Math.max(1, ...top.map((row) => row.totalDistanceKm));
-
-    return { top, maxDuration, maxDistance };
-  }, [aggregates]);
+  const kpis = useMemo(() => ({
+    totalTrips: filteredRows.length,
+    totalDistanceKm: filteredRows.reduce((s, r) => s + r.distanceKm, 0),
+    totalCntDrvDurationHours: filteredRows.reduce((s, r) => s + r.cntDrvDurationHours, 0),
+    avgDistancePerTrip: filteredRows.length > 0 ? filteredRows.reduce((s, r) => s + r.distanceKm, 0) / filteredRows.length : 0,
+  }), [filteredRows]);
 
   const monthlyTrend = useMemo<MonthlyTrendPoint[]>(() => {
-    const monthTotals = new Map<string, MonthlyTrendPoint>();
+    const map = new Map<string, MonthlyTrendPoint>();
     filteredRows.forEach((row) => {
       if (!row.date) return;
-      const monthKey = getMonthKey(row.date);
-      const current = monthTotals.get(monthKey) ?? {
-        monthKey,
-        monthLabel: getMonthLabel(monthKey),
-        totalDistanceKm: 0,
-        totalCntDrvDurationHours: 0,
-        tripCount: 0,
-      };
-      current.totalDistanceKm += row.distanceKm;
-      current.totalCntDrvDurationHours += row.cntDrvDurationHours;
-      current.tripCount += 1;
-      monthTotals.set(monthKey, current);
+      const mk = getMonthKey(row.date);
+      const c = map.get(mk) ?? { monthKey: mk, monthLabel: getMonthLabel(mk), totalDistanceKm: 0, totalCntDrvDurationHours: 0, tripCount: 0 };
+      c.totalDistanceKm += row.distanceKm; c.totalCntDrvDurationHours += row.cntDrvDurationHours; c.tripCount += 1;
+      map.set(mk, c);
     });
-    return Array.from(monthTotals.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
+    return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
   }, [filteredRows]);
 
-  const maxMonthlyDistance = useMemo(
-    () => Math.max(1, ...monthlyTrend.map((point) => point.totalDistanceKm)),
-    [monthlyTrend],
-  );
+  // Top 5 most active (by distance) and bottom 5 least active
+  const top5 = useMemo(() => aggregates.slice(0, 5), [aggregates]);
+  const bottom5 = useMemo(() => [...aggregates].reverse().slice(0, 5), [aggregates]);
 
-  const topEfficiencyDrivers = useMemo(
-    () => aggregates
-      .filter((row) => row.totalCntDrvDurationHours > 0)
-      .map((row) => ({
-        ...row,
-        efficiencyKmh: row.totalDistanceKm / row.totalCntDrvDurationHours,
-      }))
-      .sort((a, b) => b.efficiencyKmh - a.efficiencyKmh)
-      .slice(0, 5),
-    [aggregates],
-  );
+  const exportData = useMemo(() => aggregates.map((r) => ({
+    Driver: r.driver,
+    Trips: r.tripCount,
+    'Duration (h)': r.totalCntDrvDurationHours.toFixed(2),
+    'Distance (km)': r.totalDistanceKm.toFixed(1),
+    'Avg Distance/Trip (km)': r.avgDistancePerTrip.toFixed(1),
+    'Avg Duration/Trip (h)': r.avgDurationPerTrip.toFixed(2),
+  })), [aggregates]);
+
+  // DataTable columns
+  const tableColumns = useMemo<Column<DriverAggregate>[]>(() => [
+    { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
+    { key: 'tripCount', label: lang === 'th' ? 'ทริป' : 'Trips', sortable: true },
+    {
+      key: 'totalDistanceKm',
+      label: lang === 'th' ? 'ระยะทาง' : 'Distance',
+      sortable: true,
+      render: (v) => formatDistance(Number(v)),
+    },
+    {
+      key: 'totalCntDrvDurationHours',
+      label: lang === 'th' ? 'ระยะเวลา' : 'Duration',
+      sortable: true,
+      render: (v) => formatHours(Number(v)),
+    },
+    {
+      key: 'avgDistancePerTrip',
+      label: lang === 'th' ? 'เฉลี่ยระยะทาง/ทริป' : 'Avg Dist/Trip',
+      sortable: true,
+      render: (v) => formatDistance(Number(v)),
+    },
+    {
+      key: 'avgDurationPerTrip',
+      label: lang === 'th' ? 'เฉลี่ยเวลา/ทริป' : 'Avg Dur/Trip',
+      sortable: true,
+      render: (v) => formatHours(Number(v)),
+    },
+    {
+      key: 'monthlyDistances',
+      label: lang === 'th' ? 'แนวโน้มรายเดือน' : 'Monthly Trend',
+      sortable: false,
+      render: (v) => {
+        const data = v as number[];
+        return <Sparkline data={data} width={80} height={24} />;
+      },
+    },
+  ], [lang]);
 
   if (loading) {
     return (
-      <DashboardShell title={dashboardName} subtitle="Driving dashboard" lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
+      <DashboardShell title={dashboardName} subtitle={lang === 'th' ? 'แดชบอร์ดการขับขี่' : 'Driving dashboard'} lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
         <LoadingState
-          message="Loading driving dashboard"
-          detail="Fetching Cnt Drv duration and distance data from Google Sheets."
+          lang={lang}
+          message={lang === 'th' ? 'กำลังโหลด…' : 'Loading driving dashboard'}
+          detail="Fetching driving data."
         />
       </DashboardShell>
     );
   }
 
+  if (error) {
+    return (
+      <DashboardShell title={dashboardName} subtitle={lang === 'th' ? 'แดชบอร์ดการขับขี่' : 'Driving dashboard'} lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
+        <LoadingState lang={lang} error={error} onRetry={refresh} />
+      </DashboardShell>
+    );
+  }
+
   return (
-    <DashboardShell title={dashboardName} subtitle="Driving dashboard" lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
+    <DashboardShell
+      title={dashboardName}
+      subtitle={lang === 'th' ? 'แดชบอร์ดการขับขี่' : 'Driving dashboard'}
+      lang={lang}
+      lastUpdated={lastUpdated}
+      notes={dashboardNotes}
+      isStale={false}
+      activeFilterCount={activeFilterCount}
+      actions={
+        <ExportButton
+          data={exportData}
+          dashboardName={dashboardName}
+          dateRange={dateRange}
+          filename={`${dashboardName}-driving`}
+        />
+      }
+    >
+
+      {/* Filters */}
       <section className={dashboardSectionClass}>
-        <h2 className="text-lg font-medium">Filters</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <h2 className={heading2}>{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
+        <div className="mt-3 grid gap-4 md:grid-cols-3">
           <label className="text-sm">
-            <span className="mb-1 block text-slate-500 dark:text-slate-400">Driver</span>
-            <select
-              value={driverFilter}
-              onChange={(event) => setDriverFilter(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-            >
-              <option value="">All drivers</option>
-              {driverOptions.map((driver) => (
-                <option key={driver} value={driver}>{driver}</option>
-              ))}
+            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
+            <select value={driverFilter} onChange={(e) => setDriverFilter(e.target.value)} className={selectBase}>
+              <option value="">{lang === 'th' ? 'คนขับทั้งหมด' : 'All drivers'}</option>
+              {driverOptions.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </label>
-
           <label className="text-sm">
-            <span className="mb-1 block text-slate-500 dark:text-slate-400">Start date</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-            />
+            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'วันที่เริ่มต้น' : 'Start date'}</span>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputBase} />
           </label>
-
           <label className="text-sm">
-            <span className="mb-1 block text-slate-500 dark:text-slate-400">End date</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-            />
+            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'วันที่สิ้นสุด' : 'End date'}</span>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputBase} />
           </label>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Trips</p><p className="mt-2 text-2xl font-semibold">{kpis.totalTrips}</p></div>
-        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Active drivers</p><p className="mt-2 text-2xl font-semibold">{kpis.activeDrivers}</p></div>
-        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Cnt Drv duration</p><p className="mt-2 text-2xl font-semibold">{formatHours(kpis.totalCntDrvDurationHours)}</p></div>
-        <div className={dashboardSectionClass}><p className="text-sm text-slate-500">Distance</p><p className="mt-2 text-2xl font-semibold">{formatDistance(kpis.totalDistanceKm)}</p></div>
-      </section>
+      {/* KPI Row */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label={lang === 'th' ? 'ทริปทั้งหมด' : 'Total trips'}
+          value={kpis.totalTrips}
+        >
+          {kpiTrend && (
+            <TrendIndicator
+              current={kpiTrend.tripsSecond}
+              previous={kpiTrend.tripsFirst}
+              invertColor
+              suffix={lang === 'th' ? 'vs ช่วงก่อน' : 'vs first half'}
+            />
+          )}
+        </KpiCard>
+        <KpiCard
+          label={lang === 'th' ? 'ระยะทางรวม' : 'Total distance'}
+          value={formatDistance(kpis.totalDistanceKm)}
+        >
+          {kpiTrend && (
+            <TrendIndicator
+              current={kpiTrend.distSecond}
+              previous={kpiTrend.distFirst}
+              invertColor
+              suffix={lang === 'th' ? 'vs ช่วงก่อน' : 'vs first half'}
+            />
+          )}
+        </KpiCard>
+        <KpiCard
+          label={lang === 'th' ? 'ระยะเวลาขับขี่รวม' : 'Total duration'}
+          value={formatHours(kpis.totalCntDrvDurationHours)}
+        >
+          {kpiTrend && (
+            <TrendIndicator
+              current={kpiTrend.durSecond}
+              previous={kpiTrend.durFirst}
+              invertColor
+              suffix={lang === 'th' ? 'vs ช่วงก่อน' : 'vs first half'}
+            />
+          )}
+        </KpiCard>
+        <KpiCard
+          label={lang === 'th' ? 'เฉลี่ยระยะทาง/ทริป' : 'Avg distance/trip'}
+          value={formatDistance(kpis.avgDistancePerTrip)}
+        />
+      </div>
 
+      {/* Monthly Trend — dual-axis TrendChart */}
       <section className={dashboardSectionClass}>
-        <h2 className="text-lg font-medium">Cnt Drv duration and distance by driver (Top 10)</h2>
-        <div className="mt-4 space-y-4">
-          {chartData.top.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">No data available for the selected filters.</p>
-          ) : chartData.top.map((row) => (
-            <div key={`bar-${row.driver}`}>
-              <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                <span className="truncate pr-4 text-sm text-slate-700 dark:text-slate-200">{row.driver}</span>
-                <span>{formatHours(row.totalCntDrvDurationHours)} • {formatDistance(row.totalDistanceKm)}</span>
-              </div>
-              <div className="space-y-1">
-                <div className="h-2 rounded bg-slate-200 dark:bg-slate-800">
-                  <div className="h-2 rounded bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500" style={{ width: `${(row.totalCntDrvDurationHours / chartData.maxDuration) * 100}%` }} />
-                </div>
-                <div className="h-2 rounded bg-slate-200 dark:bg-slate-800">
-                  <div className="h-2 rounded bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600" style={{ width: `${(row.totalDistanceKm / chartData.maxDistance) * 100}%` }} />
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="pt-2 text-xs text-slate-500 dark:text-slate-400">Purple gradient = Cnt Drv duration, Blue gradient = Distance</div>
-        </div>
+        <h2 className={heading2}>{lang === 'th' ? 'แนวโน้มรายเดือน' : 'Monthly trend'}</h2>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ระยะทาง (แท่ง) และจำนวนทริป (เส้น) — 8 เดือนล่าสุด' : 'Distance (bars) and trip count (line) — last 8 months of filtered trips.'}</p>
+        {monthlyTrend.length === 0 ? (
+          <div className="mt-4"><EmptyState title="No dated trip data" /></div>
+        ) : (
+          <TrendChart
+            className="mt-4"
+            mode="dual-axis"
+            height={280}
+            data={monthlyTrend.map((p) => ({
+              label: p.monthLabel,
+              values: {
+                'Distance (km)': Math.round(p.totalDistanceKm * 10) / 10,
+                'Trips': p.tripCount,
+              },
+            }))}
+            ariaLabel={lang === 'th' ? 'แนวโน้มรายเดือน' : 'Monthly distance and trip count trend'}
+          />
+        )}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        <div className={dashboardSectionClass}>
-          <h2 className="text-lg font-medium">Distance trend by month</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Last 8 months of filtered trips.</p>
-          {monthlyTrend.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No dated trip data available.</p>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {monthlyTrend.map((point) => (
-                <div key={point.monthKey}>
-                  <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span className="text-sm text-slate-700 dark:text-slate-200">{point.monthLabel}</span>
-                    <span>{formatDistance(point.totalDistanceKm)} • {point.tripCount} trips</span>
+      {/* Driver Activity — Top 5 + Bottom 5 */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{lang === 'th' ? '5 คนขับที่ขับมากที่สุด' : 'Top 5 most active drivers'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'จัดอันดับตามระยะทางรวม' : 'Ranked by total distance.'}</p>
+          {top5.length === 0 ? <EmptyState title="No data available" /> : (
+            <div className="mt-4 space-y-2">
+              {top5.map((row, i) => (
+                <div key={`top-${row.driver}`} className="flex items-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{row.driver}</p>
+                    <p className="text-xs text-zinc-400">{row.tripCount} trips · {formatDistance(row.totalDistanceKm)} · avg {formatHours(row.avgDurationPerTrip)}/trip</p>
                   </div>
-                  <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800">
-                    <div
-                      className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500"
-                      style={{ width: `${(point.totalDistanceKm / maxMonthlyDistance) * 100}%` }}
-                    />
-                  </div>
+                  <span className="shrink-0 rounded-md bg-indigo-50 px-2.5 py-1 text-sm font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                    {formatDistance(row.totalDistanceKm)}
+                  </span>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        <div className={dashboardSectionClass}>
-          <h2 className="text-lg font-medium">Most efficient drivers</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Top drivers ranked by average km/h (distance ÷ drive duration).</p>
-          {topEfficiencyDrivers.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No data available to calculate efficiency.</p>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {topEfficiencyDrivers.map((row, index) => (
-                <div key={`efficiency-${row.driver}`} className="rounded-xl border border-slate-200 bg-gradient-to-r from-white via-amber-50 to-rose-50 px-4 py-3 dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">#{index + 1} {row.driver}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{row.tripCount} trips • {formatDistance(row.totalDistanceKm)} • {formatHours(row.totalCntDrvDurationHours)}</p>
-                    </div>
-                    <p className="rounded-full bg-gradient-to-r from-orange-400 to-pink-500 px-3 py-1 text-sm font-semibold text-white">
-                      {row.efficiencyKmh.toFixed(1)} km/h
-                    </p>
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{lang === 'th' ? '5 คนขับที่ขับน้อยที่สุด' : 'Bottom 5 least active drivers'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'คนขับที่มีระยะทางน้อยที่สุด' : 'Drivers with lowest total distance.'}</p>
+          {bottom5.length === 0 ? <EmptyState title="No data available" /> : (
+            <div className="mt-4 space-y-2">
+              {bottom5.map((row, i) => (
+                <div key={`bot-${row.driver}`} className="flex items-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{row.driver}</p>
+                    <p className="text-xs text-zinc-400">{row.tripCount} trips · {formatDistance(row.totalDistanceKm)} · avg {formatHours(row.avgDurationPerTrip)}/trip</p>
                   </div>
+                  <span className="shrink-0 rounded-md bg-zinc-100 px-2.5 py-1 text-sm font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                    {formatDistance(row.totalDistanceKm)}
+                  </span>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </section>
+        </section>
+      </div>
 
+      {/* Driver Statistics Table with Sparklines */}
       <section className={dashboardSectionClass}>
-        <h2 className="text-lg font-medium">Cnt Drv duration table</h2>
-        {error ? <p className="mt-2 text-sm text-rose-500">{error}</p> : null}
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                <th className="px-3 py-2 font-medium">Driver</th>
-                <th className="px-3 py-2 font-medium">Trips</th>
-                <th className="px-3 py-2 font-medium">Cnt Drv duration</th>
-                <th className="px-3 py-2 font-medium">Distance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {aggregates.map((row) => (
-                <tr key={`table-${row.driver}`} className="border-b border-slate-100 dark:border-slate-900">
-                  <td className="px-3 py-2">{row.driver}</td>
-                  <td className="px-3 py-2">{row.tripCount}</td>
-                  <td className="px-3 py-2">{formatHours(row.totalCntDrvDurationHours)}</td>
-                  <td className="px-3 py-2">{formatDistance(row.totalDistanceKm)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <h2 className={heading2}>{lang === 'th' ? 'ตารางสถิติคนขับ' : 'Driver statistics table'}</h2>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'คลิกหัวคอลัมน์เพื่อเรียงลำดับ' : 'Click column headers to sort.'}</p>
+        <div className="mt-4">
+          <DataTable
+            columns={tableColumns}
+            data={aggregates}
+            defaultSort={{ key: 'totalDistanceKm', direction: 'desc' }}
+            ariaLabel={lang === 'th' ? 'ตารางสถิติคนขับ' : 'Driver statistics table'}
+          />
         </div>
       </section>
     </DashboardShell>
