@@ -1,19 +1,26 @@
+import { filterChipActive, filterChipMuted } from 'app/ui/design-tokens';
+
+// Backward-compatible exports updated to use V2 design tokens
+export const chipClassName = `${filterChipActive} cursor-pointer`;
+export const chipMutedClassName = `${filterChipMuted} cursor-pointer`;
+
 type FilterChipProps = {
   children: React.ReactNode;
   onClick?: () => void;
   className?: string;
   type?: 'button' | 'submit' | 'reset';
+  active?: boolean;
 };
 
-export const chipClassName =
-  'rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-xs text-indigo-700 dark:border-indigo-400/70 dark:bg-indigo-500/20 dark:text-indigo-100';
-
-export const chipMutedClassName =
-  'rounded-full border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-600 dark:text-slate-300 hover:border-slate-500';
-
-export function FilterChip({ children, onClick, className, type = 'button' }: FilterChipProps) {
+export function FilterChip({ children, onClick, className, type = 'button', active = false }: FilterChipProps) {
+  const baseClass = active ? chipClassName : chipMutedClassName;
   return (
-    <button type={type} onClick={onClick} className={[chipClassName, className].filter(Boolean).join(' ')}>
+    <button
+      type={type}
+      onClick={onClick}
+      aria-pressed={active}
+      className={[baseClass, className].filter(Boolean).join(' ')}
+    >
       {children}
     </button>
   );
