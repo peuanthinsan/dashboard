@@ -261,10 +261,7 @@ export const getDashboardsForUser = cache(async ({
       }
       return and(
         eq(dashboards.companyId, companyId),
-        or(
-          isNull(dashboards.organizationId),
-          inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
-        ),
+        inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
       );
     });
 
@@ -298,7 +295,7 @@ export const getDashboardsForUser = cache(async ({
     }
     return and(
       eq(dashboards.companyId, companyId),
-      or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, scopedOrganizationIds)),
+      inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
     );
   });
 
