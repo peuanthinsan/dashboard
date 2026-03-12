@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { revalidatePath } from 'next/cache';
 import { createCompany, deleteCompany, getCompanies, updateCompany } from 'app/db';
 import AdminShell from '../AdminShell';

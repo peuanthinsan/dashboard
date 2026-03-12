@@ -16,6 +16,14 @@ import {
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
+import {
+  tableHead,
+  tableHeadCell,
+  tableRow,
+  tableCell,
+  heading3,
+  textSecondary,
+} from 'app/ui/design-tokens';
 import type { ActionState, Company, Organization } from '../types';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
@@ -49,20 +57,19 @@ function OrganizationRow({
 
   return (
     <>
-      <tr className="border-b border-slate-200/70 text-sm text-slate-700 last:border-b-0 dark:border-slate-800/70 dark:text-slate-200">
-        <td className="px-4 py-3">
-          <div className="text-sm font-semibold text-slate-900 dark:text-white">
+      <tr className={tableRow}>
+        <td className={tableCell}>
+          <div className="font-semibold text-zinc-900 dark:text-white">
             {organization.name ?? 'Unnamed fleet'}
           </div>
-          <div className="mt-1 text-xs text-slate-500">ID {organization.id}</div>
+          <div className="mt-0.5 text-xs text-zinc-400">ID {organization.id}</div>
         </td>
-        <td className="px-4 py-3">
-          <div className="text-sm text-slate-900 dark:text-white">
+        <td className={tableCell}>
+          <div className="text-sm text-zinc-700 dark:text-zinc-300">
             {company?.name ?? 'No company assigned'}
           </div>
-          <div className="mt-1 text-xs text-slate-500">Company ID {organization.companyId ?? '—'}</div>
         </td>
-        <td className="px-4 py-3 text-right">
+        <td className={`${tableCell} text-right`}>
           <button type="button" onClick={() => setIsOpen(true)} className={ADMIN_SAVE_BUTTON}>
             Edit
           </button>
@@ -87,18 +94,15 @@ function OrganizationRow({
           </label>
           <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
             Company
-            <span className="text-xs text-slate-500">
-              Current company ID: {organization.companyId ?? '—'}
-            </span>
             <select
               name="companyId"
               defaultValue={organization.companyId ?? ''}
               className={ADMIN_SELECT}
             >
               <option value="">No company</option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -176,8 +180,8 @@ export default function OrganizationsClient({
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage fleets</h3>
-              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+              <h3 className={heading3}>Manage fleets</h3>
+              <p className={`mt-1 ${textSecondary}`}>
                 Update fleet names and maintain access rules.
               </p>
             </div>
@@ -185,14 +189,14 @@ export default function OrganizationsClient({
               Create fleet
             </button>
           </div>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+          <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
             <div className="max-h-[32rem] overflow-auto">
               <table className="min-w-full border-collapse text-left">
-                <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                <thead className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}>
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Fleet</th>
-                    <th className="px-4 py-3 font-semibold">Company</th>
-                    <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                    <th className={tableHeadCell}>Fleet</th>
+                    <th className={tableHeadCell}>Company</th>
+                    <th className={`${tableHeadCell} text-right`}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -235,9 +239,9 @@ export default function OrganizationsClient({
             Company (optional)
             <select name="companyId" className={ADMIN_SELECT}>
               <option value="">No company</option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
             </select>

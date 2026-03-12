@@ -10,7 +10,6 @@ import {
   ADMIN_DELETE_BUTTON,
   ADMIN_INPUT,
   ADMIN_LABEL,
-  ADMIN_PILL,
   ADMIN_PRIMARY_BUTTON,
   ADMIN_SAVE_BUTTON,
   ADMIN_SELECT,
@@ -18,6 +17,15 @@ import {
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
+import {
+  tableHead,
+  tableHeadCell,
+  tableRow,
+  tableCell,
+  heading3,
+  textSecondary,
+  badgeDefault,
+} from 'app/ui/design-tokens';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving'] as const;
@@ -59,26 +67,26 @@ function DashboardRow({
 
   return (
     <>
-      <tr className="border-b border-slate-200/70 text-sm text-slate-700 last:border-b-0 dark:border-slate-800/70 dark:text-slate-200">
-        <td className="px-4 py-3">
-          <div className="font-semibold text-slate-900 dark:text-white">
+      <tr className={tableRow}>
+        <td className={tableCell}>
+          <div className="font-semibold text-zinc-900 dark:text-white">
             {dashboard.name ?? 'Untitled dashboard'}
           </div>
-          <div className="mt-1 text-xs text-slate-500">ID {dashboard.id}</div>
+          <div className="mt-0.5 text-xs text-zinc-400">ID {dashboard.id}</div>
         </td>
-        <td className="px-4 py-3">{companyName}</td>
-        <td className="px-4 py-3">{organizationName}</td>
-        <td className="px-4 py-3">
-          <span className={`${ADMIN_PILL} bg-slate-100 text-slate-600`}>
+        <td className={tableCell}>{companyName}</td>
+        <td className={tableCell}>{organizationName}</td>
+        <td className={tableCell}>
+          <span className={badgeDefault}>
             {dashboard.template ?? 'Summary'}
           </span>
         </td>
-        <td className="px-4 py-3">
-          <span className="block max-w-[14rem] truncate text-xs text-slate-500" title={dashboard.sheetUrl ?? ''}>
+        <td className={tableCell}>
+          <span className="block max-w-[14rem] truncate text-xs text-zinc-400" title={dashboard.sheetUrl ?? ''}>
             {dashboard.sheetUrl ?? '—'}
           </span>
         </td>
-        <td className="px-4 py-3">
+        <td className={tableCell}>
           <button
             type="button"
             onClick={() => setIsOpen(true)}
@@ -253,8 +261,8 @@ export default function DashboardsClient({
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage dashboards</h3>
-              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+              <h3 className={heading3}>Manage dashboards</h3>
+              <p className={`mt-1 ${textSecondary}`}>
                 Scan and edit large dashboard lists quickly.
               </p>
             </div>
@@ -262,17 +270,17 @@ export default function DashboardsClient({
               Create dashboard
             </button>
           </div>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+          <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
             <div className="max-h-[32rem] overflow-auto">
               <table className="min-w-full border-collapse text-left">
-                <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                <thead className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}>
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Dashboard</th>
-                    <th className="px-4 py-3 font-semibold">Company</th>
-                    <th className="px-4 py-3 font-semibold">Fleet</th>
-                    <th className="px-4 py-3 font-semibold">Template</th>
-                    <th className="px-4 py-3 font-semibold">Sheet link</th>
-                    <th className="px-4 py-3 font-semibold">Actions</th>
+                    <th className={tableHeadCell}>Dashboard</th>
+                    <th className={tableHeadCell}>Company</th>
+                    <th className={tableHeadCell}>Fleet</th>
+                    <th className={tableHeadCell}>Template</th>
+                    <th className={tableHeadCell}>Sheet link</th>
+                    <th className={tableHeadCell}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>

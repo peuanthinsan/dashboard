@@ -11,13 +11,22 @@ import {
   ADMIN_HINT_TEXT,
   ADMIN_INPUT,
   ADMIN_LABEL,
-  ADMIN_PILL,
   ADMIN_PRIMARY_BUTTON,
   ADMIN_SAVE_BUTTON,
   ADMIN_SELECT,
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
 } from '../admin-ui';
+import {
+  tableHead,
+  tableHeadCell,
+  tableRow,
+  tableCell,
+  heading3,
+  textSecondary,
+  badgeInfo,
+  badgeDefault,
+} from 'app/ui/design-tokens';
 import type { ActionState, Company, Organization, User } from '../types';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
@@ -73,29 +82,29 @@ function UserRow({
 
   return (
     <>
-      <tr className="border-b border-slate-200/70 text-sm text-slate-700 last:border-b-0 dark:border-slate-800/70 dark:text-slate-200">
-        <td className="px-4 py-3">
-          <div className="text-sm font-semibold text-slate-900 dark:text-white">
+      <tr className={tableRow}>
+        <td className={tableCell}>
+          <div className="font-semibold text-zinc-900 dark:text-white">
             {user.email ?? 'Unknown email'}
           </div>
-          <div className="mt-1 text-xs text-slate-500">ID {user.id}</div>
+          <div className="mt-0.5 text-xs text-zinc-400">ID {user.id}</div>
         </td>
-        <td className="px-4 py-3">
-          <span className={`${ADMIN_PILL} ${user.isAdmin ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+        <td className={tableCell}>
+          <span className={user.isAdmin ? badgeInfo : badgeDefault}>
             {user.isAdmin ? 'Admin' : 'Standard'}
           </span>
         </td>
-        <td className="px-4 py-3">
+        <td className={tableCell}>
           <span className="block text-sm" title={companyDisplay.title}>
             {companyDisplay.label}
           </span>
         </td>
-        <td className="px-4 py-3">
+        <td className={tableCell}>
           <span className="block text-sm" title={organizationDisplay.title}>
             {organizationDisplay.label}
           </span>
         </td>
-        <td className="px-4 py-3">
+        <td className={tableCell}>
           <button
             type="button"
             onClick={() => setIsOpen(true)}
@@ -138,7 +147,7 @@ function UserRow({
               type="checkbox"
               name="isAdmin"
               defaultChecked={!!user.isAdmin}
-              className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
+              className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
             />
             Admin access
           </label>
@@ -266,8 +275,8 @@ export default function UsersClient({
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Manage users</h3>
-              <p className={`mt-1 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+              <h3 className={heading3}>Manage users</h3>
+              <p className={`mt-1 ${textSecondary}`}>
                 View and update large user lists with quick edits.
               </p>
             </div>
@@ -275,16 +284,16 @@ export default function UsersClient({
               Create user
             </button>
           </div>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60">
+          <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
             <div className="max-h-[32rem] overflow-auto">
               <table className="min-w-full border-collapse text-left">
-                <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                <thead className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}>
                   <tr>
-                    <th className="px-4 py-3 font-semibold">User</th>
-                    <th className="px-4 py-3 font-semibold">Role</th>
-                    <th className="px-4 py-3 font-semibold">Companies</th>
-                    <th className="px-4 py-3 font-semibold">Fleets</th>
-                    <th className="px-4 py-3 font-semibold">Actions</th>
+                    <th className={tableHeadCell}>User</th>
+                    <th className={tableHeadCell}>Role</th>
+                    <th className={tableHeadCell}>Companies</th>
+                    <th className={tableHeadCell}>Fleets</th>
+                    <th className={tableHeadCell}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -354,7 +363,7 @@ export default function UsersClient({
               <input
                 type="checkbox"
                 name="isAdmin"
-                className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
+                className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
               />
               Admin access
             </label>
