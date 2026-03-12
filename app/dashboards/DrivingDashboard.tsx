@@ -14,7 +14,7 @@ import { DataTable, type Column } from 'app/ui/DataTable';
 import Sparkline from 'app/ui/Sparkline';
 import TrendIndicator from 'app/ui/TrendIndicator';
 import {
-  heading2, textSecondary, inputBase, selectBase, cardSection,
+  heading2, textSecondary, inputBase, selectBase,
 } from 'app/ui/design-tokens';
 
 type DashboardProps = {
@@ -164,12 +164,17 @@ export default function DrivingDashboard({
     };
   }, [filteredRows]);
 
-  const kpis = useMemo(() => ({
-    totalTrips: filteredRows.length,
-    totalDistanceKm: filteredRows.reduce((s, r) => s + r.distanceKm, 0),
-    totalCntDrvDurationHours: filteredRows.reduce((s, r) => s + r.cntDrvDurationHours, 0),
-    avgDistancePerTrip: filteredRows.length > 0 ? filteredRows.reduce((s, r) => s + r.distanceKm, 0) / filteredRows.length : 0,
-  }), [filteredRows]);
+  const kpis = useMemo(() => {
+    const totalTrips = filteredRows.length;
+    const totalDistanceKm = filteredRows.reduce((s, r) => s + r.distanceKm, 0);
+    const totalCntDrvDurationHours = filteredRows.reduce((s, r) => s + r.cntDrvDurationHours, 0);
+    return {
+      totalTrips,
+      totalDistanceKm,
+      totalCntDrvDurationHours,
+      avgDistancePerTrip: totalTrips > 0 ? totalDistanceKm / totalTrips : 0,
+    };
+  }, [filteredRows]);
 
   const monthlyTrend = useMemo<MonthlyTrendPoint[]>(() => {
     const map = new Map<string, MonthlyTrendPoint>();
@@ -185,7 +190,10 @@ export default function DrivingDashboard({
 
   // Top 5 most active (by distance) and bottom 5 least active
   const top5 = useMemo(() => aggregates.slice(0, 5), [aggregates]);
-  const bottom5 = useMemo(() => [...aggregates].reverse().slice(0, 5), [aggregates]);
+  const bottom5 = useMemo(() => {
+    const topDrivers = new Set(top5.map((r) => r.driver));
+    return [...aggregates].reverse().filter((r) => !topDrivers.has(r.driver)).slice(0, 5);
+  }, [aggregates, top5]);
 
   const exportData = useMemo(() => aggregates.map((r) => ({
     Driver: r.driver,
@@ -262,7 +270,7 @@ export default function DrivingDashboard({
       lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
-      isStale={false}
+      isStale={lastUpdated ? (Date.now() - lastUpdated.getTime()) > 5 * 60 * 1000 : false}
       activeFilterCount={activeFilterCount}
       actions={
         <ExportButton
