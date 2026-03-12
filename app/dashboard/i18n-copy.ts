@@ -24,6 +24,8 @@ export const dashboardCopy = {
     loadingDetail: 'Fetching the latest data and dashboard insights.',
     thai: 'ไทย',
     english: 'English',
+    staleData: 'Cached data',
+    filtersActive: 'filters active',
   },
   th: {
     loggedInAs: 'คุณเข้าสู่ระบบในชื่อ',
@@ -46,6 +48,8 @@ export const dashboardCopy = {
     loadingDetail: 'กำลังดึงข้อมูลล่าสุดและข้อมูลเชิงลึกของแดชบอร์ด',
     thai: 'ไทย',
     english: 'English',
+    staleData: 'ข้อมูลแคช',
+    filtersActive: 'ตัวกรองที่ใช้งานอยู่',
   },
 } as const;
 

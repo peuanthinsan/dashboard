@@ -2,6 +2,16 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { formatDateTimeGB } from './dateFormat';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
+import {
+  pageContainer,
+  pageContent,
+  heading1,
+  textSecondary,
+  textMuted,
+  cardSection,
+  badgeWarning,
+  badgeDefault,
+} from 'app/ui/design-tokens';
 
 type DashboardShellProps = {
   title: string;
@@ -11,10 +21,13 @@ type DashboardShellProps = {
   notes?: string | null;
   actions?: ReactNode;
   children: ReactNode;
+  /** When true, shows a stale-data warning badge in the header */
+  isStale?: boolean;
+  /** Number of currently active filters — shows a badge when > 0 */
+  activeFilterCount?: number;
 };
 
-export const dashboardSectionClass =
-  'rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/70';
+export const dashboardSectionClass = cardSection;
 
 export default function DashboardShell({
   title,
@@ -24,38 +37,63 @@ export default function DashboardShell({
   notes,
   actions,
   children,
+  isStale = false,
+  activeFilterCount = 0,
 }: DashboardShellProps) {
   const copy = getDashboardCopy(lang);
-  const panelClass =
-    'rounded-3xl border border-cyan-200/70 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-indigo-800/70 dark:bg-slate-900/70';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-fuchsia-100 px-4 py-8 text-slate-900 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-900 dark:text-white sm:px-6 sm:py-10">
-      <div className="mx-auto flex w-full max-w-[1252px] flex-col gap-8">
-        <header className={`flex flex-wrap items-start justify-between gap-4 ${panelClass}`}>
-          <div>
-            <Link
-              href="/dashboard"
-              className="mb-2 inline-flex w-fit items-center gap-2 text-sm text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-            >
-              <span aria-hidden="true">←</span>
-              {copy.backToDashboards}
-            </Link>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">{subtitle}</p>
-            <h1 className="text-2xl font-semibold sm:text-3xl">{title}</h1>
-            {lastUpdated ? (
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                {copy.lastUpdated} {formatDateTimeGB(lastUpdated)}
-              </p>
-            ) : null}
-            {notes ? (
-              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{notes}</p>
-            ) : null}
-          </div>
-          {actions ? <div className="flex items-start gap-3">{actions}</div> : null}
-        </header>
+    <div className={pageContainer}>
+      <div className={pageContent}>
+        <div className="flex flex-col gap-6">
+          <header className={cardSection}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <Link
+                  href="/dashboard"
+                  className="mb-3 inline-flex items-center gap-1.5 text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  {copy.backToDashboards}
+                </Link>
+                <p className="text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                  {subtitle}
+                </p>
+                <h1 className={`mt-1 ${heading1}`}>{title}</h1>
+                {lastUpdated ? (
+                  <p className={`mt-2 ${textMuted}`}>
+                    {copy.lastUpdated} {formatDateTimeGB(lastUpdated)}
+                  </p>
+                ) : null}
+                {notes ? <p className={`mt-3 ${textSecondary}`}>{notes}</p> : null}
 
-        {children}
+                {/* Status badges row */}
+                {(isStale || activeFilterCount > 0) ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {isStale ? (
+                      <span className={badgeWarning}>
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        </svg>
+                        {copy.staleData}
+                      </span>
+                    ) : null}
+                    {activeFilterCount > 0 ? (
+                      <span className={badgeDefault}>
+                        {activeFilterCount} {copy.filtersActive}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              {actions ? <div className="flex items-start gap-2">{actions}</div> : null}
+            </div>
+          </header>
+
+          {children}
+        </div>
       </div>
     </div>
   );
