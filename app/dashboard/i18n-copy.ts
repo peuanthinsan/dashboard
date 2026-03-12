@@ -58,3 +58,15 @@ export const dashboardCopy = {
 } as const;
 
 export const getDashboardCopy = (lang: DashboardLang) => dashboardCopy[lang];
+
+export function formatNumber(value: number, lang: DashboardLang): string {
+  return new Intl.NumberFormat(lang === 'th' ? 'th-TH' : 'en-GB').format(value);
+}
+
+export function formatDate(date: Date, lang: DashboardLang): string {
+  return new Intl.DateTimeFormat(lang === 'th' ? 'th-TH' : 'en-GB', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(date);
+}
