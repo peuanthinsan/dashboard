@@ -7,6 +7,7 @@ import {
   ADMIN_TEXT_MUTED,
   ADMIN_TEXT_SUBTLE,
 } from './admin-ui';
+import { heading2, textSecondary } from 'app/ui/design-tokens';
 
 type AdminSectionProps = {
   children: ReactNode;
@@ -51,12 +52,12 @@ export function AdminSectionHeader({
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div>
         {eyebrow ? (
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
             {eyebrow}
           </p>
         ) : null}
-        <h2 className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
-        <p className={`mt-1 text-sm ${ADMIN_TEXT_MUTED}`}>{description}</p>
+        <h2 className={`mt-2 ${heading2}`}>{title}</h2>
+        <p className={`mt-1 ${textSecondary}`}>{description}</p>
       </div>
       <span className={ADMIN_PILL}>
         {count} {countLabel}
@@ -78,11 +79,11 @@ export function AdminStatCard({
   const descriptionClassName = descriptionTone === 'muted' ? ADMIN_TEXT_MUTED : ADMIN_TEXT_SUBTLE;
   return (
     <div className={className ? `${cardClassName} ${className}` : cardClassName}>
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+      <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         {label}
       </p>
       {value !== undefined ? (
-        <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{value}</p>
+        <p className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-white">{value}</p>
       ) : null}
       {description ? <p className={`mt-1 text-xs ${descriptionClassName}`}>{description}</p> : null}
       {children ? <div className="mt-2">{children}</div> : null}
@@ -91,7 +92,5 @@ export function AdminStatCard({
 }
 
 export function AdminPanel({ children, className }: AdminPanelProps) {
-  const baseClassName =
-    'rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/60';
-  return <div className={className ? `${baseClassName} ${className}` : baseClassName}>{children}</div>;
+  return <div className={className ? `${ADMIN_SECTION} ${className}` : ADMIN_SECTION}>{children}</div>;
 }

@@ -17,9 +17,9 @@ export default function AdminNav() {
   return (
     <nav
       aria-label="Admin sections"
-      className="flex flex-col gap-3 text-sm text-slate-600 dark:text-slate-300"
+      className="flex flex-col gap-3 text-sm text-zinc-600 dark:text-zinc-300"
     >
-      <span className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">
+      <span className="text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
         Jump to section
       </span>
       <div className="flex flex-wrap gap-2">
@@ -34,30 +34,30 @@ export default function AdminNav() {
               key={link.href}
               href={link.href}
               aria-current={isActive ? 'page' : undefined}
-              className={`group flex min-w-[150px] flex-1 flex-col gap-1 rounded-2xl border px-3 py-2 text-left font-medium shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
+              className={`group flex min-w-[140px] flex-1 flex-col gap-1 rounded-lg border px-3 py-2.5 text-left font-medium transition ${
                 isActive
-                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-900 shadow dark:border-emerald-300 dark:bg-emerald-300/15 dark:text-emerald-50'
-                  : 'border-slate-200 bg-white/70 text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-900 dark:hover:text-white'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950 dark:text-indigo-200'
+                  : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-700'
               }`}
             >
               <span className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2">
                   <span
-                    className={`h-2 w-2 rounded-full ${
+                    className={`h-1.5 w-1.5 rounded-full ${
                       isActive
-                        ? 'bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.2)] dark:bg-emerald-300 dark:shadow-[0_0_0_4px_rgba(110,231,183,0.25)]'
-                        : 'bg-slate-300 dark:bg-slate-600'
+                        ? 'bg-indigo-500 dark:bg-indigo-400'
+                        : 'bg-zinc-300 dark:bg-zinc-600'
                     }`}
                   />
                   <span>{link.label}</span>
                 </span>
                 {isActive ? (
-                  <span className="rounded-full bg-emerald-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:bg-emerald-200/20 dark:text-emerald-100">
-                    Current
+                  <span className="rounded-md bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300">
+                    Active
                   </span>
                 ) : null}
               </span>
-              <span className="text-xs font-normal text-slate-500 group-hover:text-slate-600 dark:text-slate-400 dark:group-hover:text-slate-200">
+              <span className="text-xs font-normal text-zinc-400 group-hover:text-zinc-500 dark:text-zinc-500 dark:group-hover:text-zinc-300">
                 {link.hint}
               </span>
             </Link>
