@@ -5,24 +5,19 @@ import DetailDashboard from 'app/dashboards/DetailDashboard';
 import DrivingDashboard from 'app/dashboards/DrivingDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
-import VideoDashboard from 'app/dashboards/VideoDashboard';
+import { resolveTemplate as resolveTemplateName } from 'app/dashboards/dashboardDataUtils';
 import { getDashboardLang } from '../i18n';
 
-const resolveTemplate = (template: string | null) => {
-  switch (template) {
-    case 'Summary':
-      return SummaryDashboard;
-    case 'Detail':
-      return DetailDashboard;
-    case 'Simple':
-      return SimpleDashboard;
-    case 'Video':
-      return VideoDashboard;
-    case 'Driving':
-      return DrivingDashboard;
-    default:
-      return SummaryDashboard;
-  }
+const templateComponents: Record<string, typeof SummaryDashboard> = {
+  Summary: SummaryDashboard,
+  Detail: DetailDashboard,
+  Simple: SimpleDashboard,
+  Driving: DrivingDashboard,
+};
+
+const getTemplate = (template: string | null) => {
+  const resolved = resolveTemplateName(template ?? 'Summary');
+  return templateComponents[resolved] ?? SummaryDashboard;
 };
 
 export default async function DashboardPage({ params }: { params: { id: string } }) {
@@ -59,7 +54,7 @@ export default async function DashboardPage({ params }: { params: { id: string }
     organizationName = organizationResult[0]?.name ?? null;
   }
 
-  const Template = resolveTemplate(dashboard.template ?? null);
+  const Template = getTemplate(dashboard.template ?? null);
 
   return (
     <Template
