@@ -14,6 +14,9 @@ import {
   parseDate,
   toDisplayString,
 } from './dashboardDataUtils';
+import KpiCard from 'app/ui/KpiCard';
+import EmptyState from 'app/ui/EmptyState';
+import { heading2, textSecondary, badgeDanger } from 'app/ui/design-tokens';
 
 type DashboardProps = {
   dashboardId: string;
@@ -73,19 +76,22 @@ export default function VideoDashboard({
         return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
       .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 9);
+      .slice(0, 12);
   }, [normalizedOrganizationName, rows]);
+
+  const uniqueVehicles = useMemo(() => new Set(samples.map((s) => s.vehicle)).size, [samples]);
+  const uniqueDrivers = useMemo(() => new Set(samples.map((s) => s.driver)).size, [samples]);
 
   return (
     <DashboardShell
       title={dashboardName}
-      subtitle={lang === 'th' ? 'วิดีโอ' : 'Video'}
+      subtitle={lang === 'th' ? 'แดชบอร์ดวิดีโอ' : 'Video dashboard'}
       lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
     >
       {error ? (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
           {error}
         </div>
       ) : null}
@@ -97,71 +103,56 @@ export default function VideoDashboard({
           fallbackDetail={copy.loadingDetail}
         />
       ) : (
-        <section className={dashboardSectionClass}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium">{lang === 'th' ? 'ตัวอย่างการแจ้งเตือนล่าสุด' : 'Latest alert samples'}</h2>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {samples.length} {lang === 'th' ? 'วิดีโอ' : 'videos'}
-            </span>
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <KpiCard label={lang === 'th' ? 'วิดีโอทั้งหมด' : 'Total Videos'} value={samples.length} />
+            <KpiCard label={lang === 'th' ? 'ยานพาหนะ' : 'Vehicles'} value={uniqueVehicles} />
+            <KpiCard label={lang === 'th' ? 'คนขับ' : 'Drivers'} value={uniqueDrivers} />
           </div>
-          {samples.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{lang === 'th' ? 'ยังไม่มีวิดีโอ' : 'No videos available yet.'}</p>
-          ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {samples.map((sample) => (
-                <article
-                  key={sample.id}
-                  className="flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
-                >
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        {lang === 'th' ? 'รถ' : 'Vehicle'}
-                      </p>
-                      <p className="text-lg font-semibold text-slate-900 dark:text-white">
-                        {sample.vehicle}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        {lang === 'th' ? 'คนขับ' : 'Driver'}
-                      </p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">{sample.driver}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        {lang === 'th' ? 'ประเภทการแจ้งเตือน' : 'Alert type'}
-                      </p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">{sample.remarks}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
-                        {lang === 'th' ? 'วันเวลาแจ้งเตือน' : 'Alert date time'}
-                      </p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">
-                        {sample.timeLabel}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-auto flex flex-col gap-3">
+
+          <section className={dashboardSectionClass}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className={heading2}>{lang === 'th' ? 'ตัวอย่างการแจ้งเตือนล่าสุด' : 'Latest alert samples'}</h2>
+                <p className={textSecondary}>
+                  {samples.length} {lang === 'th' ? 'วิดีโอ' : 'videos'}
+                </p>
+              </div>
+            </div>
+            {samples.length === 0 ? (
+              <EmptyState title={lang === 'th' ? 'ยังไม่มีวิดีโอ' : 'No videos available yet.'} />
+            ) : (
+              <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {samples.map((sample) => (
+                  <article
+                    key={sample.id}
+                    className="flex h-full flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+                  >
                     {sample.videoUrl && sample.videoUrl !== '—' ? (
-                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
+                      <div className="overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
                         <video controls preload="metadata" className="h-40 w-full bg-black/30">
                           <source src={sample.videoUrl} type="video/mp4" />
-                          {lang === 'th' ? 'เบราว์เซอร์ของคุณไม่รองรับแท็กวิดีโอ' : 'Your browser does not support the video tag.'}
                         </video>
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-500 dark:text-slate-500">
-                        {lang === 'th' ? 'ไม่พบลิงก์วิดีโอ' : 'Video link unavailable'}
-                      </span>
+                      <div className="flex h-40 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                        <span className="text-xs text-zinc-400">{lang === 'th' ? 'ไม่มีวิดีโอ' : 'No video'}</span>
+                      </div>
                     )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{sample.vehicle}</p>
+                        <span className={badgeDanger}>{sample.remarks}</span>
+                      </div>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{sample.driver}</p>
+                      <p className="text-xs text-zinc-400 dark:text-zinc-500">{sample.timeLabel}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       )}
     </DashboardShell>
   );

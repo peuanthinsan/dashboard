@@ -139,11 +139,12 @@ export async function createUserWithRole({
 
   return await db.transaction(async (tx) => {
     const existing = await tx.select({ id: users.id }).from(users).limit(1);
-    return await tx.insert(users).values({
+    const [result] = await tx.insert(users).values({
       email,
       password: passwordHash,
       isAdmin: isAdmin || existing.length === 0,
-    });
+    }).returning({ id: users.id });
+    return result;
   });
 }
 
@@ -307,7 +308,8 @@ export const getDashboardsForUser = cache(async ({
 });
 
 export async function createCompany(name: string) {
-  return await db.insert(companies).values({ name });
+  const [result] = await db.insert(companies).values({ name }).returning({ id: companies.id });
+  return result;
 }
 
 export async function updateCompany(id: number, name: string) {
@@ -322,7 +324,8 @@ export async function createOrganization(name: string, companyId: number | null)
   if (!(await ensureOrganizationCompanyColumn())) {
     throw new Error('Fleet company assignment requires the companyId migration to be applied.');
   }
-  return await db.insert(organizations).values({ name, companyId });
+  const [result] = await db.insert(organizations).values({ name, companyId }).returning({ id: organizations.id });
+  return result;
 }
 
 export async function updateOrganization(id: number, name: string, companyId: number | null) {
@@ -356,7 +359,7 @@ export async function createDashboard({
   notes?: string | null;
 }) {
   await assertOrganizationBelongsToCompany(companyId, organizationId);
-  return await db.insert(dashboards).values({
+  const [result] = await db.insert(dashboards).values({
     name,
     companyId,
     organizationId,
@@ -366,7 +369,8 @@ export async function createDashboard({
     sheetUrl,
     notes: notes ?? null,
     publicId: randomUUID(),
-  });
+  }).returning({ id: dashboards.id });
+  return result;
 }
 
 export async function updateDashboard({

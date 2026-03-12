@@ -31,7 +31,7 @@ export default function AdminModal({
       <button
         type="button"
         aria-hidden="true"
-        className="absolute inset-0 bg-slate-900/20 dark:bg-slate-950/80"
+        className="absolute inset-0 bg-zinc-900/30 backdrop-blur-sm dark:bg-zinc-950/70"
         onClick={onClose}
       />
       <div
@@ -39,14 +39,14 @@ export default function AdminModal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={`relative w-full ${sizeClassName} max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950`}
+        className={`relative w-full ${sizeClassName} max-h-[90vh] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900`}
       >
-        <div className="border-b border-slate-200/70 bg-slate-50 px-5 py-4 dark:border-slate-800/70 dark:bg-slate-900">
-          <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-white">
+        <div className="border-b border-zinc-200 bg-zinc-50 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-800/50">
+          <h2 id={titleId} className="text-lg font-semibold text-zinc-900 dark:text-white">
             {title}
           </h2>
           {description ? (
-            <p id={descriptionId} className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            <p id={descriptionId} className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               {description}
             </p>
           ) : null}
