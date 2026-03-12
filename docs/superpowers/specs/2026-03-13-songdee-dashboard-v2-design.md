@@ -17,7 +17,7 @@ A fleet safety analytics dashboard where fleet owners track alerts (fatigue, dis
 
 ### Product Scope
 
-- **4 dashboard templates:** Summary, Detail, Simple, Driving
+- **4 dashboard templates:** Summary, Detail, Simple, Driving (Video template removed — video evidence is now a section within Detail Dashboard. Existing Video dashboards in the database render using the Detail template with the video section visible.)
 - **Admin panel:** Companies, fleets, users, dashboards with bulk operations
 - **Authentication:** Email + password with admin roles
 - **Data source:** Google Sheets (visualization API)
@@ -38,7 +38,7 @@ A fleet safety analytics dashboard where fleet owners track alerts (fatigue, dis
   - Blue — good (safety score 70-89)
   - Amber — warning/moderate (safety score 50-69)
   - Red — danger/poor (safety score <50)
-- **Chart colors:** 8-10 distinct, accessible, color-blind safe colors
+- **Chart colors:** 8-10 distinct, accessible colors using the Okabe-Ito palette (avoids red/green adjacency issues for protanopia/deuteranopia)
 
 ### Typography
 
@@ -54,11 +54,41 @@ A fleet safety analytics dashboard where fleet owners track alerts (fatigue, dis
 | DonutChart | Proportional breakdown with legend |
 | AlertHeatmap | 7x24 grid showing alert density by day/hour |
 | DriverLeaderboard | Ranked driver list with scores and medal indicators |
-| TrendChart | SVG line/bar chart for time-series data |
-| DataTable | Sortable, filterable table with consistent styling |
+| TrendChart | SVG line/bar chart for time-series data (see details below) |
+| DataTable | Sortable, filterable table with consistent styling (see details below) |
+| Sparkline | Small inline SVG chart for embedding trends in table rows |
 | FilterGroup/FilterChip | Filter UI with clear buttons and counts |
 | EmptyState | Centered message when no data matches filters |
 | ExportButton | CSV download with proper encoding |
+
+#### TrendChart
+
+SVG-based chart component supporting multiple visualization modes:
+
+- **Props:** `data` (array of `{label, value}` or `{label, values: Record<string, number>}` for multi-series), `mode` ("line" | "bar" | "dual-axis"), `height`, `colors` (optional, defaults to chart palette)
+- **Line mode:** Connected points with optional area fill, used for alert trends over time
+- **Bar mode:** Vertical bars, used for distance/trip counts
+- **Dual-axis mode:** Bars on left axis + line on right axis (e.g., distance bars with trip count line overlay in Driving Dashboard)
+- **Features:** X-axis labels, Y-axis ticks, hover tooltips, responsive width
+- Built on the existing `buildTrendGeometry()`, `buildXAxisLabels()`, `buildYAxisTicks()` utilities in `dashboardDataUtils.ts`
+
+#### DataTable
+
+Generic sortable table component:
+
+- **Props:** `columns` (array of `{key, label, sortable?, render?}`), `data` (array of row objects), `defaultSort` (optional `{key, direction}`), `onRowClick` (optional)
+- **Sorting:** Click column headers to sort asc/desc, visual indicator on active sort column
+- **Rendering:** Custom `render` function per column for formatting (e.g., color-coded badges, sparklines, links)
+- **Styling:** Uses design token table classes (tableHead, tableRow, tableCell)
+- **Scrolling:** Horizontal scroll on narrow viewports, sticky first column optional
+
+#### Sparkline
+
+Minimal inline SVG chart for embedding in table cells:
+
+- **Props:** `data` (array of numbers), `width` (default 80px), `height` (default 24px), `color` (optional)
+- **Renders:** Simple polyline with no axes, labels, or interactivity — just the trend shape
+- **Use case:** Driver statistics table in Driving Dashboard to show monthly distance pattern per driver
 
 ### Surfaces
 
@@ -80,7 +110,7 @@ A fleet safety analytics dashboard where fleet owners track alerts (fatigue, dis
 
 - Same split layout for consistency
 - Email + password with validation
-- Rate limiting (5 attempts/min)
+- Rate limiting (5 attempts/min, enforced server-side via in-memory counter per IP in the server action — existing approach)
 - First registered user auto-becomes admin
 
 ### Post-Login Routing
@@ -281,8 +311,8 @@ Fleet operations view — distance, trips, and driver activity.
 
 - Stat cards: total companies, fleets, users, dashboards
 - Quick links to each management section
-- Recent activity feed — last 10 actions (user created, dashboard added, fleet updated)
-- System health indicator — shows if Google Sheet connections are responding
+- Recent activity summary — derived from database state (e.g., newest users, recently created dashboards) rather than an event log, so no schema changes needed
+- System health indicator — spot-checks a sample Google Sheet connection on page load (3-second timeout, non-blocking; shows "no dashboards" state if none exist yet)
 - **Quick setup wizard** — guided flow: create company → create fleet → add dashboard → invite user
 
 ### Companies (`/admin/companies`)
@@ -330,7 +360,7 @@ Fleet operations view — distance, trips, and driver activity.
 - System preference detection with manual toggle override
 - CSS custom properties for all theme values
 - Persisted in localStorage
-- Smooth transition — no flash of wrong theme on page load
+- No flash of wrong theme on page load — achieved via inline `<script>` in `<head>` that reads localStorage before first paint and sets the `dark` class on `<html>`
 
 ### Internationalization (EN/TH)
 
@@ -364,9 +394,9 @@ Fleet operations view — distance, trips, and driver activity.
 - Tables get horizontal scroll on narrow viewports
 - SVG charts scale gracefully without losing legibility
 
-### Filter Persistence
+### Filter Persistence (existing — verify/preserve)
 
-- Active filters saved to localStorage per dashboard
+- Active filters saved to localStorage per dashboard (existing `filterStorage.ts`)
 - Restored on return visits
 - Clear all filters button on every dashboard
 - Active filter summary — visible count of how many filters are applied
