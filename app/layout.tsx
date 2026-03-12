@@ -25,11 +25,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              var theme = localStorage.getItem('theme');
+              if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+              }
+            } catch(e) {}
+          })();
+        `}} />
+      </head>
       <body className={GeistSans.variable}>
-        <div
-          id="theme-controls"
-          className="fixed right-4 top-4 z-50 flex flex-row-reverse items-center gap-2"
-        >
+        <div id="theme-controls" className="fixed right-4 top-4 z-50">
           <ThemeToggle />
         </div>
         {children}

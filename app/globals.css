@@ -3,6 +3,40 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-bg: 250 250 250;
+    --color-surface: 255 255 255;
+    --color-surface-raised: 255 255 255;
+    --color-border: 229 231 235;
+    --color-border-subtle: 243 244 246;
+    --color-text: 17 24 39;
+    --color-text-secondary: 107 114 128;
+    --color-text-muted: 156 163 175;
+    --color-primary: 79 70 229;
+    --color-primary-hover: 67 56 202;
+    --color-success: 22 163 74;
+    --color-warning: 234 179 8;
+    --color-danger: 239 68 68;
+    --color-info: 59 130 246;
+  }
+
+  .dark {
+    --color-bg: 9 9 11;
+    --color-surface: 24 24 27;
+    --color-surface-raised: 39 39 42;
+    --color-border: 63 63 70;
+    --color-border-subtle: 39 39 42;
+    --color-text: 250 250 250;
+    --color-text-secondary: 161 161 170;
+    --color-text-muted: 113 113 122;
+    --color-primary: 129 140 248;
+    --color-primary-hover: 165 180 252;
+    --color-success: 74 222 128;
+    --color-warning: 250 204 21;
+    --color-danger: 248 113 113;
+    --color-info: 96 165 250;
+  }
+
   html {
     color-scheme: light;
   }
@@ -12,11 +46,8 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
-  }
-
-  html.dark body {
-    @apply bg-slate-950 text-white;
+    @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-50;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
