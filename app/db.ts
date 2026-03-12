@@ -293,7 +293,10 @@ export const getDashboardsForUser = cache(async ({
     if (scopedOrganizationIds.length === 0) {
       return and(eq(dashboards.companyId, companyId), isNull(dashboards.organizationId));
     }
-    return and(eq(dashboards.companyId, companyId), inArray(dashboards.organizationId, scopedOrganizationIds));
+    return and(
+      eq(dashboards.companyId, companyId),
+      inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
+    );
   });
 
   if (visibilityFilters.length === 0) {
