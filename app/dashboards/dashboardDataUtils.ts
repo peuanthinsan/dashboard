@@ -135,8 +135,21 @@ export const withDerivedRemark = (alertType: string, remarks: string) => {
     return derivedRemark;
   }
 
+  // Eye Closing (A2) rows whose remark contains "Yawning" are counted as Yawning alerts
+  if (
+    normalizedAlertType === normalizeLabel('Eye Closing-A2') &&
+    normalizeLabel(remarks).includes('yawning')
+  ) {
+    return 'Yawning';
+  }
+
   return remarks;
 };
+
+export function resolveTemplate(template: string): string {
+  if (template === 'Video') return 'Detail';
+  return template;
+}
 
 export const buildTrendGeometry = (trendData: TrendDatum[], maxTrendValue: number): TrendGeometry => {
   const width = 1200;
@@ -181,5 +194,31 @@ export const buildXAxisLabels = (trendData: TrendDatum[], maxLabels = 6): TrendL
       label: item.date.toLocaleDateString('en-GB'),
       position,
     };
+  });
+};
+
+// Safety score computation
+export const computeSafetyScore = (alertCount: number, vehicleCount: number, dayCount: number): number => {
+  if (vehicleCount === 0 || dayCount === 0) return 100;
+  const alertsPerVehiclePerDay = alertCount / vehicleCount / dayCount;
+  const penalty = Math.min(70, alertsPerVehiclePerDay * 70);
+  return Math.round(Math.max(0, 100 - penalty));
+};
+
+export const computeDriverSafetyScore = (alertCount: number, dayCount: number): number => {
+  if (dayCount === 0) return 100;
+  const alertsPerDay = alertCount / dayCount;
+  const penalty = Math.min(70, alertsPerDay * 35);
+  return Math.round(Math.max(0, 100 - penalty));
+};
+
+// CSV export helper
+export const buildExportRows = (rows: Record<string, any>[], columns: string[]) => {
+  return rows.map((row) => {
+    const out: Record<string, unknown> = {};
+    columns.forEach((col) => {
+      out[col] = findValue(row, [col]) ?? '';
+    });
+    return out;
   });
 };
