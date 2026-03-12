@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
+import { FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
@@ -12,9 +12,7 @@ import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
   ALLOWED_ALERT_TYPES,
   ALLOWED_REMARK_TARGETS,
-  buildTrendGeometry,
-  buildXAxisLabels,
-  buildYAxisTicks,
+  computeDriverSafetyScore,
   findValue,
   hasRemark,
   isExcludedAlertRemark,
@@ -26,6 +24,29 @@ import {
   toMonthLabel,
   withDerivedRemark,
 } from './dashboardDataUtils';
+
+// V2 components
+import TrendChart from 'app/ui/TrendChart';
+import { DataTable, type Column } from 'app/ui/DataTable';
+import KpiCard from 'app/ui/KpiCard';
+import ExportButton from 'app/ui/ExportButton';
+import AlertHeatmap from 'app/ui/AlertHeatmap';
+import {
+  heading2,
+  textSecondary,
+  inputBase,
+  cardSection,
+  badgeDefault,
+  badgeWarning,
+  badgeDanger,
+  badgeInfo,
+  CHART_COLORS,
+} from 'app/ui/design-tokens';
+
+// Sub-components
+import AlertTimeline, { type TimelineEntry } from './AlertTimeline';
+import VideoEvidence, { type VideoEntry } from './VideoEvidence';
+import DriverSummaryCards from './DriverSummaryCards';
 
 type DashboardProps = {
   dashboardId: string;
@@ -53,24 +74,6 @@ type AlertRow = {
   parsedDate: Date | null;
 };
 
-type TrendPoint = {
-  x: number;
-  y: number;
-  count: number;
-  label: string;
-};
-
-type RemarkVideoGroup = {
-  remarkType: string;
-  rows: AlertRow[];
-};
-
-type SortField = 'time' | 'vehicle' | 'driver' | 'speed' | 'fleet' | 'remarks';
-type SortDirection = 'asc' | 'desc';
-type SortCriterion = {
-  field: SortField;
-  direction: SortDirection;
-};
 type DetailFilterState = {
   monthFilters: string[];
   fleetFilters: string[];
@@ -78,6 +81,7 @@ type DetailFilterState = {
   vehicleFilters: string[];
   driverFilters: string[];
   trendRemarkFilter: string;
+  showExcluded: boolean;
 };
 
 const toDateLabel = (value: unknown) => {
@@ -91,6 +95,22 @@ const toDateLabel = (value: unknown) => {
 
 const hasVideoLink = (videoUrl: string) => Boolean(videoUrl && videoUrl !== '—');
 
+// Badge color for remark types
+const getRemarkBadgeClass = (remark: string): string => {
+  const lower = normalizeLabel(remark);
+  if (lower.includes('fatigue') || lower.includes('yawning'))
+    return badgeDanger;
+  if (
+    lower.includes('overspeed') ||
+    lower.includes('harsh') ||
+    lower.includes('forward collision')
+  )
+    return badgeWarning;
+  if (lower.includes('distraction') || lower.includes('seatbelt'))
+    return badgeInfo;
+  return badgeDefault;
+};
+
 export default function DetailDashboard({
   dashboardId,
   dashboardName,
@@ -101,7 +121,7 @@ export default function DetailDashboard({
   lang = 'en',
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
-  const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
@@ -118,16 +138,11 @@ export default function DetailDashboard({
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [driverSearch, setDriverSearch] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
-  const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
-  const [pinnedPoint, setPinnedPoint] = useState<TrendPoint | null>(null);
-  const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>([
-    { field: 'time', direction: 'desc' },
-  ]);
-  const [pageSize, setPageSize] = useState(25);
-  const [page, setPage] = useState(1);
+  const [showExcluded, setShowExcluded] = useState(false);
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
+  // Persist / restore filters
   useEffect(() => {
     const stored = loadStoredFilters<DetailFilterState>(storageKey);
     if (!stored) return;
@@ -150,6 +165,9 @@ export default function DetailDashboard({
     if (typeof stored.trendRemarkFilter === 'string') {
       setTrendRemarkFilter(stored.trendRemarkFilter);
     }
+    if (typeof stored.showExcluded === 'boolean') {
+      setShowExcluded(stored.showExcluded);
+    }
   }, [storageKey]);
 
   useEffect(() => {
@@ -160,12 +178,14 @@ export default function DetailDashboard({
       vehicleFilters,
       driverFilters,
       trendRemarkFilter,
+      showExcluded,
     });
   }, [
     driverFilters,
     fleetFilters,
     monthFilters,
     remarkFilters,
+    showExcluded,
     storageKey,
     trendRemarkFilter,
     vehicleFilters,
@@ -196,11 +216,13 @@ export default function DetailDashboard({
     setVehicleFilters([]);
     setDriverSearch('');
     setDriverFilters([]);
+    setShowExcluded(false);
   };
 
   const allowedAlertTypes = useMemo(() => ALLOWED_ALERT_TYPES, []);
   const allowedRemarkTargets = useMemo(() => ALLOWED_REMARK_TARGETS, []);
 
+  // ── Data pipeline: alertRows -> baseFilteredRows -> filteredAlerts ──
   const alertRows = useMemo<AlertRow[]>(() => {
     const mappedRows = rows.map((row, index) => {
       const timeValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
@@ -226,13 +248,18 @@ export default function DetailDashboard({
         parsedDate,
       };
     });
-    const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks) && !isExcludedAlertRemark(row.remarks));
+    const remarkRows = mappedRows.filter((row) => {
+      if (!hasRemark(row.remarks)) return false;
+      if (!showExcluded && isExcludedAlertRemark(row.remarks)) return false;
+      return true;
+    });
     if (!normalizedOrganizationName) {
       return remarkRows;
     }
     return remarkRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
-  }, [normalizedOrganizationName, rows]);
+  }, [normalizedOrganizationName, rows, showExcluded]);
 
+  // ── Filter option lists ──
   const fleetOptions = useMemo(() => {
     const unique = new Set<string>();
     alertRows.forEach((row) => {
@@ -367,6 +394,7 @@ export default function DetailDashboard({
     return baseFilteredRows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
   }, [baseFilteredRows, monthFilters]);
 
+  // ── Trend remark filter options ──
   const availableTrendRemarkOptions = useMemo(() => {
     const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
     const matching = new Set<string>();
@@ -380,12 +408,12 @@ export default function DetailDashboard({
       });
     });
     return [
-      { label: 'All alert types', value: 'all' },
+      { label: lang === 'th' ? 'การแจ้งเตือนทุกประเภท' : 'All alert types', value: 'all' },
       ...Array.from(matching)
         .sort((a, b) => a.localeCompare(b))
         .map((option) => ({ label: option, value: option })),
     ];
-  }, [allowedRemarkTargets, filteredAlerts]);
+  }, [allowedRemarkTargets, filteredAlerts, lang]);
 
   useEffect(() => {
     if (trendRemarkFilter === 'all') return;
@@ -393,60 +421,8 @@ export default function DetailDashboard({
     setTrendRemarkFilter('all');
   }, [availableTrendRemarkOptions, trendRemarkFilter]);
 
-  const sortedAlerts = useMemo(() => {
-    if (sortCriteria.length === 0) return filteredAlerts;
-    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-    const getSortValue = (row: AlertRow, field: SortField) => {
-      switch (field) {
-        case 'time':
-          return row.parsedDate ? row.parsedDate.getTime() : null;
-        case 'vehicle':
-          return row.vehicle;
-        case 'driver':
-          return row.driver;
-        case 'speed': {
-          const numeric = Number.parseFloat(String(row.speed).replace(/[^0-9.]/g, ''));
-          return Number.isNaN(numeric) ? null : numeric;
-        }
-        case 'fleet':
-          return row.fleet;
-        case 'remarks':
-          return row.remarks;
-        default:
-          return null;
-      }
-    };
-    const compareValues = (aValue: string | number | null, bValue: string | number | null) => {
-      if (aValue == null && bValue == null) return 0;
-      if (aValue == null) return 1;
-      if (bValue == null) return -1;
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return aValue - bValue;
-      }
-      return collator.compare(String(aValue), String(bValue));
-    };
-    return [...filteredAlerts].sort((a, b) => {
-      for (const criterion of sortCriteria) {
-        const order = criterion.direction === 'asc' ? 1 : -1;
-        const comparison = compareValues(getSortValue(a, criterion.field), getSortValue(b, criterion.field));
-        if (comparison !== 0) return comparison * order;
-      }
-      return 0;
-    });
-  }, [filteredAlerts, sortCriteria]);
-
-  const totalAlerts = sortedAlerts.length;
-  const totalPages = Math.max(1, Math.ceil(totalAlerts / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const startIndex = totalAlerts === 0 ? 0 : (currentPage - 1) * pageSize;
-  const endIndex = totalAlerts === 0 ? 0 : Math.min(startIndex + pageSize, totalAlerts);
-  const paginatedAlerts = sortedAlerts.slice(startIndex, endIndex);
-
-  useEffect(() => {
-    setPage(1);
-  }, [monthFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters]);
-
-  const trendData = useMemo(() => {
+  // ── Trend chart data (TrendDatum[]) ──
+  const trendChartData = useMemo(() => {
     const counts = new Map<string, { key: string; date: Date; count: number }>();
     filteredAlerts.forEach((row) => {
       if (!row.parsedDate) return;
@@ -464,40 +440,223 @@ export default function DetailDashboard({
         counts.set(dayKey, { key: dayKey, date: dayDate, count: 1 });
       }
     });
-    return Array.from(counts.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
+    return Array.from(counts.values())
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((item) => ({
+        label: item.date.toLocaleDateString('en-GB'),
+        value: item.count,
+      }));
   }, [filteredAlerts, trendRemarkFilter]);
 
-  const maxTrendValue = trendData.reduce((max, item) => Math.max(max, item.count), 0);
-  const trendPoints = useMemo(() => buildTrendGeometry(trendData, maxTrendValue), [maxTrendValue, trendData]);
-  const yAxisTicks = useMemo(() => buildYAxisTicks(maxTrendValue), [maxTrendValue]);
-  const xAxisLabels = useMemo(() => buildXAxisLabels(trendData), [trendData]);
-  const latestRemarkVideoGroups = useMemo<RemarkVideoGroup[]>(() => {
-    const rowsByLatest = [...filteredAlerts].sort((a, b) => {
-      const aTime = a.parsedDate?.getTime() ?? 0;
-      const bTime = b.parsedDate?.getTime() ?? 0;
-      return bTime - aTime;
+  // ── Heatmap dates ──
+  const heatmapDates = useMemo(
+    () => filteredAlerts.filter((row) => row.parsedDate).map((row) => row.parsedDate as Date),
+    [filteredAlerts],
+  );
+
+  // ── Video evidence entries ──
+  const videoEntries = useMemo<VideoEntry[]>(() => {
+    return filteredAlerts
+      .filter((row) => hasVideoLink(row.videoUrl) && row.parsedDate)
+      .map((row) => ({
+        url: row.videoUrl,
+        vehicle: row.vehicle,
+        driver: row.driver,
+        timestamp: row.parsedDate as Date,
+        speed: row.speed,
+        alertType: row.remarks,
+      }));
+  }, [filteredAlerts]);
+
+  // ── Timeline entries ──
+  const timelineEntries = useMemo<TimelineEntry[]>(() => {
+    return filteredAlerts
+      .filter((row) => row.parsedDate)
+      .map((row) => ({
+        timestamp: row.parsedDate as Date,
+        vehicle: row.vehicle,
+        driver: row.driver,
+        alertType: row.remarks,
+        speed: row.speed,
+      }));
+  }, [filteredAlerts]);
+
+  // ── KPI data ──
+  const uniqueVehicles = useMemo(() => {
+    const s = new Set<string>();
+    filteredAlerts.forEach((r) => {
+      if (r.vehicle && r.vehicle !== '—') s.add(r.vehicle);
+    });
+    return s.size;
+  }, [filteredAlerts]);
+
+  const uniqueDrivers = useMemo(() => {
+    const s = new Set<string>();
+    filteredAlerts.forEach((r) => {
+      if (r.driver && r.driver !== '—') s.add(r.driver);
+    });
+    return s.size;
+  }, [filteredAlerts]);
+
+  // Compute previous month alert count for trend
+  const previousMonthAlertCount = useMemo(() => {
+    if (monthFilters.length !== 1) return 0;
+    const currentKey = monthFilters[0];
+    const [year, month] = currentKey.split('-').map(Number);
+    const prevDate = new Date(year, month - 2, 1);
+    const prevKey = toMonthKey(prevDate);
+    return baseFilteredRows.filter((row) => row.monthKey === prevKey).length;
+  }, [baseFilteredRows, monthFilters]);
+
+  // ── Driver summary (only when exactly 1 driver filtered) ──
+  const driverSummary = useMemo(() => {
+    if (driverFilters.length !== 1) return null;
+    const driverName = driverFilters[0];
+    const driverAlerts = filteredAlerts.filter(
+      (r) => normalizeLabel(r.driver) === normalizeLabel(driverName),
+    );
+    const totalAlerts = driverAlerts.length;
+
+    // Most common remark type
+    const typeCounts = new Map<string, number>();
+    driverAlerts.forEach((r) => {
+      typeCounts.set(r.remarks, (typeCounts.get(r.remarks) ?? 0) + 1);
+    });
+    let mostCommonType = '';
+    let maxCount = 0;
+    typeCounts.forEach((count, type) => {
+      if (count > maxCount) {
+        maxCount = count;
+        mostCommonType = type;
+      }
     });
 
-    return allowedRemarkTargets
-      .map((remarkType) => {
-        const normalizedRemarkType = normalizeLabel(remarkType);
-        const matchingRows = rowsByLatest.filter((row) => {
-          const normalizedRemark = normalizeLabel(row.remarks);
-          return normalizedRemark.includes(normalizedRemarkType) && hasVideoLink(row.videoUrl);
-        }).slice(0, 10);
+    // Active days
+    const daySet = new Set<string>();
+    driverAlerts.forEach((r) => {
+      if (r.parsedDate) daySet.add(toDayKey(r.parsedDate));
+    });
+    const activeDays = daySet.size;
 
-        if (matchingRows.length === 0) return null;
-        return {
-          remarkType,
-          rows: matchingRows,
-        };
-      })
-      .filter((group): group is RemarkVideoGroup => group != null);
-  }, [allowedRemarkTargets, filteredAlerts]);
+    const safetyScore = computeDriverSafetyScore(totalAlerts, activeDays);
 
-  const latestRemarkVideoSampleCount = latestRemarkVideoGroups.reduce((total, group) => total + group.rows.length, 0);
+    return { driverName, totalAlerts, mostCommonType, safetyScore, activeDays };
+  }, [driverFilters, filteredAlerts]);
 
-  const activePoint = pinnedPoint ?? hoverPoint;
+  // ── Fleet comparison data (bar chart) ──
+  const fleetComparisonData = useMemo(() => {
+    if (fleetFilters.length > 0 || organizationName) return null;
+    const fleetCounts = new Map<string, number>();
+    filteredAlerts.forEach((r) => {
+      if (r.fleet && r.fleet !== '—') {
+        fleetCounts.set(r.fleet, (fleetCounts.get(r.fleet) ?? 0) + 1);
+      }
+    });
+    if (fleetCounts.size <= 1) return null;
+    return Array.from(fleetCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, value]) => ({ label, value }));
+  }, [filteredAlerts, fleetFilters.length, organizationName]);
+
+  // ── DataTable columns ──
+  const tableColumns = useMemo<Column<AlertRow>[]>(
+    () => [
+      {
+        key: 'time',
+        label: lang === 'th' ? 'วันเวลาแจ้งเตือน' : 'Alert time',
+        sortable: true,
+        render: (_v, row) => (
+          <span className="text-zinc-600 dark:text-zinc-300">{row.time}</span>
+        ),
+      },
+      {
+        key: 'vehicle',
+        label: lang === 'th' ? 'รถ' : 'Vehicle',
+        sortable: true,
+        render: (_v, row) => (
+          <span className="font-semibold text-zinc-900 dark:text-white">{row.vehicle}</span>
+        ),
+      },
+      {
+        key: 'driver',
+        label: lang === 'th' ? 'คนขับ' : 'Driver',
+        sortable: true,
+      },
+      {
+        key: 'speed',
+        label: lang === 'th' ? 'ความเร็ว' : 'Speed',
+        sortable: true,
+      },
+      {
+        key: 'fleet',
+        label: lang === 'th' ? 'ฟลีท' : 'Fleet',
+        sortable: true,
+      },
+      {
+        key: 'remarks',
+        label: lang === 'th' ? 'ประเภทการแจ้งเตือน' : 'Alert type',
+        sortable: true,
+        render: (_v, row) => (
+          <span className={getRemarkBadgeClass(row.remarks)}>{row.remarks}</span>
+        ),
+      },
+      {
+        key: 'videoUrl',
+        label: lang === 'th' ? 'วิดีโอ' : 'Video',
+        sortable: false,
+        render: (_v, row) =>
+          hasVideoLink(row.videoUrl) ? (
+            <a
+              href={row.videoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+            >
+              {lang === 'th' ? 'ดู' : 'Watch'}
+            </a>
+          ) : (
+            <span className="text-zinc-400">—</span>
+          ),
+      },
+    ],
+    [lang],
+  );
+
+  // ── Export data ──
+  const exportData = useMemo(
+    () =>
+      filteredAlerts.map((r) => ({
+        time: r.time,
+        vehicle: r.vehicle,
+        driver: r.driver,
+        speed: r.speed,
+        fleet: r.fleet,
+        remarks: r.remarks,
+        videoUrl: r.videoUrl,
+      })),
+    [filteredAlerts],
+  );
+
+  // Date range string for export filename
+  const dateRangeLabel = useMemo(() => {
+    if (monthFilters.length === 0) return undefined;
+    return monthFilters.sort().join('_');
+  }, [monthFilters]);
+
+  // Active filter count for DashboardShell
+  const activeFilterCount =
+    monthFilters.length +
+    fleetFilters.length +
+    remarkFilters.length +
+    vehicleFilters.length +
+    driverFilters.length +
+    (showExcluded ? 1 : 0);
+
+  // Check if data might be stale (lastUpdated > 10 minutes ago)
+  const isStale = useMemo(() => {
+    if (!lastUpdated) return false;
+    return Date.now() - lastUpdated.getTime() > 10 * 60 * 1000;
+  }, [lastUpdated]);
 
   return (
     <DashboardShell
@@ -506,45 +665,104 @@ export default function DetailDashboard({
       lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
+      isStale={isStale}
+      activeFilterCount={activeFilterCount}
+      actions={
+        <ExportButton
+          data={exportData}
+          dashboardName="DetailDashboard"
+          dateRange={dateRangeLabel}
+          columns={[
+            { key: 'time', label: 'Alert Time' },
+            { key: 'vehicle', label: 'Vehicle' },
+            { key: 'driver', label: 'Driver' },
+            { key: 'speed', label: 'Speed' },
+            { key: 'fleet', label: 'Fleet' },
+            { key: 'remarks', label: 'Alert Type' },
+            { key: 'videoUrl', label: 'Video URL' },
+          ]}
+          label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
+        />
+      }
     >
-      {error ? (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
-          {error}
-        </div>
-      ) : null}
-
       {loading ? (
         <LoadingState
-          message={lang === 'th' ? 'กำลังโหลดการแจ้งเตือนแบบละเอียด…' : 'Loading detailed alerts…'}
+          lang={lang}
+          message={lang === 'th' ? 'กำลังโหลดการแจ้งเตือนแบบละเอียด...' : 'Loading detailed alerts...'}
           detail={lang === 'th' ? 'กำลังสร้างไทม์ไลน์การแจ้งเตือนล่าสุด' : 'Building the latest alert timeline.'}
           fallbackDetail={copy.loadingDetail}
+          error={error ?? undefined}
+          onRetry={error ? refresh : undefined}
+        />
+      ) : error ? (
+        <LoadingState
+          lang={lang}
+          error={error}
+          onRetry={refresh}
         />
       ) : (
         <>
+          {/* ── KPI Row ── */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+              label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total alerts'}
+              value={filteredAlerts.length}
+              trend={
+                previousMonthAlertCount > 0
+                  ? {
+                      value:
+                        Math.round(
+                          ((filteredAlerts.length - previousMonthAlertCount) /
+                            previousMonthAlertCount) *
+                            1000,
+                        ) / 10,
+                      label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month',
+                    }
+                  : undefined
+              }
+            />
+            <KpiCard
+              label={lang === 'th' ? 'ตัวกรองที่ใช้' : 'Filtered alerts'}
+              value={filteredAlerts.length}
+              subtitle={
+                baseFilteredRows.length !== filteredAlerts.length
+                  ? `${lang === 'th' ? 'จากทั้งหมด' : 'of'} ${baseFilteredRows.length} ${lang === 'th' ? 'รายการ' : 'total'}`
+                  : undefined
+              }
+            />
+            <KpiCard
+              label={lang === 'th' ? 'รถที่ไม่ซ้ำ' : 'Unique vehicles'}
+              value={uniqueVehicles}
+            />
+            <KpiCard
+              label={lang === 'th' ? 'คนขับที่ไม่ซ้ำ' : 'Unique drivers'}
+              value={uniqueDrivers}
+            />
+          </section>
+
+          {/* ── Filters ── */}
           <section className={dashboardSectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-medium">{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <h2 className={heading2}>{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
+                <p className={`mt-1 ${textSecondary}`}>
                   {lang === 'th' ? 'กรองการแจ้งเตือนตามประเภทการแจ้งเตือน เดือน ฟลีท หรือรถ' : 'Narrow alerts by alert type, month, fleet, or vehicle.'}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={resetFilters}
-                className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
+                className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 {lang === 'th' ? 'รีเซ็ตตัวกรอง' : 'Reset filters'}
               </button>
             </div>
-            <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+            <div className="mt-4 space-y-3 text-xs text-zinc-600 dark:text-zinc-300">
+              {/* Month filter */}
               <FilterGroup
                 label={lang === 'th' ? 'กรองเดือน' : 'Filter months'}
                 lang={lang}
-                onClear={() => {
-                  setMonthFilters([]);
-                  setPage(1);
-                }}
+                onClear={() => setMonthFilters([])}
                 count={monthFilters.length}
               >
                 <div className="flex flex-wrap gap-2">
@@ -553,9 +771,10 @@ export default function DetailDashboard({
                     return (
                       <FilterChip
                         key={monthKey}
+                        active
                         onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
                       >
-                        {monthLabel} ×
+                        {monthLabel} &times;
                       </FilterChip>
                     );
                   })}
@@ -566,7 +785,7 @@ export default function DetailDashboard({
                     value={monthSearch}
                     onChange={(event) => setMonthSearch(event.target.value)}
                     placeholder={monthOptions.length === 0 ? (lang === 'th' ? 'ไม่มีเดือนให้เลือก' : 'No months available') : (lang === 'th' ? 'ค้นหาเดือน' : 'Search months')}
-                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                    className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
                   />
                   <datalist id="month-options">
                     {filteredMonthOptions.map((option) => (
@@ -587,35 +806,32 @@ export default function DetailDashboard({
                           setMonthFilters((current) =>
                             current.includes(matched.key) ? current : [...current, matched.key],
                           ),
-                        () => {
-                          setMonthSearch('');
-                          setPage(1);
-                        },
+                        () => setMonthSearch(''),
                       )
                     }
-                    className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
                   >
                     {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
                 </div>
               </FilterGroup>
+
+              {/* Fleet filter (hidden when scoped to organization) */}
               {organizationName ? null : (
                 <FilterGroup
                   label={lang === 'th' ? 'กรองฟลีท' : 'Filter fleets'}
                   lang={lang}
-                  onClear={() => {
-                    setFleetFilters([]);
-                    setPage(1);
-                  }}
+                  onClear={() => setFleetFilters([])}
                   count={fleetFilters.length}
                 >
                   <div className="flex flex-wrap gap-2">
                     {fleetFilters.map((fleet) => (
                       <FilterChip
                         key={fleet}
+                        active
                         onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
                       >
-                        {fleet} ×
+                        {fleet} &times;
                       </FilterChip>
                     ))}
                   </div>
@@ -625,7 +841,7 @@ export default function DetailDashboard({
                       value={fleetSearch}
                       onChange={(event) => setFleetSearch(event.target.value)}
                       placeholder={fleetOptions.length === 0 ? (lang === 'th' ? 'ไม่มีฟลีทให้เลือก' : 'No fleets available') : (lang === 'th' ? 'ค้นหาฟลีท' : 'Search fleets')}
-                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                      className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
                     />
                     <datalist id="fleet-options">
                       {filteredFleetOptions.map((option) => (
@@ -640,35 +856,32 @@ export default function DetailDashboard({
                           (trimmed) => fleetOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
                           (matched) =>
                             setFleetFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                          () => {
-                            setFleetSearch('');
-                            setPage(1);
-                          },
+                          () => setFleetSearch(''),
                         )
                       }
-                      className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                      className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
                     >
                       {lang === 'th' ? 'เพิ่ม' : 'Add'}
                     </button>
                   </div>
                 </FilterGroup>
               )}
+
+              {/* Alert type filter */}
               <FilterGroup
                 label={lang === 'th' ? 'กรองประเภทการแจ้งเตือน' : 'Filter alert types'}
                 lang={lang}
-                onClear={() => {
-                  setRemarkFilters([]);
-                  setPage(1);
-                }}
+                onClear={() => setRemarkFilters([])}
                 count={remarkFilters.length}
               >
                 <div className="flex flex-wrap gap-2">
                   {remarkFilters.map((remark) => (
                     <FilterChip
                       key={remark}
+                      active
                       onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}
                     >
-                      {remark} ×
+                      {remark} &times;
                     </FilterChip>
                   ))}
                 </div>
@@ -678,7 +891,7 @@ export default function DetailDashboard({
                     value={remarkSearch}
                     onChange={(event) => setRemarkSearch(event.target.value)}
                     placeholder={remarkOptions.length === 0 ? (lang === 'th' ? 'ไม่มีประเภทการแจ้งเตือนให้เลือก' : 'No alert types available') : (lang === 'th' ? 'ค้นหาประเภทการแจ้งเตือน' : 'Search alert types')}
-                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                    className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
                   />
                   <datalist id="remark-options">
                     {filteredRemarkOptions.map((option) => (
@@ -694,34 +907,31 @@ export default function DetailDashboard({
                           remarkOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
                         (matched) =>
                           setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                        () => {
-                          setRemarkSearch('');
-                          setPage(1);
-                        },
+                        () => setRemarkSearch(''),
                       )
                     }
-                    className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
                   >
                     {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
                 </div>
               </FilterGroup>
+
+              {/* Vehicle filter */}
               <FilterGroup
                 label={lang === 'th' ? 'กรองรถ' : 'Filter vehicles'}
                 lang={lang}
-                onClear={() => {
-                  setVehicleFilters([]);
-                  setPage(1);
-                }}
+                onClear={() => setVehicleFilters([])}
                 count={vehicleFilters.length}
               >
                 <div className="flex flex-wrap gap-2">
                   {vehicleFilters.map((vehicle) => (
                     <FilterChip
                       key={vehicle}
+                      active
                       onClick={() => setVehicleFilters((current) => current.filter((value) => value !== vehicle))}
                     >
-                      {vehicle} ×
+                      {vehicle} &times;
                     </FilterChip>
                   ))}
                 </div>
@@ -731,7 +941,7 @@ export default function DetailDashboard({
                     value={vehicleSearch}
                     onChange={(event) => setVehicleSearch(event.target.value)}
                     placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถให้เลือก' : 'No vehicles available') : (lang === 'th' ? 'ค้นหารถ' : 'Search vehicles')}
-                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                    className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
                   />
                   <datalist id="vehicle-options">
                     {filteredVehicleOptions.map((option) => (
@@ -747,35 +957,32 @@ export default function DetailDashboard({
                           vehicleOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
                         (matched) =>
                           setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                        () => {
-                          setVehicleSearch('');
-                          setPage(1);
-                        },
+                        () => setVehicleSearch(''),
                       )
                     }
-                    className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
                   >
                     {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
                 </div>
               </FilterGroup>
+
+              {/* Driver filter */}
               {driverOptions.length > 0 ? (
                 <FilterGroup
                   label={lang === 'th' ? 'กรองคนขับ' : 'Filter drivers'}
                   lang={lang}
-                  onClear={() => {
-                    setDriverFilters([]);
-                    setPage(1);
-                  }}
+                  onClear={() => setDriverFilters([])}
                   count={driverFilters.length}
                 >
                   <div className="flex flex-wrap gap-2">
                     {driverFilters.map((driver) => (
                       <FilterChip
                         key={driver}
+                        active
                         onClick={() => setDriverFilters((current) => current.filter((value) => value !== driver))}
                       >
-                        {driver} ×
+                        {driver} &times;
                       </FilterChip>
                     ))}
                   </div>
@@ -785,7 +992,7 @@ export default function DetailDashboard({
                       value={driverSearch}
                       onChange={(event) => setDriverSearch(event.target.value)}
                       placeholder={driverOptions.length === 0 ? (lang === 'th' ? 'ไม่มีคนขับให้เลือก' : 'No drivers available') : (lang === 'th' ? 'ค้นหาคนขับ' : 'Search drivers')}
-                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                      className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
                     />
                     <datalist id="driver-options">
                       {filteredDriverOptions.map((option) => (
@@ -801,433 +1008,160 @@ export default function DetailDashboard({
                             driverOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
                           (matched) =>
                             setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                          () => {
-                            setDriverSearch('');
-                            setPage(1);
-                          },
+                          () => setDriverSearch(''),
                         )
                       }
-                      className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                      className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
                     >
                       {lang === 'th' ? 'เพิ่ม' : 'Add'}
                     </button>
                   </div>
                 </FilterGroup>
               ) : null}
+
+              {/* Options / excluded toggle */}
+              <FilterGroup
+                label={lang === 'th' ? 'ตัวกรองเพิ่มเติม' : 'Options'}
+                lang={lang}
+              >
+                <FilterChip
+                  active={showExcluded}
+                  onClick={() => setShowExcluded((prev) => !prev)}
+                >
+                  {lang === 'th' ? 'แสดงการแจ้งเตือนที่ซ่อน' : 'Show excluded alerts'}
+                </FilterChip>
+              </FilterGroup>
             </div>
-            </section>
+          </section>
 
-            <section className={dashboardSectionClass}>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-medium">Daily alert trend</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Daily totals for the filtered alert set.</p>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
-                {availableTrendRemarkOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setTrendRemarkFilter(option.value)}
-                    className={
-                      trendRemarkFilter === option.value ? chipClassName : chipMutedClassName
-                    }
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="relative mt-4 overflow-visible">
-                {trendData.length === 0 ? (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">No alert activity available for the selected filters.</p>
-                ) : (
-                  <svg
-                    viewBox={trendPoints.viewBox}
-                    className="h-72 w-full"
-                    preserveAspectRatio="none"
-                    role="img"
-                    aria-label="Daily alert trend"
-                    onMouseMove={(event) => {
-                      if (trendPoints.points.length === 0) return;
-                      const { left, top, width, height } = event.currentTarget.getBoundingClientRect();
-                      const x = ((event.clientX - left) / width) * trendPoints.width;
-                      const y = ((event.clientY - top) / height) * trendPoints.height;
-                      let closestPoint: TrendPoint | null = null;
-                      let closestDistance = Number.POSITIVE_INFINITY;
-                      trendPoints.points.forEach((point) => {
-                        const distance = Math.hypot(point.x - x, point.y - y);
-                        if (distance < closestDistance) {
-                          closestDistance = distance;
-                          closestPoint = point;
-                        }
-                      });
-                      if (!closestPoint) return;
-                      if (closestDistance <= 24) {
-                        setHoverPoint(closestPoint);
-                      } else if (!pinnedPoint) {
-                        setHoverPoint(null);
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      if (!pinnedPoint) {
-                        setHoverPoint(null);
-                      }
-                    }}
-                  >
-                    <defs>
-                      <linearGradient id="trend-line" x1="0" x2="1" y1="0" y2="0">
-                        <stop offset="0%" stopColor="#a78bfa" />
-                        <stop offset="100%" stopColor="#c4b5fd" />
-                      </linearGradient>
-                    </defs>
-                    <rect
-                      x="0"
-                      y="0"
-                      width="100%"
-                      height="100%"
-                      fill="transparent"
-                      rx="16"
-                    />
-                    {yAxisTicks.map((tick) => {
-                      const y =
-                        trendPoints.padding.top +
-                        tick.position * (trendPoints.height - trendPoints.padding.top - trendPoints.padding.bottom);
-                      return (
-                        <g key={`tick-${tick.value}`}>
-                          <line
-                            x1={trendPoints.padding.left}
-                            x2={trendPoints.width - trendPoints.padding.right}
-                            y1={y}
-                            y2={y}
-                            stroke="#1f2937"
-                            strokeDasharray="4 6"
-                          />
-                          <text
-                            x={trendPoints.padding.left - 12}
-                            y={y + 4}
-                            textAnchor="end"
-                            fontSize="11"
-                            fill="#94a3b8"
-                          >
-                            {tick.value}
-                          </text>
-                        </g>
-                      );
-                    })}
-                    <line
-                      x1={trendPoints.padding.left}
-                      x2={trendPoints.padding.left}
-                      y1={trendPoints.padding.top}
-                      y2={trendPoints.height - trendPoints.padding.bottom}
-                      stroke="#334155"
-                    />
-                    <line
-                      x1={trendPoints.padding.left}
-                      x2={trendPoints.width - trendPoints.padding.right}
-                      y1={trendPoints.height - trendPoints.padding.bottom}
-                      y2={trendPoints.height - trendPoints.padding.bottom}
-                      stroke="#334155"
-                    />
-                    <path d={trendPoints.path} fill="none" stroke="url(#trend-line)" strokeWidth="3" />
-                    {trendPoints.points.map((point, index) => (
-                      <g key={`point-${index}`}>
-                        <circle cx={point.x} cy={point.y} r="8" fill="transparent" />
-                        <circle
-                          cx={point.x}
-                          cy={point.y}
-                          r="4"
-                          fill="#0f172a"
-                          stroke="#c4b5fd"
-                          strokeWidth="2"
-                          className="cursor-pointer transition"
-                          onMouseEnter={() => setHoverPoint(point)}
-                          onFocus={() => setHoverPoint(point)}
-                          onClick={() => {
-                            setPinnedPoint((current) => (current?.label === point.label ? null : point));
-                            setHoverPoint(point);
-                          }}
-                        />
-                      </g>
-                    ))}
-                    {xAxisLabels.map((label) => {
-                      const x =
-                        trendPoints.padding.left +
-                        label.position * (trendPoints.width - trendPoints.padding.left - trendPoints.padding.right);
-                      return (
-                        <text
-                          key={`label-${label.label}-${label.position}`}
-                          x={x}
-                          y={trendPoints.height - trendPoints.padding.bottom + 24}
-                          textAnchor="middle"
-                          fontSize="11"
-                          fill="#94a3b8"
-                        >
-                          {label.label}
-                        </text>
-                      );
-                    })}
-                  </svg>
-                )}
-                {activePoint ? (
-                  <div
-                    className="pointer-events-none absolute rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-lg dark:border-indigo-400/40 dark:bg-slate-950/90 dark:text-indigo-100"
-                    style={{
-                      left: `${(activePoint.x / trendPoints.width) * 100}%`,
-                      top: `${(Math.max(activePoint.y - 32, trendPoints.padding.top + 12) / trendPoints.height) * 100}%`,
-                      transform: 'translate(-50%, -100%)',
-                    }}
-                  >
-                    <div className="font-semibold">{activePoint.count} alerts</div>
-                    <div className="text-[11px] text-slate-600 dark:text-slate-300">{activePoint.label}</div>
-                  </div>
-                ) : null}
-              </div>
-            </section>
-
-            <section className={dashboardSectionClass}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-medium">
-                  {lang === 'th' ? 'วิดีโอล่าสุดตามประเภทการแจ้งเตือน' : 'Latest videos by alert type'}
+          {/* ── Daily alert trend (TrendChart) ── */}
+          <section className={dashboardSectionClass}>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className={heading2}>
+                  {lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}
                 </h2>
-                <span className="text-sm text-slate-500 dark:text-slate-400">
-                  {latestRemarkVideoSampleCount} {lang === 'th' ? 'ตัวอย่าง' : 'samples'}
-                </span>
+                <p className={`mt-1 ${textSecondary}`}>
+                  {lang === 'th' ? 'ยอดรวมรายวันของชุดการแจ้งเตือนที่กรอง' : 'Daily totals for the filtered alert set.'}
+                </p>
               </div>
-              {latestRemarkVideoGroups.length === 0 ? (
-                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+              <span className="uppercase tracking-[0.2em] text-zinc-500">
+                {lang === 'th' ? 'แสดง' : 'Show'}
+              </span>
+              {availableTrendRemarkOptions.map((option) => (
+                <FilterChip
+                  key={option.value}
+                  active={trendRemarkFilter === option.value}
+                  onClick={() => setTrendRemarkFilter(option.value)}
+                >
+                  {option.label}
+                </FilterChip>
+              ))}
+            </div>
+            <div className="mt-4">
+              {trendChartData.length === 0 ? (
+                <p className={textSecondary}>
                   {lang === 'th'
-                    ? 'ยังไม่พบวิดีโอที่ตรงกับประเภทการแจ้งเตือนที่เลือก'
-                    : 'No recent videos available for the selected alert types.'}
+                    ? 'ไม่มีกิจกรรมการแจ้งเตือนสำหรับตัวกรองที่เลือก'
+                    : 'No alert activity available for the selected filters.'}
                 </p>
               ) : (
-                <div className="mt-6 space-y-6">
-                  {latestRemarkVideoGroups.map((group) => (
-                    <article
-                      key={group.remarkType}
-                      className="rounded-2xl border border-slate-200 bg-slate-100/80 p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.05)] dark:border-slate-800 dark:bg-slate-950/40"
-                    >
-                      <div className="mb-4 flex items-center justify-between gap-2">
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{group.remarkType}</h3>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {group.rows.length} / 10 {lang === 'th' ? 'รายการล่าสุด' : 'latest videos'}
-                        </span>
-                      </div>
-                      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/40">
-                        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-                          <thead className="bg-slate-100/80 text-xs uppercase tracking-[0.18em] text-slate-600 dark:bg-slate-900/80 dark:text-slate-400">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-semibold">{lang === 'th' ? 'รถ' : 'Vehicle'}</th>
-                              <th className="px-4 py-3 text-left font-semibold">{lang === 'th' ? 'คนขับ' : 'Driver'}</th>
-                              <th className="px-4 py-3 text-left font-semibold">{lang === 'th' ? 'วันเวลาแจ้งเตือน' : 'Alert date time'}</th>
-                              <th className="px-4 py-3 text-left font-semibold">{lang === 'th' ? 'วิดีโอ' : 'Video'}</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200 text-slate-700 dark:divide-slate-800 dark:text-slate-200">
-                            {group.rows.map((row) => (
-                              <tr key={row.id}>
-                                <td className="px-4 py-3">{row.vehicle}</td>
-                                <td className="px-4 py-3">{row.driver}</td>
-                                <td className="px-4 py-3">{row.time}</td>
-                                <td className="px-4 py-3">
-                                  <a
-                                    href={row.videoUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center rounded-md border border-indigo-300/60 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:border-indigo-200 hover:text-indigo-200"
-                                  >
-                                    {lang === 'th' ? 'เปิดวิดีโอ' : 'View video'}
-                                  </a>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                <TrendChart
+                  data={trendChartData}
+                  mode="line"
+                  height={300}
+                  colors={CHART_COLORS}
+                  ariaLabel={lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}
+                />
               )}
-            </section>
+            </div>
+          </section>
 
+          {/* ── Heatmap ── */}
+          {heatmapDates.length > 0 ? (
             <section className={dashboardSectionClass}>
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium">Alerts</h2>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="uppercase tracking-[0.2em] text-slate-500">Rows</span>
-                    <select
-                      value={pageSize}
-                      onChange={(event) => {
-                        setPageSize(Number(event.target.value));
-                        setPage(1);
-                      }}
-                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
-                    >
-                      {[25, 50, 100].map((size) => (
-                        <option key={size} value={size}>
-                          {size} per page
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <span>Shift-click column headers to add multiple sorts.</span>
-                </div>
-                <span>
-                  {totalAlerts === 0 ? 'No alerts to show.' : `Showing ${startIndex + 1}-${endIndex} of ${totalAlerts}`}
-                </span>
-              </div>
-              {sortCriteria.length > 0 ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Sorted by</span>
-                  {sortCriteria.map((criterion, index) => (
-                    <FilterChip
-                      key={`${criterion.field}-${criterion.direction}`}
-                      onClick={() =>
-                        setSortCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))
-                      }
-                    >
-                      {criterion.field} {criterion.direction} ×
-                    </FilterChip>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setSortCriteria([])}
-                    className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
-                  >
-                    Clear sorting
-                  </button>
-                </div>
-              ) : null}
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[860px] border-collapse text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                      {(
-                        [
-                          { label: 'Alert time', field: 'time' },
-                          { label: 'Vehicle', field: 'vehicle' },
-                          { label: 'Driver', field: 'driver' },
-                          { label: 'Speed', field: 'speed' },
-                          { label: 'Fleet', field: 'fleet' },
-                          { label: 'Alert type', field: 'remarks' },
-                        ] as const
-                      ).map((column) => {
-                        const sortIndex = sortCriteria.findIndex((criterion) => criterion.field === column.field);
-                        const sortDirection =
-                          sortIndex >= 0 ? sortCriteria[sortIndex].direction : null;
-                        const sortBadge =
-                          sortIndex >= 0
-                            ? `${sortDirection === 'asc' ? 'Asc' : 'Desc'}${
-                                sortCriteria.length > 1 ? ` ${sortIndex + 1}` : ''
-                              }`
-                            : 'Sort';
-                        return (
-                          <th key={column.field} className="py-3 pr-4">
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                setSortCriteria((current) => {
-                                  const existingIndex = current.findIndex(
-                                    (criterion) => criterion.field === column.field,
-                                  );
-                                  const multiSort = event.shiftKey;
-                                  const nextCriteria = multiSort ? [...current] : [];
-                                  if (existingIndex === -1) {
-                                    return [...nextCriteria, { field: column.field, direction: 'asc' }];
-                                  }
-                                  const existing = current[existingIndex];
-                                  if (multiSort) {
-                                    nextCriteria.splice(existingIndex, 1);
-                                  }
-                                  if (existing.direction === 'asc') {
-                                    if (multiSort) {
-                                      nextCriteria.splice(existingIndex, 0, { field: column.field, direction: 'desc' });
-                                      return nextCriteria;
-                                    }
-                                    return [{ field: column.field, direction: 'desc' }];
-                                  }
-                                  return nextCriteria;
-                                });
-                                setPage(1);
-                              }}
-                              className="flex items-center gap-2 text-left hover:text-slate-700 dark:text-slate-200"
-                            >
-                              <span>{column.label}</span>
-                              <span
-                                className="text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-500 dark:text-indigo-200"
-                              >
-                                {sortBadge}
-                              </span>
-                            </button>
-                          </th>
-                        );
-                      })}
-                      <th className="py-3">Video</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedAlerts.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-b border-slate-200 text-slate-700 dark:border-slate-900/80 dark:text-slate-200"
-                      >
-                        <td className="py-3 pr-4 text-slate-600 dark:text-slate-300">{row.time}</td>
-                        <td className="py-3 pr-4 font-semibold text-slate-900 dark:text-white">
-                          {row.vehicle}
-                        </td>
-                        <td className="py-3 pr-4">{row.driver}</td>
-                        <td className="py-3 pr-4">{row.speed}</td>
-                        <td className="py-3 pr-4">{row.fleet}</td>
-                        <td className="py-3 pr-4">{row.remarks}</td>
-                        <td className="py-3">
-                          {hasVideoLink(row.videoUrl) ? (
-                            <a
-                              href={row.videoUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-indigo-300 hover:text-indigo-200"
-                            >
-                              View
-                            </a>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-                <span>
-                  Page {currentPage} of {totalPages}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
-                    disabled={currentPage === 1}
-                    className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                    disabled={currentPage === totalPages}
-                    className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
-                  >
-                    Next
-                  </button>
-                </div>
+              <h2 className={heading2}>
+                {lang === 'th' ? 'แผนที่ความร้อนของการแจ้งเตือน' : 'Alert heatmap'}
+              </h2>
+              <p className={`mt-1 ${textSecondary}`}>
+                {lang === 'th'
+                  ? 'การกระจายตัวของการแจ้งเตือนตามวันในสัปดาห์และชั่วโมง'
+                  : 'Alert distribution by day of week and hour.'}
+              </p>
+              <div className="mt-4">
+                <AlertHeatmap dates={heatmapDates} />
               </div>
             </section>
-          </>
-        )}
+          ) : null}
+
+          {/* ── Alert Timeline ── */}
+          <AlertTimeline entries={timelineEntries} maxEntries={30} lang={lang} />
+
+          {/* ── Driver Summary (when exactly 1 driver filtered) ── */}
+          {driverSummary ? (
+            <section className={dashboardSectionClass}>
+              <DriverSummaryCards
+                driverName={driverSummary.driverName}
+                totalAlerts={driverSummary.totalAlerts}
+                mostCommonType={driverSummary.mostCommonType}
+                safetyScore={driverSummary.safetyScore}
+                activeDays={driverSummary.activeDays}
+                lang={lang}
+              />
+            </section>
+          ) : null}
+
+          {/* ── Fleet Comparison (bar chart — only when no fleet filter) ── */}
+          {fleetComparisonData ? (
+            <section className={dashboardSectionClass}>
+              <h2 className={heading2}>
+                {lang === 'th' ? 'เปรียบเทียบฟลีท' : 'Fleet comparison'}
+              </h2>
+              <p className={`mt-1 ${textSecondary}`}>
+                {lang === 'th'
+                  ? 'จำนวนการแจ้งเตือนเปรียบเทียบระหว่างฟลีท'
+                  : 'Alert count comparison across fleets.'}
+              </p>
+              <div className="mt-4">
+                <TrendChart
+                  data={fleetComparisonData}
+                  mode="bar"
+                  height={300}
+                  colors={CHART_COLORS}
+                  ariaLabel={lang === 'th' ? 'เปรียบเทียบฟลีท' : 'Fleet comparison'}
+                />
+              </div>
+            </section>
+          ) : null}
+
+          {/* ── Video Evidence ── */}
+          <VideoEvidence entries={videoEntries} maxPerType={10} lang={lang} />
+
+          {/* ── Data Table ── */}
+          <section className={dashboardSectionClass}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className={heading2}>
+                {lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alerts'}
+              </h2>
+              <span className={textSecondary}>
+                {filteredAlerts.length === 0
+                  ? (lang === 'th' ? 'ไม่มีการแจ้งเตือนที่จะแสดง' : 'No alerts to show.')
+                  : `${filteredAlerts.length} ${lang === 'th' ? 'รายการ' : 'records'}`}
+              </span>
+            </div>
+            <div className="mt-4">
+              <DataTable
+                columns={tableColumns}
+                data={filteredAlerts}
+                defaultSort={{ key: 'time', direction: 'desc' }}
+                ariaLabel={lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alerts table'}
+              />
+            </div>
+          </section>
+        </>
+      )}
     </DashboardShell>
   );
 }
