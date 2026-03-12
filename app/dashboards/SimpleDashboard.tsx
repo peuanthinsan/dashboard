@@ -2,23 +2,25 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
-import { formatDateKeyGB, formatDateTimeGB } from './dateFormat';
-import { chipClassName, chipMutedClassName, FilterChip } from './FilterChip';
+import { formatDateKeyGB } from './dateFormat';
+import { FilterChip } from './FilterChip';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
-  buildTrendGeometry,
-  buildXAxisLabels,
-  buildYAxisTicks,
   findValue,
   normalizeLabel,
   parseDate,
   toDayKey,
   withDerivedRemark,
 } from './dashboardDataUtils';
+import TrendChart from 'app/ui/TrendChart';
+import { DataTable, type Column } from 'app/ui/DataTable';
+import KpiCard from 'app/ui/KpiCard';
+import ExportButton from 'app/ui/ExportButton';
+import { heading2, textSecondary, inputBase } from 'app/ui/design-tokens';
 
 type DashboardProps = {
   dashboardId: string;
@@ -30,37 +32,19 @@ type DashboardProps = {
   lang?: DashboardLang;
 };
 
-type TrendPoint = {
-  x: number;
-  y: number;
-  count: number;
-  label: string;
-};
-
-type AlertSummaryRow = {
-  id: string;
-  dateKey: string;
-  dateLabel: string;
-  vehicle: string;
-  distraction: number;
-  fatigue: number;
-  yawning: number;
-  total: number;
-  sortDate: number | null;
-};
-
-type SortField = 'date' | 'vehicle' | 'distraction' | 'fatigue' | 'yawning' | 'total';
-type SortDirection = 'asc' | 'desc';
-type SortCriterion = {
-  field: SortField;
-  direction: SortDirection;
-};
 type RemarkFilter = 'all' | 'fatigue' | 'yawning' | 'distraction';
 type SimpleFilterState = {
   dateRange: { from: string; to: string };
   vehicleFilters: string[];
   driverFilters: string[];
   trendRemarkFilter: RemarkFilter;
+};
+
+type TableRow = {
+  vehicle: string;
+  driver: string;
+  alertType: string;
+  count: number;
 };
 
 export default function SimpleDashboard({
@@ -78,16 +62,8 @@ export default function SimpleDashboard({
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
   );
-  const [hoverPoint, setHoverPoint] = useState<TrendPoint | null>(null);
-  const defaultSortCriteria = useMemo<SortCriterion[]>(
-    () => [{ field: 'date', direction: 'desc' }],
-    [],
-  );
-  const [sortCriteria, setSortCriteria] = useState<SortCriterion[]>(defaultSortCriteria);
-  const [pageSize, setPageSize] = useState(25);
-  const [page, setPage] = useState(1);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
-  const [trendRemarkFilter, setTrendRemarkFilter] = useState<RemarkFilter>('all');
+  const [remarkFilter, setRemarkFilter] = useState<RemarkFilter>('all');
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
@@ -110,9 +86,8 @@ export default function SimpleDashboard({
       setDriverFilters(stored.driverFilters.filter((value) => typeof value === 'string'));
     }
     if (stored.trendRemarkFilter && ['all', 'fatigue', 'yawning', 'distraction'].includes(stored.trendRemarkFilter)) {
-      setTrendRemarkFilter(stored.trendRemarkFilter);
+      setRemarkFilter(stored.trendRemarkFilter);
     }
-    setPage(1);
   }, [storageKey]);
 
   useEffect(() => {
@@ -120,9 +95,9 @@ export default function SimpleDashboard({
       dateRange,
       vehicleFilters,
       driverFilters,
-      trendRemarkFilter,
+      trendRemarkFilter: remarkFilter,
     });
-  }, [dateRange, driverFilters, storageKey, trendRemarkFilter, vehicleFilters]);
+  }, [dateRange, driverFilters, storageKey, remarkFilter, vehicleFilters]);
 
   const handleSearchAdd = <T,>(
     searchValue: string,
@@ -144,9 +119,10 @@ export default function SimpleDashboard({
     setVehicleQuery('');
     setDriverFilters([]);
     setDriverQuery('');
-    setPage(1);
+    setRemarkFilter('all');
   };
 
+  // ── Data pipeline (preserves alert type scope) ──────────────────────────
   const baseAlerts = useMemo(() => {
     const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
     return rows
@@ -241,8 +217,11 @@ export default function SimpleDashboard({
       const activeDrivers = new Set(driverFilters);
       alerts = alerts.filter((row) => activeDrivers.has(row.driver));
     }
+    if (remarkFilter !== 'all') {
+      alerts = alerts.filter((row) => normalizeLabel(row.remarks) === remarkFilter);
+    }
     return alerts;
-  }, [dateFilteredAlerts, vehicleFilters, driverFilters]);
+  }, [dateFilteredAlerts, vehicleFilters, driverFilters, remarkFilter]);
 
   const filteredVehicleOptions = useMemo(() => {
     const query = vehicleQuery.trim().toLowerCase();
@@ -256,28 +235,15 @@ export default function SimpleDashboard({
     return driverOptions.filter((driver) => driver.toLowerCase().includes(query));
   }, [driverOptions, driverQuery]);
 
+  // ── Stats ───────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
     const drivers = new Set<string>();
-    let latestTimestamp = 0;
-    let latestLabel = '—';
-    const remarkTotals = {
-      fatigue: 0,
-      yawning: 0,
-      distraction: 0,
-    };
+    const remarkTotals = { fatigue: 0, yawning: 0, distraction: 0 };
 
     filteredAlerts.forEach((row) => {
-      const vehicle = row.vehicle;
-      if (vehicle) vehicles.add(String(vehicle));
+      if (row.vehicle) vehicles.add(row.vehicle);
       if (row.driver && row.driver !== '—') drivers.add(row.driver);
-      if (row.parsedDate) {
-        const timestamp = row.parsedDate.getTime();
-        if (timestamp > latestTimestamp) {
-          latestTimestamp = timestamp;
-          latestLabel = formatDateTimeGB(row.parsedDate);
-        }
-      }
       const remark = normalizeLabel(row.remarks);
       if (remark === 'fatigue') remarkTotals.fatigue += 1;
       if (remark === 'yawning') remarkTotals.yawning += 1;
@@ -288,95 +254,60 @@ export default function SimpleDashboard({
       total: filteredAlerts.length,
       vehicles: vehicles.size,
       drivers: drivers.size,
-      latest: latestLabel,
       remarks: remarkTotals,
     };
   }, [filteredAlerts]);
 
-  const summarizedRows = useMemo<AlertSummaryRow[]>(() => {
-    const grouped = new Map<string, AlertSummaryRow>();
-    filteredAlerts.forEach((row) => {
-      const dateLabel = row.parsedDate ? row.parsedDate.toLocaleDateString('en-GB') : '—';
-      const dateKey = row.parsedDate ? toDayKey(row.parsedDate) : `unknown-${row.vehicle}`;
-      const groupKey = `${dateKey}-${row.vehicle}`;
-      const existing = grouped.get(groupKey) ?? {
-        id: groupKey,
-        dateKey,
-        dateLabel,
-        vehicle: row.vehicle,
-        distraction: 0,
-        fatigue: 0,
-        yawning: 0,
-        total: 0,
-        sortDate: row.parsedDate ? row.parsedDate.getTime() : null,
-      };
-      const remark = normalizeLabel(row.remarks);
-      if (remark === 'fatigue') existing.fatigue += 1;
-      if (remark === 'yawning') existing.yawning += 1;
-      if (remark === 'distraction') existing.distraction += 1;
-      existing.total += 1;
-      grouped.set(groupKey, existing);
+  // ── Date range label for KPI card ──────────────────────────────────────
+  const dateRangeLabel = useMemo(() => {
+    if (dateBounds.min && dateBounds.max) {
+      return `${formatDateKeyGB(dateBounds.min)} – ${formatDateKeyGB(dateBounds.max)}`;
+    }
+    return '—';
+  }, [dateBounds.min, dateBounds.max]);
+
+  // ── Trend vs prior period for Total alerts KPI ─────────────────────────
+  const alertsTrend = useMemo(() => {
+    if (!dateRange.from || !dateRange.to) return undefined;
+    const from = new Date(`${dateRange.from}T00:00:00`);
+    const to = new Date(`${dateRange.to}T23:59:59.999`);
+    const durationMs = to.getTime() - from.getTime();
+    if (durationMs <= 0) return undefined;
+    const priorFrom = new Date(from.getTime() - durationMs - 1);
+    const priorTo = new Date(from.getTime() - 1);
+    let priorCount = 0;
+    baseAlerts.forEach((row) => {
+      if (!row.parsedDate) return;
+      if (remarkFilter !== 'all' && normalizeLabel(row.remarks) !== remarkFilter) return;
+      if (row.parsedDate >= priorFrom && row.parsedDate <= priorTo) {
+        if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return;
+        if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return;
+        priorCount += 1;
+      }
     });
-    return Array.from(grouped.values());
-  }, [filteredAlerts]);
-
-  const sortedSummaries = useMemo(() => {
-    if (sortCriteria.length === 0) return summarizedRows;
-    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-    const getSortValue = (row: AlertSummaryRow, field: SortField) => {
-      switch (field) {
-        case 'date':
-          return row.sortDate;
-        case 'vehicle':
-          return row.vehicle;
-        case 'distraction':
-          return row.distraction;
-        case 'fatigue':
-          return row.fatigue;
-        case 'yawning':
-          return row.yawning;
-        case 'total':
-          return row.total;
-        default:
-          return null;
-      }
+    if (priorCount === 0) return undefined;
+    const percentChange = Math.round(((stats.total - priorCount) / priorCount) * 100);
+    return {
+      value: percentChange,
+      label: lang === 'th' ? 'เทียบช่วงก่อน' : 'vs prior period',
     };
-    const compareValues = (aValue: string | number | null, bValue: string | number | null) => {
-      if (aValue == null && bValue == null) return 0;
-      if (aValue == null) return 1;
-      if (bValue == null) return -1;
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return aValue - bValue;
-      }
-      return collator.compare(String(aValue), String(bValue));
-    };
-    return [...summarizedRows].sort((a, b) => {
-      for (const criterion of sortCriteria) {
-        const order = criterion.direction === 'asc' ? 1 : -1;
-        const comparison = compareValues(getSortValue(a, criterion.field), getSortValue(b, criterion.field));
-        if (comparison !== 0) return comparison * order;
-      }
-      return 0;
-    });
-  }, [sortCriteria, summarizedRows]);
+  }, [dateRange.from, dateRange.to, baseAlerts, stats.total, remarkFilter, vehicleFilters, driverFilters, lang]);
 
-  const totalSummaries = sortedSummaries.length;
-  const totalPages = Math.max(1, Math.ceil(totalSummaries / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const startIndex = totalSummaries === 0 ? 0 : (currentPage - 1) * pageSize;
-  const endIndex = totalSummaries === 0 ? 0 : Math.min(startIndex + pageSize, totalSummaries);
-  const paginatedSummaries = sortedSummaries.slice(startIndex, endIndex);
+  // ── Active filter count for DashboardShell badge ───────────────────────
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (dateRange.from || dateRange.to) count += 1;
+    count += vehicleFilters.length;
+    count += driverFilters.length;
+    if (remarkFilter !== 'all') count += 1;
+    return count;
+  }, [dateRange.from, dateRange.to, vehicleFilters.length, driverFilters.length, remarkFilter]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [pageSize, sortCriteria, sortedSummaries.length]);
-
-  const trendData = useMemo(() => {
+  // ── Trend chart data (TrendChart format) ───────────────────────────────
+  const trendChartData = useMemo(() => {
     const counts = new Map<string, { key: string; date: Date; count: number }>();
     filteredAlerts.forEach((row) => {
       if (!row.parsedDate) return;
-      const remark = normalizeLabel(row.remarks);
-      if (trendRemarkFilter !== 'all' && remark !== trendRemarkFilter) return;
       const dayKey = toDayKey(row.parsedDate);
       const existing = counts.get(dayKey);
       if (existing) {
@@ -386,15 +317,89 @@ export default function SimpleDashboard({
         counts.set(dayKey, { key: dayKey, date: dayDate, count: 1 });
       }
     });
-    return Array.from(counts.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [filteredAlerts, trendRemarkFilter]);
+    return Array.from(counts.values())
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((d) => ({
+        label: d.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        value: d.count,
+      }));
+  }, [filteredAlerts]);
 
-  const maxTrendValue = trendData.reduce((max, item) => Math.max(max, item.count), 0);
-  const trendPoints = useMemo(() => buildTrendGeometry(trendData, maxTrendValue), [maxTrendValue, trendData]);
-  const yAxisTicks = useMemo(() => buildYAxisTicks(maxTrendValue), [maxTrendValue]);
-  const xAxisLabels = useMemo(() => buildXAxisLabels(trendData), [trendData]);
+  // ── DataTable rows: vehicle/driver/alertType/count ─────────────────────
+  const tableRows = useMemo<TableRow[]>(() => {
+    const grouped = new Map<string, TableRow>();
+    filteredAlerts.forEach((row) => {
+      const remark = normalizeLabel(row.remarks);
+      const alertLabel =
+        remark === 'fatigue'
+          ? (lang === 'th' ? 'ง่วงนอน' : 'Fatigue')
+          : remark === 'yawning'
+            ? (lang === 'th' ? 'หาว' : 'Yawning')
+            : (lang === 'th' ? 'ไม่สนใจ' : 'Distraction');
+      const groupKey = `${row.vehicle}|${row.driver}|${remark}`;
+      const existing = grouped.get(groupKey);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        grouped.set(groupKey, {
+          vehicle: row.vehicle,
+          driver: row.driver,
+          alertType: alertLabel,
+          count: 1,
+        });
+      }
+    });
+    return Array.from(grouped.values());
+  }, [filteredAlerts, lang]);
 
-  const activePoint = hoverPoint;
+  // ── DataTable columns ──────────────────────────────────────────────────
+  const tableColumns = useMemo<Column<TableRow>[]>(() => [
+    {
+      key: 'vehicle',
+      label: lang === 'th' ? 'รถ' : 'Vehicle',
+      sortable: true,
+    },
+    {
+      key: 'driver',
+      label: lang === 'th' ? 'คนขับ' : 'Driver',
+      sortable: true,
+    },
+    {
+      key: 'alertType',
+      label: lang === 'th' ? 'ประเภทแจ้งเตือน' : 'Alert type',
+      sortable: true,
+    },
+    {
+      key: 'count',
+      label: lang === 'th' ? 'จำนวน' : 'Count',
+      sortable: true,
+    },
+  ], [lang]);
+
+  // ── Export data ────────────────────────────────────────────────────────
+  const exportData = useMemo(() =>
+    tableRows.map((row) => ({
+      vehicle: row.vehicle,
+      driver: row.driver,
+      alertType: row.alertType,
+      count: row.count,
+    })),
+  [tableRows]);
+
+  const exportDateRange = useMemo(() => {
+    const parts: string[] = [];
+    if (dateRange.from) parts.push(dateRange.from);
+    if (dateRange.to) parts.push(dateRange.to);
+    return parts.join('_') || undefined;
+  }, [dateRange.from, dateRange.to]);
+
+  // ── Remark filter options ──────────────────────────────────────────────
+  const remarkFilterOptions: { label: string; value: RemarkFilter }[] = useMemo(() => [
+    { label: lang === 'th' ? 'ทั้งหมด' : 'All remarks', value: 'all' },
+    { label: lang === 'th' ? 'ง่วงนอน' : 'Fatigue', value: 'fatigue' },
+    { label: lang === 'th' ? 'หาว' : 'Yawning', value: 'yawning' },
+    { label: lang === 'th' ? 'ไม่สนใจ' : 'Distraction', value: 'distraction' },
+  ], [lang]);
 
   return (
     <DashboardShell
@@ -403,45 +408,73 @@ export default function SimpleDashboard({
       lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
+      isStale={!loading && !error && filteredAlerts.length === 0 && baseAlerts.length > 0}
+      activeFilterCount={activeFilterCount}
+      actions={
+        <ExportButton
+          data={exportData}
+          dashboardName="SimpleDashboard"
+          dateRange={exportDateRange}
+          label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
+        />
+      }
     >
-      {error ? (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
-          {error}
-        </div>
-      ) : null}
-
-      {loading ? (
+      {(loading || error) ? (
         <LoadingState
+          error={error ?? undefined}
+          onRetry={() => window.location.reload()}
+          lang={lang}
           message={lang === 'th' ? 'กำลังโหลดข้อมูลแดชบอร์ด…' : 'Loading dashboard data…'}
           detail={lang === 'th' ? 'กำลังรวบรวมกิจกรรมการแจ้งเตือนและแนวโน้ม' : 'Gathering alert activity and trends.'}
           fallbackDetail={copy.loadingDetail}
         />
       ) : (
         <>
+          {/* ── KPI Row ──────────────────────────────────────────── */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+              label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total alerts'}
+              value={stats.total.toLocaleString()}
+              trend={alertsTrend}
+            />
+            <KpiCard
+              label={lang === 'th' ? 'ช่วงวันที่' : 'Date range'}
+              value={dateRangeLabel}
+            />
+            <KpiCard
+              label={lang === 'th' ? 'รถที่ไม่ซ้ำ' : 'Unique vehicles'}
+              value={stats.vehicles}
+              unit={lang === 'th' ? 'คัน' : 'vehicles'}
+            />
+            <KpiCard
+              label={lang === 'th' ? 'คนขับที่ไม่ซ้ำ' : 'Unique drivers'}
+              value={stats.drivers}
+              unit={lang === 'th' ? 'คน' : 'drivers'}
+            />
+          </section>
+
+          {/* ── Filters ──────────────────────────────────────────── */}
           <section className={dashboardSectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-medium">{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <h2 className={heading2}>{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
+                <p className={textSecondary}>
                   {lang === 'th' ? 'กรองการแจ้งเตือนตามช่วงวันที่หรือรถ' : 'Narrow alerts by date range or vehicle.'}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={resetFilters}
-                className="text-sm font-semibold text-indigo-300 hover:text-indigo-200"
+                className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200"
               >
                 {lang === 'th' ? 'รีเซ็ตตัวกรอง' : 'Reset filters'}
               </button>
             </div>
-            <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+            <div className="mt-4 space-y-3 text-xs text-zinc-600 dark:text-zinc-300">
               <FilterGroup
                 label={lang === 'th' ? 'กรองวันที่' : 'Filter dates'}
                 lang={lang}
-                onClear={() => {
-                  setDateRange({ from: '', to: '' });
-                  setPage(1);
-                }}
+                onClear={() => setDateRange({ from: '', to: '' })}
                 helper={
                   dateBounds.min && dateBounds.max
                     ? `Data from ${formatDateKeyGB(dateBounds.min)} to ${formatDateKeyGB(dateBounds.max)}`
@@ -449,53 +482,42 @@ export default function SimpleDashboard({
                 }
               >
                 <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                  <span className="text-slate-500 dark:text-slate-400">From</span>
+                  <span className={textSecondary}>From</span>
                   <input
                     type="date"
                     lang="en-GB"
                     value={dateRange.from}
                     min={dateBounds.min}
                     max={dateRange.to || dateBounds.max}
-                    onChange={(event) => {
-                      setDateRange((current) => ({ ...current, from: event.target.value }));
-                      setPage(1);
-                    }}
-                    className="date-range-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
+                    onChange={(event) => setDateRange((current) => ({ ...current, from: event.target.value }))}
+                    className={`${inputBase} !w-auto !py-1 !text-xs dark:[color-scheme:dark]`}
                   />
                 </label>
                 <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                  <span className="text-slate-500 dark:text-slate-400">To</span>
+                  <span className={textSecondary}>To</span>
                   <input
                     type="date"
                     lang="en-GB"
                     value={dateRange.to}
                     min={dateRange.from || dateBounds.min}
                     max={dateBounds.max}
-                    onChange={(event) => {
-                      setDateRange((current) => ({ ...current, to: event.target.value }));
-                      setPage(1);
-                    }}
-                    className="date-range-input rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 dark:[color-scheme:dark]"
+                    onChange={(event) => setDateRange((current) => ({ ...current, to: event.target.value }))}
+                    className={`${inputBase} !w-auto !py-1 !text-xs dark:[color-scheme:dark]`}
                   />
                 </label>
               </FilterGroup>
               <FilterGroup
                 label={lang === 'th' ? 'กรองรถ' : 'Filter vehicles'}
                 lang={lang}
-                onClear={() => {
-                  setVehicleFilters([]);
-                  setPage(1);
-                }}
+                onClear={() => setVehicleFilters([])}
                 count={vehicleFilters.length}
               >
                 <div className="flex flex-wrap gap-2">
                   {vehicleFilters.map((vehicle) => (
                     <FilterChip
                       key={vehicle}
-                      onClick={() => {
-                        setVehicleFilters((current) => current.filter((item) => item !== vehicle));
-                        setPage(1);
-                      }}
+                      active
+                      onClick={() => setVehicleFilters((current) => current.filter((item) => item !== vehicle))}
                     >
                       {vehicle} ×
                     </FilterChip>
@@ -507,7 +529,7 @@ export default function SimpleDashboard({
                     value={vehicleQuery}
                     onChange={(event) => setVehicleQuery(event.target.value)}
                     placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถให้เลือก' : 'No vehicles available') : (lang === 'th' ? 'ค้นหาเลขรถ' : 'Search vehicle number')}
-                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                    className={`${inputBase} !py-1 !text-xs sm:min-w-[220px] sm:!w-auto`}
                   />
                   <datalist id="vehicle-options">
                     {filteredVehicleOptions.map((vehicle) => (
@@ -523,13 +545,10 @@ export default function SimpleDashboard({
                           vehicleOptions.find((vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase()),
                         (matched) =>
                           setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                        () => {
-                          setVehicleQuery('');
-                          setPage(1);
-                        },
+                        () => setVehicleQuery(''),
                       )
                     }
-                    className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-500"
                   >
                     {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
@@ -539,20 +558,15 @@ export default function SimpleDashboard({
                 <FilterGroup
                   label={lang === 'th' ? 'กรองคนขับ' : 'Filter drivers'}
                   lang={lang}
-                  onClear={() => {
-                    setDriverFilters([]);
-                    setPage(1);
-                  }}
+                  onClear={() => setDriverFilters([])}
                   count={driverFilters.length}
                 >
                   <div className="flex flex-wrap gap-2">
                     {driverFilters.map((driver) => (
                       <FilterChip
                         key={driver}
-                        onClick={() => {
-                          setDriverFilters((current) => current.filter((item) => item !== driver));
-                          setPage(1);
-                        }}
+                        active
+                        onClick={() => setDriverFilters((current) => current.filter((item) => item !== driver))}
                       >
                         {driver} ×
                       </FilterChip>
@@ -564,7 +578,7 @@ export default function SimpleDashboard({
                       value={driverQuery}
                       onChange={(event) => setDriverQuery(event.target.value)}
                       placeholder={driverOptions.length === 0 ? (lang === 'th' ? 'ไม่มีคนขับให้เลือก' : 'No drivers available') : (lang === 'th' ? 'ค้นหาชื่อคนขับ' : 'Search driver name')}
-                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 sm:min-w-[220px] sm:w-auto"
+                      className={`${inputBase} !py-1 !text-xs sm:min-w-[220px] sm:!w-auto`}
                     />
                     <datalist id="driver-options">
                       {filteredDriverOptions.map((driver) => (
@@ -580,379 +594,111 @@ export default function SimpleDashboard({
                             driverOptions.find((driver) => driver.toLowerCase() === trimmed.toLowerCase()),
                           (matched) =>
                             setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                          () => {
-                            setDriverQuery('');
-                            setPage(1);
-                          },
+                          () => setDriverQuery(''),
                         )
                       }
-                      className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 hover:border-slate-500"
+                      className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-500"
                     >
                       {lang === 'th' ? 'เพิ่ม' : 'Add'}
                     </button>
                   </div>
                 </FilterGroup>
               ) : null}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="uppercase tracking-[0.2em] text-zinc-500">
+                  {lang === 'th' ? 'ประเภทแจ้งเตือน' : 'Alert type'}
+                </span>
+                {remarkFilterOptions.map((option) => (
+                  <FilterChip
+                    key={option.value}
+                    active={remarkFilter === option.value}
+                    onClick={() => setRemarkFilter(option.value)}
+                  >
+                    {option.label}
+                  </FilterChip>
+                ))}
+              </div>
             </div>
           </section>
 
-            <section className={dashboardSectionClass}>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-medium">Daily alert trend</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 and Yawning-A2 alerts for fatigue, yawning, and distraction.</p>
-                </div>
+          {/* ── Daily alert trend (TrendChart) ───────────────────── */}
+          <section className={dashboardSectionClass}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className={heading2}>{lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}</h2>
+                <p className={textSecondary}>
+                  {lang === 'th'
+                    ? 'การแจ้งเตือน Eye Closing-A2 และ Yawning-A2 สำหรับง่วงนอน หาว และไม่สนใจ'
+                    : 'Eye Closing-A2 and Yawning-A2 alerts for fatigue, yawning, and distraction.'}
+                </p>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                <span className="uppercase tracking-[0.2em] text-slate-500">Show</span>
-                {(
-                  [
-                    { label: 'All remarks', value: 'all' },
-                    { label: 'Fatigue', value: 'fatigue' },
-                    { label: 'Yawning', value: 'yawning' },
-                    { label: 'Distraction', value: 'distraction' },
-                  ] as const
-                ).map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setTrendRemarkFilter(option.value)}
-                    className={
-                      trendRemarkFilter === option.value ? chipClassName : chipMutedClassName
-                    }
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-6 overflow-x-auto">
-                {trendData.length === 0 ? (
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-950/30 p-6 text-sm text-slate-600 dark:text-slate-300">
-                    No daily alert data available yet.
-                  </div>
-                ) : (
-                  <div className="relative min-w-[640px] overflow-visible">
-                    <svg
-                      viewBox={trendPoints.viewBox}
-                      className="h-[300px] w-full"
-                      role="img"
-                      aria-label="Daily alert trend"
-                    >
-                      <defs>
-                        <linearGradient id="trend-line" x1="0" x2="1" y1="0" y2="0">
-                          <stop offset="0%" stopColor="#A855F7" />
-                          <stop offset="100%" stopColor="#C4B5FD" />
-                        </linearGradient>
-                      </defs>
-                      {yAxisTicks.map((tick) => {
-                        const y =
-                          trendPoints.padding.top +
-                          tick.position * (trendPoints.height - trendPoints.padding.top - trendPoints.padding.bottom);
-                        return (
-                          <g key={tick.value}>
-                            <line
-                              x1={trendPoints.padding.left}
-                              x2={trendPoints.width - trendPoints.padding.right}
-                              y1={y}
-                              y2={y}
-                              stroke="rgba(148, 163, 184, 0.2)"
-                              strokeDasharray="6 6"
-                            />
-                            <text
-                              x={trendPoints.padding.left - 12}
-                              y={y + 4}
-                              fill="#94a3b8"
-                              textAnchor="end"
-                              fontSize="11"
-                            >
-                              {tick.value}
-                            </text>
-                          </g>
-                        );
-                      })}
-                      <line
-                        x1={trendPoints.padding.left}
-                        x2={trendPoints.padding.left}
-                        y1={trendPoints.padding.top}
-                        y2={trendPoints.height - trendPoints.padding.bottom}
-                        stroke="rgba(148, 163, 184, 0.5)"
-                      />
-                      <line
-                        x1={trendPoints.padding.left}
-                        x2={trendPoints.width - trendPoints.padding.right}
-                        y1={trendPoints.height - trendPoints.padding.bottom}
-                        y2={trendPoints.height - trendPoints.padding.bottom}
-                        stroke="rgba(148, 163, 184, 0.5)"
-                      />
-                      <path d={trendPoints.path} fill="none" stroke="url(#trend-line)" strokeWidth="3" />
-                      {trendPoints.points.map((point, index) => (
-                        <circle
-                          key={`${point.x}-${point.y}-${index}`}
-                          cx={point.x}
-                          cy={point.y}
-                          r={index === trendPoints.points.length - 1 ? 4 : 3}
-                          fill="#0f172a"
-                          stroke="#C4B5FD"
-                          strokeWidth="2"
-                          onMouseEnter={() => setHoverPoint(point)}
-                          onMouseLeave={() => setHoverPoint(null)}
-                          className="cursor-pointer"
-                        />
-                      ))}
-                      {xAxisLabels.map((label, index) => {
-                        const x =
-                          trendPoints.padding.left +
-                          label.position * (trendPoints.width - trendPoints.padding.left - trendPoints.padding.right);
-                        return (
-                          <text
-                            key={`${label.label}-${index}`}
-                            x={x}
-                            y={trendPoints.height - trendPoints.padding.bottom + 24}
-                            fill="#94a3b8"
-                            textAnchor="middle"
-                            fontSize="11"
-                          >
-                            {label.label}
-                          </text>
-                        );
-                      })}
-                    </svg>
-                    {activePoint ? (
-                      <div
-                        className="pointer-events-none absolute rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-lg dark:border-indigo-400/40 dark:bg-slate-950/90 dark:text-indigo-100"
-                        style={{
-                          left: `${(activePoint.x / trendPoints.width) * 100}%`,
-                          top: `${(Math.max(activePoint.y - 32, trendPoints.padding.top + 12) / trendPoints.height) * 100}%`,
-                          transform: 'translate(-50%, -100%)',
-                        }}
-                      >
-                        <div className="font-semibold">{activePoint.count} alerts</div>
-                        <div className="text-[11px] text-slate-600 dark:text-slate-300">{activePoint.label}</div>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            </section>
+            </div>
+            <div className="mt-6">
+              <TrendChart
+                data={trendChartData}
+                mode="line"
+                height={300}
+                ariaLabel={lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}
+              />
+            </div>
+          </section>
 
-            <section className={dashboardSectionClass}>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-medium">Alert remark highlights</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Eye Closing-A2 and Yawning-A2 alerts by remark.</p>
-                </div>
+          {/* ── Alert remark highlights (KpiCards) ────────────────── */}
+          <section className={dashboardSectionClass}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className={heading2}>{lang === 'th' ? 'สรุปตามประเภทแจ้งเตือน' : 'Alert remark highlights'}</h2>
+                <p className={textSecondary}>
+                  {lang === 'th'
+                    ? 'การแจ้งเตือน Eye Closing-A2 และ Yawning-A2 ตามประเภท'
+                    : 'Eye Closing-A2 and Yawning-A2 alerts by remark.'}
+                </p>
               </div>
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                {(
-                  [
-                    {
-                      label: 'Fatigue',
-                      value: stats.remarks.fatigue,
-                      accent: 'text-amber-500 dark:text-amber-200',
-                    },
-                    {
-                      label: 'Yawning',
-                      value: stats.remarks.yawning,
-                      accent: 'text-emerald-500 dark:text-emerald-200',
-                    },
-                    {
-                      label: 'Distraction',
-                      value: stats.remarks.distraction,
-                      accent: 'text-indigo-500 dark:text-indigo-200',
-                    },
-                  ] as const
-                ).map((card) => (
-                  <div
-                    key={card.label}
-                    className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950/40 p-5 shadow-sm"
-                  >
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{card.label}</p>
-                    <p className={`mt-3 text-4xl font-semibold ${card.accent}`}>
-                      {card.value.toLocaleString()}
-                    </p>
-                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">Alerts</p>
-                  </div>
-                ))}
-              </div>
-            </section>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <KpiCard
+                label={lang === 'th' ? 'ง่วงนอน' : 'Fatigue'}
+                value={stats.remarks.fatigue.toLocaleString()}
+                subtitle={lang === 'th' ? 'การแจ้งเตือน' : 'Alerts'}
+              />
+              <KpiCard
+                label={lang === 'th' ? 'หาว' : 'Yawning'}
+                value={stats.remarks.yawning.toLocaleString()}
+                subtitle={lang === 'th' ? 'การแจ้งเตือน' : 'Alerts'}
+              />
+              <KpiCard
+                label={lang === 'th' ? 'ไม่สนใจ' : 'Distraction'}
+                value={stats.remarks.distraction.toLocaleString()}
+                subtitle={lang === 'th' ? 'การแจ้งเตือน' : 'Alerts'}
+              />
+            </div>
+          </section>
 
-            <section className={dashboardSectionClass}>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-medium">Alerts by vehicle and date</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Eye Closing-A2 and Yawning-A2 alerts with fatigue, yawning, and distraction remarks.
-                  </p>
-                </div>
+          {/* ── Alerts table (DataTable) ──────────────────────────── */}
+          <section className={dashboardSectionClass}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className={heading2}>
+                  {lang === 'th' ? 'การแจ้งเตือนตามรถและคนขับ' : 'Alerts by vehicle and driver'}
+                </h2>
+                <p className={textSecondary}>
+                  {lang === 'th'
+                    ? 'การแจ้งเตือน Eye Closing-A2 และ Yawning-A2 แยกตามง่วงนอน หาว และไม่สนใจ'
+                    : 'Eye Closing-A2 and Yawning-A2 alerts with fatigue, yawning, and distraction remarks.'}
+                </p>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="uppercase tracking-[0.2em] text-slate-500">Rows</span>
-                    <select
-                      value={pageSize}
-                      onChange={(event) => {
-                        setPageSize(Number(event.target.value));
-                        setPage(1);
-                      }}
-                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
-                    >
-                      {[25, 50, 100].map((size) => (
-                        <option key={size} value={size}>
-                          {size} per page
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <span>Shift-click column headers to sort by multiple columns.</span>
-                </div>
-                <span>
-                  {totalSummaries === 0
-                    ? 'No alerts to show.'
-                    : `Showing ${startIndex + 1}-${endIndex} of ${totalSummaries}`}
-                </span>
-              </div>
-              {sortCriteria.length > 0 ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="uppercase tracking-[0.2em] text-slate-500">Sorted by</span>
-                  {sortCriteria.map((criterion, index) => (
-                    <FilterChip
-                      key={`${criterion.field}-${criterion.direction}`}
-                      onClick={() =>
-                        setSortCriteria((current) => current.filter((_, currentIndex) => currentIndex !== index))
-                      }
-                    >
-                      {criterion.field} {criterion.direction} ×
-                    </FilterChip>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setSortCriteria(defaultSortCriteria)}
-                    className="text-xs font-semibold text-indigo-300 hover:text-indigo-200"
-                  >
-                    Reset sorting
-                  </button>
-                </div>
-              ) : null}
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[860px] border-collapse text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                      {(
-                        [
-                          { label: 'Date', field: 'date' },
-                          { label: 'Vehicle number', field: 'vehicle' },
-                          { label: 'Fatigue', field: 'fatigue' },
-                          { label: 'Yawning', field: 'yawning' },
-                          { label: 'Distraction', field: 'distraction' },
-                          { label: 'Total', field: 'total' },
-                        ] as const
-                      ).map((column) => {
-                        const sortIndex = sortCriteria.findIndex((criterion) => criterion.field === column.field);
-                        const sortDirection = sortIndex >= 0 ? sortCriteria[sortIndex].direction : null;
-                        const sortBadge =
-                          sortIndex >= 0
-                            ? `${sortDirection === 'asc' ? 'Asc' : 'Desc'}${
-                                sortCriteria.length > 1 ? ` ${sortIndex + 1}` : ''
-                              }`
-                            : 'Sort';
-                        return (
-                          <th key={column.field} className="py-3 pr-4">
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                setSortCriteria((current) => {
-                                  const existingIndex = current.findIndex(
-                                    (criterion) => criterion.field === column.field,
-                                  );
-                                  const multiSort = event.shiftKey;
-                                  const nextCriteria = multiSort ? [...current] : [];
-                                  if (existingIndex === -1) {
-                                    return [...nextCriteria, { field: column.field, direction: 'asc' }];
-                                  }
-                                  const existing = current[existingIndex];
-                                  if (multiSort) {
-                                    nextCriteria.splice(existingIndex, 1);
-                                  }
-                                  if (existing.direction === 'asc') {
-                                    if (multiSort) {
-                                      nextCriteria.splice(existingIndex, 0, {
-                                        field: column.field,
-                                        direction: 'desc',
-                                      });
-                                      return nextCriteria;
-                                    }
-                                    return [{ field: column.field, direction: 'desc' }];
-                                  }
-                                  return nextCriteria;
-                                });
-                                setPage(1);
-                              }}
-                              className="flex items-center gap-2 text-left hover:text-slate-700 dark:text-slate-200"
-                            >
-                              <span>{column.label}</span>
-                              <span
-                                className="text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-500 dark:text-indigo-200"
-                              >
-                                {sortBadge}
-                              </span>
-                            </button>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedSummaries.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-b border-slate-200 text-slate-700 dark:border-slate-900/80 dark:text-slate-200"
-                      >
-                        <td className="py-3 pr-4 text-slate-600 dark:text-slate-300">{row.dateLabel}</td>
-                        <td className="py-3 pr-4 font-semibold text-slate-900 dark:text-white">
-                          {row.vehicle}
-                        </td>
-                        <td className="py-3 pr-4 text-amber-500 dark:text-amber-200">
-                          {row.fatigue}
-                        </td>
-                        <td className="py-3 pr-4 text-emerald-500 dark:text-emerald-200">
-                          {row.yawning}
-                        </td>
-                        <td className="py-3 pr-4 text-indigo-500 dark:text-indigo-200">
-                          {row.distraction}
-                        </td>
-                        <td className="py-3 pr-4 text-rose-500 dark:text-rose-200">{row.total}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-                <span>
-                  Page {currentPage} of {totalPages}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
-                    disabled={currentPage === 1}
-                    className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                    disabled={currentPage === totalPages}
-                    className="rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 disabled:cursor-not-allowed disabled:text-slate-600"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </section>
-          </>
-        )}
+            </div>
+            <div className="mt-4">
+              <DataTable
+                columns={tableColumns}
+                data={tableRows}
+                defaultSort={{ key: 'count', direction: 'desc' }}
+                ariaLabel={lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alert summary table'}
+              />
+            </div>
+          </section>
+        </>
+      )}
     </DashboardShell>
   );
 }
