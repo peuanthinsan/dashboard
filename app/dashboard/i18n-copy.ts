@@ -26,6 +26,8 @@ export const dashboardCopy = {
     english: 'English',
     staleData: 'Cached data',
     filtersActive: 'filters active',
+    errorTitle: 'Failed to load dashboard',
+    retry: 'Retry',
   },
   th: {
     loggedInAs: 'คุณเข้าสู่ระบบในชื่อ',
@@ -50,6 +52,8 @@ export const dashboardCopy = {
     english: 'English',
     staleData: 'ข้อมูลแคช',
     filtersActive: 'ตัวกรองที่ใช้งานอยู่',
+    errorTitle: 'โหลดแดชบอร์ดไม่สำเร็จ',
+    retry: 'ลองอีกครั้ง',
   },
 } as const;
 
