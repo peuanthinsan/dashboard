@@ -56,15 +56,29 @@ export const filterChipMuted = 'inline-flex items-center gap-1.5 rounded-full bg
 
 // Charts
 export const CHART_COLORS = [
-  '#0072B2', // blue
-  '#E69F00', // orange
-  '#009E73', // green
-  '#CC79A7', // pink
-  '#56B4E9', // light blue
-  '#D55E00', // red-orange
-  '#F0E442', // yellow
-  '#000000', // black
-  '#332288', // indigo
-  '#88CCEE', // cyan
+  '#2563EB', // vivid blue
+  '#F59E0B', // amber
+  '#10B981', // emerald
+  '#EC4899', // pink
+  '#06B6D4', // cyan
+  '#F97316', // orange
+  '#8B5CF6', // violet
+  '#EF4444', // red
+  '#14B8A6', // teal
+  '#6366F1', // indigo
+];
+
+// Gradient stop pairs for each CHART_COLORS entry (light → vivid)
+export const CHART_GRADIENTS: [string, string][] = [
+  ['#DBEAFE', '#2563EB'], // blue
+  ['#FEF3C7', '#F59E0B'], // amber
+  ['#D1FAE5', '#10B981'], // emerald
+  ['#FCE7F3', '#EC4899'], // pink
+  ['#CFFAFE', '#06B6D4'], // cyan
+  ['#FFEDD5', '#F97316'], // orange
+  ['#EDE9FE', '#8B5CF6'], // violet
+  ['#FEE2E2', '#EF4444'], // red
+  ['#CCFBF1', '#14B8A6'], // teal
+  ['#E0E7FF', '#6366F1'], // indigo
 ];
 export const SAFETY_THRESHOLDS = { excellent: 90, good: 70, moderate: 50, poor: 0 };

@@ -5,7 +5,6 @@ import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
-import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
 import {
   ALLOWED_ALERT_TYPES,
@@ -32,6 +31,7 @@ import DriverLeaderboard from 'app/ui/DriverLeaderboard';
 import ExportButton from 'app/ui/ExportButton';
 import TrendChart from 'app/ui/TrendChart';
 import { inputBase, heading2, textSecondary, CHART_COLORS } from 'app/ui/design-tokens';
+import FilterBar from 'app/ui/FilterBar';
 
 type DashboardProps = {
   dashboardId: string;
@@ -364,52 +364,55 @@ export default function SummaryDashboard({
           </div>
 
           {/* Filters — Month + Fleet only */}
-          <section className={dashboardSectionClass}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className={heading2}>{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
-                <p className={textSecondary}>{lang === 'th' ? 'กรองการแจ้งเตือนตามเดือนหรือฟลีท' : 'Narrow alerts by month or fleet.'}</p>
+          <FilterBar>
+            {/* Month chips */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'เดือน' : 'Months'}</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {monthFilters.map((mk) => {
+                  const ml = monthOptions.find((o) => o.key === mk)?.label ?? mk;
+                  return <FilterChip key={mk} active onClick={() => setMonthFilters((c) => c.filter((v) => v !== mk))}>{ml} ×</FilterChip>;
+                })}
+                <input list="month-options" value={monthSearch} onChange={(e) => setMonthSearch(e.target.value)}
+                  placeholder={monthOptions.length === 0 ? (lang === 'th' ? 'ไม่มีเดือน' : 'No months') : (lang === 'th' ? 'ค้นหาเดือน' : 'Search months')}
+                  className={filterInputClass} />
+                <datalist id="month-options">{filteredMonthOptions.map((o) => <option key={o.key} value={o.label} />)}</datalist>
+                <button type="button" onClick={() => handleSearchAdd(monthSearch, (t) => monthOptions.find((o) => o.key === t || normalizeLabel(o.label) === normalizeLabel(t)), (m) => setMonthFilters((c) => c.includes(m.key) ? c : [...c, m.key]), () => setMonthSearch(''))}
+                  className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-200">{lang === 'th' ? 'เพิ่ม' : 'Add'}</button>
+                {monthFilters.length > 0 && (
+                  <button type="button" onClick={() => setMonthFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                )}
               </div>
-              <button type="button" onClick={resetFilters} className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
-                {lang === 'th' ? 'รีเซ็ตตัวกรอง' : 'Reset filters'}
-              </button>
             </div>
-            <div className="mt-4 space-y-3">
-              {/* Month filter */}
-              <FilterGroup label={lang === 'th' ? 'เดือน' : 'Months'} lang={lang} onClear={() => setMonthFilters([])} count={monthFilters.length}>
-                <div className="flex flex-wrap gap-1.5">
-                  {monthFilters.map((mk) => {
-                    const ml = monthOptions.find((o) => o.key === mk)?.label ?? mk;
-                    return <FilterChip key={mk} active onClick={() => setMonthFilters((c) => c.filter((v) => v !== mk))}>{ml} ×</FilterChip>;
-                  })}
-                </div>
-                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                  <input list="month-options" value={monthSearch} onChange={(e) => setMonthSearch(e.target.value)}
-                    placeholder={monthOptions.length === 0 ? (lang === 'th' ? 'ไม่มีเดือน' : 'No months') : (lang === 'th' ? 'ค้นหาเดือน' : 'Search months')}
+
+            {/* Fleet chips */}
+            {!organizationName && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ฟลีท' : 'Fleets'}</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {fleetFilters.map((f) => <FilterChip key={f} active onClick={() => setFleetFilters((c) => c.filter((v) => v !== f))}>{f} ×</FilterChip>)}
+                  <input list="fleet-options" value={fleetSearch} onChange={(e) => setFleetSearch(e.target.value)}
+                    placeholder={fleetOptions.length === 0 ? (lang === 'th' ? 'ไม่มีฟลีท' : 'No fleets') : (lang === 'th' ? 'ค้นหาฟลีท' : 'Search fleets')}
                     className={filterInputClass} />
-                  <datalist id="month-options">{filteredMonthOptions.map((o) => <option key={o.key} value={o.label} />)}</datalist>
-                  <button type="button" onClick={() => handleSearchAdd(monthSearch, (t) => monthOptions.find((o) => o.key === t || normalizeLabel(o.label) === normalizeLabel(t)), (m) => setMonthFilters((c) => c.includes(m.key) ? c : [...c, m.key]), () => setMonthSearch(''))}
-                    className="rounded-md border border-zinc-200 px-3 py-1 text-xs text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-200">{lang === 'th' ? 'เพิ่ม' : 'Add'}</button>
+                  <datalist id="fleet-options">{filteredFleetOptions.map((o) => <option key={o} value={o} />)}</datalist>
+                  <button type="button" onClick={() => handleSearchAdd(fleetSearch, (t) => fleetOptions.find((o) => normalizeLabel(o) === normalizeLabel(t)), (m) => setFleetFilters((c) => c.includes(m) ? c : [...c, m]), () => setFleetSearch(''))}
+                    className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-200">{lang === 'th' ? 'เพิ่ม' : 'Add'}</button>
+                  {fleetFilters.length > 0 && (
+                    <button type="button" onClick={() => setFleetFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                  )}
                 </div>
-              </FilterGroup>
-              {/* Fleet filter */}
-              {organizationName ? null : (
-                <FilterGroup label={lang === 'th' ? 'ฟลีท' : 'Fleets'} lang={lang} onClear={() => setFleetFilters([])} count={fleetFilters.length}>
-                  <div className="flex flex-wrap gap-1.5">
-                    {fleetFilters.map((f) => <FilterChip key={f} active onClick={() => setFleetFilters((c) => c.filter((v) => v !== f))}>{f} ×</FilterChip>)}
-                  </div>
-                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                    <input list="fleet-options" value={fleetSearch} onChange={(e) => setFleetSearch(e.target.value)}
-                      placeholder={fleetOptions.length === 0 ? (lang === 'th' ? 'ไม่มีฟลีท' : 'No fleets') : (lang === 'th' ? 'ค้นหาฟลีท' : 'Search fleets')}
-                      className={filterInputClass} />
-                    <datalist id="fleet-options">{filteredFleetOptions.map((o) => <option key={o} value={o} />)}</datalist>
-                    <button type="button" onClick={() => handleSearchAdd(fleetSearch, (t) => fleetOptions.find((o) => normalizeLabel(o) === normalizeLabel(t)), (m) => setFleetFilters((c) => c.includes(m) ? c : [...c, m]), () => setFleetSearch(''))}
-                      className="rounded-md border border-zinc-200 px-3 py-1 text-xs text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-200">{lang === 'th' ? 'เพิ่ม' : 'Add'}</button>
-                  </div>
-                </FilterGroup>
-              )}
-            </div>
-          </section>
+              </div>
+            )}
+
+            {/* Reset button */}
+            {(monthFilters.length + fleetFilters.length) > 0 && (
+              <div className="ml-auto flex items-end pb-0.5">
+                <button type="button" onClick={resetFilters} className="rounded-md px-2.5 py-1 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:hover:text-indigo-300">
+                  {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
+                </button>
+              </div>
+            )}
+          </FilterBar>
 
           {/* Alert Type Highlights */}
           <section className={dashboardSectionClass}>
@@ -422,17 +425,36 @@ export default function SummaryDashboard({
               </p>
             </div>
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {highlightItems.map((item) => (
-                <div key={item.label} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-                  <div className="text-sm text-zinc-600 dark:text-zinc-400">{item.label}</div>
-                  <div className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{item.current}</div>
-                  {activeMonthKey ? (
-                    <div className="mt-2">
-                      <TrendIndicator current={item.current} previous={item.previous} suffix={lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month'} />
+              {highlightItems.map((item, idx) => {
+                const accentColor = CHART_COLORS[idx % CHART_COLORS.length];
+                return (
+                  <div
+                    key={item.label}
+                    className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900"
+                    style={{ borderLeft: `3px solid ${accentColor}` }}
+                  >
+                    <div className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+                      <span
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: accentColor }}
+                        aria-hidden="true"
+                      />
+                      {item.label}
                     </div>
-                  ) : null}
-                </div>
-              ))}
+                    <div
+                      className="mt-2 text-3xl font-bold tabular-nums tracking-tight"
+                      style={{ color: accentColor }}
+                    >
+                      {item.current}
+                    </div>
+                    {activeMonthKey ? (
+                      <div className="mt-2">
+                        <TrendIndicator current={item.current} previous={item.previous} suffix={lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month'} />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </section>
 
@@ -485,8 +507,15 @@ export default function SummaryDashboard({
             <div className="mt-5 grid gap-6 xl:grid-cols-3">
               {monthlyComparisons.map((comparison) => {
                 const highest = comparison.rows.reduce((max, r) => Math.max(max, r.total), 0);
+                const highestMonthKey = comparison.rows.find((r) => r.total === highest)?.monthKey;
                 return (
-                  <div key={comparison.label} className="rounded-lg border border-zinc-100 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div
+                    key={comparison.label}
+                    className="rounded-lg border border-zinc-100 p-4 dark:border-zinc-800"
+                    style={{
+                      background: `linear-gradient(135deg, ${comparison.color}0D 0%, transparent 60%)`,
+                    }}
+                  >
                     <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                       <span className="inline-block h-3 w-5 rounded-sm" style={{ backgroundColor: comparison.color }} />
                       {comparison.label}
@@ -503,14 +532,24 @@ export default function SummaryDashboard({
                     <div className="mt-3 space-y-2">
                       {comparison.rows.map((row) => {
                         const wp = highest === 0 || row.total === 0 ? 0 : Math.max((row.total / highest) * 100, 2);
+                        const isHighest = highest > 0 && row.monthKey === highestMonthKey;
                         return (
                           <div key={`${comparison.label}-${row.monthKey}`}>
                             <div className="mb-0.5 flex items-center justify-between text-xs">
-                              <span className="text-zinc-600 dark:text-zinc-300">{row.monthLabel}</span>
+                              <span className="flex items-center gap-1 text-zinc-600 dark:text-zinc-300">
+                                {isHighest && (
+                                  <span
+                                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full"
+                                    style={{ backgroundColor: comparison.color }}
+                                    aria-hidden="true"
+                                  />
+                                )}
+                                {row.monthLabel}
+                              </span>
                               <span className="font-medium text-zinc-900 dark:text-zinc-100">{row.total}</span>
                             </div>
-                            <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800">
-                              <div className="h-2 rounded-full transition-[width]" style={{ width: `${wp}%`, backgroundColor: comparison.color }} />
+                            <div className="h-3 rounded-full bg-zinc-200 dark:bg-zinc-800">
+                              <div className="h-3 rounded-full transition-[width]" style={{ width: `${wp}%`, backgroundColor: comparison.color }} />
                             </div>
                           </div>
                         );

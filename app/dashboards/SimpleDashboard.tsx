@@ -6,7 +6,6 @@ import { formatDateKeyGB } from './dateFormat';
 import { FilterChip } from './FilterChip';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
-import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
@@ -21,6 +20,7 @@ import { DataTable, type Column } from 'app/ui/DataTable';
 import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import { heading2, textSecondary, inputBase } from 'app/ui/design-tokens';
+import FilterBar from 'app/ui/FilterBar';
 
 type DashboardProps = {
   dashboardId: string;
@@ -41,10 +41,14 @@ type SimpleFilterState = {
 };
 
 type TableRow = {
+  dateKey: string;
+  dateLabel: string;
   vehicle: string;
-  driver: string;
-  alertType: string;
-  count: number;
+  fatigue: number;
+  yawning: number;
+  distraction: number;
+  total: number;
+  sortDate: number;
 };
 
 export default function SimpleDashboard({
@@ -325,64 +329,85 @@ export default function SimpleDashboard({
       }));
   }, [filteredAlerts]);
 
-  // ── DataTable rows: vehicle/driver/alertType/count ─────────────────────
+  // ── DataTable rows: daily counts per vehicle ──────────────────────────
   const tableRows = useMemo<TableRow[]>(() => {
     const grouped = new Map<string, TableRow>();
     filteredAlerts.forEach((row) => {
-      const remark = normalizeLabel(row.remarks);
-      const alertLabel =
-        remark === 'fatigue'
-          ? (lang === 'th' ? 'ง่วงนอน' : 'Fatigue')
-          : remark === 'yawning'
-            ? (lang === 'th' ? 'หาว' : 'Yawning')
-            : (lang === 'th' ? 'ไม่สนใจ' : 'Distraction');
-      const groupKey = `${row.vehicle}|${row.driver}|${remark}`;
+      const dateLabel = row.parsedDate ? row.parsedDate.toLocaleDateString('en-GB') : '—';
+      const dateKey = row.parsedDate ? toDayKey(row.parsedDate) : 'unknown';
+      const groupKey = `${dateKey}-${row.vehicle}`;
       const existing = grouped.get(groupKey);
       if (existing) {
-        existing.count += 1;
+        const remark = normalizeLabel(row.remarks);
+        if (remark === 'fatigue') existing.fatigue += 1;
+        if (remark === 'yawning') existing.yawning += 1;
+        if (remark === 'distraction') existing.distraction += 1;
+        existing.total += 1;
       } else {
+        const remark = normalizeLabel(row.remarks);
         grouped.set(groupKey, {
+          dateKey,
+          dateLabel,
           vehicle: row.vehicle,
-          driver: row.driver,
-          alertType: alertLabel,
-          count: 1,
+          fatigue: remark === 'fatigue' ? 1 : 0,
+          yawning: remark === 'yawning' ? 1 : 0,
+          distraction: remark === 'distraction' ? 1 : 0,
+          total: 1,
+          sortDate: row.parsedDate ? row.parsedDate.getTime() : 0,
         });
       }
     });
     return Array.from(grouped.values());
-  }, [filteredAlerts, lang]);
+  }, [filteredAlerts]);
 
   // ── DataTable columns ──────────────────────────────────────────────────
   const tableColumns = useMemo<Column<TableRow>[]>(() => [
     {
+      key: 'dateLabel',
+      label: lang === 'th' ? 'วันที่' : 'Date',
+      sortable: true,
+    },
+    {
       key: 'vehicle',
-      label: lang === 'th' ? 'รถ' : 'Vehicle',
+      label: lang === 'th' ? 'เลขรถ' : 'Vehicle number',
       sortable: true,
+      render: (value) => <span className="font-semibold">{String(value)}</span>,
     },
     {
-      key: 'driver',
-      label: lang === 'th' ? 'คนขับ' : 'Driver',
+      key: 'fatigue',
+      label: lang === 'th' ? 'ง่วงนอน' : 'Fatigue',
       sortable: true,
+      render: (value) => <span className="text-amber-500 dark:text-amber-300">{String(value)}</span>,
     },
     {
-      key: 'alertType',
-      label: lang === 'th' ? 'ประเภทแจ้งเตือน' : 'Alert type',
+      key: 'yawning',
+      label: lang === 'th' ? 'หาว' : 'Yawning',
       sortable: true,
+      render: (value) => <span className="text-emerald-500 dark:text-emerald-300">{String(value)}</span>,
     },
     {
-      key: 'count',
-      label: lang === 'th' ? 'จำนวน' : 'Count',
+      key: 'distraction',
+      label: lang === 'th' ? 'ไม่สนใจ' : 'Distraction',
       sortable: true,
+      render: (value) => <span className="text-indigo-500 dark:text-indigo-300">{String(value)}</span>,
+    },
+    {
+      key: 'total',
+      label: lang === 'th' ? 'ทั้งหมด' : 'Total',
+      sortable: true,
+      render: (value) => <span className="text-rose-500 dark:text-rose-300">{String(value)}</span>,
     },
   ], [lang]);
 
   // ── Export data ────────────────────────────────────────────────────────
   const exportData = useMemo(() =>
     tableRows.map((row) => ({
+      date: row.dateLabel,
       vehicle: row.vehicle,
-      driver: row.driver,
-      alertType: row.alertType,
-      count: row.count,
+      fatigue: row.fatigue,
+      yawning: row.yawning,
+      distraction: row.distraction,
+      total: row.total,
     })),
   [tableRows]);
 
@@ -454,172 +479,120 @@ export default function SimpleDashboard({
           </section>
 
           {/* ── Filters ──────────────────────────────────────────── */}
-          <section className={dashboardSectionClass}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className={heading2}>{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
-                <p className={textSecondary}>
-                  {lang === 'th' ? 'กรองการแจ้งเตือนตามช่วงวันที่หรือรถ' : 'Narrow alerts by date range or vehicle.'}
-                </p>
+          <FilterBar>
+            {/* Date range */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                {lang === 'th' ? 'จากวันที่' : 'From'}
+                {dateBounds.min && dateBounds.max && (
+                  <span className="ml-1 font-normal text-zinc-400">({formatDateKeyGB(dateBounds.min)} – {formatDateKeyGB(dateBounds.max)})</span>
+                )}
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="date"
+                  lang="en-GB"
+                  value={dateRange.from}
+                  min={dateBounds.min}
+                  max={dateRange.to || dateBounds.max}
+                  onChange={(event) => setDateRange((current) => ({ ...current, from: event.target.value }))}
+                  className={`${inputBase} !w-auto !py-1 !text-xs dark:[color-scheme:dark]`}
+                />
+                <span className={textSecondary}>–</span>
+                <input
+                  type="date"
+                  lang="en-GB"
+                  value={dateRange.to}
+                  min={dateRange.from || dateBounds.min}
+                  max={dateBounds.max}
+                  onChange={(event) => setDateRange((current) => ({ ...current, to: event.target.value }))}
+                  className={`${inputBase} !w-auto !py-1 !text-xs dark:[color-scheme:dark]`}
+                />
+                {(dateRange.from || dateRange.to) && (
+                  <button type="button" onClick={() => setDateRange({ from: '', to: '' })} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200"
-              >
-                {lang === 'th' ? 'รีเซ็ตตัวกรอง' : 'Reset filters'}
-              </button>
             </div>
-            <div className="mt-4 space-y-3 text-xs text-zinc-600 dark:text-zinc-300">
-              <FilterGroup
-                label={lang === 'th' ? 'กรองวันที่' : 'Filter dates'}
-                lang={lang}
-                onClear={() => setDateRange({ from: '', to: '' })}
-                helper={
-                  dateBounds.min && dateBounds.max
-                    ? `Data from ${formatDateKeyGB(dateBounds.min)} to ${formatDateKeyGB(dateBounds.max)}`
-                    : null
-                }
-              >
-                <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                  <span className={textSecondary}>From</span>
-                  <input
-                    type="date"
-                    lang="en-GB"
-                    value={dateRange.from}
-                    min={dateBounds.min}
-                    max={dateRange.to || dateBounds.max}
-                    onChange={(event) => setDateRange((current) => ({ ...current, from: event.target.value }))}
-                    className={`${inputBase} !w-auto !py-1 !text-xs dark:[color-scheme:dark]`}
-                  />
-                </label>
-                <label className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                  <span className={textSecondary}>To</span>
-                  <input
-                    type="date"
-                    lang="en-GB"
-                    value={dateRange.to}
-                    min={dateRange.from || dateBounds.min}
-                    max={dateBounds.max}
-                    onChange={(event) => setDateRange((current) => ({ ...current, to: event.target.value }))}
-                    className={`${inputBase} !w-auto !py-1 !text-xs dark:[color-scheme:dark]`}
-                  />
-                </label>
-              </FilterGroup>
-              <FilterGroup
-                label={lang === 'th' ? 'กรองรถ' : 'Filter vehicles'}
-                lang={lang}
-                onClear={() => setVehicleFilters([])}
-                count={vehicleFilters.length}
-              >
-                <div className="flex flex-wrap gap-2">
-                  {vehicleFilters.map((vehicle) => (
-                    <FilterChip
-                      key={vehicle}
-                      active
-                      onClick={() => setVehicleFilters((current) => current.filter((item) => item !== vehicle))}
-                    >
-                      {vehicle} ×
+
+            {/* Vehicle filter */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'รถ' : 'Vehicle'}</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {vehicleFilters.map((vehicle) => (
+                  <FilterChip key={vehicle} active onClick={() => setVehicleFilters((current) => current.filter((item) => item !== vehicle))}>
+                    {vehicle} ×
+                  </FilterChip>
+                ))}
+                <input
+                  list="vehicle-options"
+                  value={vehicleQuery}
+                  onChange={(event) => setVehicleQuery(event.target.value)}
+                  placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถ' : 'No vehicles') : (lang === 'th' ? 'ค้นหารถ' : 'Search')}
+                  className={`${inputBase} !py-1 !text-xs !w-36`}
+                />
+                <datalist id="vehicle-options">{filteredVehicleOptions.map((vehicle) => <option key={vehicle} value={vehicle} />)}</datalist>
+                <button type="button"
+                  onClick={() => handleSearchAdd(vehicleQuery, (trimmed) => vehicleOptions.find((v) => v.toLowerCase() === trimmed.toLowerCase()), (matched) => setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setVehicleQuery(''))}
+                  className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-500">
+                  {lang === 'th' ? 'เพิ่ม' : 'Add'}
+                </button>
+                {vehicleFilters.length > 0 && (
+                  <button type="button" onClick={() => setVehicleFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                )}
+              </div>
+            </div>
+
+            {/* Driver filter */}
+            {driverOptions.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {driverFilters.map((driver) => (
+                    <FilterChip key={driver} active onClick={() => setDriverFilters((current) => current.filter((item) => item !== driver))}>
+                      {driver} ×
                     </FilterChip>
                   ))}
-                </div>
-                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                   <input
-                    list="vehicle-options"
-                    value={vehicleQuery}
-                    onChange={(event) => setVehicleQuery(event.target.value)}
-                    placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถให้เลือก' : 'No vehicles available') : (lang === 'th' ? 'ค้นหาเลขรถ' : 'Search vehicle number')}
-                    className={`${inputBase} !py-1 !text-xs sm:min-w-[220px] sm:!w-auto`}
+                    list="driver-options"
+                    value={driverQuery}
+                    onChange={(event) => setDriverQuery(event.target.value)}
+                    placeholder={lang === 'th' ? 'ค้นหาคนขับ' : 'Search'}
+                    className={`${inputBase} !py-1 !text-xs !w-36`}
                   />
-                  <datalist id="vehicle-options">
-                    {filteredVehicleOptions.map((vehicle) => (
-                      <option key={vehicle} value={vehicle} />
-                    ))}
-                  </datalist>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleSearchAdd(
-                        vehicleQuery,
-                        (trimmed) =>
-                          vehicleOptions.find((vehicle) => vehicle.toLowerCase() === trimmed.toLowerCase()),
-                        (matched) =>
-                          setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                        () => setVehicleQuery(''),
-                      )
-                    }
-                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-500"
-                  >
+                  <datalist id="driver-options">{filteredDriverOptions.map((driver) => <option key={driver} value={driver} />)}</datalist>
+                  <button type="button"
+                    onClick={() => handleSearchAdd(driverQuery, (trimmed) => driverOptions.find((d) => d.toLowerCase() === trimmed.toLowerCase()), (matched) => setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setDriverQuery(''))}
+                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-500">
                     {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
+                  {driverFilters.length > 0 && (
+                    <button type="button" onClick={() => setDriverFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                  )}
                 </div>
-              </FilterGroup>
-              {driverOptions.length > 0 ? (
-                <FilterGroup
-                  label={lang === 'th' ? 'กรองคนขับ' : 'Filter drivers'}
-                  lang={lang}
-                  onClear={() => setDriverFilters([])}
-                  count={driverFilters.length}
-                >
-                  <div className="flex flex-wrap gap-2">
-                    {driverFilters.map((driver) => (
-                      <FilterChip
-                        key={driver}
-                        active
-                        onClick={() => setDriverFilters((current) => current.filter((item) => item !== driver))}
-                      >
-                        {driver} ×
-                      </FilterChip>
-                    ))}
-                  </div>
-                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                    <input
-                      list="driver-options"
-                      value={driverQuery}
-                      onChange={(event) => setDriverQuery(event.target.value)}
-                      placeholder={driverOptions.length === 0 ? (lang === 'th' ? 'ไม่มีคนขับให้เลือก' : 'No drivers available') : (lang === 'th' ? 'ค้นหาชื่อคนขับ' : 'Search driver name')}
-                      className={`${inputBase} !py-1 !text-xs sm:min-w-[220px] sm:!w-auto`}
-                    />
-                    <datalist id="driver-options">
-                      {filteredDriverOptions.map((driver) => (
-                        <option key={driver} value={driver} />
-                      ))}
-                    </datalist>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleSearchAdd(
-                          driverQuery,
-                          (trimmed) =>
-                            driverOptions.find((driver) => driver.toLowerCase() === trimmed.toLowerCase()),
-                          (matched) =>
-                            setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                          () => setDriverQuery(''),
-                        )
-                      }
-                      className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-500"
-                    >
-                      {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                    </button>
-                  </div>
-                </FilterGroup>
-              ) : null}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="uppercase tracking-[0.2em] text-zinc-500">
-                  {lang === 'th' ? 'ประเภทแจ้งเตือน' : 'Alert type'}
-                </span>
+              </div>
+            )}
+
+            {/* Alert type chips */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ประเภท' : 'Alert type'}</span>
+              <div className="flex flex-wrap gap-1.5">
                 {remarkFilterOptions.map((option) => (
-                  <FilterChip
-                    key={option.value}
-                    active={remarkFilter === option.value}
-                    onClick={() => setRemarkFilter(option.value)}
-                  >
+                  <FilterChip key={option.value} active={remarkFilter === option.value} onClick={() => setRemarkFilter(option.value)}>
                     {option.label}
                   </FilterChip>
                 ))}
               </div>
             </div>
-          </section>
+
+            {/* Reset */}
+            {activeFilterCount > 0 && (
+              <div className="ml-auto flex items-end pb-0.5">
+                <button type="button" onClick={resetFilters} className="rounded-md px-2.5 py-1 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:hover:text-indigo-300">
+                  {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
+                </button>
+              </div>
+            )}
+          </FilterBar>
 
           {/* ── Daily alert trend (TrendChart) ───────────────────── */}
           <section className={dashboardSectionClass}>
@@ -679,12 +652,12 @@ export default function SimpleDashboard({
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className={heading2}>
-                  {lang === 'th' ? 'การแจ้งเตือนตามรถและคนขับ' : 'Alerts by vehicle and driver'}
+                  {lang === 'th' ? 'การแจ้งเตือนตามรถและวันที่' : 'Alerts by vehicle and date'}
                 </h2>
                 <p className={textSecondary}>
                   {lang === 'th'
-                    ? 'การแจ้งเตือน Eye Closing-A2 และ Yawning-A2 แยกตามง่วงนอน หาว และไม่สนใจ'
-                    : 'Eye Closing-A2 and Yawning-A2 alerts with fatigue, yawning, and distraction remarks.'}
+                    ? 'จำนวนการแจ้งเตือนรายวันแยกตามง่วงนอน หาว และไม่สนใจ'
+                    : 'Daily alert counts for fatigue, yawning, and distraction.'}
                 </p>
               </div>
             </div>
@@ -692,7 +665,7 @@ export default function SimpleDashboard({
               <DataTable
                 columns={tableColumns}
                 data={tableRows}
-                defaultSort={{ key: 'count', direction: 'desc' }}
+                defaultSort={{ key: 'sortDate', direction: 'desc' }}
                 ariaLabel={lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alert summary table'}
               />
             </div>

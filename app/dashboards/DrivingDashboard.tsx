@@ -13,8 +13,10 @@ import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import Sparkline from 'app/ui/Sparkline';
 import TrendIndicator from 'app/ui/TrendIndicator';
+import MonthPicker from 'app/ui/MonthPicker';
+import FilterBar from 'app/ui/FilterBar';
 import {
-  heading2, textSecondary, inputBase, selectBase,
+  heading2, textSecondary, selectBase,
 } from 'app/ui/design-tokens';
 
 type DashboardProps = {
@@ -73,8 +75,7 @@ export default function DrivingDashboard({
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
   const [driverFilter, setDriverFilter] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
 
   const normalizedOrganizationName = useMemo(() => (organizationName ? normalizeLabel(organizationName) : null), [organizationName]);
 
@@ -92,26 +93,22 @@ export default function DrivingDashboard({
   const driverOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.driver).filter((n) => n !== '—'))).sort(), [drivingRows]);
 
   const filteredRows = useMemo(() => {
-    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
-    const end = endDate ? new Date(`${endDate}T23:59:59`) : null;
     return drivingRows.filter((row) => {
       if (driverFilter && row.driver !== driverFilter) return false;
-      if (start && (!row.date || row.date < start)) return false;
-      if (end && (!row.date || row.date > end)) return false;
+      if (selectedMonth) {
+        if (!row.date) return false;
+        const rowMonth = getMonthKey(row.date);
+        if (rowMonth !== selectedMonth) return false;
+      }
       return true;
     });
-  }, [drivingRows, driverFilter, startDate, endDate]);
+  }, [drivingRows, driverFilter, selectedMonth]);
 
   // Active filter count for DashboardShell badge
-  const activeFilterCount = useMemo(() => [driverFilter, startDate, endDate].filter(Boolean).length, [driverFilter, startDate, endDate]);
+  const activeFilterCount = useMemo(() => [driverFilter, selectedMonth].filter(Boolean).length, [driverFilter, selectedMonth]);
 
   // Date range string for ExportButton
-  const dateRange = useMemo(() => {
-    if (startDate && endDate) return `${startDate}_${endDate}`;
-    if (startDate) return startDate;
-    if (endDate) return endDate;
-    return undefined;
-  }, [startDate, endDate]);
+  const dateRange = useMemo(() => selectedMonth || undefined, [selectedMonth]);
 
   // All months in filtered data (sorted)
   const allMonthKeys = useMemo(() => {
@@ -283,26 +280,22 @@ export default function DrivingDashboard({
     >
 
       {/* Filters */}
-      <section className={dashboardSectionClass}>
-        <h2 className={heading2}>{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
-        <div className="mt-3 grid gap-4 md:grid-cols-3">
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
-            <select value={driverFilter} onChange={(e) => setDriverFilter(e.target.value)} className={selectBase}>
-              <option value="">{lang === 'th' ? 'คนขับทั้งหมด' : 'All drivers'}</option>
-              {driverOptions.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'วันที่เริ่มต้น' : 'Start date'}</span>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputBase} />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'วันที่สิ้นสุด' : 'End date'}</span>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputBase} />
-          </label>
+      <FilterBar>
+        {/* Driver select */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
+          <select value={driverFilter} onChange={(e) => setDriverFilter(e.target.value)} className={`${selectBase} !py-1.5 !text-xs`}>
+            <option value="">{lang === 'th' ? 'คนขับทั้งหมด' : 'All drivers'}</option>
+            {driverOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
         </div>
-      </section>
+
+        {/* Month picker */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'เดือน' : 'Month'}</span>
+          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
+        </div>
+      </FilterBar>
 
       {/* KPI Row */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

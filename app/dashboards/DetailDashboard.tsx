@@ -6,7 +6,6 @@ import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
-import FilterGroup from './FilterGroup';
 import LoadingState from './LoadingState';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
@@ -42,6 +41,7 @@ import {
   badgeInfo,
   CHART_COLORS,
 } from 'app/ui/design-tokens';
+import FilterBar from 'app/ui/FilterBar';
 
 // Sub-components
 import AlertTimeline, { type TimelineEntry } from './AlertTimeline';
@@ -741,298 +741,153 @@ export default function DetailDashboard({
           </section>
 
           {/* ── Filters ── */}
-          <section className={dashboardSectionClass}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className={heading2}>{lang === 'th' ? 'ตัวกรอง' : 'Filters'}</h2>
-                <p className={`mt-1 ${textSecondary}`}>
-                  {lang === 'th' ? 'กรองการแจ้งเตือนตามประเภทการแจ้งเตือน เดือน ฟลีท หรือรถ' : 'Narrow alerts by alert type, month, fleet, or vehicle.'}
-                </p>
+          <FilterBar>
+            {/* Month filter */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'เดือน' : 'Months'}</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {monthFilters.map((monthKey) => {
+                  const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
+                  return (
+                    <FilterChip key={monthKey} active onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}>
+                      {monthLabel} &times;
+                    </FilterChip>
+                  );
+                })}
+                <input list="month-options" value={monthSearch} onChange={(event) => setMonthSearch(event.target.value)}
+                  placeholder={monthOptions.length === 0 ? (lang === 'th' ? 'ไม่มีเดือน' : 'No months') : (lang === 'th' ? 'ค้นหาเดือน' : 'Search')}
+                  className={`${inputBase} !py-1 !text-xs !w-32`} />
+                <datalist id="month-options">{filteredMonthOptions.map((option) => <option key={option.key} value={option.label} />)}</datalist>
+                <button type="button"
+                  onClick={() => handleSearchAdd(monthSearch, (trimmed) => monthOptions.find((option) => option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed)), (matched) => setMonthFilters((current) => current.includes(matched.key) ? current : [...current, matched.key]), () => setMonthSearch(''))}
+                  className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
+                  {lang === 'th' ? 'เพิ่ม' : 'Add'}
+                </button>
+                {monthFilters.length > 0 && (
+                  <button type="button" onClick={() => setMonthFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
-              >
-                {lang === 'th' ? 'รีเซ็ตตัวกรอง' : 'Reset filters'}
-              </button>
             </div>
-            <div className="mt-4 space-y-3 text-xs text-zinc-600 dark:text-zinc-300">
-              {/* Month filter */}
-              <FilterGroup
-                label={lang === 'th' ? 'กรองเดือน' : 'Filter months'}
-                lang={lang}
-                onClear={() => setMonthFilters([])}
-                count={monthFilters.length}
-              >
-                <div className="flex flex-wrap gap-2">
-                  {monthFilters.map((monthKey) => {
-                    const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
-                    return (
-                      <FilterChip
-                        key={monthKey}
-                        active
-                        onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}
-                      >
-                        {monthLabel} &times;
-                      </FilterChip>
-                    );
-                  })}
-                </div>
-                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                  <input
-                    list="month-options"
-                    value={monthSearch}
-                    onChange={(event) => setMonthSearch(event.target.value)}
-                    placeholder={monthOptions.length === 0 ? (lang === 'th' ? 'ไม่มีเดือนให้เลือก' : 'No months available') : (lang === 'th' ? 'ค้นหาเดือน' : 'Search months')}
-                    className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
-                  />
-                  <datalist id="month-options">
-                    {filteredMonthOptions.map((option) => (
-                      <option key={option.key} value={option.label} />
-                    ))}
-                  </datalist>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleSearchAdd(
-                        monthSearch,
-                        (trimmed) =>
-                          monthOptions.find(
-                            (option) =>
-                              option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed),
-                          ),
-                        (matched) =>
-                          setMonthFilters((current) =>
-                            current.includes(matched.key) ? current : [...current, matched.key],
-                          ),
-                        () => setMonthSearch(''),
-                      )
-                    }
-                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
-                  >
-                    {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                  </button>
-                </div>
-              </FilterGroup>
 
-              {/* Fleet filter (hidden when scoped to organization) */}
-              {organizationName ? null : (
-                <FilterGroup
-                  label={lang === 'th' ? 'กรองฟลีท' : 'Filter fleets'}
-                  lang={lang}
-                  onClear={() => setFleetFilters([])}
-                  count={fleetFilters.length}
-                >
-                  <div className="flex flex-wrap gap-2">
-                    {fleetFilters.map((fleet) => (
-                      <FilterChip
-                        key={fleet}
-                        active
-                        onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}
-                      >
-                        {fleet} &times;
-                      </FilterChip>
-                    ))}
-                  </div>
-                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                    <input
-                      list="fleet-options"
-                      value={fleetSearch}
-                      onChange={(event) => setFleetSearch(event.target.value)}
-                      placeholder={fleetOptions.length === 0 ? (lang === 'th' ? 'ไม่มีฟลีทให้เลือก' : 'No fleets available') : (lang === 'th' ? 'ค้นหาฟลีท' : 'Search fleets')}
-                      className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
-                    />
-                    <datalist id="fleet-options">
-                      {filteredFleetOptions.map((option) => (
-                        <option key={option} value={option} />
-                      ))}
-                    </datalist>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleSearchAdd(
-                          fleetSearch,
-                          (trimmed) => fleetOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
-                          (matched) =>
-                            setFleetFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                          () => setFleetSearch(''),
-                        )
-                      }
-                      className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
-                    >
-                      {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                    </button>
-                  </div>
-                </FilterGroup>
-              )}
-
-              {/* Alert type filter */}
-              <FilterGroup
-                label={lang === 'th' ? 'กรองประเภทการแจ้งเตือน' : 'Filter alert types'}
-                lang={lang}
-                onClear={() => setRemarkFilters([])}
-                count={remarkFilters.length}
-              >
-                <div className="flex flex-wrap gap-2">
-                  {remarkFilters.map((remark) => (
-                    <FilterChip
-                      key={remark}
-                      active
-                      onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}
-                    >
-                      {remark} &times;
+            {/* Fleet filter */}
+            {!organizationName && (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ฟลีท' : 'Fleets'}</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {fleetFilters.map((fleet) => (
+                    <FilterChip key={fleet} active onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}>
+                      {fleet} &times;
                     </FilterChip>
                   ))}
-                </div>
-                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                  <input
-                    list="remark-options"
-                    value={remarkSearch}
-                    onChange={(event) => setRemarkSearch(event.target.value)}
-                    placeholder={remarkOptions.length === 0 ? (lang === 'th' ? 'ไม่มีประเภทการแจ้งเตือนให้เลือก' : 'No alert types available') : (lang === 'th' ? 'ค้นหาประเภทการแจ้งเตือน' : 'Search alert types')}
-                    className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
-                  />
-                  <datalist id="remark-options">
-                    {filteredRemarkOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
-                  </datalist>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleSearchAdd(
-                        remarkSearch,
-                        (trimmed) =>
-                          remarkOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
-                        (matched) =>
-                          setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                        () => setRemarkSearch(''),
-                      )
-                    }
-                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
-                  >
+                  <input list="fleet-options" value={fleetSearch} onChange={(event) => setFleetSearch(event.target.value)}
+                    placeholder={fleetOptions.length === 0 ? (lang === 'th' ? 'ไม่มีฟลีท' : 'No fleets') : (lang === 'th' ? 'ค้นหาฟลีท' : 'Search')}
+                    className={`${inputBase} !py-1 !text-xs !w-32`} />
+                  <datalist id="fleet-options">{filteredFleetOptions.map((option) => <option key={option} value={option} />)}</datalist>
+                  <button type="button"
+                    onClick={() => handleSearchAdd(fleetSearch, (trimmed) => fleetOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)), (matched) => setFleetFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setFleetSearch(''))}
+                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
                     {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
+                  {fleetFilters.length > 0 && (
+                    <button type="button" onClick={() => setFleetFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                  )}
                 </div>
-              </FilterGroup>
+              </div>
+            )}
 
-              {/* Vehicle filter */}
-              <FilterGroup
-                label={lang === 'th' ? 'กรองรถ' : 'Filter vehicles'}
-                lang={lang}
-                onClear={() => setVehicleFilters([])}
-                count={vehicleFilters.length}
-              >
-                <div className="flex flex-wrap gap-2">
-                  {vehicleFilters.map((vehicle) => (
-                    <FilterChip
-                      key={vehicle}
-                      active
-                      onClick={() => setVehicleFilters((current) => current.filter((value) => value !== vehicle))}
-                    >
-                      {vehicle} &times;
+            {/* Alert type filter */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ประเภทแจ้งเตือน' : 'Alert type'}</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {remarkFilters.map((remark) => (
+                  <FilterChip key={remark} active onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}>
+                    {remark} &times;
+                  </FilterChip>
+                ))}
+                <input list="remark-options" value={remarkSearch} onChange={(event) => setRemarkSearch(event.target.value)}
+                  placeholder={remarkOptions.length === 0 ? (lang === 'th' ? 'ไม่มีประเภท' : 'No types') : (lang === 'th' ? 'ค้นหา' : 'Search')}
+                  className={`${inputBase} !py-1 !text-xs !w-32`} />
+                <datalist id="remark-options">{filteredRemarkOptions.map((option) => <option key={option} value={option} />)}</datalist>
+                <button type="button"
+                  onClick={() => handleSearchAdd(remarkSearch, (trimmed) => remarkOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)), (matched) => setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setRemarkSearch(''))}
+                  className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
+                  {lang === 'th' ? 'เพิ่ม' : 'Add'}
+                </button>
+                {remarkFilters.length > 0 && (
+                  <button type="button" onClick={() => setRemarkFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                )}
+              </div>
+            </div>
+
+            {/* Vehicle filter */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'รถ' : 'Vehicle'}</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {vehicleFilters.map((vehicle) => (
+                  <FilterChip key={vehicle} active onClick={() => setVehicleFilters((current) => current.filter((value) => value !== vehicle))}>
+                    {vehicle} &times;
+                  </FilterChip>
+                ))}
+                <input list="vehicle-options" value={vehicleSearch} onChange={(event) => setVehicleSearch(event.target.value)}
+                  placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถ' : 'No vehicles') : (lang === 'th' ? 'ค้นหารถ' : 'Search')}
+                  className={`${inputBase} !py-1 !text-xs !w-32`} />
+                <datalist id="vehicle-options">{filteredVehicleOptions.map((option) => <option key={option} value={option} />)}</datalist>
+                <button type="button"
+                  onClick={() => handleSearchAdd(vehicleSearch, (trimmed) => vehicleOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)), (matched) => setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setVehicleSearch(''))}
+                  className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
+                  {lang === 'th' ? 'เพิ่ม' : 'Add'}
+                </button>
+                {vehicleFilters.length > 0 && (
+                  <button type="button" onClick={() => setVehicleFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                )}
+              </div>
+            </div>
+
+            {/* Driver filter */}
+            {driverOptions.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {driverFilters.map((driver) => (
+                    <FilterChip key={driver} active onClick={() => setDriverFilters((current) => current.filter((value) => value !== driver))}>
+                      {driver} &times;
                     </FilterChip>
                   ))}
-                </div>
-                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                  <input
-                    list="vehicle-options"
-                    value={vehicleSearch}
-                    onChange={(event) => setVehicleSearch(event.target.value)}
-                    placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถให้เลือก' : 'No vehicles available') : (lang === 'th' ? 'ค้นหารถ' : 'Search vehicles')}
-                    className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
-                  />
-                  <datalist id="vehicle-options">
-                    {filteredVehicleOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
-                  </datalist>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleSearchAdd(
-                        vehicleSearch,
-                        (trimmed) =>
-                          vehicleOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
-                        (matched) =>
-                          setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                        () => setVehicleSearch(''),
-                      )
-                    }
-                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
-                  >
+                  <input list="driver-options" value={driverSearch} onChange={(event) => setDriverSearch(event.target.value)}
+                    placeholder={lang === 'th' ? 'ค้นหาคนขับ' : 'Search'}
+                    className={`${inputBase} !py-1 !text-xs !w-32`} />
+                  <datalist id="driver-options">{filteredDriverOptions.map((option) => <option key={option} value={option} />)}</datalist>
+                  <button type="button"
+                    onClick={() => handleSearchAdd(driverSearch, (trimmed) => driverOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)), (matched) => setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setDriverSearch(''))}
+                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
                     {lang === 'th' ? 'เพิ่ม' : 'Add'}
                   </button>
+                  {driverFilters.length > 0 && (
+                    <button type="button" onClick={() => setDriverFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
+                  )}
                 </div>
-              </FilterGroup>
+              </div>
+            )}
 
-              {/* Driver filter */}
-              {driverOptions.length > 0 ? (
-                <FilterGroup
-                  label={lang === 'th' ? 'กรองคนขับ' : 'Filter drivers'}
-                  lang={lang}
-                  onClear={() => setDriverFilters([])}
-                  count={driverFilters.length}
-                >
-                  <div className="flex flex-wrap gap-2">
-                    {driverFilters.map((driver) => (
-                      <FilterChip
-                        key={driver}
-                        active
-                        onClick={() => setDriverFilters((current) => current.filter((value) => value !== driver))}
-                      >
-                        {driver} &times;
-                      </FilterChip>
-                    ))}
-                  </div>
-                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                    <input
-                      list="driver-options"
-                      value={driverSearch}
-                      onChange={(event) => setDriverSearch(event.target.value)}
-                      placeholder={driverOptions.length === 0 ? (lang === 'th' ? 'ไม่มีคนขับให้เลือก' : 'No drivers available') : (lang === 'th' ? 'ค้นหาคนขับ' : 'Search drivers')}
-                      className={`${inputBase} sm:min-w-[220px] sm:w-auto`}
-                    />
-                    <datalist id="driver-options">
-                      {filteredDriverOptions.map((option) => (
-                        <option key={option} value={option} />
-                      ))}
-                    </datalist>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleSearchAdd(
-                          driverSearch,
-                          (trimmed) =>
-                            driverOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)),
-                          (matched) =>
-                            setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])),
-                          () => setDriverSearch(''),
-                        )
-                      }
-                      className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500"
-                    >
-                      {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                    </button>
-                  </div>
-                </FilterGroup>
-              ) : null}
-
-              {/* Options / excluded toggle */}
-              <FilterGroup
-                label={lang === 'th' ? 'ตัวกรองเพิ่มเติม' : 'Options'}
-                lang={lang}
-              >
-                <FilterChip
-                  active={showExcluded}
-                  onClick={() => setShowExcluded((prev) => !prev)}
-                >
+            {/* Options toggle + Reset */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ตัวเลือก' : 'Options'}</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <FilterChip active={showExcluded} onClick={() => setShowExcluded((prev) => !prev)}>
                   {lang === 'th' ? 'แสดงการแจ้งเตือนที่ซ่อน' : 'Show excluded alerts'}
                 </FilterChip>
-              </FilterGroup>
+              </div>
             </div>
-          </section>
+
+            {/* Reset */}
+            {activeFilterCount > 0 && (
+              <div className="ml-auto flex items-end pb-0.5">
+                <button type="button" onClick={resetFilters} className="rounded-md px-2.5 py-1 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:hover:text-indigo-300">
+                  {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
+                </button>
+              </div>
+            )}
+          </FilterBar>
 
           {/* ── Daily alert trend (TrendChart) ── */}
           <section className={dashboardSectionClass}>

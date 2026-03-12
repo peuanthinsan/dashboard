@@ -16,10 +16,10 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
   const getColor = (count: number) => {
     if (count === 0) return 'bg-zinc-100 dark:bg-zinc-800';
     const intensity = count / Math.max(1, maxCount);
-    if (intensity > 0.75) return 'bg-red-500 dark:bg-red-500';
+    if (intensity > 0.75) return 'bg-rose-500 dark:bg-rose-500';
     if (intensity > 0.5) return 'bg-orange-400 dark:bg-orange-400';
     if (intensity > 0.25) return 'bg-amber-300 dark:bg-amber-400';
-    return 'bg-emerald-300 dark:bg-emerald-600';
+    return 'bg-sky-300 dark:bg-sky-500';
   };
 
   // Secondary visual cue: symbol shown inside cell when count > 0
@@ -56,7 +56,7 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
                 return (
                   <div
                     key={`${di}-${h}`}
-                    className={`relative flex h-4 w-4 items-center justify-center rounded-sm ${getColor(count)} transition-colors`}
+                    className={`relative flex h-5 w-5 items-center justify-center rounded-sm ${getColor(count)} transition-all hover:scale-125 hover:z-10`}
                     title={`${day} ${String(h).padStart(2, '0')}:00 — ${count} alert${count !== 1 ? 's' : ''}`}
                     aria-label={`${day} ${String(h).padStart(2, '0')}:00, ${count} alert${count !== 1 ? 's' : ''}`}
                   >
@@ -78,10 +78,10 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
           <span>Less</span>
           <div className="flex gap-0.5">
             <div className="h-3 w-3 rounded-sm bg-zinc-100 dark:bg-zinc-800" title="0 alerts" />
-            <div className="h-3 w-3 rounded-sm bg-emerald-300 dark:bg-emerald-600" title="Low" />
+            <div className="h-3 w-3 rounded-sm bg-sky-300 dark:bg-sky-500" title="Low" />
             <div className="h-3 w-3 rounded-sm bg-amber-300 dark:bg-amber-400" title="Moderate" />
             <div className="h-3 w-3 rounded-sm bg-orange-400" title="High" />
-            <div className="h-3 w-3 rounded-sm bg-red-500" title="Very high" />
+            <div className="h-3 w-3 rounded-sm bg-rose-500" title="Very high" />
           </div>
           <span>More</span>
         </div>
