@@ -261,7 +261,10 @@ export const getDashboardsForUser = cache(async ({
       }
       return and(
         eq(dashboards.companyId, companyId),
-        inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
+        or(
+          isNull(dashboards.organizationId),
+          inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
+        ),
       );
     });
 
@@ -293,7 +296,10 @@ export const getDashboardsForUser = cache(async ({
     if (scopedOrganizationIds.length === 0) {
       return and(eq(dashboards.companyId, companyId), isNull(dashboards.organizationId));
     }
-    return and(eq(dashboards.companyId, companyId), inArray(dashboards.organizationId, scopedOrganizationIds));
+    return and(
+      eq(dashboards.companyId, companyId),
+      or(isNull(dashboards.organizationId), inArray(dashboards.organizationId, scopedOrganizationIds)),
+    );
   });
 
   if (visibilityFilters.length === 0) {
