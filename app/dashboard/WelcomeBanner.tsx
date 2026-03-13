@@ -31,16 +31,11 @@ export default function WelcomeBanner({ email, dashboardCount, lang }: WelcomeBa
               {lang === 'th' ? 'ยินดีต้อนรับกลับ' : 'Welcome back'}
             </p>
             <h1 className="mt-0.5 text-xl font-bold tracking-tight text-white">{email}</h1>
-            <div className="mt-2 flex items-center gap-2 text-sm text-zinc-400">
-              <svg className="h-3.5 w-3.5 text-red-500/60" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-              </svg>
-              <span>
-                {lang === 'th'
-                  ? `${dashboardCount} แดชบอร์ดพร้อมใช้งาน · กรุงเทพมหานคร`
-                  : `${dashboardCount} dashboard${dashboardCount !== 1 ? 's' : ''} · Bangkok, Thailand`}
-              </span>
-            </div>
+            <p className="mt-2 text-sm text-zinc-400">
+              {lang === 'th'
+                ? `${dashboardCount} แดชบอร์ดพร้อมใช้งาน`
+                : `${dashboardCount} dashboard${dashboardCount !== 1 ? 's' : ''} available`}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">

@@ -75,7 +75,7 @@ export default function Login() {
             <SongdeeLogo height={44} />
           </div>
           <p className="mt-3 text-sm font-medium text-zinc-400">
-            Fleet Safety Intelligence · กรุงเทพมหานคร
+            Fleet Safety Intelligence
           </p>
         </div>
 
@@ -106,7 +106,7 @@ export default function Login() {
 
         <div className="relative">
           <p className="text-xs text-zinc-600">
-            © 2026 SongdeeGPS — ส่งดีจีพีเอส · กรุงเทพมหานคร
+            © 2026 SongdeeGPS — ส่งดีจีพีเอส
           </p>
         </div>
       </div>
