@@ -583,7 +583,7 @@ export default function DrivingDashboard({
         )}
       </section>
 
-      {/* Rest Hours vs Cnt Drv Hours per driver */}
+      {/* Rest Hours vs Cnt Drv Hours per driver — grouped bars */}
       <section className={dashboardSectionClass}>
         <h2 className={heading2}>{lang === 'th' ? 'ชม.พัก vs ชม.ขับ (ตามคนขับ)' : 'Rest Hr vs Cnt Drv Hr (by driver)'}</h2>
         <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'เปรียบเทียบชั่วโมงพักผ่อนและขับต่อเนื่อง' : 'Compare rest hours against continuous driving hours per driver.'}</p>
@@ -592,7 +592,7 @@ export default function DrivingDashboard({
         ) : (
           <TrendChart
             className="mt-4"
-            mode="dual-axis"
+            mode="bar"
             height={300}
             data={restVsCntDrvByDriver.map((d) => ({
               label: d.driver.length > 12 ? d.driver.slice(0, 12) + '…' : d.driver,
@@ -606,39 +606,16 @@ export default function DrivingDashboard({
         )}
       </section>
 
-      {/* Monthly Cnt Drv Hours & Rest Hours */}
-      <section className={dashboardSectionClass}>
-        <h2 className={heading2}>{lang === 'th' ? 'ชม.ขับต่อเนื่องรายเดือน' : 'Monthly driving hours'}</h2>
-        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'แท่ง = ชม.ขับต่อเนื่อง, เส้น = ระยะทาง — 8 เดือนล่าสุด' : 'Bars = cnt drv hours, line = distance — last 8 months.'}</p>
-        {monthlyTrend.length === 0 ? (
-          <div className="mt-4"><EmptyState title="No dated trip data" /></div>
-        ) : (
-          <TrendChart
-            className="mt-4"
-            mode="dual-axis"
-            height={280}
-            data={monthlyTrend.map((p) => ({
-              label: p.monthLabel,
-              values: {
-                [lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr']: Math.round(p.totalCntDrvDurationHours * 100) / 100,
-                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(p.totalDistanceKm * 10) / 10,
-              },
-            }))}
-            ariaLabel={lang === 'th' ? 'ชม.ขับต่อเนื่องรายเดือน' : 'Monthly continuous driving hours trend'}
-          />
-        )}
-      </section>
-
-      {/* Vehicle Distance & Duration */}
+      {/* Vehicle Distance & Duration — grouped bars */}
       <section className={dashboardSectionClass}>
         <h2 className={heading2}>{lang === 'th' ? 'ระยะทาง & ชม.ขับ ตามยานพาหนะ' : 'Distance & Duration by vehicle'}</h2>
-        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'เรียงตามระยะทางสูงสุด — แท่ง = ระยะทาง, เส้น = ชม.ขับ' : 'Sorted by distance — bars = distance, line = driving hours.'}</p>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'เรียงตามระยะทางสูงสุด' : 'Sorted by highest distance.'}</p>
         {vehicleBarData.length === 0 ? (
           <div className="mt-4"><EmptyState title="No vehicle data" /></div>
         ) : (
           <TrendChart
             className="mt-4"
-            mode="dual-axis"
+            mode="bar"
             height={300}
             data={vehicleBarData.map((v) => ({
               label: v.vehicle.length > 12 ? v.vehicle.slice(0, 12) + '…' : v.vehicle,
@@ -652,14 +629,14 @@ export default function DrivingDashboard({
         )}
       </section>
 
-      {/* Driver Efficiency — avg km/trip (bars) + trip count (line) */}
+      {/* Driver Efficiency — line chart */}
       {driverEfficiency.length > 0 && (
         <section className={dashboardSectionClass}>
           <h2 className={heading2}>{lang === 'th' ? 'ประสิทธิภาพคนขับ' : 'Driver efficiency'}</h2>
-          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'แท่ง = เฉลี่ย km/ทริป, เส้น = จำนวนทริป (≥2 ทริป)' : 'Bars = avg km/trip, line = trip count (drivers with ≥2 trips).'}</p>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'เฉลี่ย km/ทริป และจำนวนทริป (≥2 ทริป)' : 'Avg km/trip and trip count (drivers with ≥2 trips).'}</p>
           <TrendChart
             className="mt-4"
-            mode="dual-axis"
+            mode="line"
             height={280}
             data={driverEfficiency.map((d) => ({
               label: d.driver.length > 12 ? d.driver.slice(0, 12) + '…' : d.driver,
