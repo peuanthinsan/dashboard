@@ -322,18 +322,8 @@ export default function SummaryDashboard({
         />
       ) : (
         <div className="flex flex-col gap-6">
-          {/* KPI Row — 4 cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total Alerts'} value={currentRows.length}
-              trend={activeMonthKey ? { value: previousRows.length === 0 ? 0 : Math.round(((currentRows.length - previousRows.length) / Math.max(1, previousRows.length)) * 100), label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month' } : undefined} />
-            <div className={`${dashboardSectionClass} flex items-center justify-center`}>
-              <SafetyScore score={safetyScore} size={100} />
-            </div>
-            <KpiCard label={lang === 'th' ? 'ยานพาหนะ' : 'Vehicles'} value={uniqueVehicles} subtitle={lang === 'th' ? 'ยานพาหนะที่ใช้งาน' : 'Active vehicles'} />
-            <KpiCard label={lang === 'th' ? 'คนขับ' : 'Drivers'} value={uniqueDrivers} subtitle={lang === 'th' ? 'คนขับที่ใช้งาน' : 'Active drivers'} />
-          </div>
 
-          {/* Filters — Month + Fleet only */}
+          {/* ① Filters — set context first */}
           <FilterBar>
             <InlineMonthPicker
               value={monthFilters}
@@ -357,65 +347,102 @@ export default function SummaryDashboard({
             )}
           </FilterBar>
 
-          {/* Alert Type Highlights */}
-          <section className={dashboardSectionClass}>
-            <div>
-              <h2 className={heading2}>{lang === 'th' ? 'สรุปไฮไลต์ประเภทการแจ้งเตือน' : 'Alert type highlights'}</h2>
-              <p className={textSecondary}>
-                {activeMonthKey
-                  ? (lang === 'th' ? `แสดงยอดรวมของ ${activeMonthLabel} พร้อมเปรียบเทียบเดือนก่อน` : `Showing ${activeMonthLabel} totals with change vs last month.`)
-                  : (lang === 'th' ? `แสดงยอดรวมของ ${activeMonthLabel}` : `Showing ${activeMonthLabel} totals.`)}
-              </p>
+          {/* ② Overview — headline numbers + safety score */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+              label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total Alerts'}
+              value={currentRows.length}
+              accentColor="#DC2626"
+              trend={activeMonthKey ? { value: previousRows.length === 0 ? 0 : Math.round(((currentRows.length - previousRows.length) / Math.max(1, previousRows.length)) * 100), label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month' } : undefined}
+            />
+            <div className={`${dashboardSectionClass} flex flex-col items-center justify-center gap-2`}>
+              <SafetyScore score={safetyScore} size={90} />
+              {activeMonthKey && prevSafetyScore !== safetyScore && (
+                <TrendIndicator current={safetyScore} previous={prevSafetyScore} suffix={lang === 'th' ? 'เทียบเดือนก่อน' : 'vs prior'} invertColor />
+              )}
             </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <KpiCard label={lang === 'th' ? 'ยานพาหนะ' : 'Vehicles'} value={uniqueVehicles} subtitle={lang === 'th' ? 'ยานพาหนะที่ใช้งาน' : 'Active vehicles'} />
+            <KpiCard label={lang === 'th' ? 'คนขับ' : 'Drivers'} value={uniqueDrivers} subtitle={lang === 'th' ? 'คนขับที่ใช้งาน' : 'Active drivers'} />
+          </div>
+
+          {/* ③ Monthly Trend — full-width, sets the narrative arc */}
+          <section className={dashboardSectionClass}>
+            <h2 className={heading2}>{lang === 'th' ? 'แนวโน้มรายเดือน' : 'Monthly alert trend'}</h2>
+            <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'จำนวนการแจ้งเตือนรายเดือน' : 'Alert count over time.'}</p>
+            <TrendChart className="mt-4" data={monthlyTrendData} mode="line" height={240} />
+          </section>
+
+          {/* ═══ Alert Breakdown ═══ */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-red-200 dark:bg-red-900" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-red-600 dark:text-red-400">
+              {lang === 'th' ? 'วิเคราะห์การแจ้งเตือน' : 'Alert Breakdown'}
+            </h2>
+            <div className="h-px flex-1 bg-red-200 dark:bg-red-900" />
+          </div>
+
+          {/* ④ Heatmap + Alert Type donut — when & what */}
+          <div className="grid gap-6 lg:grid-cols-5">
+            <section className={`${dashboardSectionClass} lg:col-span-3`}>
+              <h2 className={heading2}>{lang === 'th' ? 'ช่วงเวลาที่เกิดการแจ้งเตือน' : 'Alert timing heatmap'}</h2>
+              <p className={`mt-1 mb-4 ${textSecondary}`}>{lang === 'th' ? 'ความถี่ตามวันและเวลา' : 'Frequency by day and hour.'}</p>
+              <AlertHeatmap dates={heatmapDates} />
+            </section>
+            <section className={`${dashboardSectionClass} lg:col-span-2`}>
+              <h2 className={heading2}>{lang === 'th' ? 'สัดส่วนประเภท' : 'By alert type'}</h2>
+              <div className="mt-4">
+                <DonutChart data={remarkSummary.map((r) => ({ label: r.label, value: r.total }))} centerLabel={lang === 'th' ? 'แจ้งเตือน' : 'alerts'} size={150} />
+              </div>
+            </section>
+          </div>
+
+          {/* ⑤ Alert Type Highlights — detailed counts */}
+          <section className={dashboardSectionClass}>
+            <h2 className={heading2}>
+              {lang === 'th' ? 'ไฮไลต์ประเภทการแจ้งเตือน' : 'Alert type highlights'}
+            </h2>
+            <p className={`mt-1 ${textSecondary}`}>
+              {activeMonthKey
+                ? (lang === 'th' ? `${activeMonthLabel} — เปรียบเทียบเดือนก่อน` : `${activeMonthLabel} — compared to prior month.`)
+                : (lang === 'th' ? `${activeMonthLabel}` : `${activeMonthLabel} totals.`)}
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {highlightItems.map((item, idx) => {
                 const accentColor = CHART_COLORS[idx % CHART_COLORS.length];
                 return (
                   <div
                     key={item.label}
-                    className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900"
+                    className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900"
                     style={{ borderLeft: `3px solid ${accentColor}` }}
                   >
-                    <div className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-                      <span
-                        className="inline-block h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: accentColor }}
-                        aria-hidden="true"
-                      />
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                      <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: accentColor }} />
                       {item.label}
                     </div>
-                    <div
-                      className="mt-2 text-3xl font-bold tabular-nums tracking-tight"
-                      style={{ color: accentColor }}
-                    >
+                    <div className="mt-1 text-2xl font-bold tabular-nums tracking-tight" style={{ color: accentColor }}>
                       {item.current}
                     </div>
-                    {activeMonthKey ? (
-                      <div className="mt-2">
-                        <TrendIndicator current={item.current} previous={item.previous} suffix={lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month'} />
+                    {activeMonthKey && (
+                      <div className="mt-1">
+                        <TrendIndicator current={item.current} previous={item.previous} suffix={lang === 'th' ? 'เทียบเดือนก่อน' : 'vs prior'} />
                       </div>
-                    ) : null}
+                    )}
                   </div>
                 );
               })}
             </div>
           </section>
 
-          {/* Temporal Patterns: Heatmap + Monthly Trend + Leaderboards */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <section className={dashboardSectionClass}>
-              <h2 className={heading2}>{lang === 'th' ? 'ช่วงเวลาที่เกิดการแจ้งเตือน' : 'Alert timing heatmap'}</h2>
-              <p className={`mb-4 ${textSecondary}`}>{lang === 'th' ? 'แสดงความถี่ตามวันและเวลา' : 'Alert frequency by day and hour.'}</p>
-              <AlertHeatmap dates={heatmapDates} />
-            </section>
-            <section className={dashboardSectionClass}>
-              <h2 className={heading2}>{lang === 'th' ? 'แนวโน้มรายเดือน' : 'Monthly alert trend'}</h2>
-              <p className={`mb-4 ${textSecondary}`}>{lang === 'th' ? 'จำนวนการแจ้งเตือนรายเดือน' : 'Alert count over time by month.'}</p>
-              <TrendChart data={monthlyTrendData} mode="line" height={260} />
-            </section>
+          {/* ═══ People & Vehicles ═══ */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+              {lang === 'th' ? 'คนขับและยานพาหนะ' : 'Drivers & Vehicles'}
+            </h2>
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
           </div>
 
-          {/* Driver Leaderboards */}
+          {/* ⑥ Driver Leaderboards */}
           <div className="grid gap-6 lg:grid-cols-2">
             <section className={dashboardSectionClass}>
               <DriverLeaderboard drivers={driverLeaderboardData} title={lang === 'th' ? 'คนขับที่ปลอดภัยที่สุด' : 'Safest Drivers'} variant="safest" />
@@ -425,54 +452,55 @@ export default function SummaryDashboard({
             </section>
           </div>
 
-          {/* Analytics Charts — V2: alert type, vehicle, driver donuts */}
-          <div className="grid gap-6 lg:grid-cols-3">
+          {/* ⑦ Vehicle + Driver donuts */}
+          <div className="grid gap-6 lg:grid-cols-2">
             <section className={dashboardSectionClass}>
-              <h2 className={`mb-4 ${heading2}`}>{lang === 'th' ? 'สัดส่วนประเภท' : 'By alert type'}</h2>
-              <DonutChart data={remarkSummary.map((r) => ({ label: r.label, value: r.total }))} centerLabel={lang === 'th' ? 'แจ้งเตือน' : 'alerts'} />
+              <h2 className={heading2}>{lang === 'th' ? 'สัดส่วนตามยานพาหนะ' : 'Alerts by vehicle'}</h2>
+              <div className="mt-4">
+                <DonutChart data={vehicleSummary.slice(0, 8).map((r) => ({ label: r.label, value: r.total }))} centerLabel={lang === 'th' ? 'แจ้งเตือน' : 'alerts'} size={140} />
+              </div>
             </section>
             <section className={dashboardSectionClass}>
-              <h2 className={`mb-4 ${heading2}`}>{lang === 'th' ? 'สัดส่วนรถ' : 'By vehicle'}</h2>
-              <DonutChart data={vehicleSummary.slice(0, 8).map((r) => ({ label: r.label, value: r.total }))} centerLabel={lang === 'th' ? 'แจ้งเตือน' : 'alerts'} />
-            </section>
-            <section className={dashboardSectionClass}>
-              <h2 className={`mb-4 ${heading2}`}>{lang === 'th' ? 'สัดส่วนคนขับ' : 'By driver'}</h2>
-              <DonutChart data={driverSummary.slice(0, 8).map((r) => ({ label: r.label, value: r.total }))} centerLabel={lang === 'th' ? 'แจ้งเตือน' : 'alerts'} />
+              <h2 className={heading2}>{lang === 'th' ? 'สัดส่วนตามคนขับ' : 'Alerts by driver'}</h2>
+              <div className="mt-4">
+                <DonutChart data={driverSummary.slice(0, 8).map((r) => ({ label: r.label, value: r.total }))} centerLabel={lang === 'th' ? 'แจ้งเตือน' : 'alerts'} size={140} />
+              </div>
             </section>
           </div>
 
-          {/* Monthly Comparisons */}
+          {/* ═══ Deep Dive ═══ */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+              {lang === 'th' ? 'เจาะลึกรายเดือน' : 'Monthly Deep Dive'}
+            </h2>
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+          </div>
+
+          {/* ⑧ Monthly Comparisons */}
           <section className={dashboardSectionClass}>
-            <div>
-              <h2 className={heading2}>{lang === 'th' ? 'เปรียบเทียบรายเดือน' : 'Monthly comparison by alert type'}</h2>
-              <p className={textSecondary}>{lang === 'th' ? 'เปรียบเทียบทุกเดือนของแต่ละประเภท' : 'Compare every month for each alert type.'}</p>
-            </div>
-            <div className="mt-5 grid gap-6 xl:grid-cols-3">
-              {monthlyComparisons.map((comparison) => {
+            <h2 className={heading2}>{lang === 'th' ? 'เปรียบเทียบรายเดือน' : 'Monthly comparison by alert type'}</h2>
+            <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'เปรียบเทียบทุกเดือนของแต่ละประเภท' : 'Compare each alert type across months.'}</p>
+            <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {monthlyComparisons.slice(0, 9).map((comparison) => {
                 const highest = comparison.rows.reduce((max, r) => Math.max(max, r.total), 0);
                 const highestMonthKey = comparison.rows.find((r) => r.total === highest)?.monthKey;
                 return (
                   <div
                     key={comparison.label}
                     className="rounded-lg border border-zinc-100 p-4 dark:border-zinc-800"
-                    style={{
-                      background: `linear-gradient(135deg, ${comparison.color}0D 0%, transparent 60%)`,
-                    }}
+                    style={{ background: `linear-gradient(135deg, ${comparison.color}0D 0%, transparent 60%)` }}
                   >
                     <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                       <span className="inline-block h-3 w-5 rounded-sm" style={{ backgroundColor: comparison.color }} />
                       {comparison.label}
                     </div>
-                    {comparison.rows.length >= 2 ? (
-                      <div className="mt-2">
-                        <TrendIndicator
-                          current={comparison.rows[0].total}
-                          previous={comparison.rows[1].total}
-                          suffix={lang === 'th' ? 'เทียบเดือนก่อน' : 'vs prior month'}
-                        />
+                    {comparison.rows.length >= 2 && (
+                      <div className="mt-1.5">
+                        <TrendIndicator current={comparison.rows[0].total} previous={comparison.rows[1].total} suffix={lang === 'th' ? 'เทียบเดือนก่อน' : 'vs prior'} />
                       </div>
-                    ) : null}
-                    <div className="mt-3 space-y-2">
+                    )}
+                    <div className="mt-2.5 space-y-1.5">
                       {comparison.rows.map((row) => {
                         const wp = highest === 0 || row.total === 0 ? 0 : Math.max((row.total / highest) * 100, 2);
                         const isHighest = highest > 0 && row.monthKey === highestMonthKey;
@@ -480,19 +508,13 @@ export default function SummaryDashboard({
                           <div key={`${comparison.label}-${row.monthKey}`}>
                             <div className="mb-0.5 flex items-center justify-between text-xs">
                               <span className="flex items-center gap-1 text-zinc-600 dark:text-zinc-300">
-                                {isHighest && (
-                                  <span
-                                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full"
-                                    style={{ backgroundColor: comparison.color }}
-                                    aria-hidden="true"
-                                  />
-                                )}
+                                {isHighest && <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full" style={{ backgroundColor: comparison.color }} />}
                                 {row.monthLabel}
                               </span>
                               <span className="font-medium text-zinc-900 dark:text-zinc-100">{row.total}</span>
                             </div>
-                            <div className="h-3 rounded-full bg-zinc-200 dark:bg-zinc-800">
-                              <div className="h-3 rounded-full transition-[width]" style={{ width: `${wp}%`, backgroundColor: comparison.color }} />
+                            <div className="h-2.5 rounded-full bg-zinc-200 dark:bg-zinc-800">
+                              <div className="h-2.5 rounded-full transition-[width]" style={{ width: `${wp}%`, backgroundColor: comparison.color }} />
                             </div>
                           </div>
                         );
