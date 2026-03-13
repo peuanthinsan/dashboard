@@ -64,7 +64,7 @@ export default function ExportButton({
       onClick={handleExport}
       disabled={data.length === 0}
       aria-label={label}
-      className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+      className="inline-flex items-center gap-2 rounded-lg border border-zinc-200/60 bg-white/80 px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-card backdrop-blur-sm transition-all duration-200 hover:border-zinc-300 hover:shadow-card-hover disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700/60 dark:bg-zinc-800/80 dark:text-zinc-200 dark:hover:border-zinc-600"
     >
       <svg
         className="h-3.5 w-3.5"

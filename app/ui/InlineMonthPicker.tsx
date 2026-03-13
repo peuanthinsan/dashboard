@@ -60,7 +60,7 @@ export default function InlineMonthPicker({
 
   return (
     <div
-      className={`inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900 ${className}`}
+      className={`inline-flex items-center gap-1 rounded-lg border border-zinc-200/60 bg-white/80 px-2 py-1.5 shadow-card backdrop-blur-sm dark:border-zinc-700/60 dark:bg-zinc-900/80 ${className}`}
     >
       <button
         type="button"
@@ -90,9 +90,9 @@ export default function InlineMonthPicker({
           type="button"
           onClick={() => handleClick(i)}
           className={[
-            'rounded px-1.5 py-0.5 text-xs font-medium transition',
+            'rounded-md px-1.5 py-0.5 text-xs font-medium transition-all duration-150',
             isSelected(i)
-              ? 'bg-red-600 text-white'
+              ? 'bg-red-600 text-white shadow-sm'
               : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100',
           ].join(' ')}
         >

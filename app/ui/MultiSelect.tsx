@@ -92,14 +92,14 @@ export default function MultiSelect({
 
       {open && (
         <div className={multiSelectPanel} role="listbox" aria-multiselectable="true">
-          <div className="border-b border-zinc-100 p-1.5 dark:border-zinc-800">
+          <div className="border-b border-zinc-100/80 p-2 dark:border-zinc-800/60">
             <input
               ref={searchRef}
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t.search}
-              className="w-full rounded border border-zinc-200 bg-transparent px-2 py-1 text-xs outline-none focus:border-red-400 dark:border-zinc-700"
+              className="w-full rounded-md border border-zinc-200/60 bg-transparent px-2.5 py-1 text-xs outline-none transition-colors focus:border-red-400 focus:ring-1 focus:ring-red-400/20 dark:border-zinc-700/60"
             />
           </div>
 
@@ -141,7 +141,7 @@ export default function MultiSelect({
             )}
           </div>
 
-          <div className="flex justify-between border-t border-zinc-100 px-2.5 py-1.5 dark:border-zinc-800">
+          <div className="flex justify-between border-t border-zinc-100/80 px-2.5 py-2 dark:border-zinc-800/60">
             <button
               type="button"
               onClick={() => onChange([])}
