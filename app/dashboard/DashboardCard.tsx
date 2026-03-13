@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 import { textSecondary } from 'app/ui/design-tokens';
 
 type DashboardCardProps = {
@@ -30,12 +33,30 @@ const templateIconBg: Record<string, string> = {
   Driving: 'bg-emerald-50 ring-emerald-200/40 dark:bg-emerald-950/40 dark:ring-emerald-800/30',
 };
 
+const templateDescriptions: Record<string, { en: string; th: string }> = {
+  Summary: { en: 'Overview with KPIs and charts', th: 'ภาพรวม KPI และกราฟ' },
+  Detail: { en: 'In-depth alert analysis', th: 'วิเคราะห์การแจ้งเตือนเชิงลึก' },
+  Simple: { en: 'Minimal table view', th: 'มุมมองตารางอย่างง่าย' },
+  Driving: { en: 'Driving hours & compliance', th: 'ชั่วโมงขับขี่และการปฏิบัติตามกฎ' },
+};
+
 export default function DashboardCard({ id, name, template, sheetUrl, lang }: DashboardCardProps) {
+  const [copied, setCopied] = useState(false);
   const icon = templateIcons[template ?? ''] ?? '📊';
   const badgeColor =
     templateColors[template ?? ''] ?? 'bg-zinc-100 text-zinc-600 ring-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700/30';
   const iconBg =
     templateIconBg[template ?? ''] ?? 'bg-zinc-50 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60';
+  const desc = templateDescriptions[template ?? ''] ?? { en: 'Dashboard', th: 'แดชบอร์ด' };
+
+  function handleCopyLink(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(sheetUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   return (
     <Link
@@ -58,17 +79,38 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
       </div>
       <div className="relative flex-1">
         <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{name}</h3>
-        <p className={`mt-1 line-clamp-1 ${textSecondary}`}>{sheetUrl}</p>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? desc.th : desc.en}</p>
       </div>
       <div className="relative flex items-center justify-between border-t border-zinc-100/80 pt-3 dark:border-zinc-800/60">
-        <div className="flex items-center gap-1.5">
-          <div className="relative">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            <div className="absolute inset-0 animate-ping rounded-full bg-emerald-500/40" style={{ animationDuration: '3s' }} />
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <div className="relative">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <div className="absolute inset-0 animate-ping rounded-full bg-emerald-500/40" style={{ animationDuration: '3s' }} />
+            </div>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              {lang === 'th' ? 'เชื่อมต่อแล้ว' : 'Connected'}
+            </span>
           </div>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            {lang === 'th' ? 'เชื่อมต่อแล้ว' : 'Connected'}
-          </span>
+          {/* Copy sheet link button */}
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            title={sheetUrl}
+          >
+            {copied ? (
+              <>
+                <svg className="h-3 w-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                <span className="text-emerald-500">{lang === 'th' ? 'คัดลอกแล้ว' : 'Copied'}</span>
+              </>
+            ) : (
+              <>
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                <span>{lang === 'th' ? 'คัดลอกลิงก์' : 'Copy link'}</span>
+              </>
+            )}
+          </button>
         </div>
         <span className="text-xs font-semibold text-red-600 transition-all duration-200 group-hover:translate-x-0.5 dark:text-red-400">
           {lang === 'th' ? 'เปิดแดชบอร์ด →' : 'Open dashboard →'}
