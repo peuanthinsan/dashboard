@@ -17,8 +17,8 @@ export default function FilterBar({ children, className = '' }: FilterBarProps) 
         className,
       ].join(' ')}
     >
-      {/* Thai gold accent top line */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/25 to-transparent" aria-hidden="true" />
+      {/* Red accent top line */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-red-400/20 to-transparent" aria-hidden="true" />
       {children}
     </div>
   );

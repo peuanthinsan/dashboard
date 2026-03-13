@@ -54,71 +54,48 @@ export default function Login() {
   return (
     <div className="flex min-h-screen">
       {/* Left panel — SongdeeGPS brand identity */}
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-zinc-950 via-red-950/90 to-zinc-950 p-12 lg:flex">
-        {/* Thai geometric pattern overlay */}
-        <div className="pointer-events-none absolute inset-0 thai-pattern opacity-50" />
-        {/* Gold double-line edge trim — temple column */}
-        <div className="absolute inset-y-0 right-0 w-[3px] bg-gradient-to-b from-transparent via-amber-500/40 to-transparent" />
-        <div className="absolute inset-y-[10%] right-[4px] w-[1px] bg-gradient-to-b from-transparent via-amber-600/20 to-transparent" />
-        {/* Bottom gold trim */}
-        <div className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
+      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 p-12 lg:flex">
+        {/* Brand GPS pin pattern */}
+        <div className="pointer-events-none absolute inset-0 brand-pattern opacity-50" />
+        {/* Red edge accent */}
+        <div className="absolute inset-y-0 right-0 w-[2px] bg-gradient-to-b from-transparent via-red-500/30 to-transparent" />
 
-        {/* Decorative compass rose */}
-        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.04]" aria-hidden="true">
-          <svg width="400" height="400" viewBox="0 0 100 100" fill="currentColor" className="text-amber-300">
-            <polygon points="50,2 55,44 50,32 45,44" />
-            <polygon points="50,98 55,56 50,68 45,56" />
-            <polygon points="2,50 44,45 32,50 44,55" />
-            <polygon points="98,50 56,45 68,50 56,55" />
-            <polygon points="15,15 46,44 30,30 44,46" opacity="0.4" />
-            <polygon points="85,85 54,56 70,70 56,54" opacity="0.4" />
-            <polygon points="85,15 56,44 70,30 54,46" opacity="0.4" />
-            <polygon points="15,85 44,56 30,70 46,54" opacity="0.4" />
-            <circle cx="50" cy="50" r="12" fill="none" stroke="currentColor" strokeWidth="0.5" />
-            <circle cx="50" cy="50" r="3" />
+        {/* Large GPS pin watermark */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.03]" aria-hidden="true">
+          <svg width="400" height="520" viewBox="0 0 40 52" fill="currentColor" className="text-red-400">
+            <path d="M20 0C8.95 0 0 8.95 0 20c0 14.25 20 32 20 32s20-17.75 20-32C40 8.95 31.05 0 20 0z" />
           </svg>
         </div>
 
         {/* Decorative glow */}
         <div className="pointer-events-none absolute -left-20 top-1/4 h-64 w-64 rounded-full bg-red-600/8 blur-3xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute -right-16 bottom-1/3 h-48 w-48 rounded-full bg-amber-500/5 blur-3xl" aria-hidden="true" />
 
         <div className="relative">
-          <div className="flex items-center gap-4">
-            <SongdeeLogo size={44} />
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-black tracking-tight text-white">
-                  Songdee<span className="text-amber-400">GPS</span>
-                </h1>
-                <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-400/80 ring-1 ring-amber-500/20">
-                  AI Fleet
-                </span>
-              </div>
-              <p className="mt-1 text-sm font-medium text-red-400/70">
-                Fleet Safety Intelligence · กรุงเทพมหานคร
-              </p>
-            </div>
+          <div className="inline-block rounded-xl bg-white/95 p-3 shadow-lg">
+            <SongdeeLogo height={44} />
           </div>
+          <p className="mt-3 text-sm font-medium text-zinc-400">
+            Fleet Safety Intelligence · กรุงเทพมหานคร
+          </p>
         </div>
 
         <div className="relative space-y-6">
           <h2 className="text-4xl font-bold leading-tight tracking-tight text-white">
-            นำทาง · พิชิต
+            ส่งดีจีพีเอส
             <br />
-            <span className="bg-gradient-to-r from-amber-400 to-red-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-red-400 to-red-600 bg-clip-text text-transparent">
               Command your fleet.
             </span>
           </h2>
-          <div className="space-y-3 text-sm text-red-200/70">
+          <div className="space-y-3 text-sm text-zinc-400">
             {[
-              { icon: '⚓', text: 'Real-time driver safety alerts' },
-              { icon: '🧭', text: 'AI-powered fleet analytics' },
-              { icon: '🛡️', text: 'Safety score tracking & compliance' },
-              { icon: '📊', text: 'Exportable reports & insights' },
+              { icon: '📍', text: 'Real-time GPS fleet tracking' },
+              { icon: '🛡️', text: 'AI-powered driver safety alerts' },
+              { icon: '📊', text: 'Safety score tracking & compliance' },
+              { icon: '📋', text: 'Exportable reports & insights' },
             ].map(({ icon, text }) => (
               <div key={text} className="flex items-center gap-3">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-sm ring-1 ring-amber-500/15">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/10 text-sm ring-1 ring-red-500/15">
                   {icon}
                 </span>
                 {text}
@@ -127,17 +104,10 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="relative flex items-center gap-3">
-          {/* Thai diamond ornament */}
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className="text-amber-600/40" aria-hidden="true">
-            <polygon points="6,0 12,6 6,12 0,6" />
-          </svg>
-          <p className="text-xs text-zinc-500">
-            © 2026 SongdeeGPS — สงดีจีพีเอส · กรุงเทพมหานคร
+        <div className="relative">
+          <p className="text-xs text-zinc-600">
+            © 2026 SongdeeGPS — ส่งดีจีพีเอส · กรุงเทพมหานคร
           </p>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className="text-amber-600/40" aria-hidden="true">
-            <polygon points="6,0 12,6 6,12 0,6" />
-          </svg>
         </div>
       </div>
 
@@ -147,10 +117,7 @@ export default function Login() {
           <div className="mb-8 text-center lg:text-left">
             {/* Mobile brand — visible only on small screens */}
             <div className="mb-4 flex items-center justify-center gap-2.5 lg:hidden">
-              <SongdeeLogo size={32} />
-              <p className="text-lg font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-                Songdee<span className="text-amber-500">GPS</span>
-              </p>
+              <SongdeeLogo height={28} />
             </div>
             <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
               Welcome back
