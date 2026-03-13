@@ -762,11 +762,11 @@ export default function DetailDashboard({
 
           {/* ── Section divider: Alert Analysis ── */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-red-200 dark:bg-red-900/40" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
             <span className="text-xs font-semibold uppercase tracking-widest text-red-500 dark:text-red-400">
               {lang === 'th' ? 'วิเคราะห์การแจ้งเตือน' : 'Alert Analysis'}
             </span>
-            <div className="h-px flex-1 bg-red-200 dark:bg-red-900/40" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
           </div>
 
           {/* ── Daily trend + Alert type donut (3:2 split) ── */}
@@ -869,11 +869,11 @@ export default function DetailDashboard({
 
           {/* ── Section divider: Driver Intelligence ── */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
             <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
               {lang === 'th' ? 'ข้อมูลคนขับ' : 'Driver Intelligence'}
             </span>
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
           </div>
 
           {/* ── Top drivers bar chart ── */}
@@ -936,11 +936,11 @@ export default function DetailDashboard({
 
           {/* ── Section divider: Evidence & Timeline ── */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
             <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
               {lang === 'th' ? 'หลักฐานและไทม์ไลน์' : 'Evidence & Timeline'}
             </span>
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
           </div>
 
           {/* ── Alert Timeline ── */}
@@ -951,11 +951,11 @@ export default function DetailDashboard({
 
           {/* ── Section divider: Full Data ── */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
             <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
               {lang === 'th' ? 'ข้อมูลทั้งหมด' : 'Full Data'}
             </span>
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
           </div>
 
           {/* ── Data Table ── */}

@@ -26,7 +26,6 @@ export default function VideoEvidence({
   lang = 'en',
 }: VideoEvidenceProps) {
   const grouped = useMemo(() => {
-    // Group by alertType, sort each group by timestamp desc, cap at maxPerType
     const map = new Map<string, VideoEntry[]>();
     for (const entry of entries) {
       const existing = map.get(entry.alertType);
@@ -76,35 +75,35 @@ export default function VideoEvidence({
           {totalCount} {lang === 'th' ? 'ตัวอย่าง' : 'samples'}
         </span>
       </div>
-      <div className="mt-6 space-y-6">
+      <div className="mt-5 space-y-5">
         {grouped.map((group) => (
           <article
             key={group.alertType}
-            className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-5 dark:border-zinc-800 dark:bg-zinc-950/40"
+            className="overflow-hidden rounded-xl border border-zinc-200/60 bg-zinc-50/50 dark:border-zinc-800/40 dark:bg-zinc-950/30"
           >
-            <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-zinc-200/60 px-5 py-3 dark:border-zinc-800/40">
               <h3 className={heading3}>{group.alertType}</h3>
               <span className={textSecondary}>
                 {group.items.length} / {maxPerType}{' '}
-                {lang === 'th' ? 'รายการล่าสุด' : 'latest videos'}
+                {lang === 'th' ? 'รายการล่าสุด' : 'latest'}
               </span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
               {group.items.map((item, idx) => (
                 <div
                   key={`${item.url}-${idx}`}
-                  className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900"
+                  className="group rounded-lg border border-zinc-200/60 bg-white p-4 transition-all duration-200 hover:border-red-200/60 hover:shadow-card dark:border-zinc-700/40 dark:bg-zinc-900/60 dark:hover:border-red-800/40"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                         {item.vehicle}
                       </p>
                       <p className={textSecondary}>{item.driver}</p>
                       <p className="text-xs text-zinc-400 dark:text-zinc-500">
                         {formatDateTimeGB(item.timestamp)}
                       </p>
-                      <p className={textSecondary}>{item.speed}</p>
+                      <p className="tabular-nums text-xs text-zinc-500 dark:text-zinc-400">{item.speed}</p>
                     </div>
                     <span className={badgeInfo}>{item.alertType}</span>
                   </div>
@@ -112,7 +111,7 @@ export default function VideoEvidence({
                     href={item.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-200/60 bg-red-50/80 px-3 py-1.5 text-xs font-semibold text-red-700 transition-all duration-200 hover:bg-red-100 hover:shadow-sm dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
                   >
                     <svg
                       className="h-3.5 w-3.5"

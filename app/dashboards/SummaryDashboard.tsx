@@ -374,11 +374,11 @@ export default function SummaryDashboard({
 
           {/* ═══ Alert Breakdown ═══ */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-red-200 dark:bg-red-900" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
             <h2 className="text-xs font-bold uppercase tracking-widest text-red-600 dark:text-red-400">
               {lang === 'th' ? 'วิเคราะห์การแจ้งเตือน' : 'Alert Breakdown'}
             </h2>
-            <div className="h-px flex-1 bg-red-200 dark:bg-red-900" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
           </div>
 
           {/* ④ Heatmap + Alert Type donut — when & what */}
@@ -435,11 +435,11 @@ export default function SummaryDashboard({
 
           {/* ═══ People & Vehicles ═══ */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
             <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
               {lang === 'th' ? 'คนขับและยานพาหนะ' : 'Drivers & Vehicles'}
             </h2>
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
           </div>
 
           {/* ⑥ Driver Leaderboards */}
@@ -470,11 +470,11 @@ export default function SummaryDashboard({
 
           {/* ═══ Deep Dive ═══ */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
             <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
               {lang === 'th' ? 'เจาะลึกรายเดือน' : 'Monthly Deep Dive'}
             </h2>
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
           </div>
 
           {/* ⑧ Monthly Comparisons */}

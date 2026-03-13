@@ -28,16 +28,12 @@ function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }
 
-/**
- * Determine which entries should be highlighted because the same driver
- * appears multiple times within 2 hours in the sorted list.
- */
 function computeHighlights(entries: TimelineEntry[]): Set<number> {
   const highlighted = new Set<number>();
   for (let i = 0; i < entries.length; i++) {
     for (let j = i + 1; j < entries.length; j++) {
       const diff = Math.abs(entries[i].timestamp.getTime() - entries[j].timestamp.getTime());
-      if (diff > TWO_HOURS_MS) break; // sorted desc, so further entries are even further apart
+      if (diff > TWO_HOURS_MS) break;
       if (entries[i].driver === entries[j].driver) {
         highlighted.add(i);
         highlighted.add(j);
@@ -80,30 +76,32 @@ export default function AlertTimeline({
 
   return (
     <div className={cardSection}>
-      <h2 className={heading2}>{lang === 'th' ? 'ไทม์ไลน์การแจ้งเตือน' : 'Alert Timeline'}</h2>
-      <p className={`mt-1 ${textSecondary}`}>
-        {lang === 'th'
-          ? `${sorted.length} รายการล่าสุด`
-          : `${sorted.length} most recent entries`}
-      </p>
-      <div className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-800/50">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className={heading2}>{lang === 'th' ? 'ไทม์ไลน์การแจ้งเตือน' : 'Alert Timeline'}</h2>
+        <span className={textSecondary}>
+          {sorted.length} {lang === 'th' ? 'รายการล่าสุด' : 'most recent'}
+        </span>
+      </div>
+      <div className="mt-4 overflow-hidden rounded-lg border border-zinc-100/80 dark:border-zinc-800/40">
         {sorted.map((entry, index) => {
           const isHighlighted = highlights.has(index);
-          const isEven = index % 2 === 0;
           return (
             <div
               key={`${entry.timestamp.getTime()}-${entry.vehicle}-${index}`}
               className={[
-                'flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm',
-                isEven
-                  ? 'bg-white dark:bg-zinc-900'
-                  : 'bg-zinc-50 dark:bg-zinc-900/60',
-                isHighlighted ? 'border-l-3 border-l-red-500' : '',
+                'flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5 text-sm transition-colors duration-100',
+                index % 2 === 0
+                  ? 'bg-white dark:bg-zinc-900/40'
+                  : 'bg-zinc-50/60 dark:bg-zinc-900/20',
+                isHighlighted
+                  ? 'border-l-[3px] border-l-red-500 bg-red-50/30 dark:bg-red-950/10'
+                  : 'border-l-[3px] border-l-transparent',
+                'hover:bg-zinc-50 dark:hover:bg-zinc-800/30',
               ]
                 .filter(Boolean)
                 .join(' ')}
             >
-              <span className="w-12 shrink-0 font-mono text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="w-12 shrink-0 font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                 {formatTime(entry.timestamp)}
               </span>
               <span className="w-20 shrink-0 text-xs text-zinc-400 dark:text-zinc-500">
@@ -112,11 +110,11 @@ export default function AlertTimeline({
               <span className="min-w-[6rem] font-medium text-zinc-900 dark:text-zinc-100">
                 {entry.vehicle}
               </span>
-              <span className="min-w-[6rem] text-zinc-700 dark:text-zinc-300">
+              <span className="min-w-[6rem] text-zinc-600 dark:text-zinc-300">
                 {entry.driver}
               </span>
               <span className={badgeDefault}>{entry.alertType}</span>
-              <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="ml-auto tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
                 {entry.speed}
               </span>
             </div>

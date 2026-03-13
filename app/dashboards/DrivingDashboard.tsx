@@ -445,11 +445,11 @@ export default function DrivingDashboard({
 
       {/* ═══════════════ SAFETY & COMPLIANCE ═══════════════ */}
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-red-200 dark:bg-red-900" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
         <h2 className="text-xs font-bold uppercase tracking-widest text-red-600 dark:text-red-400">
           {lang === 'th' ? 'ความปลอดภัยและการปฏิบัติตามกฎ' : 'Safety & Compliance'}
         </h2>
-        <div className="h-px flex-1 bg-red-200 dark:bg-red-900" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
       </div>
 
       {/* Safety KPIs */}
@@ -600,11 +600,11 @@ export default function DrivingDashboard({
 
       {/* ═══════════════ FLEET OVERVIEW ═══════════════ */}
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
         <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
           {lang === 'th' ? 'ภาพรวมกองยานพาหนะ' : 'Fleet Overview'}
         </h2>
-        <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
       </div>
 
       {/* Fleet KPIs */}

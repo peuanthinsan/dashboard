@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   return (
     <div className={pageContainer}>
       <div className={pageContent}>
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5">
           <WelcomeBanner
             email={session?.user?.email ?? ''}
             dashboardCount={dashboards.length}
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
               description={copy.noDashboardsHelp}
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 stagger-children">
               {dashboards.map((dashboard) => (
                 <DashboardCard
                   key={dashboard.id}

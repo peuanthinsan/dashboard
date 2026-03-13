@@ -21,9 +21,7 @@ type DashboardShellProps = {
   notes?: string | null;
   actions?: ReactNode;
   children: ReactNode;
-  /** When true, shows a stale-data warning badge in the header */
   isStale?: boolean;
-  /** Number of currently active filters — shows a badge when > 0 */
   activeFilterCount?: number;
 };
 
@@ -45,50 +43,54 @@ export default function DashboardShell({
   return (
     <div className={pageContainer}>
       <div className={pageContent}>
-        <div className="flex flex-col gap-6">
-          <header className={cardSection}>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <Link
-                  href="/dashboard"
-                  className="mb-3 inline-flex items-center gap-1.5 text-sm text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                  {copy.backToDashboards}
-                </Link>
-                <p className="text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                  {subtitle}
-                </p>
-                <h1 className={`mt-1 ${heading1}`}>{title}</h1>
-                {lastUpdated ? (
-                  <p className={`mt-2 ${textMuted}`}>
-                    {copy.lastUpdated} {formatDateTimeGB(lastUpdated)}
+        <div className="flex flex-col gap-5">
+          {/* ── Header with gradient accent ── */}
+          <header className="relative overflow-hidden rounded-xl border border-zinc-200/60 bg-white/80 shadow-card backdrop-blur-sm dark:border-zinc-800/60 dark:bg-zinc-900/80">
+            {/* Decorative gradient bar */}
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-red-600 to-orange-500" />
+            <div className="p-5 pt-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Link
+                    href="/dashboard"
+                    className="mb-3 inline-flex items-center gap-1.5 text-sm text-zinc-400 transition-colors duration-200 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    {copy.backToDashboards}
+                  </Link>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-400 dark:text-zinc-500">
+                    {subtitle}
                   </p>
-                ) : null}
-                {notes ? <p className={`mt-3 ${textSecondary}`}>{notes}</p> : null}
+                  <h1 className={heading1}>{title}</h1>
+                  {lastUpdated ? (
+                    <p className={`mt-1 ${textMuted}`}>
+                      {copy.lastUpdated} {formatDateTimeGB(lastUpdated)}
+                    </p>
+                  ) : null}
+                  {notes ? <p className={`mt-2 ${textSecondary}`}>{notes}</p> : null}
 
-                {/* Status badges row */}
-                {(isStale || activeFilterCount > 0) ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {isStale ? (
-                      <span className={badgeWarning}>
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                        </svg>
-                        {copy.staleData}
-                      </span>
-                    ) : null}
-                    {activeFilterCount > 0 ? (
-                      <span className={badgeDefault}>
-                        {activeFilterCount} {copy.filtersActive}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
+                  {(isStale || activeFilterCount > 0) ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {isStale ? (
+                        <span className={badgeWarning}>
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                          </svg>
+                          {copy.staleData}
+                        </span>
+                      ) : null}
+                      {activeFilterCount > 0 ? (
+                        <span className={badgeDefault}>
+                          {activeFilterCount} {copy.filtersActive}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+                {actions ? <div className="flex items-start gap-2">{actions}</div> : null}
               </div>
-              {actions ? <div className="flex items-start gap-2">{actions}</div> : null}
             </div>
           </header>
 

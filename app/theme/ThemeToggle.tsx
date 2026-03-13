@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { btnSecondary, btnSmall } from 'app/ui/design-tokens';
 
 type Theme = 'light' | 'dark';
 
@@ -10,7 +9,6 @@ export default function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Read actual DOM state set by inline script in <head>
     const isDark = document.documentElement.classList.contains('dark');
     setTheme(isDark ? 'dark' : 'light');
     setMounted(true);
@@ -20,7 +18,6 @@ export default function ThemeToggle() {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
     document.documentElement.classList.toggle('dark', next === 'dark');
-    // Use same key as the inline script in layout.tsx
     localStorage.setItem('theme', next);
   };
 
@@ -31,10 +28,9 @@ export default function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-      className={`${btnSecondary} ${btnSmall} rounded-full`}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200/60 bg-white/80 text-base shadow-card backdrop-blur-sm transition-all duration-200 hover:shadow-card-hover dark:border-zinc-700/60 dark:bg-zinc-800/80"
     >
-      <span className="text-base" aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span>
-      {theme === 'dark' ? 'Dark' : 'Light'}
+      <span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span>
     </button>
   );
 }

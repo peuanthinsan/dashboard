@@ -103,7 +103,7 @@ export function DataTable<T extends object>({
   const pagedData = pageSize ? sortedData.slice(clampedPage * pageSize, (clampedPage + 1) * pageSize) : sortedData;
 
   return (
-    <div className="overflow-x-auto w-full">
+    <div className="overflow-x-auto w-full rounded-lg">
       <table
         className="w-full border-collapse"
         aria-label={ariaLabel}
@@ -112,12 +112,6 @@ export function DataTable<T extends object>({
           <tr>
             {columns.map((col) => {
               const isActive = sort.key === col.key && sort.direction !== null;
-              const arrow =
-                isActive && sort.direction === 'asc'
-                  ? ' ▲'
-                  : isActive && sort.direction === 'desc'
-                  ? ' ▼'
-                  : '';
 
               return (
                 <th
@@ -126,9 +120,9 @@ export function DataTable<T extends object>({
                   className={[
                     tableHeadCell,
                     col.sortable
-                      ? 'cursor-pointer select-none hover:text-zinc-900 dark:hover:text-zinc-100'
+                      ? 'cursor-pointer select-none transition-colors duration-150 hover:text-zinc-900 dark:hover:text-zinc-100'
                       : '',
-                    col.stickyLeft ? 'sticky left-0 bg-white dark:bg-zinc-900 z-10' : '',
+                    col.stickyLeft ? 'sticky left-0 bg-zinc-50/90 dark:bg-zinc-900/90 backdrop-blur-sm z-10' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -145,12 +139,14 @@ export function DataTable<T extends object>({
                       : undefined
                   }
                 >
-                  {col.label}
-                  {arrow && (
-                    <span aria-hidden="true" className="ml-1 text-red-500">
-                      {sort.direction === 'asc' ? '▲' : '▼'}
-                    </span>
-                  )}
+                  <span className="inline-flex items-center gap-1">
+                    {col.label}
+                    {isActive && (
+                      <span aria-hidden="true" className="text-red-500">
+                        {sort.direction === 'asc' ? '▲' : '▼'}
+                      </span>
+                    )}
+                  </span>
                 </th>
               );
             })}
@@ -191,7 +187,7 @@ export function DataTable<T extends object>({
                     className={[
                       tableCell,
                       col.stickyLeft
-                        ? 'sticky left-0 bg-white dark:bg-zinc-900'
+                        ? 'sticky left-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm'
                         : '',
                     ]
                       .filter(Boolean)
@@ -207,7 +203,7 @@ export function DataTable<T extends object>({
             <tr>
               <td
                 colSpan={columns.length}
-                className="px-4 py-8 text-center text-sm text-zinc-400 dark:text-zinc-500"
+                className="px-4 py-12 text-center text-sm text-zinc-400 dark:text-zinc-500"
               >
                 No data available
               </td>
@@ -216,8 +212,8 @@ export function DataTable<T extends object>({
         </tbody>
       </table>
       {pageSize && totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-zinc-100 px-4 py-2 dark:border-zinc-800">
-          <span className="text-xs text-zinc-400">
+        <div className="flex items-center justify-between border-t border-zinc-100/80 bg-zinc-50/50 px-4 py-2.5 dark:border-zinc-800/60 dark:bg-zinc-900/30">
+          <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
             {clampedPage * pageSize + 1}–{Math.min((clampedPage + 1) * pageSize, sortedData.length)} of {sortedData.length}
           </span>
           <div className="flex items-center gap-1">
@@ -225,20 +221,38 @@ export function DataTable<T extends object>({
               type="button"
               disabled={clampedPage === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="rounded px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed dark:text-zinc-400 dark:hover:bg-zinc-800"
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-zinc-600 transition-all duration-150 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed dark:text-zinc-400 dark:hover:bg-zinc-800"
             >
-              ‹ Prev
+              Prev
             </button>
-            <span className="px-2 text-xs text-zinc-500 dark:text-zinc-400">
-              {clampedPage + 1} / {totalPages}
-            </span>
+            {/* Page number pills */}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const startPage = Math.max(0, Math.min(clampedPage - 2, totalPages - 5));
+              const pageNum = startPage + i;
+              if (pageNum >= totalPages) return null;
+              return (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setPage(pageNum)}
+                  className={[
+                    'h-7 min-w-[28px] rounded-md px-1.5 text-xs font-medium tabular-nums transition-all duration-150',
+                    pageNum === clampedPage
+                      ? 'bg-red-600 text-white shadow-sm'
+                      : 'text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800',
+                  ].join(' ')}
+                >
+                  {pageNum + 1}
+                </button>
+              );
+            })}
             <button
               type="button"
               disabled={clampedPage >= totalPages - 1}
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              className="rounded px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed dark:text-zinc-400 dark:hover:bg-zinc-800"
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-zinc-600 transition-all duration-150 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed dark:text-zinc-400 dark:hover:bg-zinc-800"
             >
-              Next ›
+              Next
             </button>
           </div>
         </div>
