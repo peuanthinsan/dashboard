@@ -13,12 +13,13 @@ import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import Sparkline from 'app/ui/Sparkline';
 import TrendIndicator from 'app/ui/TrendIndicator';
-import MonthPicker from 'app/ui/MonthPicker';
+import InlineMonthPicker from 'app/ui/InlineMonthPicker';
+import MultiSelect from 'app/ui/MultiSelect';
 import FilterBar from 'app/ui/FilterBar';
 import DonutChart from 'app/ui/DonutChart';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
 import {
-  heading2, textSecondary, selectBase, cardSection, CHART_COLORS,
+  heading2, textSecondary, cardSection, CHART_COLORS,
 } from 'app/ui/design-tokens';
 
 type DashboardProps = {
@@ -390,65 +391,34 @@ export default function DrivingDashboard({
 
       {/* Filters */}
       <FilterBar>
-        {/* Month picker */}
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'เดือน' : 'Month'}</span>
-          <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
-        </div>
-
-        {/* Driver multi-select */}
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
-          <select
-            value=""
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v && !driverFilters.includes(v)) setDriverFilters((f) => [...f, v]);
-            }}
-            className={`${selectBase} !py-1.5 !text-xs`}
+        <InlineMonthPicker
+          value={selectedMonth}
+          onChange={(v) => setSelectedMonth(v as string)}
+          lang={lang}
+        />
+        <MultiSelect
+          label={lang === 'th' ? 'คนขับ' : 'drivers'}
+          options={driverOptions}
+          selected={driverFilters}
+          onChange={setDriverFilters}
+          lang={lang}
+        />
+        <MultiSelect
+          label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'}
+          options={vehicleOptions}
+          selected={vehicleFilters}
+          onChange={setVehicleFilters}
+          lang={lang}
+        />
+        {(selectedMonth || driverFilters.length > 0 || vehicleFilters.length > 0) && (
+          <button
+            type="button"
+            onClick={() => { setSelectedMonth(''); setDriverFilters([]); setVehicleFilters([]); }}
+            className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           >
-            <option value="">{driverFilters.length === 0 ? (lang === 'th' ? 'คนขับทั้งหมด' : 'All drivers') : `${driverFilters.length} ${lang === 'th' ? 'คนขับ' : 'selected'}`}</option>
-            {driverOptions.filter((d) => !driverFilters.includes(d)).map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          {driverFilters.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {driverFilters.map((d) => (
-                <span key={d} className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
-                  {d}
-                  <button type="button" onClick={() => setDriverFilters((f) => f.filter((x) => x !== d))} className="hover:text-indigo-800">✕</button>
-                </span>
-              ))}
-              <button type="button" onClick={() => setDriverFilters([])} className="text-[10px] text-zinc-400 hover:text-zinc-600">{lang === 'th' ? 'ล้าง' : 'Clear'}</button>
-            </div>
-          )}
-        </div>
-
-        {/* Vehicle multi-select */}
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ยานพาหนะ' : 'Vehicle'}</span>
-          <select
-            value=""
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v && !vehicleFilters.includes(v)) setVehicleFilters((f) => [...f, v]);
-            }}
-            className={`${selectBase} !py-1.5 !text-xs`}
-          >
-            <option value="">{vehicleFilters.length === 0 ? (lang === 'th' ? 'ยานพาหนะทั้งหมด' : 'All vehicles') : `${vehicleFilters.length} ${lang === 'th' ? 'ยานพาหนะ' : 'selected'}`}</option>
-            {vehicleOptions.filter((v) => !vehicleFilters.includes(v)).map((v) => <option key={v} value={v}>{v}</option>)}
-          </select>
-          {vehicleFilters.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {vehicleFilters.map((v) => (
-                <span key={v} className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
-                  {v}
-                  <button type="button" onClick={() => setVehicleFilters((f) => f.filter((x) => x !== v))} className="hover:text-indigo-800">✕</button>
-                </span>
-              ))}
-              <button type="button" onClick={() => setVehicleFilters([])} className="text-[10px] text-zinc-400 hover:text-zinc-600">{lang === 'th' ? 'ล้าง' : 'Clear'}</button>
-            </div>
-          )}
-        </div>
+            {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
+          </button>
+        )}
       </FilterBar>
 
       {/* KPI Row 1 — Primary */}

@@ -1,4 +1,5 @@
 import { cardSection, textMuted, textSecondary } from './design-tokens';
+import Tooltip from './Tooltip';
 
 type KpiCardProps = {
   label: string;
@@ -7,10 +8,11 @@ type KpiCardProps = {
   subtitle?: string;
   trend?: { value: number; label: string };
   accentColor?: string;
+  tooltip?: string;
   children?: React.ReactNode;
 };
 
-export default function KpiCard({ label, value, unit, subtitle, trend, accentColor, children }: KpiCardProps) {
+export default function KpiCard({ label, value, unit, subtitle, trend, accentColor, tooltip, children }: KpiCardProps) {
   // Positive trend (value > 0) is bad (more alerts), so red. Negative is good, so green.
   const trendColor = trend
     ? trend.value > 0
@@ -22,33 +24,35 @@ export default function KpiCard({ label, value, unit, subtitle, trend, accentCol
   const trendArrow = trend ? (trend.value > 0 ? '↑' : trend.value < 0 ? '↓' : '→') : '';
 
   return (
-    <div
-      className={cardSection}
-      role="region"
-      aria-label={label}
-      style={
-        accentColor
-          ? { borderLeft: `3px solid ${accentColor}` }
-          : undefined
-      }
-    >
-      <p className={textSecondary}>{label}</p>
-      <p
-        className={`mt-1 text-2xl font-semibold tracking-tight${accentColor ? '' : ' text-zinc-900 dark:text-zinc-50'}`}
-        style={accentColor ? { color: accentColor } : undefined}
+    <Tooltip content={tooltip ?? ''}>
+      <div
+        className={cardSection}
+        role="region"
+        aria-label={label}
+        style={
+          accentColor
+            ? { borderLeft: `3px solid ${accentColor}` }
+            : undefined
+        }
       >
-        {value}
-        {unit && (
-          <span className="ml-1 text-base font-normal text-zinc-500 dark:text-zinc-400">{unit}</span>
-        )}
-      </p>
-      {trend ? (
-        <p className={`mt-1 text-xs font-medium ${trendColor}`}>
-          {trendArrow} {Math.abs(trend.value)}% {trend.label}
+        <p className={textSecondary}>{label}</p>
+        <p
+          className={`mt-1 text-2xl font-semibold tracking-tight${accentColor ? '' : ' text-zinc-900 dark:text-zinc-50'}`}
+          style={accentColor ? { color: accentColor } : undefined}
+        >
+          {value}
+          {unit && (
+            <span className="ml-1 text-base font-normal text-zinc-500 dark:text-zinc-400">{unit}</span>
+          )}
         </p>
-      ) : null}
-      {subtitle ? <p className={`mt-1 ${textMuted}`}>{subtitle}</p> : null}
-      {children}
-    </div>
+        {trend ? (
+          <p className={`mt-1 text-xs font-medium ${trendColor}`}>
+            {trendArrow} {Math.abs(trend.value)}% {trend.label}
+          </p>
+        ) : null}
+        {subtitle ? <p className={`mt-1 ${textMuted}`}>{subtitle}</p> : null}
+        {children}
+      </div>
+    </Tooltip>
   );
 }

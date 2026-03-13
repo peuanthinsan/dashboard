@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateKeyGB } from './dateFormat';
-import { FilterChip } from './FilterChip';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
@@ -13,14 +12,17 @@ import {
   normalizeLabel,
   parseDate,
   toDayKey,
+  toMonthKey,
   withDerivedRemark,
 } from './dashboardDataUtils';
 import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
-import { heading2, textSecondary, inputBase } from 'app/ui/design-tokens';
+import { heading2, textSecondary } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
+import InlineMonthPicker from 'app/ui/InlineMonthPicker';
+import MultiSelect from 'app/ui/MultiSelect';
 
 type DashboardProps = {
   dashboardId: string;
@@ -32,12 +34,18 @@ type DashboardProps = {
   lang?: DashboardLang;
 };
 
-type RemarkFilter = 'all' | 'fatigue' | 'yawning' | 'distraction';
 type SimpleFilterState = {
-  dateRange: { from: string; to: string };
+  month: string;
   vehicleFilters: string[];
   driverFilters: string[];
-  trendRemarkFilter: RemarkFilter;
+  remarkFilters: string[];
+};
+
+const defaultFilters: SimpleFilterState = {
+  month: '',
+  vehicleFilters: [],
+  driverFilters: [],
+  remarkFilters: [],
 };
 
 type TableRow = {
@@ -66,65 +74,43 @@ export default function SimpleDashboard({
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
   );
-  const [dateRange, setDateRange] = useState({ from: '', to: '' });
-  const [remarkFilter, setRemarkFilter] = useState<RemarkFilter>('all');
-  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
-  const [vehicleQuery, setVehicleQuery] = useState('');
-  const [driverFilters, setDriverFilters] = useState<string[]>([]);
-  const [driverQuery, setDriverQuery] = useState('');
-  const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
+  const [filters, setFilters] = useState<SimpleFilterState>(defaultFilters);
+  const storageKey = useMemo(() => `${dashboardId}-v2`, [dashboardId]);
+
+  // ── Load persisted filters ──────────────────────────────────────────────
   useEffect(() => {
     const stored = loadStoredFilters<SimpleFilterState>(storageKey);
     if (!stored) return;
-    if (stored.dateRange) {
-      setDateRange({
-        from: typeof stored.dateRange.from === 'string' ? stored.dateRange.from : '',
-        to: typeof stored.dateRange.to === 'string' ? stored.dateRange.to : '',
-      });
-    }
-    if (Array.isArray(stored.vehicleFilters)) {
-      setVehicleFilters(stored.vehicleFilters.filter((value) => typeof value === 'string'));
-    }
-    if (Array.isArray(stored.driverFilters)) {
-      setDriverFilters(stored.driverFilters.filter((value) => typeof value === 'string'));
-    }
-    if (stored.trendRemarkFilter && ['all', 'fatigue', 'yawning', 'distraction'].includes(stored.trendRemarkFilter)) {
-      setRemarkFilter(stored.trendRemarkFilter);
-    }
+    setFilters({
+      month: typeof stored.month === 'string' ? stored.month : '',
+      vehicleFilters: Array.isArray(stored.vehicleFilters)
+        ? stored.vehicleFilters.filter((v) => typeof v === 'string')
+        : [],
+      driverFilters: Array.isArray(stored.driverFilters)
+        ? stored.driverFilters.filter((v) => typeof v === 'string')
+        : [],
+      remarkFilters: Array.isArray(stored.remarkFilters)
+        ? stored.remarkFilters.filter((v) => typeof v === 'string')
+        : [],
+    });
   }, [storageKey]);
 
+  // ── Persist filters ─────────────────────────────────────────────────────
   useEffect(() => {
-    saveStoredFilters(storageKey, {
-      dateRange,
-      vehicleFilters,
-      driverFilters,
-      trendRemarkFilter: remarkFilter,
-    });
-  }, [dateRange, driverFilters, storageKey, remarkFilter, vehicleFilters]);
+    saveStoredFilters(storageKey, filters);
+  }, [storageKey, filters]);
 
-  const handleSearchAdd = <T,>(
-    searchValue: string,
-    findMatch: (trimmed: string) => T | undefined,
-    onMatch: (match: T) => void,
-    clearSearch: () => void,
-  ) => {
-    const trimmed = searchValue.trim();
-    if (!trimmed) return;
-    const matched = findMatch(trimmed);
-    if (!matched) return;
-    onMatch(matched);
-    clearSearch();
-  };
+  const resetFilters = () => setFilters(defaultFilters);
 
-  const resetFilters = () => {
-    setDateRange({ from: '', to: '' });
-    setVehicleFilters([]);
-    setVehicleQuery('');
-    setDriverFilters([]);
-    setDriverQuery('');
-    setRemarkFilter('all');
-  };
+  const hasActiveFilters = useMemo(() => {
+    return (
+      filters.month !== '' ||
+      filters.vehicleFilters.length > 0 ||
+      filters.driverFilters.length > 0 ||
+      filters.remarkFilters.length > 0
+    );
+  }, [filters]);
 
   // ── Data pipeline (preserves alert type scope) ──────────────────────────
   const baseAlerts = useMemo(() => {
@@ -176,68 +162,80 @@ export default function SimpleDashboard({
     };
   }, [baseAlerts]);
 
-  const dateFilteredAlerts = useMemo(() => {
-    const startDate = dateRange.from ? new Date(`${dateRange.from}T00:00:00`) : null;
-    const endDate = dateRange.to ? new Date(`${dateRange.to}T23:59:59.999`) : null;
+  // ── Month-filtered alerts ───────────────────────────────────────────────
+  const monthFilteredAlerts = useMemo(() => {
+    if (!filters.month) return baseAlerts;
     return baseAlerts.filter((row) => {
-      if (!row.parsedDate) return false;
-      if (startDate && row.parsedDate < startDate) return false;
-      if (endDate && row.parsedDate > endDate) return false;
-      return true;
+      return row.parsedDate && toMonthKey(row.parsedDate) === filters.month;
     });
-  }, [baseAlerts, dateRange.from, dateRange.to]);
+  }, [baseAlerts, filters.month]);
 
+  // ── Compute options from month-filtered data ────────────────────────────
   const vehicleOptions = useMemo(() => {
     const vehicles = new Set<string>();
-    dateFilteredAlerts.forEach((row) => {
+    monthFilteredAlerts.forEach((row) => {
       if (row.vehicle && row.vehicle !== '—') vehicles.add(row.vehicle);
     });
     return Array.from(vehicles).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  }, [dateFilteredAlerts]);
+  }, [monthFilteredAlerts]);
 
   useEffect(() => {
-    setVehicleFilters((current) => current.filter((vehicle) => vehicleOptions.includes(vehicle)));
+    setFilters((current) => {
+      const next = current.vehicleFilters.filter((v) => vehicleOptions.includes(v));
+      if (next.length === current.vehicleFilters.length) return current;
+      return { ...current, vehicleFilters: next };
+    });
   }, [vehicleOptions]);
 
   const driverOptions = useMemo(() => {
     const drivers = new Set<string>();
-    dateFilteredAlerts.forEach((row) => {
+    monthFilteredAlerts.forEach((row) => {
       if (row.driver && row.driver !== '—') drivers.add(row.driver);
     });
     return Array.from(drivers).sort((a, b) => a.localeCompare(b));
-  }, [dateFilteredAlerts]);
+  }, [monthFilteredAlerts]);
 
   useEffect(() => {
-    setDriverFilters((current) => current.filter((driver) => driverOptions.includes(driver)));
+    setFilters((current) => {
+      const next = current.driverFilters.filter((d) => driverOptions.includes(d));
+      if (next.length === current.driverFilters.length) return current;
+      return { ...current, driverFilters: next };
+    });
   }, [driverOptions]);
 
+  const remarkOptions = useMemo(() => {
+    const set = new Set<string>();
+    monthFilteredAlerts.forEach((a) => {
+      if (a.remarks && a.remarks !== '—') set.add(a.remarks);
+    });
+    return Array.from(set).sort();
+  }, [monthFilteredAlerts]);
+
+  useEffect(() => {
+    setFilters((current) => {
+      const next = current.remarkFilters.filter((r) => remarkOptions.includes(r));
+      if (next.length === current.remarkFilters.length) return current;
+      return { ...current, remarkFilters: next };
+    });
+  }, [remarkOptions]);
+
+  // ── Fully filtered alerts ───────────────────────────────────────────────
   const filteredAlerts = useMemo(() => {
-    let alerts = dateFilteredAlerts;
-    if (vehicleFilters.length > 0) {
-      const activeVehicles = new Set(vehicleFilters);
+    let alerts = monthFilteredAlerts;
+    if (filters.vehicleFilters.length > 0) {
+      const activeVehicles = new Set(filters.vehicleFilters);
       alerts = alerts.filter((row) => activeVehicles.has(row.vehicle));
     }
-    if (driverFilters.length > 0) {
-      const activeDrivers = new Set(driverFilters);
+    if (filters.driverFilters.length > 0) {
+      const activeDrivers = new Set(filters.driverFilters);
       alerts = alerts.filter((row) => activeDrivers.has(row.driver));
     }
-    if (remarkFilter !== 'all') {
-      alerts = alerts.filter((row) => normalizeLabel(row.remarks) === remarkFilter);
+    if (filters.remarkFilters.length > 0) {
+      const activeRemarks = new Set(filters.remarkFilters);
+      alerts = alerts.filter((row) => activeRemarks.has(row.remarks));
     }
     return alerts;
-  }, [dateFilteredAlerts, vehicleFilters, driverFilters, remarkFilter]);
-
-  const filteredVehicleOptions = useMemo(() => {
-    const query = vehicleQuery.trim().toLowerCase();
-    if (!query) return vehicleOptions;
-    return vehicleOptions.filter((vehicle) => vehicle.toLowerCase().includes(query));
-  }, [vehicleOptions, vehicleQuery]);
-
-  const filteredDriverOptions = useMemo(() => {
-    const query = driverQuery.trim().toLowerCase();
-    if (!query) return driverOptions;
-    return driverOptions.filter((driver) => driver.toLowerCase().includes(query));
-  }, [driverOptions, driverQuery]);
+  }, [monthFilteredAlerts, filters.vehicleFilters, filters.driverFilters, filters.remarkFilters]);
 
   // ── Stats ───────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -272,20 +270,31 @@ export default function SimpleDashboard({
 
   // ── Trend vs prior period for Total alerts KPI ─────────────────────────
   const alertsTrend = useMemo(() => {
-    if (!dateRange.from || !dateRange.to) return undefined;
-    const from = new Date(`${dateRange.from}T00:00:00`);
-    const to = new Date(`${dateRange.to}T23:59:59.999`);
-    const durationMs = to.getTime() - from.getTime();
-    if (durationMs <= 0) return undefined;
-    const priorFrom = new Date(from.getTime() - durationMs - 1);
-    const priorTo = new Date(from.getTime() - 1);
+    if (!filters.month) return undefined;
+    // Parse selected month into a date range
+    const [yearStr, monthStr] = filters.month.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10); // 1-based
+    if (isNaN(year) || isNaN(month)) return undefined;
+
+    const currentFrom = new Date(year, month - 1, 1);
+    const currentTo = new Date(year, month, 0, 23, 59, 59, 999); // last day of month
+
+    // Prior period = previous month
+    const priorFrom = new Date(year, month - 2, 1);
+    const priorTo = new Date(year, month - 1, 0, 23, 59, 59, 999);
+
+    const remarkSet = filters.remarkFilters.length > 0 ? new Set(filters.remarkFilters) : null;
+    const vehicleSet = filters.vehicleFilters.length > 0 ? new Set(filters.vehicleFilters) : null;
+    const driverSet = filters.driverFilters.length > 0 ? new Set(filters.driverFilters) : null;
+
     let priorCount = 0;
     baseAlerts.forEach((row) => {
       if (!row.parsedDate) return;
-      if (remarkFilter !== 'all' && normalizeLabel(row.remarks) !== remarkFilter) return;
+      if (remarkSet && !remarkSet.has(row.remarks)) return;
+      if (vehicleSet && !vehicleSet.has(row.vehicle)) return;
+      if (driverSet && !driverSet.has(row.driver)) return;
       if (row.parsedDate >= priorFrom && row.parsedDate <= priorTo) {
-        if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return;
-        if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return;
         priorCount += 1;
       }
     });
@@ -293,19 +302,19 @@ export default function SimpleDashboard({
     const percentChange = Math.round(((stats.total - priorCount) / priorCount) * 100);
     return {
       value: percentChange,
-      label: lang === 'th' ? 'เทียบช่วงก่อน' : 'vs prior period',
+      label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs prior month',
     };
-  }, [dateRange.from, dateRange.to, baseAlerts, stats.total, remarkFilter, vehicleFilters, driverFilters, lang]);
+  }, [filters.month, filters.remarkFilters, filters.vehicleFilters, filters.driverFilters, baseAlerts, stats.total, lang]);
 
   // ── Active filter count for DashboardShell badge ───────────────────────
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (dateRange.from || dateRange.to) count += 1;
-    count += vehicleFilters.length;
-    count += driverFilters.length;
-    if (remarkFilter !== 'all') count += 1;
+    if (filters.month) count += 1;
+    count += filters.vehicleFilters.length;
+    count += filters.driverFilters.length;
+    count += filters.remarkFilters.length;
     return count;
-  }, [dateRange.from, dateRange.to, vehicleFilters.length, driverFilters.length, remarkFilter]);
+  }, [filters.month, filters.vehicleFilters.length, filters.driverFilters.length, filters.remarkFilters.length]);
 
   // ── Trend chart data (TrendChart format) ───────────────────────────────
   const trendChartData = useMemo(() => {
@@ -412,19 +421,8 @@ export default function SimpleDashboard({
   [tableRows]);
 
   const exportDateRange = useMemo(() => {
-    const parts: string[] = [];
-    if (dateRange.from) parts.push(dateRange.from);
-    if (dateRange.to) parts.push(dateRange.to);
-    return parts.join('_') || undefined;
-  }, [dateRange.from, dateRange.to]);
-
-  // ── Remark filter options ──────────────────────────────────────────────
-  const remarkFilterOptions: { label: string; value: RemarkFilter }[] = useMemo(() => [
-    { label: lang === 'th' ? 'ทั้งหมด' : 'All remarks', value: 'all' },
-    { label: lang === 'th' ? 'ง่วงนอน' : 'Fatigue', value: 'fatigue' },
-    { label: lang === 'th' ? 'หาว' : 'Yawning', value: 'yawning' },
-    { label: lang === 'th' ? 'ไม่สนใจ' : 'Distraction', value: 'distraction' },
-  ], [lang]);
+    return filters.month || undefined;
+  }, [filters.month]);
 
   return (
     <DashboardShell
@@ -480,117 +478,40 @@ export default function SimpleDashboard({
 
           {/* ── Filters ──────────────────────────────────────────── */}
           <FilterBar>
-            {/* Date range */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                {lang === 'th' ? 'จากวันที่' : 'From'}
-                {dateBounds.min && dateBounds.max && (
-                  <span className="ml-1 font-normal text-zinc-400">({formatDateKeyGB(dateBounds.min)} – {formatDateKeyGB(dateBounds.max)})</span>
-                )}
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="date"
-                  lang="en-GB"
-                  value={dateRange.from}
-                  min={dateBounds.min}
-                  max={dateRange.to || dateBounds.max}
-                  onChange={(event) => setDateRange((current) => ({ ...current, from: event.target.value }))}
-                  className={`${inputBase} !w-auto !py-1 !text-xs dark:[color-scheme:dark]`}
-                />
-                <span className={textSecondary}>–</span>
-                <input
-                  type="date"
-                  lang="en-GB"
-                  value={dateRange.to}
-                  min={dateRange.from || dateBounds.min}
-                  max={dateBounds.max}
-                  onChange={(event) => setDateRange((current) => ({ ...current, to: event.target.value }))}
-                  className={`${inputBase} !w-auto !py-1 !text-xs dark:[color-scheme:dark]`}
-                />
-                {(dateRange.from || dateRange.to) && (
-                  <button type="button" onClick={() => setDateRange({ from: '', to: '' })} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                )}
-              </div>
-            </div>
-
-            {/* Vehicle filter */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'รถ' : 'Vehicle'}</span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {vehicleFilters.map((vehicle) => (
-                  <FilterChip key={vehicle} active onClick={() => setVehicleFilters((current) => current.filter((item) => item !== vehicle))}>
-                    {vehicle} ×
-                  </FilterChip>
-                ))}
-                <input
-                  list="vehicle-options"
-                  value={vehicleQuery}
-                  onChange={(event) => setVehicleQuery(event.target.value)}
-                  placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถ' : 'No vehicles') : (lang === 'th' ? 'ค้นหารถ' : 'Search')}
-                  className={`${inputBase} !py-1 !text-xs !w-36`}
-                />
-                <datalist id="vehicle-options">{filteredVehicleOptions.map((vehicle) => <option key={vehicle} value={vehicle} />)}</datalist>
-                <button type="button"
-                  onClick={() => handleSearchAdd(vehicleQuery, (trimmed) => vehicleOptions.find((v) => v.toLowerCase() === trimmed.toLowerCase()), (matched) => setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setVehicleQuery(''))}
-                  className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-500">
-                  {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                </button>
-                {vehicleFilters.length > 0 && (
-                  <button type="button" onClick={() => setVehicleFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                )}
-              </div>
-            </div>
-
-            {/* Driver filter */}
-            {driverOptions.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {driverFilters.map((driver) => (
-                    <FilterChip key={driver} active onClick={() => setDriverFilters((current) => current.filter((item) => item !== driver))}>
-                      {driver} ×
-                    </FilterChip>
-                  ))}
-                  <input
-                    list="driver-options"
-                    value={driverQuery}
-                    onChange={(event) => setDriverQuery(event.target.value)}
-                    placeholder={lang === 'th' ? 'ค้นหาคนขับ' : 'Search'}
-                    className={`${inputBase} !py-1 !text-xs !w-36`}
-                  />
-                  <datalist id="driver-options">{filteredDriverOptions.map((driver) => <option key={driver} value={driver} />)}</datalist>
-                  <button type="button"
-                    onClick={() => handleSearchAdd(driverQuery, (trimmed) => driverOptions.find((d) => d.toLowerCase() === trimmed.toLowerCase()), (matched) => setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setDriverQuery(''))}
-                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-500">
-                    {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                  </button>
-                  {driverFilters.length > 0 && (
-                    <button type="button" onClick={() => setDriverFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Alert type chips */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ประเภท' : 'Alert type'}</span>
-              <div className="flex flex-wrap gap-1.5">
-                {remarkFilterOptions.map((option) => (
-                  <FilterChip key={option.value} active={remarkFilter === option.value} onClick={() => setRemarkFilter(option.value)}>
-                    {option.label}
-                  </FilterChip>
-                ))}
-              </div>
-            </div>
-
-            {/* Reset */}
-            {activeFilterCount > 0 && (
-              <div className="ml-auto flex items-end pb-0.5">
-                <button type="button" onClick={resetFilters} className="rounded-md px-2.5 py-1 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:hover:text-indigo-300">
-                  {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
-                </button>
-              </div>
+            <InlineMonthPicker
+              value={filters.month}
+              onChange={(v) => setFilters((f) => ({ ...f, month: v as string }))}
+              lang={lang}
+            />
+            <MultiSelect
+              label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'}
+              options={vehicleOptions}
+              selected={filters.vehicleFilters}
+              onChange={(v) => setFilters((f) => ({ ...f, vehicleFilters: v }))}
+              lang={lang}
+            />
+            <MultiSelect
+              label={lang === 'th' ? 'คนขับ' : 'drivers'}
+              options={driverOptions}
+              selected={filters.driverFilters}
+              onChange={(v) => setFilters((f) => ({ ...f, driverFilters: v }))}
+              lang={lang}
+            />
+            <MultiSelect
+              label={lang === 'th' ? 'ประเภท' : 'types'}
+              options={remarkOptions}
+              selected={filters.remarkFilters}
+              onChange={(v) => setFilters((f) => ({ ...f, remarkFilters: v }))}
+              lang={lang}
+            />
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              >
+                {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
+              </button>
             )}
           </FilterBar>
 

@@ -82,3 +82,13 @@ export const CHART_GRADIENTS: [string, string][] = [
   ['#E0E7FF', '#6366F1'], // indigo
 ];
 export const SAFETY_THRESHOLDS = { excellent: 90, good: 70, moderate: 50, poor: 0 };
+
+/* ── Tooltip ─────────────────────────────────────────── */
+export const tooltipBase = 'bg-zinc-900 text-white text-xs rounded-md shadow-lg px-2.5 py-1.5';
+
+/* ── MultiSelect ─────────────────────────────────────── */
+export const multiSelectTrigger = 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs cursor-pointer transition';
+export const multiSelectDefault = 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600';
+export const multiSelectActive = 'border-indigo-200 bg-indigo-50 text-indigo-600 hover:border-indigo-300 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-400';
+export const multiSelectOpen = 'border-indigo-500 bg-white text-zinc-700 dark:border-indigo-400 dark:bg-zinc-900 dark:text-zinc-200';
+export const multiSelectPanel = 'absolute top-full mt-1 min-w-[200px] rounded-lg border border-zinc-200 bg-white shadow-lg z-50 dark:border-zinc-700 dark:bg-zinc-900';

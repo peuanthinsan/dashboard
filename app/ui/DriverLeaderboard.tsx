@@ -1,3 +1,5 @@
+import Tooltip from './Tooltip';
+
 type DriverEntry = { name: string; score: number; alertCount: number; trend?: number };
 type DriverLeaderboardProps = { drivers: DriverEntry[]; title?: string; variant?: 'safest' | 'riskiest' };
 
@@ -44,29 +46,33 @@ export default function DriverLeaderboard({ drivers, title, variant = 'safest' }
       {title && <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>}
       <div className="space-y-2" role="list" aria-label={title ?? (variant === 'safest' ? 'Safest drivers' : 'Riskiest drivers')}>
         {sorted.map((driver, i) => (
-          <div
+          <Tooltip
             key={driver.name}
-            role="listitem"
-            className="flex items-center gap-3 rounded-lg border border-zinc-100 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
-            aria-label={`${getMedalLabel(i)}: ${driver.name}, safety score ${driver.score} (${getScoreLabel(driver.score)}), ${driver.alertCount} alerts`}
+            content={`${driver.name}: ${driver.alertCount} alert${driver.alertCount === 1 ? '' : 's'}, score ${driver.score} (${getScoreLabel(driver.score)})`}
           >
-            <span
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${getMedalColor(i)}`}
-              aria-hidden="true"
+            <div
+              role="listitem"
+              className="flex items-center gap-3 rounded-lg border border-zinc-100 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+              aria-label={`${getMedalLabel(i)}: ${driver.name}, safety score ${driver.score} (${getScoreLabel(driver.score)}), ${driver.alertCount} alerts`}
             >
-              {i + 1}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{driver.name}</p>
-              <p className="text-xs text-zinc-400">{driver.alertCount} alerts</p>
+              <span
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${getMedalColor(i)}`}
+                aria-hidden="true"
+              >
+                {i + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{driver.name}</p>
+                <p className="text-xs text-zinc-400">{driver.alertCount} alerts</p>
+              </div>
+              <span
+                className={`text-lg font-bold tabular-nums ${getScoreColor(driver.score)}`}
+                aria-label={`Score: ${driver.score}`}
+              >
+                {driver.score}
+              </span>
             </div>
-            <span
-              className={`text-lg font-bold tabular-nums ${getScoreColor(driver.score)}`}
-              aria-label={`Score: ${driver.score}`}
-            >
-              {driver.score}
-            </span>
-          </div>
+          </Tooltip>
         ))}
       </div>
     </div>

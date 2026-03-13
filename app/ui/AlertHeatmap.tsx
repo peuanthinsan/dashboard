@@ -1,5 +1,19 @@
+'use client';
+
+import { useState } from 'react';
+import ChartTooltip, { type ChartTooltipRow } from './ChartTooltip';
+
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+const getHexColor = (count: number, maxCount: number) => {
+  if (count === 0) return '#f4f4f5';
+  const intensity = count / Math.max(1, maxCount);
+  if (intensity > 0.75) return '#f43f5e';
+  if (intensity > 0.5) return '#fb923c';
+  if (intensity > 0.25) return '#fcd34d';
+  return '#7dd3fc';
+};
 
 type HeatmapProps = { dates: Date[] };
 
@@ -34,6 +48,8 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
 
   const totalAlerts = dates.length;
 
+  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; header: string; rows: ChartTooltipRow[] }>({ visible: false, x: 0, y: 0, header: '', rows: [] });
+
   return (
     <div
       role="img"
@@ -57,8 +73,27 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
                   <div
                     key={`${di}-${h}`}
                     className={`relative flex h-5 w-5 items-center justify-center rounded-sm ${getColor(count)} transition-all hover:scale-125 hover:z-10`}
-                    title={`${day} ${String(h).padStart(2, '0')}:00 — ${count} alert${count !== 1 ? 's' : ''}`}
                     aria-label={`${day} ${String(h).padStart(2, '0')}:00, ${count} alert${count !== 1 ? 's' : ''}`}
+                    onMouseMove={(e) => {
+                      const intensity = count / Math.max(1, maxCount);
+                      let intensityLabel = 'None';
+                      if (count > 0) {
+                        if (intensity > 0.75) intensityLabel = 'Very high';
+                        else if (intensity > 0.5) intensityLabel = 'High';
+                        else if (intensity > 0.25) intensityLabel = 'Moderate';
+                        else intensityLabel = 'Low';
+                      }
+                      setTooltip({
+                        visible: true,
+                        x: e.clientX,
+                        y: e.clientY,
+                        header: `${day} ${String(h).padStart(2, '0')}:00`,
+                        rows: [
+                          { color: getHexColor(count, maxCount), label: intensityLabel, value: count },
+                        ],
+                      });
+                    }}
+                    onMouseLeave={() => setTooltip((prev) => ({ ...prev, visible: false }))}
                   >
                     {symbol && (
                       <span
@@ -74,6 +109,7 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
             </div>
           ))}
         </div>
+        <ChartTooltip visible={tooltip.visible} x={tooltip.x} y={tooltip.y} header={tooltip.header} rows={tooltip.rows} />
         <div className="mt-3 flex items-center gap-2 text-[10px] text-zinc-400" aria-hidden="true">
           <span>Less</span>
           <div className="flex gap-0.5">

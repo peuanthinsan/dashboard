@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { FilterChip } from './FilterChip';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
@@ -30,11 +29,11 @@ import { DataTable, type Column } from 'app/ui/DataTable';
 import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
+import InlineMonthPicker from 'app/ui/InlineMonthPicker';
+import MultiSelect from 'app/ui/MultiSelect';
 import {
   heading2,
   textSecondary,
-  inputBase,
-  cardSection,
   badgeDefault,
   badgeWarning,
   badgeDanger,
@@ -127,18 +126,16 @@ export default function DetailDashboard({
     [organizationName],
   );
   const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
-  const [monthSearch, setMonthSearch] = useState('');
-  const [monthFilters, setMonthFilters] = useState<string[]>([]);
-  const [fleetSearch, setFleetSearch] = useState('');
-  const [fleetFilters, setFleetFilters] = useState<string[]>([]);
-  const [remarkSearch, setRemarkSearch] = useState('');
-  const [remarkFilters, setRemarkFilters] = useState<string[]>([]);
-  const [trendRemarkFilter, setTrendRemarkFilter] = useState('all');
-  const [vehicleSearch, setVehicleSearch] = useState('');
-  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
-  const [driverSearch, setDriverSearch] = useState('');
-  const [driverFilters, setDriverFilters] = useState<string[]>([]);
-  const [showExcluded, setShowExcluded] = useState(false);
+  const [filters, setFilters] = useState<DetailFilterState>({
+    monthFilters: [],
+    fleetFilters: [],
+    remarkFilters: [],
+    vehicleFilters: [],
+    driverFilters: [],
+    trendRemarkFilter: 'all',
+    showExcluded: false,
+  });
+  const { monthFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter, showExcluded } = filters;
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
@@ -147,77 +144,41 @@ export default function DetailDashboard({
     const stored = loadStoredFilters<DetailFilterState>(storageKey);
     if (!stored) return;
     didSetDefaultMonth.current = true;
-    if (Array.isArray(stored.monthFilters)) {
-      setMonthFilters(stored.monthFilters.filter((value) => typeof value === 'string'));
-    }
-    if (Array.isArray(stored.fleetFilters)) {
-      setFleetFilters(stored.fleetFilters.filter((value) => typeof value === 'string'));
-    }
-    if (Array.isArray(stored.remarkFilters)) {
-      setRemarkFilters(stored.remarkFilters.filter((value) => typeof value === 'string'));
-    }
-    if (Array.isArray(stored.vehicleFilters)) {
-      setVehicleFilters(stored.vehicleFilters.filter((value) => typeof value === 'string'));
-    }
-    if (Array.isArray(stored.driverFilters)) {
-      setDriverFilters(stored.driverFilters.filter((value) => typeof value === 'string'));
-    }
-    if (typeof stored.trendRemarkFilter === 'string') {
-      setTrendRemarkFilter(stored.trendRemarkFilter);
-    }
-    if (typeof stored.showExcluded === 'boolean') {
-      setShowExcluded(stored.showExcluded);
-    }
+    setFilters((prev) => ({
+      ...prev,
+      monthFilters: Array.isArray(stored.monthFilters) ? stored.monthFilters.filter((v) => typeof v === 'string') : prev.monthFilters,
+      fleetFilters: Array.isArray(stored.fleetFilters) ? stored.fleetFilters.filter((v) => typeof v === 'string') : prev.fleetFilters,
+      remarkFilters: Array.isArray(stored.remarkFilters) ? stored.remarkFilters.filter((v) => typeof v === 'string') : prev.remarkFilters,
+      vehicleFilters: Array.isArray(stored.vehicleFilters) ? stored.vehicleFilters.filter((v) => typeof v === 'string') : prev.vehicleFilters,
+      driverFilters: Array.isArray(stored.driverFilters) ? stored.driverFilters.filter((v) => typeof v === 'string') : prev.driverFilters,
+      trendRemarkFilter: typeof stored.trendRemarkFilter === 'string' ? stored.trendRemarkFilter : prev.trendRemarkFilter,
+      showExcluded: typeof stored.showExcluded === 'boolean' ? stored.showExcluded : prev.showExcluded,
+    }));
   }, [storageKey]);
 
   useEffect(() => {
-    saveStoredFilters(storageKey, {
-      monthFilters,
-      fleetFilters,
-      remarkFilters,
-      vehicleFilters,
-      driverFilters,
-      trendRemarkFilter,
-      showExcluded,
-    });
-  }, [
-    driverFilters,
-    fleetFilters,
-    monthFilters,
-    remarkFilters,
-    showExcluded,
-    storageKey,
-    trendRemarkFilter,
-    vehicleFilters,
-  ]);
-
-  const handleSearchAdd = <T,>(
-    searchValue: string,
-    findMatch: (trimmed: string) => T | undefined,
-    onMatch: (match: T) => void,
-    clearSearch: () => void,
-  ) => {
-    const trimmed = searchValue.trim();
-    if (!trimmed) return;
-    const matched = findMatch(trimmed);
-    if (!matched) return;
-    onMatch(matched);
-    clearSearch();
-  };
+    saveStoredFilters(storageKey, filters);
+  }, [filters, storageKey]);
 
   const resetFilters = () => {
-    setMonthSearch('');
-    setMonthFilters([]);
-    setFleetSearch('');
-    setFleetFilters([]);
-    setRemarkSearch('');
-    setRemarkFilters([]);
-    setVehicleSearch('');
-    setVehicleFilters([]);
-    setDriverSearch('');
-    setDriverFilters([]);
-    setShowExcluded(false);
+    setFilters({
+      monthFilters: [],
+      fleetFilters: [],
+      remarkFilters: [],
+      vehicleFilters: [],
+      driverFilters: [],
+      trendRemarkFilter: 'all',
+      showExcluded: false,
+    });
   };
+
+  const hasActiveFilters =
+    monthFilters.length > 0 ||
+    fleetFilters.length > 0 ||
+    remarkFilters.length > 0 ||
+    vehicleFilters.length > 0 ||
+    driverFilters.length > 0 ||
+    showExcluded;
 
   const allowedAlertTypes = useMemo(() => ALLOWED_ALERT_TYPES, []);
   const allowedRemarkTargets = useMemo(() => ALLOWED_REMARK_TARGETS, []);
@@ -268,13 +229,6 @@ export default function DetailDashboard({
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
 
-  const filteredFleetOptions = useMemo(() => {
-    const trimmedSearch = fleetSearch.trim();
-    if (!trimmedSearch) return fleetOptions;
-    const normalizedSearch = normalizeLabel(trimmedSearch);
-    return fleetOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
-  }, [fleetOptions, fleetSearch]);
-
   const remarkOptions = useMemo(() => {
     const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
     const matching = new Set<string>();
@@ -290,13 +244,6 @@ export default function DetailDashboard({
     return Array.from(matching).sort((a, b) => a.localeCompare(b));
   }, [alertRows, allowedRemarkTargets]);
 
-  const filteredRemarkOptions = useMemo(() => {
-    const trimmedSearch = remarkSearch.trim();
-    if (!trimmedSearch) return remarkOptions;
-    const normalizedSearch = normalizeLabel(trimmedSearch);
-    return remarkOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
-  }, [remarkOptions, remarkSearch]);
-
   const vehicleOptions = useMemo(() => {
     const unique = new Set<string>();
     alertRows.forEach((row) => {
@@ -305,13 +252,6 @@ export default function DetailDashboard({
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
 
-  const filteredVehicleOptions = useMemo(() => {
-    const trimmedSearch = vehicleSearch.trim();
-    if (!trimmedSearch) return vehicleOptions;
-    const normalizedSearch = normalizeLabel(trimmedSearch);
-    return vehicleOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
-  }, [vehicleOptions, vehicleSearch]);
-
   const driverOptions = useMemo(() => {
     const unique = new Set<string>();
     alertRows.forEach((row) => {
@@ -319,13 +259,6 @@ export default function DetailDashboard({
     });
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
-
-  const filteredDriverOptions = useMemo(() => {
-    const trimmedSearch = driverSearch.trim();
-    if (!trimmedSearch) return driverOptions;
-    const normalizedSearch = normalizeLabel(trimmedSearch);
-    return driverOptions.filter((option) => normalizeLabel(option).includes(normalizedSearch));
-  }, [driverOptions, driverSearch]);
 
   const monthOptions = useMemo(() => {
     const unique = new Map<string, string>();
@@ -339,13 +272,6 @@ export default function DetailDashboard({
       .sort((a, b) => b.key.localeCompare(a.key));
   }, [alertRows]);
 
-  const filteredMonthOptions = useMemo(() => {
-    const trimmedSearch = monthSearch.trim();
-    if (!trimmedSearch) return monthOptions;
-    const normalizedSearch = normalizeLabel(trimmedSearch);
-    return monthOptions.filter((option) => normalizeLabel(option.label).includes(normalizedSearch));
-  }, [monthOptions, monthSearch]);
-
   useEffect(() => {
     if (didSetDefaultMonth.current) return;
     if (monthOptions.length === 0) return;
@@ -355,7 +281,7 @@ export default function DetailDashboard({
     }
     didSetDefaultMonth.current = true;
     if (monthOptions.some((option) => option.key === currentMonthKey)) {
-      setMonthFilters([currentMonthKey]);
+      setFilters((f) => ({ ...f, monthFilters: [currentMonthKey] }));
     }
   }, [currentMonthKey, monthFilters, monthOptions]);
 
@@ -418,7 +344,7 @@ export default function DetailDashboard({
   useEffect(() => {
     if (trendRemarkFilter === 'all') return;
     if (availableTrendRemarkOptions.some((option) => option.value === trendRemarkFilter)) return;
-    setTrendRemarkFilter('all');
+    setFilters((f) => ({ ...f, trendRemarkFilter: 'all' }));
   }, [availableTrendRemarkOptions, trendRemarkFilter]);
 
   // ── Trend chart data (TrendDatum[]) ──
@@ -742,150 +668,19 @@ export default function DetailDashboard({
 
           {/* ── Filters ── */}
           <FilterBar>
-            {/* Month filter */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'เดือน' : 'Months'}</span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {monthFilters.map((monthKey) => {
-                  const monthLabel = monthOptions.find((option) => option.key === monthKey)?.label ?? monthKey;
-                  return (
-                    <FilterChip key={monthKey} active onClick={() => setMonthFilters((current) => current.filter((value) => value !== monthKey))}>
-                      {monthLabel} &times;
-                    </FilterChip>
-                  );
-                })}
-                <input list="month-options" value={monthSearch} onChange={(event) => setMonthSearch(event.target.value)}
-                  placeholder={monthOptions.length === 0 ? (lang === 'th' ? 'ไม่มีเดือน' : 'No months') : (lang === 'th' ? 'ค้นหาเดือน' : 'Search')}
-                  className={`${inputBase} !py-1 !text-xs !w-32`} />
-                <datalist id="month-options">{filteredMonthOptions.map((option) => <option key={option.key} value={option.label} />)}</datalist>
-                <button type="button"
-                  onClick={() => handleSearchAdd(monthSearch, (trimmed) => monthOptions.find((option) => option.key === trimmed || normalizeLabel(option.label) === normalizeLabel(trimmed)), (matched) => setMonthFilters((current) => current.includes(matched.key) ? current : [...current, matched.key]), () => setMonthSearch(''))}
-                  className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
-                  {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                </button>
-                {monthFilters.length > 0 && (
-                  <button type="button" onClick={() => setMonthFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                )}
-              </div>
-            </div>
-
-            {/* Fleet filter */}
+            <InlineMonthPicker value={filters.monthFilters} onChange={(v) => setFilters(f => ({ ...f, monthFilters: v as string[] }))} multi lang={lang} />
             {!organizationName && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ฟลีท' : 'Fleets'}</span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {fleetFilters.map((fleet) => (
-                    <FilterChip key={fleet} active onClick={() => setFleetFilters((current) => current.filter((value) => value !== fleet))}>
-                      {fleet} &times;
-                    </FilterChip>
-                  ))}
-                  <input list="fleet-options" value={fleetSearch} onChange={(event) => setFleetSearch(event.target.value)}
-                    placeholder={fleetOptions.length === 0 ? (lang === 'th' ? 'ไม่มีฟลีท' : 'No fleets') : (lang === 'th' ? 'ค้นหาฟลีท' : 'Search')}
-                    className={`${inputBase} !py-1 !text-xs !w-32`} />
-                  <datalist id="fleet-options">{filteredFleetOptions.map((option) => <option key={option} value={option} />)}</datalist>
-                  <button type="button"
-                    onClick={() => handleSearchAdd(fleetSearch, (trimmed) => fleetOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)), (matched) => setFleetFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setFleetSearch(''))}
-                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
-                    {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                  </button>
-                  {fleetFilters.length > 0 && (
-                    <button type="button" onClick={() => setFleetFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                  )}
-                </div>
-              </div>
+              <MultiSelect label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'} options={fleetOptions} selected={filters.fleetFilters} onChange={(v) => setFilters(f => ({ ...f, fleetFilters: v }))} lang={lang} />
             )}
-
-            {/* Alert type filter */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ประเภทแจ้งเตือน' : 'Alert type'}</span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {remarkFilters.map((remark) => (
-                  <FilterChip key={remark} active onClick={() => setRemarkFilters((current) => current.filter((value) => value !== remark))}>
-                    {remark} &times;
-                  </FilterChip>
-                ))}
-                <input list="remark-options" value={remarkSearch} onChange={(event) => setRemarkSearch(event.target.value)}
-                  placeholder={remarkOptions.length === 0 ? (lang === 'th' ? 'ไม่มีประเภท' : 'No types') : (lang === 'th' ? 'ค้นหา' : 'Search')}
-                  className={`${inputBase} !py-1 !text-xs !w-32`} />
-                <datalist id="remark-options">{filteredRemarkOptions.map((option) => <option key={option} value={option} />)}</datalist>
-                <button type="button"
-                  onClick={() => handleSearchAdd(remarkSearch, (trimmed) => remarkOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)), (matched) => setRemarkFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setRemarkSearch(''))}
-                  className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
-                  {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                </button>
-                {remarkFilters.length > 0 && (
-                  <button type="button" onClick={() => setRemarkFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                )}
-              </div>
-            </div>
-
-            {/* Vehicle filter */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'รถ' : 'Vehicle'}</span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {vehicleFilters.map((vehicle) => (
-                  <FilterChip key={vehicle} active onClick={() => setVehicleFilters((current) => current.filter((value) => value !== vehicle))}>
-                    {vehicle} &times;
-                  </FilterChip>
-                ))}
-                <input list="vehicle-options" value={vehicleSearch} onChange={(event) => setVehicleSearch(event.target.value)}
-                  placeholder={vehicleOptions.length === 0 ? (lang === 'th' ? 'ไม่มีรถ' : 'No vehicles') : (lang === 'th' ? 'ค้นหารถ' : 'Search')}
-                  className={`${inputBase} !py-1 !text-xs !w-32`} />
-                <datalist id="vehicle-options">{filteredVehicleOptions.map((option) => <option key={option} value={option} />)}</datalist>
-                <button type="button"
-                  onClick={() => handleSearchAdd(vehicleSearch, (trimmed) => vehicleOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)), (matched) => setVehicleFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setVehicleSearch(''))}
-                  className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
-                  {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                </button>
-                {vehicleFilters.length > 0 && (
-                  <button type="button" onClick={() => setVehicleFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                )}
-              </div>
-            </div>
-
-            {/* Driver filter */}
-            {driverOptions.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {driverFilters.map((driver) => (
-                    <FilterChip key={driver} active onClick={() => setDriverFilters((current) => current.filter((value) => value !== driver))}>
-                      {driver} &times;
-                    </FilterChip>
-                  ))}
-                  <input list="driver-options" value={driverSearch} onChange={(event) => setDriverSearch(event.target.value)}
-                    placeholder={lang === 'th' ? 'ค้นหาคนขับ' : 'Search'}
-                    className={`${inputBase} !py-1 !text-xs !w-32`} />
-                  <datalist id="driver-options">{filteredDriverOptions.map((option) => <option key={option} value={option} />)}</datalist>
-                  <button type="button"
-                    onClick={() => handleSearchAdd(driverSearch, (trimmed) => driverOptions.find((option) => normalizeLabel(option) === normalizeLabel(trimmed)), (matched) => setDriverFilters((current) => (current.includes(matched) ? current : [...current, matched])), () => setDriverSearch(''))}
-                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-400">
-                    {lang === 'th' ? 'เพิ่ม' : 'Add'}
-                  </button>
-                  {driverFilters.length > 0 && (
-                    <button type="button" onClick={() => setDriverFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Options toggle + Reset */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ตัวเลือก' : 'Options'}</span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <FilterChip active={showExcluded} onClick={() => setShowExcluded((prev) => !prev)}>
-                  {lang === 'th' ? 'แสดงการแจ้งเตือนที่ซ่อน' : 'Show excluded alerts'}
-                </FilterChip>
-              </div>
-            </div>
-
-            {/* Reset */}
-            {activeFilterCount > 0 && (
-              <div className="ml-auto flex items-end pb-0.5">
-                <button type="button" onClick={resetFilters} className="rounded-md px-2.5 py-1 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:hover:text-indigo-300">
-                  {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
-                </button>
-              </div>
+            <MultiSelect label={lang === 'th' ? 'ประเภท' : 'types'} options={remarkOptions} selected={filters.remarkFilters} onChange={(v) => setFilters(f => ({ ...f, remarkFilters: v }))} lang={lang} />
+            <MultiSelect label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'} options={vehicleOptions} selected={filters.vehicleFilters} onChange={(v) => setFilters(f => ({ ...f, vehicleFilters: v }))} lang={lang} />
+            <MultiSelect label={lang === 'th' ? 'คนขับ' : 'drivers'} options={driverOptions} selected={filters.driverFilters} onChange={(v) => setFilters(f => ({ ...f, driverFilters: v }))} lang={lang} />
+            <label className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+              <input type="checkbox" checked={filters.showExcluded} onChange={(e) => setFilters(f => ({ ...f, showExcluded: e.target.checked }))} className="rounded border-zinc-300" />
+              {lang === 'th' ? 'แสดงที่ยกเว้น' : 'Show excluded'}
+            </label>
+            {hasActiveFilters && (
+              <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">{lang === 'th' ? 'รีเซ็ต' : 'Reset'}</button>
             )}
           </FilterBar>
 
@@ -906,13 +701,19 @@ export default function DetailDashboard({
                 {lang === 'th' ? 'แสดง' : 'Show'}
               </span>
               {availableTrendRemarkOptions.map((option) => (
-                <FilterChip
+                <button
                   key={option.value}
-                  active={trendRemarkFilter === option.value}
-                  onClick={() => setTrendRemarkFilter(option.value)}
+                  type="button"
+                  onClick={() => setFilters(f => ({ ...f, trendRemarkFilter: option.value }))}
+                  className={[
+                    'rounded-full px-2.5 py-1 text-xs font-medium transition',
+                    trendRemarkFilter === option.value
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700',
+                  ].join(' ')}
                 >
                   {option.label}
-                </FilterChip>
+                </button>
               ))}
             </div>
             <div className="mt-4">

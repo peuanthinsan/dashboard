@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { FilterChip } from './FilterChip';
+import InlineMonthPicker from 'app/ui/InlineMonthPicker';
+import MultiSelect from 'app/ui/MultiSelect';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import {
@@ -30,7 +31,7 @@ import AlertHeatmap from 'app/ui/AlertHeatmap';
 import DriverLeaderboard from 'app/ui/DriverLeaderboard';
 import ExportButton from 'app/ui/ExportButton';
 import TrendChart from 'app/ui/TrendChart';
-import { inputBase, heading2, textSecondary, CHART_COLORS } from 'app/ui/design-tokens';
+import { heading2, textSecondary, CHART_COLORS } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
 
 type DashboardProps = {
@@ -71,9 +72,7 @@ export default function SummaryDashboard({
   );
 
   const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
-  const [monthSearch, setMonthSearch] = useState('');
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
-  const [fleetSearch, setFleetSearch] = useState('');
   const [fleetFilters, setFleetFilters] = useState<string[]>([]);
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
@@ -93,23 +92,9 @@ export default function SummaryDashboard({
     saveStoredFilters(storageKey, { monthFilters, fleetFilters });
   }, [fleetFilters, monthFilters, storageKey]);
 
-  const handleSearchAdd = <T,>(
-    searchValue: string,
-    findMatch: (trimmed: string) => T | undefined,
-    onMatch: (match: T) => void,
-    clearSearch: () => void,
-  ) => {
-    const trimmed = searchValue.trim();
-    if (!trimmed) return;
-    const matched = findMatch(trimmed);
-    if (!matched) return;
-    onMatch(matched);
-    clearSearch();
-  };
-
   const resetFilters = () => {
-    setMonthSearch(''); setMonthFilters([]);
-    setFleetSearch(''); setFleetFilters([]);
+    setMonthFilters([]);
+    setFleetFilters([]);
   };
 
   const allowedAlertTypes = useMemo(() => ALLOWED_ALERT_TYPES, []);
@@ -139,24 +124,11 @@ export default function SummaryDashboard({
     alertRows.forEach((row) => { if (row.fleet && row.fleet !== '—') unique.add(row.fleet); });
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
-  const filteredFleetOptions = useMemo(() => {
-    const s = fleetSearch.trim();
-    if (!s) return fleetOptions;
-    const n = normalizeLabel(s);
-    return fleetOptions.filter((o) => normalizeLabel(o).includes(n));
-  }, [fleetOptions, fleetSearch]);
   const monthOptions = useMemo(() => {
     const unique = new Map<string, string>();
     alertRows.forEach((row) => { if (row.monthKey && row.monthLabel) unique.set(row.monthKey, row.monthLabel); });
     return Array.from(unique.entries()).map(([key, label]) => ({ key, label })).sort((a, b) => b.key.localeCompare(a.key));
   }, [alertRows]);
-  const filteredMonthOptions = useMemo(() => {
-    const s = monthSearch.trim();
-    if (!s) return monthOptions;
-    const n = normalizeLabel(s);
-    return monthOptions.filter((o) => normalizeLabel(o.label).includes(n));
-  }, [monthOptions, monthSearch]);
-
   useEffect(() => {
     if (didSetDefaultMonth.current) return;
     if (monthOptions.length === 0) return;
@@ -329,8 +301,6 @@ export default function SummaryDashboard({
     }));
   }, [currentRows]);
 
-  const filterInputClass = `${inputBase} !py-1 !text-xs`;
-
   return (
     <DashboardShell
       title={dashboardName}
@@ -365,52 +335,25 @@ export default function SummaryDashboard({
 
           {/* Filters — Month + Fleet only */}
           <FilterBar>
-            {/* Month chips */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'เดือน' : 'Months'}</span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {monthFilters.map((mk) => {
-                  const ml = monthOptions.find((o) => o.key === mk)?.label ?? mk;
-                  return <FilterChip key={mk} active onClick={() => setMonthFilters((c) => c.filter((v) => v !== mk))}>{ml} ×</FilterChip>;
-                })}
-                <input list="month-options" value={monthSearch} onChange={(e) => setMonthSearch(e.target.value)}
-                  placeholder={monthOptions.length === 0 ? (lang === 'th' ? 'ไม่มีเดือน' : 'No months') : (lang === 'th' ? 'ค้นหาเดือน' : 'Search months')}
-                  className={filterInputClass} />
-                <datalist id="month-options">{filteredMonthOptions.map((o) => <option key={o.key} value={o.label} />)}</datalist>
-                <button type="button" onClick={() => handleSearchAdd(monthSearch, (t) => monthOptions.find((o) => o.key === t || normalizeLabel(o.label) === normalizeLabel(t)), (m) => setMonthFilters((c) => c.includes(m.key) ? c : [...c, m.key]), () => setMonthSearch(''))}
-                  className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-200">{lang === 'th' ? 'เพิ่ม' : 'Add'}</button>
-                {monthFilters.length > 0 && (
-                  <button type="button" onClick={() => setMonthFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                )}
-              </div>
-            </div>
-
-            {/* Fleet chips */}
+            <InlineMonthPicker
+              value={monthFilters}
+              onChange={(v) => setMonthFilters(v as string[])}
+              multi
+              lang={lang}
+            />
             {!organizationName && (
-              <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ฟลีท' : 'Fleets'}</span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {fleetFilters.map((f) => <FilterChip key={f} active onClick={() => setFleetFilters((c) => c.filter((v) => v !== f))}>{f} ×</FilterChip>)}
-                  <input list="fleet-options" value={fleetSearch} onChange={(e) => setFleetSearch(e.target.value)}
-                    placeholder={fleetOptions.length === 0 ? (lang === 'th' ? 'ไม่มีฟลีท' : 'No fleets') : (lang === 'th' ? 'ค้นหาฟลีท' : 'Search fleets')}
-                    className={filterInputClass} />
-                  <datalist id="fleet-options">{filteredFleetOptions.map((o) => <option key={o} value={o} />)}</datalist>
-                  <button type="button" onClick={() => handleSearchAdd(fleetSearch, (t) => fleetOptions.find((o) => normalizeLabel(o) === normalizeLabel(t)), (m) => setFleetFilters((c) => c.includes(m) ? c : [...c, m]), () => setFleetSearch(''))}
-                    className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-200">{lang === 'th' ? 'เพิ่ม' : 'Add'}</button>
-                  {fleetFilters.length > 0 && (
-                    <button type="button" onClick={() => setFleetFilters([])} className="rounded px-1.5 py-1 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">×</button>
-                  )}
-                </div>
-              </div>
+              <MultiSelect
+                label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
+                options={fleetOptions}
+                selected={fleetFilters}
+                onChange={setFleetFilters}
+                lang={lang}
+              />
             )}
-
-            {/* Reset button */}
             {(monthFilters.length + fleetFilters.length) > 0 && (
-              <div className="ml-auto flex items-end pb-0.5">
-                <button type="button" onClick={resetFilters} className="rounded-md px-2.5 py-1 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:hover:text-indigo-300">
-                  {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
-                </button>
-              </div>
+              <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
+              </button>
             )}
           </FilterBar>
 

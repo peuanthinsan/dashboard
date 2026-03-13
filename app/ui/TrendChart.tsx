@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { buildYAxisTicks } from 'app/dashboards/dashboardDataUtils';
 import { CHART_COLORS } from 'app/ui/design-tokens';
+import ChartTooltip, { type ChartTooltipRow } from './ChartTooltip';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -10,6 +12,9 @@ import { CHART_COLORS } from 'app/ui/design-tokens';
 export type TrendDatum = { label: string; value: number };
 export type MultiTrendDatum = { label: string; values: Record<string, number> };
 export type TrendChartMode = 'line' | 'bar' | 'dual-axis';
+
+type TooltipState = { visible: boolean; x: number; y: number; header: string; rows: ChartTooltipRow[] };
+type SetTooltip = React.Dispatch<React.SetStateAction<TooltipState>>;
 
 interface TrendChartProps {
   data: TrendDatum[] | MultiTrendDatum[];
@@ -233,9 +238,10 @@ interface LineModeProps {
   data: TrendDatum[] | MultiTrendDatum[];
   svgHeight: number;
   colors: string[];
+  setTooltip: SetTooltip;
 }
 
-function LineMode({ data, svgHeight, colors }: LineModeProps) {
+function LineMode({ data, svgHeight, colors, setTooltip }: LineModeProps) {
   if (data.length === 0) return null;
 
   const isMulti = isMultiTrendData(data);
@@ -272,9 +278,27 @@ function LineMode({ data, svgHeight, colors }: LineModeProps) {
                 strokeLinecap="round"
               />
               {points.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r="4" fill={color}>
-                  <title>{`${labels[i]} — ${key}: ${multiData[i].values[key] ?? 0}`}</title>
-                </circle>
+                <circle
+                  key={i}
+                  cx={p.x}
+                  cy={p.y}
+                  r="4"
+                  fill={color}
+                  onMouseMove={(e) =>
+                    setTooltip({
+                      visible: true,
+                      x: e.clientX,
+                      y: e.clientY,
+                      header: labels[i],
+                      rows: seriesKeys.map((k, ki) => ({
+                        color: colors[ki % colors.length],
+                        label: k,
+                        value: multiData[i].values[k] ?? 0,
+                      })),
+                    })
+                  }
+                  onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
+                />
               ))}
             </g>
           );
@@ -315,9 +339,23 @@ function LineMode({ data, svgHeight, colors }: LineModeProps) {
       />
       {/* Data points */}
       {points.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="4" fill={color}>
-          <title>{`${labels[i]}: ${singleData[i].value}`}</title>
-        </circle>
+        <circle
+          key={i}
+          cx={p.x}
+          cy={p.y}
+          r="4"
+          fill={color}
+          onMouseMove={(e) =>
+            setTooltip({
+              visible: true,
+              x: e.clientX,
+              y: e.clientY,
+              header: labels[i],
+              rows: [{ color, label: labels[i], value: singleData[i].value }],
+            })
+          }
+          onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
+        />
       ))}
     </g>
   );
@@ -331,9 +369,10 @@ interface BarModeProps {
   data: TrendDatum[] | MultiTrendDatum[];
   svgHeight: number;
   colors: string[];
+  setTooltip: SetTooltip;
 }
 
-function BarMode({ data, svgHeight, colors }: BarModeProps) {
+function BarMode({ data, svgHeight, colors, setTooltip }: BarModeProps) {
   if (data.length === 0) return null;
 
   const isMulti = isMultiTrendData(data);
@@ -370,9 +409,21 @@ function BarMode({ data, svgHeight, colors }: BarModeProps) {
                 height={Math.max(0, barH)}
                 fill={color}
                 rx="2"
-              >
-                <title>{`${labels[gi]} — ${key}: ${value}`}</title>
-              </rect>
+                onMouseMove={(e) =>
+                  setTooltip({
+                    visible: true,
+                    x: e.clientX,
+                    y: e.clientY,
+                    header: labels[gi],
+                    rows: seriesKeys.map((k, ki) => ({
+                      color: colors[ki % colors.length],
+                      label: k,
+                      value: d.values[k] ?? 0,
+                    })),
+                  })
+                }
+                onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
+              />
             );
           });
         })}
@@ -406,9 +457,17 @@ function BarMode({ data, svgHeight, colors }: BarModeProps) {
             height={Math.max(0, barH)}
             fill={color}
             rx="2"
-          >
-            <title>{`${labels[i]}: ${d.value}`}</title>
-          </rect>
+            onMouseMove={(e) =>
+              setTooltip({
+                visible: true,
+                x: e.clientX,
+                y: e.clientY,
+                header: labels[i],
+                rows: [{ color, label: labels[i], value: d.value }],
+              })
+            }
+            onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
+          />
         );
       })}
     </g>
@@ -423,9 +482,10 @@ interface DualAxisModeProps {
   data: MultiTrendDatum[];
   svgHeight: number;
   colors: string[];
+  setTooltip: SetTooltip;
 }
 
-function DualAxisMode({ data, svgHeight, colors }: DualAxisModeProps) {
+function DualAxisMode({ data, svgHeight, colors, setTooltip }: DualAxisModeProps) {
   if (data.length === 0) return null;
 
   const seriesKeys = Object.keys(data[0].values);
@@ -481,9 +541,21 @@ function DualAxisMode({ data, svgHeight, colors }: DualAxisModeProps) {
             fill={barColor}
             fillOpacity="0.75"
             rx="2"
-          >
-            <title>{`${labels[i]} — ${barKey}: ${barValues[i]}`}</title>
-          </rect>
+            onMouseMove={(e) =>
+              setTooltip({
+                visible: true,
+                x: e.clientX,
+                y: e.clientY,
+                header: labels[i],
+                rows: seriesKeys.map((k, ki) => ({
+                  color: colors[ki % colors.length],
+                  label: k,
+                  value: d.values[k] ?? 0,
+                })),
+              })
+            }
+            onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
+          />
         );
       })}
 
@@ -499,9 +571,27 @@ function DualAxisMode({ data, svgHeight, colors }: DualAxisModeProps) {
             strokeLinecap="round"
           />
           {linePoints.map((p, i) => (
-            <circle key={`dual-dot-${i}`} cx={p.x} cy={p.y} r="4" fill={lineColor}>
-              <title>{`${labels[i]} — ${lineKey}: ${lineValues[i]}`}</title>
-            </circle>
+            <circle
+              key={`dual-dot-${i}`}
+              cx={p.x}
+              cy={p.y}
+              r="4"
+              fill={lineColor}
+              onMouseMove={(e) =>
+                setTooltip({
+                  visible: true,
+                  x: e.clientX,
+                  y: e.clientY,
+                  header: labels[i],
+                  rows: seriesKeys.map((k, ki) => ({
+                    color: colors[ki % colors.length],
+                    label: k,
+                    value: data[i].values[k] ?? 0,
+                  })),
+                })
+              }
+              onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
+            />
           ))}
         </>
       ) : null}
@@ -584,6 +674,7 @@ export default function TrendChart({
   className = '',
   ariaLabel,
 }: TrendChartProps) {
+  const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0, header: '', rows: [] });
   const svgHeight = height;
   const viewBox = `0 0 ${SVG_WIDTH} ${svgHeight}`;
   const isEmpty = data.length === 0;
@@ -605,18 +696,19 @@ export default function TrendChart({
         {isEmpty ? (
           <EmptyChart svgHeight={svgHeight} />
         ) : mode === 'line' ? (
-          <LineMode data={data} svgHeight={svgHeight} colors={colors} />
+          <LineMode data={data} svgHeight={svgHeight} colors={colors} setTooltip={setTooltip} />
         ) : mode === 'bar' ? (
-          <BarMode data={data} svgHeight={svgHeight} colors={colors} />
+          <BarMode data={data} svgHeight={svgHeight} colors={colors} setTooltip={setTooltip} />
         ) : mode === 'dual-axis' && isMulti ? (
           <DualAxisMode
             data={data as MultiTrendDatum[]}
             svgHeight={svgHeight}
             colors={colors}
+            setTooltip={setTooltip}
           />
         ) : (
           // Fallback: dual-axis requested but single data provided — render as bar
-          <BarMode data={data} svgHeight={svgHeight} colors={colors} />
+          <BarMode data={data} svgHeight={svgHeight} colors={colors} setTooltip={setTooltip} />
         )}
       </svg>
       <Legend
@@ -625,6 +717,14 @@ export default function TrendChart({
         mode={mode}
         barKey={dualBarKey}
         lineKey={dualLineKey}
+      />
+      <ChartTooltip
+        visible={tooltip.visible}
+        x={tooltip.x}
+        y={tooltip.y}
+        header={tooltip.header}
+        rows={tooltip.rows}
+        showTotal={tooltip.rows.length > 1}
       />
     </div>
   );

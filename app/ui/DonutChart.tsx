@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { CHART_COLORS } from './design-tokens';
+import ChartTooltip, { type ChartTooltipRow } from './ChartTooltip';
 
 type DonutSlice = { label: string; value: number };
 type DonutChartProps = {
@@ -14,6 +15,7 @@ type DonutChartProps = {
 
 export default function DonutChart({ data, title, centerLabel, size = 160, ariaLabel }: DonutChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; rows: ChartTooltipRow[] }>({ visible: false, x: 0, y: 0, rows: [] });
 
   const total = data.reduce((sum, d) => sum + d.value, 0);
   if (total === 0) return <p className="text-sm text-zinc-400 dark:text-zinc-500">No data</p>;
@@ -39,6 +41,7 @@ export default function DonutChart({ data, title, centerLabel, size = 160, ariaL
   const hoveredPct = hoveredSlice ? Math.round(hoveredSlice.pct * 100) : null;
 
   return (
+    <>
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
       <svg
         viewBox="0 0 42 42"
@@ -78,10 +81,16 @@ export default function DonutChart({ data, title, centerLabel, size = 160, ariaL
                 cursor: 'pointer',
               }}
               onMouseEnter={() => setHoveredIndex(i)}
-              onMouseLeave={() => setHoveredIndex(null)}
-            >
-              <title>{`${slice.label}: ${slice.value} (${pct}%)`}</title>
-            </circle>
+              onMouseMove={(e) => {
+                setTooltip({
+                  visible: true,
+                  x: e.clientX,
+                  y: e.clientY,
+                  rows: [{ color: CHART_COLORS[i % CHART_COLORS.length], label: slice.label, value: slice.value }],
+                });
+              }}
+              onMouseLeave={() => { setHoveredIndex(null); setTooltip(t => ({ ...t, visible: false })); }}
+            />
           );
         })}
         {hoveredIndex !== null && hoveredPct !== null ? (
@@ -169,5 +178,7 @@ export default function DonutChart({ data, title, centerLabel, size = 160, ariaL
         ))}
       </div>
     </div>
+    <ChartTooltip visible={tooltip.visible} x={tooltip.x} y={tooltip.y} rows={tooltip.rows} />
+    </>
   );
 }
