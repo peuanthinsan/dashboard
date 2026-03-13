@@ -29,6 +29,8 @@ import { DataTable, type Column } from 'app/ui/DataTable';
 import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
+import DonutChart from 'app/ui/DonutChart';
+import SafetyScore from 'app/ui/SafetyScore';
 import InlineMonthPicker from 'app/ui/InlineMonthPicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import {
@@ -484,6 +486,77 @@ export default function DetailDashboard({
       .map(([label, value]) => ({ label, value }));
   }, [filteredAlerts, fleetFilters.length, organizationName]);
 
+  // ── Alert type donut data ──
+  const alertTypeDonut = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredAlerts.forEach((r) => {
+      if (r.remarks && r.remarks !== '—') {
+        counts.set(r.remarks, (counts.get(r.remarks) ?? 0) + 1);
+      }
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, value]) => ({ label, value }));
+  }, [filteredAlerts]);
+
+  // ── Top vehicles by alert count ──
+  const topVehicles = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredAlerts.forEach((r) => {
+      if (r.vehicle && r.vehicle !== '—') {
+        counts.set(r.vehicle, (counts.get(r.vehicle) ?? 0) + 1);
+      }
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([label, value]) => ({ label, value }));
+  }, [filteredAlerts]);
+
+  // ── Top drivers by alert count ──
+  const topDrivers = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredAlerts.forEach((r) => {
+      if (r.driver && r.driver !== '—') {
+        counts.set(r.driver, (counts.get(r.driver) ?? 0) + 1);
+      }
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([label, value]) => ({ label, value }));
+  }, [filteredAlerts]);
+
+  // ── Safety score ──
+  const safetyScore = useMemo(() => {
+    const daySet = new Set<string>();
+    filteredAlerts.forEach((r) => {
+      if (r.parsedDate) daySet.add(toDayKey(r.parsedDate));
+    });
+    const dayCount = daySet.size;
+    if (uniqueVehicles === 0 || dayCount === 0) return 100;
+    const alertsPerVehiclePerDay = filteredAlerts.length / uniqueVehicles / dayCount;
+    const penalty = Math.min(70, alertsPerVehiclePerDay * 70);
+    return Math.round(Math.max(0, 100 - penalty));
+  }, [filteredAlerts, uniqueVehicles]);
+
+  // ── Alerts with video count ──
+  const videoCount = useMemo(
+    () => filteredAlerts.filter((r) => hasVideoLink(r.videoUrl)).length,
+    [filteredAlerts],
+  );
+
+  // ── Speed analysis ──
+  const avgSpeed = useMemo(() => {
+    const speeds: number[] = [];
+    filteredAlerts.forEach((r) => {
+      const n = parseFloat(r.speed);
+      if (!isNaN(n) && n > 0) speeds.push(n);
+    });
+    if (speeds.length === 0) return 0;
+    return Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length);
+  }, [filteredAlerts]);
+
   // ── DataTable columns ──
   const tableColumns = useMemo<Column<AlertRow>[]>(
     () => [
@@ -628,44 +701,6 @@ export default function DetailDashboard({
         />
       ) : (
         <>
-          {/* ── KPI Row ── */}
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
-              label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total alerts'}
-              value={filteredAlerts.length}
-              trend={
-                previousMonthAlertCount > 0
-                  ? {
-                      value:
-                        Math.round(
-                          ((filteredAlerts.length - previousMonthAlertCount) /
-                            previousMonthAlertCount) *
-                            1000,
-                        ) / 10,
-                      label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month',
-                    }
-                  : undefined
-              }
-            />
-            <KpiCard
-              label={lang === 'th' ? 'ตัวกรองที่ใช้' : 'Filtered alerts'}
-              value={filteredAlerts.length}
-              subtitle={
-                baseFilteredRows.length !== filteredAlerts.length
-                  ? `${lang === 'th' ? 'จากทั้งหมด' : 'of'} ${baseFilteredRows.length} ${lang === 'th' ? 'รายการ' : 'total'}`
-                  : undefined
-              }
-            />
-            <KpiCard
-              label={lang === 'th' ? 'รถที่ไม่ซ้ำ' : 'Unique vehicles'}
-              value={uniqueVehicles}
-            />
-            <KpiCard
-              label={lang === 'th' ? 'คนขับที่ไม่ซ้ำ' : 'Unique drivers'}
-              value={uniqueDrivers}
-            />
-          </section>
-
           {/* ── Filters ── */}
           <FilterBar>
             <InlineMonthPicker value={filters.monthFilters} onChange={(v) => setFilters(f => ({ ...f, monthFilters: v as string[] }))} multi lang={lang} />
@@ -684,76 +719,183 @@ export default function DetailDashboard({
             )}
           </FilterBar>
 
-          {/* ── Daily alert trend (TrendChart) ── */}
-          <section className={dashboardSectionClass}>
-            <div className="flex items-center justify-between gap-4">
-              <div>
+          {/* ── KPI Row with Safety Score ── */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className={`${dashboardSectionClass} flex flex-col items-center justify-center`}>
+              <SafetyScore
+                score={safetyScore}
+                size={100}
+                tooltip={lang === 'th' ? 'คะแนนความปลอดภัยตามจำนวนการแจ้งเตือนต่อคันต่อวัน' : 'Safety score based on alerts per vehicle per day'}
+              />
+            </div>
+            <KpiCard
+              label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total alerts'}
+              value={filteredAlerts.length}
+              trend={
+                previousMonthAlertCount > 0
+                  ? {
+                      value:
+                        Math.round(
+                          ((filteredAlerts.length - previousMonthAlertCount) /
+                            previousMonthAlertCount) *
+                            1000,
+                        ) / 10,
+                      label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month',
+                    }
+                  : undefined
+              }
+            />
+            <KpiCard
+              label={lang === 'th' ? 'รถที่ไม่ซ้ำ' : 'Unique vehicles'}
+              value={uniqueVehicles}
+            />
+            <KpiCard
+              label={lang === 'th' ? 'คนขับที่ไม่ซ้ำ' : 'Unique drivers'}
+              value={uniqueDrivers}
+            />
+            <KpiCard
+              label={lang === 'th' ? 'ความเร็วเฉลี่ย' : 'Avg speed'}
+              value={avgSpeed > 0 ? `${avgSpeed} km/h` : '—'}
+              subtitle={videoCount > 0 ? `${videoCount} ${lang === 'th' ? 'วิดีโอ' : 'videos'}` : undefined}
+            />
+          </section>
+
+          {/* ── Section divider: Alert Analysis ── */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-red-200 dark:bg-red-900/40" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-red-500 dark:text-red-400">
+              {lang === 'th' ? 'วิเคราะห์การแจ้งเตือน' : 'Alert Analysis'}
+            </span>
+            <div className="h-px flex-1 bg-red-200 dark:bg-red-900/40" />
+          </div>
+
+          {/* ── Daily trend + Alert type donut (3:2 split) ── */}
+          <div className="grid gap-4 lg:grid-cols-5">
+            <section className={`lg:col-span-3 ${dashboardSectionClass}`}>
+              <div className="flex items-center justify-between gap-4">
                 <h2 className={heading2}>
                   {lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}
                 </h2>
-                <p className={`mt-1 ${textSecondary}`}>
-                  {lang === 'th' ? 'ยอดรวมรายวันของชุดการแจ้งเตือนที่กรอง' : 'Daily totals for the filtered alert set.'}
-                </p>
               </div>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
-              <span className="uppercase tracking-[0.2em] text-zinc-500">
-                {lang === 'th' ? 'แสดง' : 'Show'}
-              </span>
-              {availableTrendRemarkOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setFilters(f => ({ ...f, trendRemarkFilter: option.value }))}
-                  className={[
-                    'rounded-full px-2.5 py-1 text-xs font-medium transition',
-                    trendRemarkFilter === option.value
-                      ? 'bg-red-600 text-white'
-                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700',
-                  ].join(' ')}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <div className="mt-4">
-              {trendChartData.length === 0 ? (
-                <p className={textSecondary}>
-                  {lang === 'th'
-                    ? 'ไม่มีกิจกรรมการแจ้งเตือนสำหรับตัวกรองที่เลือก'
-                    : 'No alert activity available for the selected filters.'}
-                </p>
-              ) : (
-                <TrendChart
-                  data={trendChartData}
-                  mode="line"
-                  height={300}
-                  colors={CHART_COLORS}
-                  ariaLabel={lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}
-                />
-              )}
-            </div>
-          </section>
-
-          {/* ── Heatmap ── */}
-          {heatmapDates.length > 0 ? (
-            <section className={dashboardSectionClass}>
-              <h2 className={heading2}>
-                {lang === 'th' ? 'แผนที่ความร้อนของการแจ้งเตือน' : 'Alert heatmap'}
-              </h2>
-              <p className={`mt-1 ${textSecondary}`}>
-                {lang === 'th'
-                  ? 'การกระจายตัวของการแจ้งเตือนตามวันในสัปดาห์และชั่วโมง'
-                  : 'Alert distribution by day of week and hour.'}
-              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+                <span className="uppercase tracking-[0.2em] text-zinc-500">
+                  {lang === 'th' ? 'แสดง' : 'Show'}
+                </span>
+                {availableTrendRemarkOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setFilters(f => ({ ...f, trendRemarkFilter: option.value }))}
+                    className={[
+                      'rounded-full px-2.5 py-1 text-xs font-medium transition',
+                      trendRemarkFilter === option.value
+                        ? 'bg-red-600 text-white'
+                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700',
+                    ].join(' ')}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
               <div className="mt-4">
-                <AlertHeatmap dates={heatmapDates} />
+                {trendChartData.length === 0 ? (
+                  <p className={textSecondary}>
+                    {lang === 'th'
+                      ? 'ไม่มีกิจกรรมการแจ้งเตือนสำหรับตัวกรองที่เลือก'
+                      : 'No alert activity for the selected filters.'}
+                  </p>
+                ) : (
+                  <TrendChart
+                    data={trendChartData}
+                    mode="line"
+                    height={260}
+                    colors={CHART_COLORS}
+                    ariaLabel={lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}
+                  />
+                )}
               </div>
             </section>
-          ) : null}
+            <section className={`lg:col-span-2 ${dashboardSectionClass}`}>
+              <h2 className={heading2}>
+                {lang === 'th' ? 'สัดส่วนประเภทการแจ้งเตือน' : 'Alert type breakdown'}
+              </h2>
+              <div className="mt-4">
+                <DonutChart
+                  data={alertTypeDonut}
+                  centerLabel={lang === 'th' ? 'ทั้งหมด' : 'total'}
+                  ariaLabel={lang === 'th' ? 'สัดส่วนประเภทการแจ้งเตือน' : 'Alert type breakdown'}
+                />
+              </div>
+            </section>
+          </div>
 
-          {/* ── Alert Timeline ── */}
-          <AlertTimeline entries={timelineEntries} maxEntries={30} lang={lang} />
+          {/* ── Heatmap + Top vehicles (2:2 split) ── */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {heatmapDates.length > 0 && (
+              <section className={dashboardSectionClass}>
+                <h2 className={heading2}>
+                  {lang === 'th' ? 'แผนที่ความร้อน' : 'Alert heatmap'}
+                </h2>
+                <p className={`mt-1 ${textSecondary}`}>
+                  {lang === 'th'
+                    ? 'การกระจายตามวันในสัปดาห์และชั่วโมง'
+                    : 'Distribution by day of week and hour.'}
+                </p>
+                <div className="mt-4">
+                  <AlertHeatmap dates={heatmapDates} />
+                </div>
+              </section>
+            )}
+            {topVehicles.length > 0 && (
+              <section className={dashboardSectionClass}>
+                <h2 className={heading2}>
+                  {lang === 'th' ? 'ยานพาหนะ 10 อันดับแรก' : 'Top 10 vehicles'}
+                </h2>
+                <p className={`mt-1 ${textSecondary}`}>
+                  {lang === 'th' ? 'เรียงตามจำนวนการแจ้งเตือน' : 'Ranked by alert count.'}
+                </p>
+                <div className="mt-4">
+                  <TrendChart
+                    data={topVehicles}
+                    mode="bar"
+                    height={260}
+                    colors={CHART_COLORS}
+                    ariaLabel={lang === 'th' ? 'ยานพาหนะ 10 อันดับแรก' : 'Top 10 vehicles by alerts'}
+                  />
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* ── Section divider: Driver Intelligence ── */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              {lang === 'th' ? 'ข้อมูลคนขับ' : 'Driver Intelligence'}
+            </span>
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+          </div>
+
+          {/* ── Top drivers bar chart ── */}
+          {topDrivers.length > 0 && (
+            <section className={dashboardSectionClass}>
+              <h2 className={heading2}>
+                {lang === 'th' ? 'คนขับ 10 อันดับแรก' : 'Top 10 drivers by alerts'}
+              </h2>
+              <p className={`mt-1 ${textSecondary}`}>
+                {lang === 'th' ? 'คนขับที่มีการแจ้งเตือนมากที่สุด' : 'Drivers with the most alerts in the filtered period.'}
+              </p>
+              <div className="mt-4">
+                <TrendChart
+                  data={topDrivers}
+                  mode="bar"
+                  height={280}
+                  colors={CHART_COLORS}
+                  ariaLabel={lang === 'th' ? 'คนขับ 10 อันดับแรก' : 'Top 10 drivers by alerts'}
+                />
+              </div>
+            </section>
+          )}
 
           {/* ── Driver Summary (when exactly 1 driver filtered) ── */}
           {driverSummary ? (
@@ -784,7 +926,7 @@ export default function DetailDashboard({
                 <TrendChart
                   data={fleetComparisonData}
                   mode="bar"
-                  height={300}
+                  height={280}
                   colors={CHART_COLORS}
                   ariaLabel={lang === 'th' ? 'เปรียบเทียบฟลีท' : 'Fleet comparison'}
                 />
@@ -792,14 +934,35 @@ export default function DetailDashboard({
             </section>
           ) : null}
 
+          {/* ── Section divider: Evidence & Timeline ── */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              {lang === 'th' ? 'หลักฐานและไทม์ไลน์' : 'Evidence & Timeline'}
+            </span>
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+          </div>
+
+          {/* ── Alert Timeline ── */}
+          <AlertTimeline entries={timelineEntries} maxEntries={30} lang={lang} />
+
           {/* ── Video Evidence ── */}
           <VideoEvidence entries={videoEntries} maxPerType={10} lang={lang} />
+
+          {/* ── Section divider: Full Data ── */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              {lang === 'th' ? 'ข้อมูลทั้งหมด' : 'Full Data'}
+            </span>
+            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+          </div>
 
           {/* ── Data Table ── */}
           <section className={dashboardSectionClass}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className={heading2}>
-                {lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alerts'}
+                {lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alert records'}
               </h2>
               <span className={textSecondary}>
                 {filteredAlerts.length === 0
@@ -812,6 +975,7 @@ export default function DetailDashboard({
                 columns={tableColumns}
                 data={filteredAlerts}
                 defaultSort={{ key: 'time', direction: 'desc' }}
+                pageSize={20}
                 ariaLabel={lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alerts table'}
               />
             </div>

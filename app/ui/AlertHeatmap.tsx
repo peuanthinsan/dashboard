@@ -56,11 +56,22 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
       aria-label={`Alert heatmap showing ${totalAlerts} alerts distributed across days of the week and hours of the day`}
     >
       <div className="overflow-x-auto">
-        <div className="inline-grid gap-0.5" style={{ gridTemplateColumns: `auto repeat(24, 1fr)` }}>
+        {/* Axis label */}
+        <div className="mb-1 ml-12 text-center text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
+          Hour of day →
+        </div>
+        <div className="flex items-start gap-0">
+          {/* Y-axis label */}
+          <div className="flex h-full items-center pt-4">
+            <span className="block -rotate-90 whitespace-nowrap text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
+              Day of week
+            </span>
+          </div>
+          <div className="inline-grid gap-0.5" style={{ gridTemplateColumns: `auto repeat(24, 1fr)` }}>
           <div />
           {HOURS.map((h) => (
             <div key={h} className="text-center text-[9px] tabular-nums text-zinc-400">
-              {String(h).padStart(2, '0')}
+              {h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}
             </div>
           ))}
           {DAYS.map((day, di) => (
@@ -108,6 +119,7 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
               })}
             </div>
           ))}
+        </div>
         </div>
         <ChartTooltip visible={tooltip.visible} x={tooltip.x} y={tooltip.y} header={tooltip.header} rows={tooltip.rows} />
         <div className="mt-3 flex items-center gap-2 text-[10px] text-zinc-400" aria-hidden="true">
