@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { buildYAxisTicks } from 'app/dashboards/dashboardDataUtils';
+import { buildYAxisTicks, computeNiceMax } from 'app/dashboards/dashboardDataUtils';
 import { CHART_COLORS } from 'app/ui/design-tokens';
 import ChartTooltip, { type ChartTooltipRow } from './ChartTooltip';
 
@@ -39,7 +39,15 @@ function isMultiTrendData(data: TrendDatum[] | MultiTrendDatum[]): data is Multi
 // ---------------------------------------------------------------------------
 
 const SVG_WIDTH = 1200;
-const PADDING = { top: 28, right: 48, bottom: 52, left: 68 };
+const PADDING = { top: 28, right: 56, bottom: 60, left: 80 };
+
+/** Format large Y-axis values to fit: 1200 → "1.2K", 50000 → "50K" */
+function formatAxisValue(v: number): string {
+  if (v >= 1_000_000) return `${+(v / 1_000_000).toPrecision(3)}M`;
+  if (v >= 10_000) return `${Math.round(v / 1000)}K`;
+  if (v >= 1_000) return `${+(v / 1000).toPrecision(3)}K`;
+  return String(v);
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -101,13 +109,13 @@ function YAxisLeft({ svgHeight, maxValue }: { svgHeight: number; maxValue: numbe
               strokeDasharray="4 4"
             />
             <text
-              x={PADDING.left - 8}
+              x={PADDING.left - 10}
               y={y + 4}
               textAnchor="end"
-              fontSize="14"
+              fontSize="13"
               className="fill-zinc-500 dark:fill-zinc-400"
             >
-              {tick.value}
+              {formatAxisValue(tick.value)}
             </text>
           </g>
         );
@@ -144,13 +152,13 @@ function YAxisRight({
         return (
           <text
             key={`y-right-${tick.value}`}
-            x={rightX + 8}
+            x={rightX + 10}
             y={y + 4}
             textAnchor="start"
-            fontSize="14"
+            fontSize="13"
             className="fill-zinc-400 dark:fill-zinc-500"
           >
-            {tick.value}
+            {formatAxisValue(tick.value)}
           </text>
         );
       })}
@@ -189,8 +197,12 @@ function XAxisLabels({
 }) {
   const count = labels.length;
   if (count === 0) return null;
-  const step = count <= maxLabels ? 1 : Math.ceil(count / maxLabels);
-  const baselineY = svgHeight - PADDING.bottom + 20;
+  // Adaptive: fewer labels when lots of data points
+  const effectiveMax = count > 20 ? Math.min(maxLabels, 6) : maxLabels;
+  const step = count <= effectiveMax ? 1 : Math.ceil(count / effectiveMax);
+  const baselineY = svgHeight - PADDING.bottom + 22;
+  // Adaptive truncation: shorter when more labels
+  const maxChars = count > 12 ? 8 : 10;
 
   return (
     <>
@@ -203,16 +215,17 @@ function XAxisLabels({
               ? filteredIndex * step
               : count - 1;
           const x = toX(origIndex, count);
+          const truncated = label.length > maxChars ? `${label.slice(0, maxChars - 1)}…` : label;
           return (
             <text
               key={`x-${origIndex}-${label}`}
               x={x}
               y={baselineY}
               textAnchor="middle"
-              fontSize="13"
+              fontSize="12"
               className="fill-zinc-500 dark:fill-zinc-400"
             >
-              {label.length > 12 ? `${label.slice(0, 11)}…` : label}
+              {truncated}
             </text>
           );
         })}
@@ -251,10 +264,8 @@ function LineMode({ data, svgHeight, colors, setTooltip }: LineModeProps) {
     const multiData = data as MultiTrendDatum[];
     const seriesKeys = Object.keys(multiData[0].values);
     const labels = multiData.map((d) => d.label);
-    const maxValue = Math.max(
-      1,
-      ...multiData.flatMap((d) => Object.values(d.values)),
-    );
+    const rawMax = Math.max(1, ...multiData.flatMap((d) => Object.values(d.values)));
+    const maxValue = computeNiceMax(rawMax, 4);
 
     return (
       <g>
@@ -310,7 +321,8 @@ function LineMode({ data, svgHeight, colors, setTooltip }: LineModeProps) {
   // Single series
   const singleData = data as TrendDatum[];
   const labels = singleData.map((d) => d.label);
-  const maxValue = Math.max(1, ...singleData.map((d) => d.value));
+  const rawMax = Math.max(1, ...singleData.map((d) => d.value));
+  const maxValue = computeNiceMax(rawMax, 4);
   const color = colors[0];
   const baselineY = svgHeight - PADDING.bottom;
 
@@ -383,7 +395,8 @@ function BarMode({ data, svgHeight, colors, setTooltip }: BarModeProps) {
     const multiData = data as MultiTrendDatum[];
     const seriesKeys = Object.keys(multiData[0].values);
     const labels = multiData.map((d) => d.label);
-    const maxValue = Math.max(1, ...multiData.flatMap((d) => Object.values(d.values)));
+    const rawMax = Math.max(1, ...multiData.flatMap((d) => Object.values(d.values)));
+    const maxValue = computeNiceMax(rawMax, 4);
     const groupWidth = plotWidth / multiData.length;
     const barPad = 0.15;
     const barWidth = (groupWidth * (1 - barPad * 2)) / seriesKeys.length;
@@ -434,7 +447,8 @@ function BarMode({ data, svgHeight, colors, setTooltip }: BarModeProps) {
   // Single series
   const singleData = data as TrendDatum[];
   const labels = singleData.map((d) => d.label);
-  const maxValue = Math.max(1, ...singleData.map((d) => d.value));
+  const rawMax = Math.max(1, ...singleData.map((d) => d.value));
+  const maxValue = computeNiceMax(rawMax, 4);
   const barPad = 0.1;
   const barWidth = (plotWidth / singleData.length) * (1 - barPad * 2);
   const color = colors[0];
@@ -496,8 +510,8 @@ function DualAxisMode({ data, svgHeight, colors, setTooltip }: DualAxisModeProps
   const barValues = data.map((d) => d.values[barKey] ?? 0);
   const lineValues = data.map((d) => d.values[lineKey] ?? 0);
 
-  const maxBarValue = Math.max(1, ...barValues);
-  const maxLineValue = Math.max(1, ...lineValues);
+  const maxBarValue = computeNiceMax(Math.max(1, ...barValues), 4);
+  const maxLineValue = computeNiceMax(Math.max(1, ...lineValues), 4);
 
   const plotWidth = SVG_WIDTH - PADDING.left - PADDING.right;
   const plotHeight = svgHeight - PADDING.top - PADDING.bottom;
@@ -689,6 +703,7 @@ export default function TrendChart({
     <div className={className}>
       <svg
         viewBox={viewBox}
+        overflow="visible"
         style={{ width: '100%', height: 'auto', display: 'block' }}
         role="img"
         aria-label={ariaLabel ?? 'Trend chart'}

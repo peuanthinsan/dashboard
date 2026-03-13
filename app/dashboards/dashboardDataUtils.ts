@@ -185,11 +185,25 @@ export const buildTrendGeometry = (trendData: TrendDatum[], maxTrendValue: numbe
   return { points, path, viewBox: `0 0 ${width} ${height}`, padding, width, height };
 };
 
+/** Compute nice round Y-axis tick values. Returns { ticks, niceMax }. */
+export function computeNiceMax(maxTrendValue: number, tickCount = 4): number {
+  const raw = Math.max(1, maxTrendValue);
+  const rawInterval = raw / tickCount;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawInterval)));
+  const residual = rawInterval / magnitude;
+  const niceMultiplier = residual <= 1 ? 1 : residual <= 2 ? 2 : residual <= 5 ? 5 : 10;
+  const niceInterval = niceMultiplier * magnitude;
+  return Math.ceil(raw / niceInterval) * niceInterval;
+}
+
 export const buildYAxisTicks = (maxTrendValue: number, tickCount = 4) => {
-  const maxValue = Math.max(1, maxTrendValue);
+  const niceMax = computeNiceMax(maxTrendValue, tickCount);
+  const niceInterval = niceMax / tickCount;
+
   return Array.from({ length: tickCount + 1 }, (_, index) => {
-    const value = Math.round((maxValue / tickCount) * (tickCount - index));
-    return { value, position: index / tickCount };
+    const value = Math.round(niceMax - index * niceInterval);
+    const position = niceMax === 0 ? 0 : 1 - value / niceMax;
+    return { value: Math.max(0, value), position };
   });
 };
 

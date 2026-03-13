@@ -67,11 +67,13 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
               Day of week
             </span>
           </div>
-          <div className="inline-grid gap-0.5" style={{ gridTemplateColumns: `auto repeat(24, 1fr)` }}>
+          <div className="inline-grid gap-px" style={{ gridTemplateColumns: `auto repeat(24, 1fr)` }}>
           <div />
           {HOURS.map((h) => (
-            <div key={h} className="text-center text-[9px] tabular-nums text-zinc-400">
-              {h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}
+            <div key={h} className="text-center text-[8px] tabular-nums text-zinc-400">
+              {h % 2 === 0
+                ? h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`
+                : ''}
             </div>
           ))}
           {DAYS.map((day, di) => (
@@ -83,7 +85,7 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
                 return (
                   <div
                     key={`${di}-${h}`}
-                    className={`relative flex h-5 w-5 items-center justify-center rounded-sm ${getColor(count)} transition-all hover:scale-125 hover:z-10`}
+                    className={`relative flex h-4 w-4 items-center justify-center rounded-sm ${getColor(count)} transition-all hover:scale-125 hover:z-10`}
                     aria-label={`${day} ${String(h).padStart(2, '0')}:00, ${count} alert${count !== 1 ? 's' : ''}`}
                     onMouseMove={(e) => {
                       const intensity = count / Math.max(1, maxCount);
