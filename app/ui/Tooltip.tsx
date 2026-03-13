@@ -48,7 +48,7 @@ export default function Tooltip({ content, children, position = 'top' }: Tooltip
         onMouseLeave={hide}
         onFocus={show}
         onBlur={hide}
-        className="inline-block"
+        className="block"
       >
         {children}
       </span>
