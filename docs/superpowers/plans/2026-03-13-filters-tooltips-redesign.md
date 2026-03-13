@@ -4,7 +4,7 @@
 
 **Goal:** Replace clunky dashboard filters with unified InlineMonthPicker + MultiSelect dropdowns, and add rich tooltips to every chart and data element.
 
-**Architecture:** Four new UI primitives (InlineMonthPicker, MultiSelect, Tooltip, ChartTooltip) built on the existing design token system. Each chart component gets ChartTooltip integration replacing SVG `<title>` elements. All 4 dashboards migrate to the unified filter bar pattern. Portal-based rendering for all tooltips.
+**Architecture:** Four new UI primitives (InlineMonthPicker, MultiSelect, Tooltip, ChartTooltip) built on the existing design token system. Each chart component gets ChartTooltip integration replacing SVG `<title>` elements. All 4 dashboards (Simple, Summary, Driving, Detail) migrate to the unified filter bar pattern. VideoDashboard is out of scope (uses parent filters). Portal-based rendering for all tooltips.
 
 **Tech Stack:** React 18, Next.js 14, TypeScript, Tailwind CSS, custom SVG charts
 
@@ -771,14 +771,31 @@ git commit -m "feat: replace DonutChart title tooltips with ChartTooltip"
 
 **Context:** AlertHeatmap has grid cells with HTML `title` attributes like `"Mon 08:00 — 3 alert(s)"`. Replace with ChartTooltip on hover.
 
-- [ ] **Step 1: Add tooltip state and import**
+- [ ] **Step 1: Add 'use client' directive, tooltip state and import**
+
+AlertHeatmap is currently a server component. Add `'use client'` at the top since we need `useState`. Add imports:
 
 ```typescript
+'use client';
+
 import { useState } from 'react';
 import ChartTooltip, { type ChartTooltipRow } from './ChartTooltip';
 ```
 
-Add state:
+Add a hex color mapping function (since existing `getColor()` returns Tailwind classes, not CSS colors):
+
+```typescript
+const getHexColor = (count: number, maxCount: number) => {
+  if (count === 0) return '#f4f4f5';
+  const intensity = count / Math.max(1, maxCount);
+  if (intensity > 0.75) return '#f43f5e'; // rose-500
+  if (intensity > 0.5) return '#fb923c';  // orange-400
+  if (intensity > 0.25) return '#fcd34d'; // amber-300
+  return '#7dd3fc';                        // sky-300
+};
+```
+
+Add tooltip state inside the component:
 
 ```typescript
 const [tooltip, setTooltip] = useState<{
@@ -788,25 +805,25 @@ const [tooltip, setTooltip] = useState<{
 
 - [ ] **Step 2: Replace `title` attributes on grid cells**
 
-Remove the `title` attribute from each cell `<div>`. Add mouse handlers:
+Remove the `title` attribute from each cell `<div>` (line 60). Add mouse handlers. The `count` and `h` variables are already in scope from the existing `.map()`:
 
 ```typescript
 onMouseMove={(e) => {
-  const intensity = count === 0 ? '' : ratio > 0.75 ? 'High' : ratio > 0.5 ? 'Medium-High' : ratio > 0.25 ? 'Medium' : 'Low';
+  const intensity = count === 0 ? '' : (count / Math.max(1, maxCount)) > 0.75 ? 'High' : (count / Math.max(1, maxCount)) > 0.5 ? 'Medium-High' : (count / Math.max(1, maxCount)) > 0.25 ? 'Medium' : 'Low';
   setTooltip({
     visible: true,
     x: e.clientX,
     y: e.clientY,
-    header: `${dayLabel} ${String(hour).padStart(2, '0')}:00`,
-    rows: count > 0 ? [{ color: cellColor, label: intensity, value: count }] : [],
+    header: `${day} ${String(h).padStart(2, '0')}:00`,
+    rows: count > 0 ? [{ color: getHexColor(count, maxCount), label: `${count} alert${count !== 1 ? 's' : ''} (${intensity})`, value: count }] : [],
   });
 }}
 onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
 ```
 
-Where `cellColor` is the same color used for the cell background, and `dayLabel` is the full day name.
+Keep the `aria-label` attribute for accessibility. Remove only the `title` attribute.
 
-Note: When `count === 0`, show an empty tooltip or skip (rows will be empty so ChartTooltip won't render).
+Note: When `count === 0`, rows will be empty so ChartTooltip won't render.
 
 - [ ] **Step 3: Render ChartTooltip**
 
@@ -860,16 +877,19 @@ return (
 
 - [ ] **Step 2: Add optional `tooltip` prop to SafetyScore**
 
-Same pattern — add `tooltip?: string` prop and wrap outer element:
+Same pattern — add `tooltip?: string` prop and wrap the outer `<div className="flex flex-col items-center gap-1">`:
 
 ```tsx
 import Tooltip from './Tooltip';
 
-// In component:
+// Add to SafetyScoreProps:
+tooltip?: string;
+
+// In component, wrap the existing outer div:
 return (
   <Tooltip content={tooltip ?? ''}>
-    <div className={cardSection} ...>
-      {/* existing SVG and text */}
+    <div className="flex flex-col items-center gap-1">
+      {/* existing SVG and label span */}
     </div>
   </Tooltip>
 );
@@ -1063,20 +1083,22 @@ Bump the storage key (e.g. append `-v2`) so old persisted state doesn't cause er
 
 - [ ] **Step 3: Update filter logic**
 
-Replace date range filtering:
+Replace date range filtering. Note: SimpleDashboard alert rows have `parsedDate: Date | null` but NOT `monthKey`. Add a helper:
+
 ```typescript
-// Old: dateFilteredAlerts filters by from/to dates
-// New: filter by month
+const toMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
 const monthFilteredAlerts = useMemo(() => {
   if (!filters.month) return baseAlerts;
-  return baseAlerts.filter((a) => a.monthKey === filters.month);
+  return baseAlerts.filter((a) => a.parsedDate && toMonthKey(a.parsedDate) === filters.month);
 }, [baseAlerts, filters.month]);
 ```
 
-Replace remark filter with array-based:
+Replace remark filter with array-based. Remove the `RemarkFilter` type definition (`type RemarkFilter = 'all' | 'fatigue' | ...`) and its usage. Delete the `remarkFilterOptions` array that mapped to FilterChip buttons. Replace all downstream logic:
+
 ```typescript
-// Old: trendRemarkFilter === 'all' || matches single enum
-// New: remarkFilters.length === 0 || remarkFilters includes remark
+// Old: trendRemarkFilter === 'all' || normalizeLabel(a.remarks).includes(trendRemarkFilter)
+// New: filters.remarkFilters.length === 0 || filters.remarkFilters.includes(a.remarks)
 ```
 
 - [ ] **Step 4: Replace FilterBar contents**
