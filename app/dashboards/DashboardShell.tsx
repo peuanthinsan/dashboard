@@ -44,10 +44,10 @@ export default function DashboardShell({
     <div className={pageContainer}>
       <div className={pageContent}>
         <div className="flex flex-col gap-5">
-          {/* ── Header with gradient accent ── */}
+          {/* ── Header with SongdeeGPS branding ── */}
           <header className="relative overflow-hidden rounded-xl border border-zinc-200/60 bg-white/80 shadow-card backdrop-blur-sm dark:border-zinc-800/60 dark:bg-zinc-900/80">
-            {/* Decorative gradient bar */}
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-red-600 to-orange-500" />
+            {/* Thai-inspired gradient bar — red + gold trim */}
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-600 via-amber-500 to-red-600" />
             <div className="p-5 pt-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-1">

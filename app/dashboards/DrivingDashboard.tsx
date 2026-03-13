@@ -453,11 +453,11 @@ export default function DrivingDashboard({
 
       {/* ═══════════════ SAFETY & COMPLIANCE ═══════════════ */}
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
-        <h2 className="text-xs font-bold uppercase tracking-widest text-red-600 dark:text-red-400">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400/60 to-transparent dark:via-amber-600/30" />
+        <h2 className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
           {lang === 'th' ? 'ความปลอดภัยและการปฏิบัติตามกฎ' : 'Safety & Compliance'}
         </h2>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400/60 to-transparent dark:via-amber-600/30" />
       </div>
 
       {/* Safety KPIs */}

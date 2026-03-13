@@ -762,11 +762,11 @@ export default function DetailDashboard({
 
           {/* ── Section divider: Alert Analysis ── */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-red-500 dark:text-red-400">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400/60 to-transparent dark:via-amber-600/30" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">
               {lang === 'th' ? 'วิเคราะห์การแจ้งเตือน' : 'Alert Analysis'}
             </span>
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-300 to-transparent dark:via-red-800/50" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400/60 to-transparent dark:via-amber-600/30" />
           </div>
 
           {/* ── Daily trend + Alert type donut (3:2 split) ── */}
