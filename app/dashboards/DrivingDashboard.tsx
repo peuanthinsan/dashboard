@@ -273,6 +273,51 @@ export default function DrivingDashboard({
   const cntDrvViolations = useMemo(() => violations.filter((v) => v.type === 'cnt_drv'), [violations]);
   const restHrViolations = useMemo(() => violations.filter((v) => v.type === 'rest_hr'), [violations]);
 
+  // --- Per-driver sorted by cnt drv hours (for requested bar+line chart) ---
+  const driversByCntDrv = useMemo(() =>
+    [...aggregates].sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours).slice(0, 15),
+    [aggregates],
+  );
+
+  // --- Per-driver rest hours vs cnt drv hours ---
+  const restVsCntDrvByDriver = useMemo(() => {
+    const map = new Map<string, { driver: string; totalRestHours: number; totalCntDrvHours: number; tripCount: number }>();
+    filteredRows.forEach((row) => {
+      if (row.driver === '—') return;
+      const c = map.get(row.driver) ?? { driver: row.driver, totalRestHours: 0, totalCntDrvHours: 0, tripCount: 0 };
+      c.totalRestHours += row.restHours;
+      c.totalCntDrvHours += row.cntDrvDurationHours;
+      c.tripCount += 1;
+      map.set(row.driver, c);
+    });
+    return Array.from(map.values()).sort((a, b) => b.totalCntDrvHours - a.totalCntDrvHours).slice(0, 15);
+  }, [filteredRows]);
+
+  // --- Vehicle bar chart data (sorted by distance) ---
+  const vehicleBarData = useMemo(() =>
+    vehicleAggregates.slice(0, 15),
+    [vehicleAggregates],
+  );
+
+  // --- Driver efficiency: avg km/trip (bars) and trip count (line) ---
+  const driverEfficiency = useMemo(() =>
+    [...aggregates]
+      .filter((a) => a.tripCount >= 2)
+      .sort((a, b) => b.avgDistancePerTrip - a.avgDistancePerTrip)
+      .slice(0, 15),
+    [aggregates],
+  );
+
+  // --- Driving hours donut chart ---
+  const drvHoursDonut = useMemo(() => {
+    const sorted = [...aggregates].sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours);
+    const top = sorted.slice(0, 6);
+    const rest = sorted.slice(6);
+    const result = top.map((r) => ({ label: r.driver, value: Math.round(r.totalCntDrvDurationHours * 100) / 100 }));
+    if (rest.length > 0) result.push({ label: lang === 'th' ? 'อื่นๆ' : 'Others', value: Math.round(rest.reduce((s, r) => s + r.totalCntDrvDurationHours, 0) * 100) / 100 });
+    return result;
+  }, [aggregates, lang]);
+
   const violationTableColumns = useMemo<Column<ViolationRow>[]>(() => [
     { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
     { key: 'vehicle', label: lang === 'th' ? 'ยานพาหนะ' : 'Vehicle', sortable: true },
@@ -515,8 +560,121 @@ export default function DrivingDashboard({
         )}
       </section>
 
-      {/* Donut Charts — Trip distribution & Distance by vehicle */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Driver Cnt Drv Hr (bar) vs Distance (line) — sorted by highest cnt drv hr */}
+      <section className={dashboardSectionClass}>
+        <h2 className={heading2}>{lang === 'th' ? 'ชม.ขับต่อเนื่อง vs ระยะทาง (ตามคนขับ)' : 'Cnt Drv Hr vs Distance (by driver)'}</h2>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'เรียงตามชั่วโมงขับต่อเนื่องสูงสุด — แท่ง = ชม.ขับ, เส้น = ระยะทาง' : 'Sorted by highest continuous driving hours — bars = drv hours, line = distance.'}</p>
+        {driversByCntDrv.length === 0 ? (
+          <div className="mt-4"><EmptyState title="No driver data" /></div>
+        ) : (
+          <TrendChart
+            className="mt-4"
+            mode="dual-axis"
+            height={300}
+            data={driversByCntDrv.map((d) => ({
+              label: d.driver.length > 12 ? d.driver.slice(0, 12) + '…' : d.driver,
+              values: {
+                [lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr']: Math.round(d.totalCntDrvDurationHours * 100) / 100,
+                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(d.totalDistanceKm * 10) / 10,
+              },
+            }))}
+            ariaLabel={lang === 'th' ? 'ชม.ขับต่อเนื่อง vs ระยะทาง' : 'Continuous driving hours vs distance by driver'}
+          />
+        )}
+      </section>
+
+      {/* Rest Hours vs Cnt Drv Hours per driver */}
+      <section className={dashboardSectionClass}>
+        <h2 className={heading2}>{lang === 'th' ? 'ชม.พัก vs ชม.ขับ (ตามคนขับ)' : 'Rest Hr vs Cnt Drv Hr (by driver)'}</h2>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'เปรียบเทียบชั่วโมงพักผ่อนและขับต่อเนื่อง' : 'Compare rest hours against continuous driving hours per driver.'}</p>
+        {restVsCntDrvByDriver.length === 0 ? (
+          <div className="mt-4"><EmptyState title="No data" /></div>
+        ) : (
+          <TrendChart
+            className="mt-4"
+            mode="dual-axis"
+            height={300}
+            data={restVsCntDrvByDriver.map((d) => ({
+              label: d.driver.length > 12 ? d.driver.slice(0, 12) + '…' : d.driver,
+              values: {
+                [lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr']: Math.round(d.totalCntDrvHours * 100) / 100,
+                [lang === 'th' ? 'ชม.พักผ่อน' : 'Rest Hr']: Math.round(d.totalRestHours * 100) / 100,
+              },
+            }))}
+            ariaLabel={lang === 'th' ? 'ชม.พัก vs ชม.ขับ' : 'Rest hours vs continuous driving hours by driver'}
+          />
+        )}
+      </section>
+
+      {/* Monthly Cnt Drv Hours & Rest Hours */}
+      <section className={dashboardSectionClass}>
+        <h2 className={heading2}>{lang === 'th' ? 'ชม.ขับต่อเนื่องรายเดือน' : 'Monthly driving hours'}</h2>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'แท่ง = ชม.ขับต่อเนื่อง, เส้น = ระยะทาง — 8 เดือนล่าสุด' : 'Bars = cnt drv hours, line = distance — last 8 months.'}</p>
+        {monthlyTrend.length === 0 ? (
+          <div className="mt-4"><EmptyState title="No dated trip data" /></div>
+        ) : (
+          <TrendChart
+            className="mt-4"
+            mode="dual-axis"
+            height={280}
+            data={monthlyTrend.map((p) => ({
+              label: p.monthLabel,
+              values: {
+                [lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr']: Math.round(p.totalCntDrvDurationHours * 100) / 100,
+                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(p.totalDistanceKm * 10) / 10,
+              },
+            }))}
+            ariaLabel={lang === 'th' ? 'ชม.ขับต่อเนื่องรายเดือน' : 'Monthly continuous driving hours trend'}
+          />
+        )}
+      </section>
+
+      {/* Vehicle Distance & Duration */}
+      <section className={dashboardSectionClass}>
+        <h2 className={heading2}>{lang === 'th' ? 'ระยะทาง & ชม.ขับ ตามยานพาหนะ' : 'Distance & Duration by vehicle'}</h2>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'เรียงตามระยะทางสูงสุด — แท่ง = ระยะทาง, เส้น = ชม.ขับ' : 'Sorted by distance — bars = distance, line = driving hours.'}</p>
+        {vehicleBarData.length === 0 ? (
+          <div className="mt-4"><EmptyState title="No vehicle data" /></div>
+        ) : (
+          <TrendChart
+            className="mt-4"
+            mode="dual-axis"
+            height={300}
+            data={vehicleBarData.map((v) => ({
+              label: v.vehicle.length > 12 ? v.vehicle.slice(0, 12) + '…' : v.vehicle,
+              values: {
+                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(v.totalDistanceKm * 10) / 10,
+                [lang === 'th' ? 'ชม.ขับ' : 'Drv Hr']: Math.round(v.totalCntDrvDurationHours * 100) / 100,
+              },
+            }))}
+            ariaLabel={lang === 'th' ? 'ระยะทางและชม.ขับตามยานพาหนะ' : 'Distance and driving hours by vehicle'}
+          />
+        )}
+      </section>
+
+      {/* Driver Efficiency — avg km/trip (bars) + trip count (line) */}
+      {driverEfficiency.length > 0 && (
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{lang === 'th' ? 'ประสิทธิภาพคนขับ' : 'Driver efficiency'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'แท่ง = เฉลี่ย km/ทริป, เส้น = จำนวนทริป (≥2 ทริป)' : 'Bars = avg km/trip, line = trip count (drivers with ≥2 trips).'}</p>
+          <TrendChart
+            className="mt-4"
+            mode="dual-axis"
+            height={280}
+            data={driverEfficiency.map((d) => ({
+              label: d.driver.length > 12 ? d.driver.slice(0, 12) + '…' : d.driver,
+              values: {
+                [lang === 'th' ? 'เฉลี่ย km/ทริป' : 'Avg km/trip']: Math.round(d.avgDistancePerTrip * 10) / 10,
+                [lang === 'th' ? 'ทริป' : 'Trips']: d.tripCount,
+              },
+            }))}
+            ariaLabel={lang === 'th' ? 'ประสิทธิภาพคนขับ' : 'Driver efficiency - avg distance per trip vs trip count'}
+          />
+        </section>
+      )}
+
+      {/* Donut Charts — Trip distribution, Distance by vehicle, Driving hours */}
+      <div className="grid gap-6 lg:grid-cols-3">
         <section className={dashboardSectionClass}>
           <h2 className={heading2}>{lang === 'th' ? 'สัดส่วนทริปตามคนขับ' : 'Trip distribution by driver'}</h2>
           <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'คนขับที่มีทริปมากที่สุด' : 'Drivers with the most trips.'}</p>
@@ -548,6 +706,24 @@ export default function DrivingDashboard({
                 centerLabel="km"
                 size={140}
                 ariaLabel={lang === 'th' ? 'ระยะทางตามยานพาหนะ' : 'Distance by vehicle'}
+              />
+            )}
+          </div>
+        </section>
+
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{lang === 'th' ? 'สัดส่วนชม.ขับตามคนขับ' : 'Driving hours by driver'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'คนขับที่มีชั่วโมงขับต่อเนื่องมากที่สุด' : 'Drivers with the most continuous driving hours.'}</p>
+          <div className="mt-4">
+            {drvHoursDonut.length === 0 ? (
+              <EmptyState title={lang === 'th' ? 'ไม่มีข้อมูล' : 'No data'} />
+            ) : (
+              <DonutChart
+                data={drvHoursDonut}
+                title={lang === 'th' ? 'ชม.ขับ' : 'Drv Hr'}
+                centerLabel="hr"
+                size={140}
+                ariaLabel={lang === 'th' ? 'สัดส่วนชม.ขับตามคนขับ' : 'Driving hours distribution by driver'}
               />
             )}
           </div>
