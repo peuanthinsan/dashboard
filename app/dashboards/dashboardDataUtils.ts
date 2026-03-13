@@ -73,7 +73,17 @@ export const isExcludedAlertRemark = (value: string) => {
 
 export const parseDate = (value: unknown) => {
   if (!value) return null;
-  const parsed = new Date(value as string);
+  const raw = String(value).trim();
+  if (!raw) return null;
+  // Handle DD/MM/YYYY or DD/MM/YYYY HH:MM:SS
+  const ddmmyyyy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(.*)$/);
+  if (ddmmyyyy) {
+    const [, dd, mm, yyyy, rest] = ddmmyyyy;
+    const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}${rest}`;
+    const parsed = new Date(iso);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed;
 };
