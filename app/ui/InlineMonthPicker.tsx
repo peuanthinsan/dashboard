@@ -60,13 +60,13 @@ export default function InlineMonthPicker({
 
   return (
     <div
-      className={`inline-flex items-center gap-1 rounded-lg border border-zinc-200/60 bg-white/80 px-2 py-1.5 shadow-card backdrop-blur-sm dark:border-zinc-700/60 dark:bg-zinc-900/80 ${className}`}
+      className={`inline-flex items-center gap-0.5 rounded-lg border border-zinc-200/60 bg-white/80 px-1.5 py-[5px] shadow-card backdrop-blur-sm dark:border-zinc-700/60 dark:bg-zinc-900/80 ${className}`}
     >
       <button
         type="button"
         onClick={() => setYear((y) => y - 1)}
         aria-label="Previous year"
-        className="flex h-5 w-5 items-center justify-center rounded bg-zinc-100 text-zinc-500 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+        className="flex h-[22px] w-[22px] items-center justify-center rounded text-[10px] bg-zinc-100 text-zinc-500 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
       >
         ‹
       </button>
@@ -77,7 +77,7 @@ export default function InlineMonthPicker({
         type="button"
         onClick={() => setYear((y) => y + 1)}
         aria-label="Next year"
-        className="flex h-5 w-5 items-center justify-center rounded bg-zinc-100 text-zinc-500 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+        className="flex h-[22px] w-[22px] items-center justify-center rounded text-[10px] bg-zinc-100 text-zinc-500 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
       >
         ›
       </button>

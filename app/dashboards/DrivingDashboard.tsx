@@ -19,7 +19,7 @@ import FilterBar from 'app/ui/FilterBar';
 import DonutChart from 'app/ui/DonutChart';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
 import {
-  heading2, textSecondary,
+  heading2, textSecondary, CHART_COLORS,
 } from 'app/ui/design-tokens';
 
 type DashboardProps = {
@@ -242,6 +242,14 @@ export default function DrivingDashboard({
 
   // --- Heatmap dates (trip timestamps) ---
   const heatmapDates = useMemo(() => filteredRows.filter((r) => r.date).map((r) => r.date!), [filteredRows]);
+
+  // --- Top 5 drivers by total driving hours (for heatmap companion) ---
+  const topDriversByHours = useMemo(() => {
+    return [...aggregates]
+      .sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours)
+      .slice(0, 5)
+      .map((a) => ({ label: a.driver, value: Math.round(a.totalCntDrvDurationHours * 10) / 10 }));
+  }, [aggregates]);
 
   // --- Violation reports ---
   type ViolationRow = { driver: string; vehicle: string; date: string; cntDrvHours: number; restHours: number; type: 'cnt_drv' | 'rest_hr' };
@@ -705,18 +713,37 @@ export default function DrivingDashboard({
         </section>
       </div>
 
-      {/* Activity Heatmap */}
-      <section className={dashboardSectionClass}>
-        <h2 className={heading2}>{lang === 'th' ? 'ช่วงเวลาการขับขี่' : 'Driving activity heatmap'}</h2>
-        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ความถี่ของทริปตามวันและเวลา' : 'Trip frequency by day of week and hour.'}</p>
-        <div className="mt-4">
-          {heatmapDates.length === 0 ? (
-            <EmptyState title={lang === 'th' ? 'ไม่มีข้อมูลวันที่' : 'No dated trip data'} />
-          ) : (
-            <AlertHeatmap dates={heatmapDates} />
-          )}
-        </div>
-      </section>
+      {/* Activity Heatmap + Top drivers by hours */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{lang === 'th' ? 'ช่วงเวลาการขับขี่' : 'Driving activity heatmap'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ความถี่ของทริปตามวันและเวลา' : 'Trip frequency by day of week and hour.'}</p>
+          <div className="mt-4">
+            {heatmapDates.length === 0 ? (
+              <EmptyState title={lang === 'th' ? 'ไม่มีข้อมูลวันที่' : 'No dated trip data'} />
+            ) : (
+              <AlertHeatmap dates={heatmapDates} />
+            )}
+          </div>
+        </section>
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{lang === 'th' ? 'คนขับที่มีชั่วโมงมากสุด' : 'Top drivers by hours'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'รวมชั่วโมงขับต่อเนื่อง' : 'Total continuous driving hours.'}</p>
+          <div className="mt-4">
+            {topDriversByHours.length === 0 ? (
+              <EmptyState title={lang === 'th' ? 'ไม่มีข้อมูล' : 'No data'} />
+            ) : (
+              <TrendChart
+                data={topDriversByHours}
+                mode="bar"
+                height={240}
+                colors={CHART_COLORS}
+                ariaLabel={lang === 'th' ? 'คนขับที่มีชั่วโมงขับมากสุด' : 'Top drivers by driving hours'}
+              />
+            )}
+          </div>
+        </section>
+      </div>
 
       {/* Driver Statistics Table */}
       <section className={dashboardSectionClass}>
