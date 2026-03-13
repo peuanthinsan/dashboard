@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
-import { formatDateKeyGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
@@ -19,7 +18,7 @@ import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
-import { heading2, textSecondary } from 'app/ui/design-tokens';
+import { heading2 } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
 import InlineMonthPicker from 'app/ui/InlineMonthPicker';
 import MultiSelect from 'app/ui/MultiSelect';
@@ -38,14 +37,12 @@ type SimpleFilterState = {
   month: string;
   vehicleFilters: string[];
   driverFilters: string[];
-  remarkFilters: string[];
 };
 
 const defaultFilters: SimpleFilterState = {
   month: '',
   vehicleFilters: [],
   driverFilters: [],
-  remarkFilters: [],
 };
 
 type TableRow = {
@@ -90,9 +87,6 @@ export default function SimpleDashboard({
       driverFilters: Array.isArray(stored.driverFilters)
         ? stored.driverFilters.filter((v) => typeof v === 'string')
         : [],
-      remarkFilters: Array.isArray(stored.remarkFilters)
-        ? stored.remarkFilters.filter((v) => typeof v === 'string')
-        : [],
     });
   }, [storageKey]);
 
@@ -104,12 +98,7 @@ export default function SimpleDashboard({
   const resetFilters = () => setFilters(defaultFilters);
 
   const hasActiveFilters = useMemo(() => {
-    return (
-      filters.month !== '' ||
-      filters.vehicleFilters.length > 0 ||
-      filters.driverFilters.length > 0 ||
-      filters.remarkFilters.length > 0
-    );
+    return filters.month !== '' || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
   }, [filters]);
 
   // ── Data pipeline (preserves alert type scope) ──────────────────────────
@@ -147,20 +136,6 @@ export default function SimpleDashboard({
       })
       .filter((row) => row.parsedDate);
   }, [normalizedOrganizationName, rows]);
-
-  const dateBounds = useMemo(() => {
-    let minDate: Date | null = null;
-    let maxDate: Date | null = null;
-    baseAlerts.forEach((row) => {
-      if (!row.parsedDate) return;
-      if (!minDate || row.parsedDate < minDate) minDate = row.parsedDate;
-      if (!maxDate || row.parsedDate > maxDate) maxDate = row.parsedDate;
-    });
-    return {
-      min: minDate ? toDayKey(minDate) : '',
-      max: maxDate ? toDayKey(maxDate) : '',
-    };
-  }, [baseAlerts]);
 
   // ── Month-filtered alerts ───────────────────────────────────────────────
   const monthFilteredAlerts = useMemo(() => {
@@ -203,22 +178,6 @@ export default function SimpleDashboard({
     });
   }, [driverOptions]);
 
-  const remarkOptions = useMemo(() => {
-    const set = new Set<string>();
-    monthFilteredAlerts.forEach((a) => {
-      if (a.remarks && a.remarks !== '—') set.add(a.remarks);
-    });
-    return Array.from(set).sort();
-  }, [monthFilteredAlerts]);
-
-  useEffect(() => {
-    setFilters((current) => {
-      const next = current.remarkFilters.filter((r) => remarkOptions.includes(r));
-      if (next.length === current.remarkFilters.length) return current;
-      return { ...current, remarkFilters: next };
-    });
-  }, [remarkOptions]);
-
   // ── Fully filtered alerts ───────────────────────────────────────────────
   const filteredAlerts = useMemo(() => {
     let alerts = monthFilteredAlerts;
@@ -230,12 +189,8 @@ export default function SimpleDashboard({
       const activeDrivers = new Set(filters.driverFilters);
       alerts = alerts.filter((row) => activeDrivers.has(row.driver));
     }
-    if (filters.remarkFilters.length > 0) {
-      const activeRemarks = new Set(filters.remarkFilters);
-      alerts = alerts.filter((row) => activeRemarks.has(row.remarks));
-    }
     return alerts;
-  }, [monthFilteredAlerts, filters.vehicleFilters, filters.driverFilters, filters.remarkFilters]);
+  }, [monthFilteredAlerts, filters.vehicleFilters, filters.driverFilters]);
 
   // ── Stats ───────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -260,14 +215,6 @@ export default function SimpleDashboard({
     };
   }, [filteredAlerts]);
 
-  // ── Date range label for KPI card ──────────────────────────────────────
-  const dateRangeLabel = useMemo(() => {
-    if (dateBounds.min && dateBounds.max) {
-      return `${formatDateKeyGB(dateBounds.min)} – ${formatDateKeyGB(dateBounds.max)}`;
-    }
-    return '—';
-  }, [dateBounds.min, dateBounds.max]);
-
   // ── Trend vs prior period for Total alerts KPI ─────────────────────────
   const alertsTrend = useMemo(() => {
     if (!filters.month) return undefined;
@@ -284,14 +231,12 @@ export default function SimpleDashboard({
     const priorFrom = new Date(year, month - 2, 1);
     const priorTo = new Date(year, month - 1, 0, 23, 59, 59, 999);
 
-    const remarkSet = filters.remarkFilters.length > 0 ? new Set(filters.remarkFilters) : null;
     const vehicleSet = filters.vehicleFilters.length > 0 ? new Set(filters.vehicleFilters) : null;
     const driverSet = filters.driverFilters.length > 0 ? new Set(filters.driverFilters) : null;
 
     let priorCount = 0;
     baseAlerts.forEach((row) => {
       if (!row.parsedDate) return;
-      if (remarkSet && !remarkSet.has(row.remarks)) return;
       if (vehicleSet && !vehicleSet.has(row.vehicle)) return;
       if (driverSet && !driverSet.has(row.driver)) return;
       if (row.parsedDate >= priorFrom && row.parsedDate <= priorTo) {
@@ -304,7 +249,7 @@ export default function SimpleDashboard({
       value: percentChange,
       label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs prior month',
     };
-  }, [filters.month, filters.remarkFilters, filters.vehicleFilters, filters.driverFilters, baseAlerts, stats.total, lang]);
+  }, [filters.month, filters.vehicleFilters, filters.driverFilters, baseAlerts, stats.total, lang]);
 
   // ── Active filter count for DashboardShell badge ───────────────────────
   const activeFilterCount = useMemo(() => {
@@ -312,9 +257,8 @@ export default function SimpleDashboard({
     if (filters.month) count += 1;
     count += filters.vehicleFilters.length;
     count += filters.driverFilters.length;
-    count += filters.remarkFilters.length;
     return count;
-  }, [filters.month, filters.vehicleFilters.length, filters.driverFilters.length, filters.remarkFilters.length]);
+  }, [filters.month, filters.vehicleFilters.length, filters.driverFilters.length]);
 
   // ── Trend chart data (TrendChart format) ───────────────────────────────
   const trendChartData = useMemo(() => {
@@ -447,36 +391,12 @@ export default function SimpleDashboard({
           error={error ?? undefined}
           onRetry={() => window.location.reload()}
           lang={lang}
-          message={lang === 'th' ? 'กำลังโหลดข้อมูลแดชบอร์ด…' : 'Loading dashboard data…'}
-          detail={lang === 'th' ? 'กำลังรวบรวมกิจกรรมการแจ้งเตือนและแนวโน้ม' : 'Gathering alert activity and trends.'}
+          message={lang === 'th' ? 'กำลังโหลด…' : 'Loading…'}
           fallbackDetail={copy.loadingDetail}
         />
       ) : (
         <>
-          {/* ── KPI Row ──────────────────────────────────────────── */}
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
-              label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total alerts'}
-              value={stats.total.toLocaleString()}
-              trend={alertsTrend}
-            />
-            <KpiCard
-              label={lang === 'th' ? 'ช่วงวันที่' : 'Date range'}
-              value={dateRangeLabel}
-            />
-            <KpiCard
-              label={lang === 'th' ? 'รถที่ไม่ซ้ำ' : 'Unique vehicles'}
-              value={stats.vehicles}
-              unit={lang === 'th' ? 'คัน' : 'vehicles'}
-            />
-            <KpiCard
-              label={lang === 'th' ? 'คนขับที่ไม่ซ้ำ' : 'Unique drivers'}
-              value={stats.drivers}
-              unit={lang === 'th' ? 'คน' : 'drivers'}
-            />
-          </section>
-
-          {/* ── Filters ──────────────────────────────────────────── */}
+          {/* Filters */}
           <FilterBar>
             <InlineMonthPicker
               value={filters.month}
@@ -497,97 +417,59 @@ export default function SimpleDashboard({
               onChange={(v) => setFilters((f) => ({ ...f, driverFilters: v }))}
               lang={lang}
             />
-            <MultiSelect
-              label={lang === 'th' ? 'ประเภท' : 'types'}
-              options={remarkOptions}
-              selected={filters.remarkFilters}
-              onChange={(v) => setFilters((f) => ({ ...f, remarkFilters: v }))}
-              lang={lang}
-            />
             {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-              >
+              <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
                 {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
               </button>
             )}
           </FilterBar>
 
-          {/* ── Daily alert trend (TrendChart) ───────────────────── */}
+          {/* KPIs — one row, the only numbers that matter */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+              label={lang === 'th' ? 'ทั้งหมด' : 'Total'}
+              value={stats.total.toLocaleString()}
+              trend={alertsTrend}
+            />
+            <KpiCard
+              label={lang === 'th' ? 'ง่วงนอน' : 'Fatigue'}
+              value={stats.remarks.fatigue.toLocaleString()}
+              accentColor="#F59E0B"
+            />
+            <KpiCard
+              label={lang === 'th' ? 'หาว' : 'Yawning'}
+              value={stats.remarks.yawning.toLocaleString()}
+              accentColor="#10B981"
+            />
+            <KpiCard
+              label={lang === 'th' ? 'ไม่สนใจ' : 'Distraction'}
+              value={stats.remarks.distraction.toLocaleString()}
+              accentColor="#EF4444"
+            />
+          </div>
+
+          {/* Trend */}
           <section className={dashboardSectionClass}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className={heading2}>{lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}</h2>
-                <p className={textSecondary}>
-                  {lang === 'th'
-                    ? 'การแจ้งเตือน Eye Closing-A2 และ Yawning-A2 สำหรับง่วงนอน หาว และไม่สนใจ'
-                    : 'Eye Closing-A2 and Yawning-A2 alerts for fatigue, yawning, and distraction.'}
-                </p>
-              </div>
-            </div>
-            <div className="mt-6">
-              <TrendChart
-                data={trendChartData}
-                mode="line"
-                height={300}
-                ariaLabel={lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}
-              />
-            </div>
+            <h2 className={heading2}>{lang === 'th' ? 'แนวโน้มรายวัน' : 'Daily trend'}</h2>
+            <TrendChart
+              className="mt-3"
+              data={trendChartData}
+              mode="line"
+              height={260}
+              ariaLabel={lang === 'th' ? 'แนวโน้มรายวัน' : 'Daily alert trend'}
+            />
           </section>
 
-          {/* ── Alert remark highlights (KpiCards) ────────────────── */}
+          {/* Table */}
           <section className={dashboardSectionClass}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className={heading2}>{lang === 'th' ? 'สรุปตามประเภทแจ้งเตือน' : 'Alert remark highlights'}</h2>
-                <p className={textSecondary}>
-                  {lang === 'th'
-                    ? 'การแจ้งเตือน Eye Closing-A2 และ Yawning-A2 ตามประเภท'
-                    : 'Eye Closing-A2 and Yawning-A2 alerts by remark.'}
-                </p>
-              </div>
-            </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <KpiCard
-                label={lang === 'th' ? 'ง่วงนอน' : 'Fatigue'}
-                value={stats.remarks.fatigue.toLocaleString()}
-                subtitle={lang === 'th' ? 'การแจ้งเตือน' : 'Alerts'}
-              />
-              <KpiCard
-                label={lang === 'th' ? 'หาว' : 'Yawning'}
-                value={stats.remarks.yawning.toLocaleString()}
-                subtitle={lang === 'th' ? 'การแจ้งเตือน' : 'Alerts'}
-              />
-              <KpiCard
-                label={lang === 'th' ? 'ไม่สนใจ' : 'Distraction'}
-                value={stats.remarks.distraction.toLocaleString()}
-                subtitle={lang === 'th' ? 'การแจ้งเตือน' : 'Alerts'}
-              />
-            </div>
-          </section>
-
-          {/* ── Alerts table (DataTable) ──────────────────────────── */}
-          <section className={dashboardSectionClass}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className={heading2}>
-                  {lang === 'th' ? 'การแจ้งเตือนตามรถและวันที่' : 'Alerts by vehicle and date'}
-                </h2>
-                <p className={textSecondary}>
-                  {lang === 'th'
-                    ? 'จำนวนการแจ้งเตือนรายวันแยกตามง่วงนอน หาว และไม่สนใจ'
-                    : 'Daily alert counts for fatigue, yawning, and distraction.'}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4">
+            <h2 className={heading2}>{lang === 'th' ? 'รายละเอียด' : 'Details'}</h2>
+            <div className="mt-3">
               <DataTable
                 columns={tableColumns}
                 data={tableRows}
                 defaultSort={{ key: 'sortDate', direction: 'desc' }}
-                ariaLabel={lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alert summary table'}
+                pageSize={15}
+                ariaLabel={lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alert table'}
               />
             </div>
           </section>
