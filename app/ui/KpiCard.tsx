@@ -41,6 +41,8 @@ export default function KpiCard({ label, value, unit, subtitle, trend, accentCol
             : undefined
         }
       >
+        {/* Thai gold accent shimmer — top edge */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/20 to-transparent" aria-hidden="true" />
         {/* Subtle decorative gradient */}
         <div
           className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full opacity-[0.04]"

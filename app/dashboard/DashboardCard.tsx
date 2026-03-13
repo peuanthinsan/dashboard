@@ -23,35 +23,49 @@ const templateColors: Record<string, string> = {
   Driving: 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30',
 };
 
+const templateIconBg: Record<string, string> = {
+  Summary: 'bg-red-50 ring-red-200/40 dark:bg-red-950/40 dark:ring-red-800/30',
+  Detail: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
+  Simple: 'bg-zinc-100 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60',
+  Driving: 'bg-emerald-50 ring-emerald-200/40 dark:bg-emerald-950/40 dark:ring-emerald-800/30',
+};
+
 export default function DashboardCard({ id, name, template, sheetUrl, lang }: DashboardCardProps) {
   const icon = templateIcons[template ?? ''] ?? '⚓';
   const badgeColor =
     templateColors[template ?? ''] ?? 'bg-zinc-100 text-zinc-600 ring-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700/30';
+  const iconBg =
+    templateIconBg[template ?? ''] ?? 'bg-zinc-50 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60';
 
   return (
     <Link
       href={`/dashboard/${id}`}
       className="group relative flex flex-col gap-4 overflow-hidden rounded-xl border border-zinc-200/60 bg-white/80 p-5 shadow-card backdrop-blur-sm transition-all duration-200 hover:border-red-300/60 hover:shadow-card-hover hover:translate-y-[-2px] dark:border-zinc-800/60 dark:bg-zinc-900/80 dark:hover:border-red-800/60 animate-slide-up"
     >
-      {/* Gold accent top trim — Thai temple inspired */}
-      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      {/* Gold accent top trim — always visible */}
+      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400/30 to-transparent transition-all duration-300 group-hover:via-amber-400/60" />
+      {/* Second trim line — visible on hover */}
+      <div className="absolute inset-x-[20%] top-[3px] h-[1px] bg-gradient-to-r from-transparent via-amber-500/0 to-transparent transition-all duration-300 group-hover:via-amber-500/30" />
+
+      {/* Thai pattern overlay — subtle */}
+      <div className="pointer-events-none absolute inset-0 thai-pattern opacity-0 transition-opacity duration-300 group-hover:opacity-30" aria-hidden="true" />
 
       {/* Hover glow */}
       <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-500/0 transition-all duration-300 group-hover:bg-amber-500/5 dark:group-hover:bg-amber-500/10" aria-hidden="true" />
 
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-50 text-lg ring-1 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60">
+      <div className="relative flex items-start justify-between gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg text-lg ring-1 ${iconBg}`}>
           {icon}
         </div>
         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeColor}`}>
           {template ?? 'Summary'}
         </span>
       </div>
-      <div className="flex-1">
+      <div className="relative flex-1">
         <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{name}</h3>
         <p className={`mt-1 line-clamp-1 ${textSecondary}`}>{sheetUrl}</p>
       </div>
-      <div className="flex items-center justify-between border-t border-zinc-100/80 pt-3 dark:border-zinc-800/60">
+      <div className="relative flex items-center justify-between border-t border-zinc-100/80 pt-3 dark:border-zinc-800/60">
         <div className="flex items-center gap-1.5">
           <div className="relative">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />

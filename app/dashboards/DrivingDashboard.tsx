@@ -454,9 +454,11 @@ export default function DrivingDashboard({
       {/* ═══════════════ SAFETY & COMPLIANCE ═══════════════ */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400/60 to-transparent dark:via-amber-600/30" />
+        <svg width="8" height="8" viewBox="0 0 8 8" className="shrink-0 text-amber-500/50" aria-hidden="true"><polygon points="4,0 8,4 4,8 0,4" fill="currentColor" /></svg>
         <h2 className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
           {lang === 'th' ? 'ความปลอดภัยและการปฏิบัติตามกฎ' : 'Safety & Compliance'}
         </h2>
+        <svg width="8" height="8" viewBox="0 0 8 8" className="shrink-0 text-amber-500/50" aria-hidden="true"><polygon points="4,0 8,4 4,8 0,4" fill="currentColor" /></svg>
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400/60 to-transparent dark:via-amber-600/30" />
       </div>
 
@@ -609,9 +611,11 @@ export default function DrivingDashboard({
       {/* ═══════════════ FLEET OVERVIEW ═══════════════ */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
+        <svg width="6" height="6" viewBox="0 0 6 6" className="shrink-0 text-zinc-300 dark:text-zinc-600" aria-hidden="true"><polygon points="3,0 6,3 3,6 0,3" fill="currentColor" /></svg>
         <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
           {lang === 'th' ? 'ภาพรวมกองยานพาหนะ' : 'Fleet Overview'}
         </h2>
+        <svg width="6" height="6" viewBox="0 0 6 6" className="shrink-0 text-zinc-300 dark:text-zinc-600" aria-hidden="true"><polygon points="3,0 6,3 3,6 0,3" fill="currentColor" /></svg>
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
       </div>
 

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { formatDateTimeGB } from './dateFormat';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
+import SongdeeLogo from 'app/ui/SongdeeLogo';
 import {
   pageContainer,
   pageContent,
@@ -46,9 +47,12 @@ export default function DashboardShell({
         <div className="flex flex-col gap-5">
           {/* ── Header with SongdeeGPS branding ── */}
           <header className="relative overflow-hidden rounded-xl border border-zinc-200/60 bg-white/80 shadow-card backdrop-blur-sm dark:border-zinc-800/60 dark:bg-zinc-900/80">
-            {/* Thai-inspired gradient bar — red + gold trim */}
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-600 via-amber-500 to-red-600" />
-            <div className="p-5 pt-6">
+            {/* Thai double-line gold trim — temple roof inspired */}
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+            <div className="absolute inset-x-[15%] top-[4px] h-[1px] bg-gradient-to-r from-transparent via-amber-600/25 to-transparent" />
+            {/* Subtle Thai pattern overlay */}
+            <div className="pointer-events-none absolute inset-0 thai-pattern opacity-40" />
+            <div className="relative p-5 pt-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-1">
                   <Link
@@ -63,7 +67,10 @@ export default function DashboardShell({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-400 dark:text-zinc-500">
                     {subtitle}
                   </p>
-                  <h1 className={heading1}>{title}</h1>
+                  <div className="flex items-center gap-3">
+                    <SongdeeLogo size={28} className="hidden sm:block" />
+                    <h1 className={heading1}>{title}</h1>
+                  </div>
                   {lastUpdated ? (
                     <p className={`mt-1 ${textMuted}`}>
                       {copy.lastUpdated} {formatDateTimeGB(lastUpdated)}
@@ -95,6 +102,19 @@ export default function DashboardShell({
           </header>
 
           {children}
+
+          {/* ── SongdeeGPS branded footer ── */}
+          <footer className="flex items-center justify-center gap-2 py-4">
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" className="text-amber-400/30" aria-hidden="true">
+              <polygon points="4,0 8,4 4,8 0,4" />
+            </svg>
+            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600">
+              Powered by Songdee<span className="text-amber-400/60 dark:text-amber-500/40">GPS</span>
+            </span>
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" className="text-amber-400/30" aria-hidden="true">
+              <polygon points="4,0 8,4 4,8 0,4" />
+            </svg>
+          </footer>
         </div>
       </div>
     </div>
