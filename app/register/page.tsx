@@ -87,10 +87,10 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-12 lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-red-600 via-red-700 to-violet-800 p-12 lg:flex">
         <div>
           <h1 className="text-2xl font-bold text-white">SongdeeGPS</h1>
-          <p className="mt-1 text-sm text-indigo-200">
+          <p className="mt-1 text-sm text-red-200">
             Fleet Safety Intelligence
           </p>
         </div>
@@ -100,7 +100,7 @@ export default function Login() {
             <br />
             Protect your fleet.
           </h2>
-          <div className="space-y-3 text-sm text-indigo-200">
+          <div className="space-y-3 text-sm text-red-200">
             <div className="flex items-center gap-3">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
                 ✓
@@ -127,7 +127,7 @@ export default function Login() {
             </div>
           </div>
         </div>
-        <p className="text-xs text-indigo-300">
+        <p className="text-xs text-red-300">
           © 2026 SongdeeGPS. All rights reserved.
         </p>
       </div>
@@ -146,7 +146,7 @@ export default function Login() {
             Already have an account?{' '}
             <a
               href="/login"
-              className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+              className="text-red-600 hover:text-red-500 dark:text-red-400"
             >
               Sign in
             </a>

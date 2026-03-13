@@ -141,7 +141,7 @@ export function DataTable<T extends object>({
                 >
                   {col.label}
                   {arrow && (
-                    <span aria-hidden="true" className="ml-1 text-indigo-500">
+                    <span aria-hidden="true" className="ml-1 text-red-500">
                       {sort.direction === 'asc' ? '▲' : '▼'}
                     </span>
                   )}

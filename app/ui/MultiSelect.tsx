@@ -99,7 +99,7 @@ export default function MultiSelect({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t.search}
-              className="w-full rounded border border-zinc-200 bg-transparent px-2 py-1 text-xs outline-none focus:border-indigo-400 dark:border-zinc-700"
+              className="w-full rounded border border-zinc-200 bg-transparent px-2 py-1 text-xs outline-none focus:border-red-400 dark:border-zinc-700"
             />
           </div>
 
@@ -110,7 +110,7 @@ export default function MultiSelect({
                 <label
                   key={option}
                   className={`flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-xs transition ${
-                    checked ? 'bg-indigo-50 dark:bg-indigo-950/50' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                    checked ? 'bg-red-50 dark:bg-red-950/50' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800'
                   }`}
                   role="option"
                   aria-selected={checked}
@@ -124,7 +124,7 @@ export default function MultiSelect({
                   <span
                     className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-sm border-2 text-[8px] font-bold ${
                       checked
-                        ? 'border-indigo-600 bg-indigo-600 text-white'
+                        ? 'border-red-600 bg-red-600 text-white'
                         : 'border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800'
                     }`}
                   >
@@ -152,7 +152,7 @@ export default function MultiSelect({
             <button
               type="button"
               onClick={() => onChange([...options])}
-              className="text-[10px] font-semibold text-indigo-600 transition hover:text-indigo-700 dark:text-indigo-400"
+              className="text-[10px] font-semibold text-red-600 transition hover:text-red-700 dark:text-red-400"
             >
               {t.selectAll}
             </button>

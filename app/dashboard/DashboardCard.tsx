@@ -10,21 +10,21 @@ type DashboardCardProps = {
 };
 
 const templateIcons: Record<string, string> = {
-  Summary: '📊',
-  Detail: '📋',
-  Simple: '📈',
+  Summary: '⚓',
+  Detail: '🗺️',
+  Simple: '🏴‍☠️',
   Driving: '🚗',
 };
 
 const templateColors: Record<string, string> = {
-  Summary: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300',
-  Detail: 'bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
-  Simple: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  Summary: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+  Detail: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+  Simple: 'bg-zinc-900 text-white dark:bg-zinc-700 dark:text-zinc-100',
   Driving: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
 };
 
 export default function DashboardCard({ id, name, template, sheetUrl, lang }: DashboardCardProps) {
-  const icon = templateIcons[template ?? ''] ?? '📊';
+  const icon = templateIcons[template ?? ''] ?? '⚓';
   const badgeColor =
     templateColors[template ?? ''] ?? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300';
 
@@ -44,12 +44,12 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
       </div>
       <div className="flex items-center justify-between border-t border-zinc-100 pt-3 dark:border-zinc-800">
         <div className="flex items-center gap-1.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
             {lang === 'th' ? 'เชื่อมต่อแล้ว' : 'Connected'}
           </span>
         </div>
-        <span className="text-xs font-medium text-indigo-600 transition group-hover:text-indigo-500 dark:text-indigo-400">
+        <span className="text-xs font-medium text-red-600 transition group-hover:text-red-500 dark:text-red-400">
           {lang === 'th' ? 'เปิดแดชบอร์ด →' : 'Open dashboard →'}
         </span>
       </div>

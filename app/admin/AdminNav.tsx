@@ -36,7 +36,7 @@ export default function AdminNav() {
               aria-current={isActive ? 'page' : undefined}
               className={`group flex min-w-[140px] flex-1 flex-col gap-1 rounded-lg border px-3 py-2.5 text-left font-medium transition ${
                 isActive
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950 dark:text-indigo-200'
+                  ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-400 dark:bg-red-950 dark:text-red-200'
                   : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-700'
               }`}
             >
@@ -45,14 +45,14 @@ export default function AdminNav() {
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${
                       isActive
-                        ? 'bg-indigo-500 dark:bg-indigo-400'
+                        ? 'bg-red-500 dark:bg-red-400'
                         : 'bg-zinc-300 dark:bg-zinc-600'
                     }`}
                   />
                   <span>{link.label}</span>
                 </span>
                 {isActive ? (
-                  <span className="rounded-md bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300">
+                  <span className="rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-900 dark:text-red-300">
                     Active
                   </span>
                 ) : null}

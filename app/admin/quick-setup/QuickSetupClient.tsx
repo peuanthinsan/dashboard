@@ -103,7 +103,7 @@ export default function QuickSetupClient({
               onClick={() => setStep(s.number)}
               className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition ${
                 step === s.number
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-red-600 text-white'
                   : step > s.number
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
                     : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500'

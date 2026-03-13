@@ -52,48 +52,48 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-12 lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-zinc-900 via-red-950 to-zinc-900 p-12 lg:flex">
         <div>
           <h1 className="text-2xl font-bold text-white">SongdeeGPS</h1>
-          <p className="mt-1 text-sm text-indigo-200">
-            Fleet Safety Intelligence
+          <p className="mt-1 text-sm text-red-300">
+            Fleet Safety Intelligence — Bangkok
           </p>
         </div>
         <div className="space-y-6">
           <h2 className="text-3xl font-semibold leading-tight text-white">
-            Monitor. Analyze.
+            Navigate. Conquer.
             <br />
-            Protect your fleet.
+            Command your fleet.
           </h2>
-          <div className="space-y-3 text-sm text-indigo-200">
+          <div className="space-y-3 text-sm text-red-200">
             <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                ✓
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600/30 text-red-300">
+                ⚓
               </span>
               Real-time driver safety alerts
             </div>
             <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                ✓
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600/30 text-red-300">
+                ⚓
               </span>
               Fleet performance analytics
             </div>
             <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                ✓
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600/30 text-red-300">
+                ⚓
               </span>
               Safety score tracking
             </div>
             <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                ✓
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600/30 text-red-300">
+                ⚓
               </span>
               Exportable reports
             </div>
           </div>
         </div>
-        <p className="text-xs text-indigo-300">
-          © 2026 SongdeeGPS. All rights reserved.
+        <p className="text-xs text-zinc-500">
+          © 2026 SongdeeGPS — กรุงเทพมหานคร
         </p>
       </div>
       <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
@@ -111,7 +111,7 @@ export default function Login() {
             Don&apos;t have an account?{' '}
             <a
               href="/register"
-              className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+              className="text-red-600 hover:text-red-500 dark:text-red-400"
             >
               Create one
             </a>

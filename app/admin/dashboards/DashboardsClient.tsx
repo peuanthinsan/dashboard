@@ -102,7 +102,7 @@ function DashboardRow({
                 href={`/dashboard/${dashboard.publicId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-indigo-500 hover:underline dark:text-indigo-400"
+                className="text-red-500 hover:underline dark:text-red-400"
               >
                 Preview ↗
               </a>

@@ -1,4 +1,4 @@
-// Design tokens — shared className constants for the entire V2 design system
+// Design tokens — SongdeeGPS theme: red / grey / black / white
 
 // Surfaces
 export const surfaceBackground = 'bg-zinc-50 dark:bg-zinc-950';
@@ -15,7 +15,7 @@ export const textMuted = 'text-xs text-zinc-400 dark:text-zinc-500';
 
 // Cards
 export const cardBase = 'rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900';
-export const cardHover = `${cardBase} transition-all hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-700`;
+export const cardHover = `${cardBase} transition-all hover:border-red-300 hover:shadow-md dark:hover:border-red-900`;
 export const cardSection = `${cardBase} shadow-sm`;
 
 // Badges
@@ -27,14 +27,14 @@ export const badgeDanger = `${badge} bg-red-50 text-red-700 dark:bg-red-950 dark
 export const badgeInfo = `${badge} bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300`;
 
 // Buttons
-export const btnPrimary = 'inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900';
-export const btnSecondary = 'inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 dark:focus:ring-offset-zinc-900';
+export const btnPrimary = 'inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900';
+export const btnSecondary = 'inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 dark:focus:ring-offset-zinc-900';
 export const btnGhost = 'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100';
 export const btnDanger = 'inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700';
 export const btnSmall = 'px-3 py-1.5 text-xs';
 
 // Inputs
-export const inputBase = 'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-400';
+export const inputBase = 'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-red-400 dark:focus:ring-red-400';
 export const selectBase = `${inputBase} cursor-pointer`;
 export const labelBase = 'block text-sm font-medium text-zinc-700 dark:text-zinc-300';
 
@@ -51,35 +51,35 @@ export const pageContent = 'mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8';
 export const pageHeader = 'mb-8';
 
 // Filter chips
-export const filterChipActive = 'inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white transition';
+export const filterChipActive = 'inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-medium text-white transition';
 export const filterChipMuted = 'inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700';
 
-// Charts
+// Charts — SongdeeGPS palette: red-forward, grey, black, gold accents
 export const CHART_COLORS = [
-  '#2563EB', // vivid blue
-  '#F59E0B', // amber
-  '#10B981', // emerald
-  '#EC4899', // pink
-  '#06B6D4', // cyan
-  '#F97316', // orange
-  '#8B5CF6', // violet
-  '#EF4444', // red
-  '#14B8A6', // teal
-  '#6366F1', // indigo
+  '#DC2626', // red-600 — primary brand
+  '#374151', // gray-700 — dark grey
+  '#F59E0B', // amber — gold accent
+  '#111827', // gray-900 — near black
+  '#EF4444', // red-500 — lighter red
+  '#6B7280', // gray-500 — mid grey
+  '#B91C1C', // red-700 — deep red
+  '#D97706', // amber-600 — deep gold
+  '#9CA3AF', // gray-400 — light grey
+  '#991B1B', // red-800 — darkest red
 ];
 
 // Gradient stop pairs for each CHART_COLORS entry (light → vivid)
 export const CHART_GRADIENTS: [string, string][] = [
-  ['#DBEAFE', '#2563EB'], // blue
-  ['#FEF3C7', '#F59E0B'], // amber
-  ['#D1FAE5', '#10B981'], // emerald
-  ['#FCE7F3', '#EC4899'], // pink
-  ['#CFFAFE', '#06B6D4'], // cyan
-  ['#FFEDD5', '#F97316'], // orange
-  ['#EDE9FE', '#8B5CF6'], // violet
-  ['#FEE2E2', '#EF4444'], // red
-  ['#CCFBF1', '#14B8A6'], // teal
-  ['#E0E7FF', '#6366F1'], // indigo
+  ['#FEE2E2', '#DC2626'], // red
+  ['#F3F4F6', '#374151'], // grey
+  ['#FEF3C7', '#F59E0B'], // gold
+  ['#F3F4F6', '#111827'], // black
+  ['#FEE2E2', '#EF4444'], // light red
+  ['#F3F4F6', '#6B7280'], // mid grey
+  ['#FEE2E2', '#B91C1C'], // deep red
+  ['#FEF3C7', '#D97706'], // deep gold
+  ['#F3F4F6', '#9CA3AF'], // light grey
+  ['#FEE2E2', '#991B1B'], // darkest red
 ];
 export const SAFETY_THRESHOLDS = { excellent: 90, good: 70, moderate: 50, poor: 0 };
 
@@ -89,6 +89,6 @@ export const tooltipBase = 'bg-zinc-900 text-white text-xs rounded-md shadow-lg 
 /* ── MultiSelect ─────────────────────────────────────── */
 export const multiSelectTrigger = 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs cursor-pointer transition';
 export const multiSelectDefault = 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600';
-export const multiSelectActive = 'border-indigo-200 bg-indigo-50 text-indigo-600 hover:border-indigo-300 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-400';
-export const multiSelectOpen = 'border-indigo-500 bg-white text-zinc-700 dark:border-indigo-400 dark:bg-zinc-900 dark:text-zinc-200';
+export const multiSelectActive = 'border-red-200 bg-red-50 text-red-600 hover:border-red-300 dark:border-red-800 dark:bg-red-950 dark:text-red-400';
+export const multiSelectOpen = 'border-red-500 bg-white text-zinc-700 dark:border-red-400 dark:bg-zinc-900 dark:text-zinc-200';
 export const multiSelectPanel = 'absolute top-full mt-1 min-w-[200px] rounded-lg border border-zinc-200 bg-white shadow-lg z-50 dark:border-zinc-700 dark:bg-zinc-900';

@@ -398,7 +398,7 @@ export default function SimpleDashboard({
       key: 'distraction',
       label: lang === 'th' ? 'ไม่สนใจ' : 'Distraction',
       sortable: true,
-      render: (value) => <span className="text-indigo-500 dark:text-indigo-300">{String(value)}</span>,
+      render: (value) => <span className="text-red-500 dark:text-red-300">{String(value)}</span>,
     },
     {
       key: 'total',

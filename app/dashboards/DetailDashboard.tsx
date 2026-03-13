@@ -536,7 +536,7 @@ export default function DetailDashboard({
               href={row.videoUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+              className="text-sm font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
             >
               {lang === 'th' ? 'ดู' : 'Watch'}
             </a>
@@ -708,7 +708,7 @@ export default function DetailDashboard({
                   className={[
                     'rounded-full px-2.5 py-1 text-xs font-medium transition',
                     trendRemarkFilter === option.value
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-red-600 text-white'
                       : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700',
                   ].join(' ')}
                 >

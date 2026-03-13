@@ -98,7 +98,7 @@ export default function AlertTimeline({
                 isEven
                   ? 'bg-white dark:bg-zinc-900'
                   : 'bg-zinc-50 dark:bg-zinc-900/60',
-                isHighlighted ? 'border-l-3 border-l-indigo-500' : '',
+                isHighlighted ? 'border-l-3 border-l-red-500' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}

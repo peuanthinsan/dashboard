@@ -646,14 +646,14 @@ export default function DrivingDashboard({
             <div className="mt-4 space-y-2">
               {top5.map((row, i) => (
                 <div key={`top-${row.driver}`} className="flex items-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{row.driver}</p>
                     <p className="text-xs text-zinc-400">{row.tripCount} trips · {formatDistance(row.totalDistanceKm)} · avg {formatHours(row.avgDurationPerTrip)}/trip</p>
                   </div>
-                  <span className="shrink-0 rounded-md bg-indigo-50 px-2.5 py-1 text-sm font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                  <span className="shrink-0 rounded-md bg-red-50 px-2.5 py-1 text-sm font-bold text-red-700 dark:bg-red-950 dark:text-red-300">
                     {formatDistance(row.totalDistanceKm)}
                   </span>
                 </div>
