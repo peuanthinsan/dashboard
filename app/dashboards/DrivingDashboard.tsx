@@ -15,8 +15,10 @@ import Sparkline from 'app/ui/Sparkline';
 import TrendIndicator from 'app/ui/TrendIndicator';
 import MonthPicker from 'app/ui/MonthPicker';
 import FilterBar from 'app/ui/FilterBar';
+import DonutChart from 'app/ui/DonutChart';
+import AlertHeatmap from 'app/ui/AlertHeatmap';
 import {
-  heading2, textSecondary, selectBase,
+  heading2, textSecondary, selectBase, cardSection, CHART_COLORS,
 } from 'app/ui/design-tokens';
 
 type DashboardProps = {
@@ -29,7 +31,7 @@ type DashboardProps = {
   lang?: DashboardLang;
 };
 
-type DrivingRow = { driver: string; date: Date | null; distanceKm: number; cntDrvDurationHours: number; fleet?: string };
+type DrivingRow = { driver: string; vehicle: string; date: Date | null; distanceKm: number; cntDrvDurationHours: number; fleet?: string };
 type DriverAggregate = {
   driver: string;
   tripCount: number;
@@ -74,13 +76,15 @@ export default function DrivingDashboard({
   dashboardName, sheetId, sheetGid, dashboardNotes, organizationName, lang = 'en',
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
-  const [driverFilter, setDriverFilter] = useState('');
+  const [driverFilters, setDriverFilters] = useState<string[]>([]);
+  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState('');
 
   const normalizedOrganizationName = useMemo(() => (organizationName ? normalizeLabel(organizationName) : null), [organizationName]);
 
   const drivingRows = useMemo<DrivingRow[]>(() => rows.map((row) => ({
     driver: toDisplayString(findValue(row, ['Driver Name'])),
+    vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
     date: parseDate(findValue(row, ['DateTime', 'Start Time', 'Date', 'Alert Date Time'])),
     distanceKm: parseNumber(findValue(row, ['Distance'])),
     cntDrvDurationHours: parseDurationHours(findValue(row, ['Cnt Drv duration', 'Cnt Drv Hr', 'DriveHrs duration'])),
@@ -88,13 +92,15 @@ export default function DrivingDashboard({
   })).filter((row) => {
     if (!normalizedOrganizationName) return true;
     return normalizeLabel(row.fleet ?? '') === normalizedOrganizationName;
-  }).map((row) => ({ driver: row.driver, date: row.date, distanceKm: row.distanceKm, cntDrvDurationHours: row.cntDrvDurationHours })), [rows, normalizedOrganizationName]);
+  }).map((row) => ({ driver: row.driver, vehicle: row.vehicle, date: row.date, distanceKm: row.distanceKm, cntDrvDurationHours: row.cntDrvDurationHours })), [rows, normalizedOrganizationName]);
 
   const driverOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.driver).filter((n) => n !== '—'))).sort(), [drivingRows]);
+  const vehicleOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.vehicle).filter((n) => n !== '—'))).sort(), [drivingRows]);
 
   const filteredRows = useMemo(() => {
     return drivingRows.filter((row) => {
-      if (driverFilter && row.driver !== driverFilter) return false;
+      if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
+      if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
       if (selectedMonth) {
         if (!row.date) return false;
         const rowMonth = getMonthKey(row.date);
@@ -102,10 +108,10 @@ export default function DrivingDashboard({
       }
       return true;
     });
-  }, [drivingRows, driverFilter, selectedMonth]);
+  }, [drivingRows, driverFilters, vehicleFilters, selectedMonth]);
 
   // Active filter count for DashboardShell badge
-  const activeFilterCount = useMemo(() => [driverFilter, selectedMonth].filter(Boolean).length, [driverFilter, selectedMonth]);
+  const activeFilterCount = useMemo(() => [driverFilters.length > 0, vehicleFilters.length > 0, selectedMonth].filter(Boolean).length, [driverFilters, vehicleFilters, selectedMonth]);
 
   // Date range string for ExportButton
   const dateRange = useMemo(() => selectedMonth || undefined, [selectedMonth]);
@@ -191,6 +197,66 @@ export default function DrivingDashboard({
     const topDrivers = new Set(top5.map((r) => r.driver));
     return [...aggregates].reverse().filter((r) => !topDrivers.has(r.driver)).slice(0, 5);
   }, [aggregates, top5]);
+
+  // --- Additional KPIs ---
+  const extraKpis = useMemo(() => {
+    const uniqueDrivers = new Set(filteredRows.map((r) => r.driver).filter((d) => d !== '—')).size;
+    const uniqueVehicles = new Set(filteredRows.map((r) => r.vehicle).filter((v) => v !== '—')).size;
+    const longestTrip = filteredRows.reduce((mx, r) => Math.max(mx, r.distanceKm), 0);
+    const totalDur = filteredRows.reduce((s, r) => s + r.cntDrvDurationHours, 0);
+    const totalDist = filteredRows.reduce((s, r) => s + r.distanceKm, 0);
+    const avgSpeed = totalDur > 0 ? totalDist / totalDur : 0;
+    return { uniqueDrivers, uniqueVehicles, longestTrip, avgSpeed };
+  }, [filteredRows]);
+
+  // --- Vehicle aggregates ---
+  type VehicleAggregate = { vehicle: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; driverCount: number };
+  const vehicleAggregates = useMemo<VehicleAggregate[]>(() => {
+    const map = new Map<string, { vehicle: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; drivers: Set<string> }>();
+    filteredRows.forEach((row) => {
+      if (row.vehicle === '—') return;
+      const c = map.get(row.vehicle) ?? { vehicle: row.vehicle, tripCount: 0, totalDistanceKm: 0, totalCntDrvDurationHours: 0, drivers: new Set<string>() };
+      c.tripCount += 1;
+      c.totalDistanceKm += row.distanceKm;
+      c.totalCntDrvDurationHours += row.cntDrvDurationHours;
+      if (row.driver !== '—') c.drivers.add(row.driver);
+      map.set(row.vehicle, c);
+    });
+    return Array.from(map.values())
+      .map((c) => ({ vehicle: c.vehicle, tripCount: c.tripCount, totalDistanceKm: c.totalDistanceKm, totalCntDrvDurationHours: c.totalCntDrvDurationHours, driverCount: c.drivers.size }))
+      .sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
+  }, [filteredRows]);
+
+  // --- Donut chart data ---
+  const tripsByDriverDonut = useMemo(() => {
+    const sorted = [...aggregates].sort((a, b) => b.tripCount - a.tripCount);
+    const top = sorted.slice(0, 6);
+    const rest = sorted.slice(6);
+    const result = top.map((r) => ({ label: r.driver, value: r.tripCount }));
+    if (rest.length > 0) result.push({ label: lang === 'th' ? 'อื่นๆ' : 'Others', value: rest.reduce((s, r) => s + r.tripCount, 0) });
+    return result;
+  }, [aggregates, lang]);
+
+  const distByVehicleDonut = useMemo(() => {
+    const sorted = [...vehicleAggregates].sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
+    const top = sorted.slice(0, 6);
+    const rest = sorted.slice(6);
+    const result = top.map((r) => ({ label: r.vehicle, value: Math.round(r.totalDistanceKm) }));
+    if (rest.length > 0) result.push({ label: lang === 'th' ? 'อื่นๆ' : 'Others', value: Math.round(rest.reduce((s, r) => s + r.totalDistanceKm, 0)) });
+    return result;
+  }, [vehicleAggregates, lang]);
+
+  // --- Heatmap dates (trip timestamps) ---
+  const heatmapDates = useMemo(() => filteredRows.filter((r) => r.date).map((r) => r.date!), [filteredRows]);
+
+  // --- Vehicle table columns ---
+  const vehicleTableColumns = useMemo<Column<VehicleAggregate>[]>(() => [
+    { key: 'vehicle', label: lang === 'th' ? 'ยานพาหนะ' : 'Vehicle', sortable: true, stickyLeft: true },
+    { key: 'tripCount', label: lang === 'th' ? 'ทริป' : 'Trips', sortable: true },
+    { key: 'totalDistanceKm', label: lang === 'th' ? 'ระยะทาง' : 'Distance', sortable: true, render: (v) => formatDistance(Number(v)) },
+    { key: 'totalCntDrvDurationHours', label: lang === 'th' ? 'ระยะเวลา' : 'Duration', sortable: true, render: (v) => formatHours(Number(v)) },
+    { key: 'driverCount', label: lang === 'th' ? 'คนขับ' : 'Drivers', sortable: true },
+  ], [lang]);
 
   const exportData = useMemo(() => aggregates.map((r) => ({
     Driver: r.driver,
@@ -281,23 +347,68 @@ export default function DrivingDashboard({
 
       {/* Filters */}
       <FilterBar>
-        {/* Driver select */}
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
-          <select value={driverFilter} onChange={(e) => setDriverFilter(e.target.value)} className={`${selectBase} !py-1.5 !text-xs`}>
-            <option value="">{lang === 'th' ? 'คนขับทั้งหมด' : 'All drivers'}</option>
-            {driverOptions.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </div>
-
         {/* Month picker */}
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'เดือน' : 'Month'}</span>
           <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
         </div>
+
+        {/* Driver multi-select */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คนขับ' : 'Driver'}</span>
+          <select
+            value=""
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v && !driverFilters.includes(v)) setDriverFilters((f) => [...f, v]);
+            }}
+            className={`${selectBase} !py-1.5 !text-xs`}
+          >
+            <option value="">{driverFilters.length === 0 ? (lang === 'th' ? 'คนขับทั้งหมด' : 'All drivers') : `${driverFilters.length} ${lang === 'th' ? 'คนขับ' : 'selected'}`}</option>
+            {driverOptions.filter((d) => !driverFilters.includes(d)).map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          {driverFilters.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {driverFilters.map((d) => (
+                <span key={d} className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+                  {d}
+                  <button type="button" onClick={() => setDriverFilters((f) => f.filter((x) => x !== d))} className="hover:text-indigo-800">✕</button>
+                </span>
+              ))}
+              <button type="button" onClick={() => setDriverFilters([])} className="text-[10px] text-zinc-400 hover:text-zinc-600">{lang === 'th' ? 'ล้าง' : 'Clear'}</button>
+            </div>
+          )}
+        </div>
+
+        {/* Vehicle multi-select */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ยานพาหนะ' : 'Vehicle'}</span>
+          <select
+            value=""
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v && !vehicleFilters.includes(v)) setVehicleFilters((f) => [...f, v]);
+            }}
+            className={`${selectBase} !py-1.5 !text-xs`}
+          >
+            <option value="">{vehicleFilters.length === 0 ? (lang === 'th' ? 'ยานพาหนะทั้งหมด' : 'All vehicles') : `${vehicleFilters.length} ${lang === 'th' ? 'ยานพาหนะ' : 'selected'}`}</option>
+            {vehicleOptions.filter((v) => !vehicleFilters.includes(v)).map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+          {vehicleFilters.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {vehicleFilters.map((v) => (
+                <span key={v} className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+                  {v}
+                  <button type="button" onClick={() => setVehicleFilters((f) => f.filter((x) => x !== v))} className="hover:text-indigo-800">✕</button>
+                </span>
+              ))}
+              <button type="button" onClick={() => setVehicleFilters([])} className="text-[10px] text-zinc-400 hover:text-zinc-600">{lang === 'th' ? 'ล้าง' : 'Clear'}</button>
+            </div>
+          )}
+        </div>
       </FilterBar>
 
-      {/* KPI Row */}
+      {/* KPI Row 1 — Primary */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label={lang === 'th' ? 'ทริปทั้งหมด' : 'Total trips'}
@@ -344,6 +455,30 @@ export default function DrivingDashboard({
         />
       </div>
 
+      {/* KPI Row 2 — Secondary */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label={lang === 'th' ? 'คนขับ' : 'Unique drivers'}
+          value={extraKpis.uniqueDrivers}
+          accentColor={CHART_COLORS[4]}
+        />
+        <KpiCard
+          label={lang === 'th' ? 'ยานพาหนะ' : 'Unique vehicles'}
+          value={extraKpis.uniqueVehicles}
+          accentColor={CHART_COLORS[5]}
+        />
+        <KpiCard
+          label={lang === 'th' ? 'ทริปไกลสุด' : 'Longest trip'}
+          value={formatDistance(extraKpis.longestTrip)}
+          accentColor={CHART_COLORS[6]}
+        />
+        <KpiCard
+          label={lang === 'th' ? 'ความเร็วเฉลี่ย' : 'Avg speed'}
+          value={`${extraKpis.avgSpeed.toFixed(1)} km/h`}
+          accentColor={CHART_COLORS[7]}
+        />
+      </div>
+
       {/* Monthly Trend — dual-axis TrendChart */}
       <section className={dashboardSectionClass}>
         <h2 className={heading2}>{lang === 'th' ? 'แนวโน้มรายเดือน' : 'Monthly trend'}</h2>
@@ -367,8 +502,60 @@ export default function DrivingDashboard({
         )}
       </section>
 
-      {/* Driver Activity — Top 5 + Bottom 5 */}
-      <div className="grid gap-6 xl:grid-cols-2">
+      {/* Donut Charts — Trip distribution & Distance by vehicle */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{lang === 'th' ? 'สัดส่วนทริปตามคนขับ' : 'Trip distribution by driver'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'คนขับที่มีทริปมากที่สุด' : 'Drivers with the most trips.'}</p>
+          <div className="mt-4">
+            {tripsByDriverDonut.length === 0 ? (
+              <EmptyState title={lang === 'th' ? 'ไม่มีข้อมูล' : 'No data'} />
+            ) : (
+              <DonutChart
+                data={tripsByDriverDonut}
+                title={lang === 'th' ? 'ทริป' : 'Trips'}
+                centerLabel={lang === 'th' ? 'ทริป' : 'trips'}
+                size={140}
+                ariaLabel={lang === 'th' ? 'สัดส่วนทริปตามคนขับ' : 'Trip distribution by driver'}
+              />
+            )}
+          </div>
+        </section>
+
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{lang === 'th' ? 'ระยะทางตามยานพาหนะ' : 'Distance by vehicle'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ยานพาหนะที่ขับไกลที่สุด' : 'Vehicles with the most distance.'}</p>
+          <div className="mt-4">
+            {distByVehicleDonut.length === 0 ? (
+              <EmptyState title={lang === 'th' ? 'ไม่มีข้อมูล' : 'No data'} />
+            ) : (
+              <DonutChart
+                data={distByVehicleDonut}
+                title={lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)'}
+                centerLabel="km"
+                size={140}
+                ariaLabel={lang === 'th' ? 'ระยะทางตามยานพาหนะ' : 'Distance by vehicle'}
+              />
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* Activity Heatmap — When drivers are most active */}
+      <section className={dashboardSectionClass}>
+        <h2 className={heading2}>{lang === 'th' ? 'ช่วงเวลาการขับขี่' : 'Driving activity heatmap'}</h2>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ความถี่ของทริปตามวันและเวลา' : 'Trip frequency by day of week and hour.'}</p>
+        <div className="mt-4">
+          {heatmapDates.length === 0 ? (
+            <EmptyState title={lang === 'th' ? 'ไม่มีข้อมูลวันที่' : 'No dated trip data'} />
+          ) : (
+            <AlertHeatmap dates={heatmapDates} />
+          )}
+        </div>
+      </section>
+
+      {/* Driver Activity — Top 5 + Bottom 5 (hidden when only 1 driver in results) */}
+      {aggregates.length > 1 && <div className="grid gap-6 xl:grid-cols-2">
         <section className={dashboardSectionClass}>
           <h2 className={heading2}>{lang === 'th' ? '5 คนขับที่ขับมากที่สุด' : 'Top 5 most active drivers'}</h2>
           <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'จัดอันดับตามระยะทางรวม' : 'Ranked by total distance.'}</p>
@@ -414,7 +601,7 @@ export default function DrivingDashboard({
             </div>
           )}
         </section>
-      </div>
+      </div>}
 
       {/* Driver Statistics Table with Sparklines */}
       <section className={dashboardSectionClass}>
@@ -429,6 +616,21 @@ export default function DrivingDashboard({
           />
         </div>
       </section>
+      {/* Vehicle Statistics Table */}
+      {vehicleAggregates.length > 0 && (
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{lang === 'th' ? 'ตารางสถิติยานพาหนะ' : 'Vehicle statistics table'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'สรุปข้อมูลการขับขี่แยกตามยานพาหนะ' : 'Driving summary broken down by vehicle.'}</p>
+          <div className="mt-4">
+            <DataTable
+              columns={vehicleTableColumns}
+              data={vehicleAggregates}
+              defaultSort={{ key: 'totalDistanceKm', direction: 'desc' }}
+              ariaLabel={lang === 'th' ? 'ตารางสถิติยานพาหนะ' : 'Vehicle statistics table'}
+            />
+          </div>
+        </section>
+      )}
     </DashboardShell>
   );
 }
