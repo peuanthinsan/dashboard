@@ -743,56 +743,53 @@ export default function DrivingDashboard({
         </div>
       </section>
 
-      {/* Violation Reports — Cnt Drv > 9h and Rest < 11h */}
-      {violations.length > 0 && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Cnt Drv > 9 hrs */}
-          <section className={dashboardSectionClass}>
-            <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{cntDrvViolations.length}</span>
-              <h2 className={heading2}>{lang === 'th' ? 'ขับต่อเนื่อง > 9 ชม.' : 'Cnt Drv > 9 hrs'}</h2>
-            </div>
-            <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ทริปที่มีการขับต่อเนื่องเกิน 9 ชั่วโมง' : 'Trips where continuous driving exceeded 9 hours.'}</p>
-            <div className="mt-4">
-              {cntDrvViolations.length === 0 ? (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
-                  {lang === 'th' ? 'ไม่พบการฝ่าฝืน' : 'No violations found'}
-                </div>
-              ) : (
-                <DataTable
-                  columns={violationTableColumns.filter((c) => c.key !== 'type')}
-                  data={cntDrvViolations}
-                  defaultSort={{ key: 'cntDrvHours', direction: 'desc' }}
-                  ariaLabel={lang === 'th' ? 'รายงานขับต่อเนื่องเกิน 9 ชม.' : 'Continuous driving over 9 hours report'}
-                />
-              )}
-            </div>
-          </section>
-
-          {/* Rest < 11 hrs */}
-          <section className={dashboardSectionClass}>
-            <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-300">{restHrViolations.length}</span>
-              <h2 className={heading2}>{lang === 'th' ? 'พักผ่อน < 11 ชม.' : 'Rest hrs < 11 hrs'}</h2>
-            </div>
-            <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ทริปที่มีชั่วโมงพักผ่อนน้อยกว่า 11 ชั่วโมง' : 'Trips where rest hours were under 11 hours.'}</p>
-            <div className="mt-4">
-              {restHrViolations.length === 0 ? (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
-                  {lang === 'th' ? 'ไม่พบการฝ่าฝืน' : 'No violations found'}
-                </div>
-              ) : (
-                <DataTable
-                  columns={violationTableColumns.filter((c) => c.key !== 'type')}
-                  data={restHrViolations}
-                  defaultSort={{ key: 'restHours', direction: 'asc' }}
-                  ariaLabel={lang === 'th' ? 'รายงานพักผ่อนน้อยกว่า 11 ชม.' : 'Rest hours under 11 hours report'}
-                />
-              )}
-            </div>
-          </section>
+      {/* Cnt Drv > 9 hrs — full-width paginated table */}
+      <section className={dashboardSectionClass}>
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{cntDrvViolations.length}</span>
+          <h2 className={heading2}>{lang === 'th' ? 'ขับต่อเนื่อง > 9 ชม.' : 'Cnt Drv > 9 hrs'}</h2>
         </div>
-      )}
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ทริปที่มีการขับต่อเนื่องเกิน 9 ชั่วโมง' : 'Trips where continuous driving exceeded 9 hours.'}</p>
+        <div className="mt-4">
+          {cntDrvViolations.length === 0 ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
+              {lang === 'th' ? 'ไม่พบการฝ่าฝืน' : 'No violations found'}
+            </div>
+          ) : (
+            <DataTable
+              columns={violationTableColumns.filter((c) => c.key !== 'type')}
+              data={cntDrvViolations}
+              defaultSort={{ key: 'cntDrvHours', direction: 'desc' }}
+              pageSize={10}
+              ariaLabel={lang === 'th' ? 'รายงานขับต่อเนื่องเกิน 9 ชม.' : 'Continuous driving over 9 hours report'}
+            />
+          )}
+        </div>
+      </section>
+
+      {/* Rest < 11 hrs — full-width paginated table */}
+      <section className={dashboardSectionClass}>
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-300">{restHrViolations.length}</span>
+          <h2 className={heading2}>{lang === 'th' ? 'พักผ่อน < 11 ชม.' : 'Rest hrs < 11 hrs'}</h2>
+        </div>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ทริปที่มีชั่วโมงพักผ่อนน้อยกว่า 11 ชั่วโมง' : 'Trips where rest hours were under 11 hours.'}</p>
+        <div className="mt-4">
+          {restHrViolations.length === 0 ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
+              {lang === 'th' ? 'ไม่พบการฝ่าฝืน' : 'No violations found'}
+            </div>
+          ) : (
+            <DataTable
+              columns={violationTableColumns.filter((c) => c.key !== 'type')}
+              data={restHrViolations}
+              defaultSort={{ key: 'restHours', direction: 'asc' }}
+              pageSize={10}
+              ariaLabel={lang === 'th' ? 'รายงานพักผ่อนน้อยกว่า 11 ชม.' : 'Rest hours under 11 hours report'}
+            />
+          )}
+        </div>
+      </section>
 
       {/* Combined Violations Summary KPI */}
       <div className="grid gap-4 sm:grid-cols-3">

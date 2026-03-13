@@ -22,6 +22,7 @@ interface DataTableProps<T> {
   defaultSort?: { key: string; direction: 'asc' | 'desc' };
   onRowClick?: (row: T) => void;
   ariaLabel?: string;
+  pageSize?: number;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -68,11 +69,13 @@ export function DataTable<T extends object>({
   defaultSort,
   onRowClick,
   ariaLabel,
+  pageSize,
 }: DataTableProps<T>) {
   const [sort, setSort] = useState<SortState>(() => ({
     key: defaultSort?.key ?? '',
     direction: defaultSort?.direction ?? null,
   }));
+  const [page, setPage] = useState(0);
 
   const handleSort = useCallback((col: Column<T>) => {
     if (!col.sortable) return;
@@ -95,6 +98,9 @@ export function DataTable<T extends object>({
   );
 
   const sortedData = getSortedData(data, sort);
+  const totalPages = pageSize ? Math.max(1, Math.ceil(sortedData.length / pageSize)) : 1;
+  const clampedPage = Math.min(page, totalPages - 1);
+  const pagedData = pageSize ? sortedData.slice(clampedPage * pageSize, (clampedPage + 1) * pageSize) : sortedData;
 
   return (
     <div className="overflow-x-auto w-full">
@@ -151,7 +157,7 @@ export function DataTable<T extends object>({
           </tr>
         </thead>
         <tbody>
-          {sortedData.map((row, rowIndex) => (
+          {pagedData.map((row, rowIndex) => (
             <tr
               key={rowIndex}
               className={[
@@ -209,6 +215,34 @@ export function DataTable<T extends object>({
           )}
         </tbody>
       </table>
+      {pageSize && totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-zinc-100 px-4 py-2 dark:border-zinc-800">
+          <span className="text-xs text-zinc-400">
+            {clampedPage * pageSize + 1}–{Math.min((clampedPage + 1) * pageSize, sortedData.length)} of {sortedData.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={clampedPage === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              className="rounded px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed dark:text-zinc-400 dark:hover:bg-zinc-800"
+            >
+              ‹ Prev
+            </button>
+            <span className="px-2 text-xs text-zinc-500 dark:text-zinc-400">
+              {clampedPage + 1} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={clampedPage >= totalPages - 1}
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              className="rounded px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed dark:text-zinc-400 dark:hover:bg-zinc-800"
+            >
+              Next ›
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
