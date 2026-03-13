@@ -89,7 +89,7 @@ export default function DrivingDashboard({
     date: parseDate(findValue(row, ['DateTime', 'Start Time', 'Date', 'Alert Date Time'])),
     distanceKm: parseNumber(findValue(row, ['Distance'])),
     cntDrvDurationHours: parseDurationHours(findValue(row, ['Cnt Drv Hr', 'Cnt Drv duration', 'DriveHrs duration'])),
-    restHours: parseDurationHours(findValue(row, ['Rest Hr', 'RestHr', 'Rest Hour', 'Rest Hours', 'Rest duration', 'RestHrs duration'])),
+    restHours: parseDurationHours(findValue(row, ['Rest Time', 'Rest Hr', 'RestHr', 'Rest Hour', 'Rest Hours', 'Rest duration', 'RestHrs duration'])),
     fleet: toDisplayString(findValue(row, ['Fleet'])),
   })).filter((row) => {
     if (!normalizedOrganizationName) return true;
