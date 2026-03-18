@@ -10,8 +10,9 @@ type FilterBarProps = {
 export default function FilterBar({ children, className = '' }: FilterBarProps) {
   return (
     <div
+      data-print-hide
       className={[
-        'relative overflow-hidden flex flex-wrap items-start gap-3 rounded-xl border border-zinc-200/60 bg-white/60 px-4 py-3 shadow-card backdrop-blur-sm',
+        'relative z-20 overflow-visible flex flex-wrap items-start gap-3 rounded-xl border border-zinc-200/60 bg-white/60 px-4 py-3 shadow-card backdrop-blur-sm',
         'dark:border-zinc-800/60 dark:bg-zinc-900/60',
         'animate-fade-in',
         className,

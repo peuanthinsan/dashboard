@@ -6,6 +6,8 @@ type SafetyScoreProps = {
   size?: number;
   label?: string;
   tooltip?: string;
+  /** Short description of what drives the score, shown below the rating. */
+  detail?: string;
 };
 
 // Stroke colors chosen for >= 3:1 contrast on both white and zinc-900 backgrounds.
@@ -21,7 +23,7 @@ const getScoreColor = (score: number) => {
   return { stroke: '#ef4444', text: 'text-red-600 dark:text-red-400', label: 'Poor' };
 };
 
-export default function SafetyScore({ score, size = 120, label, tooltip }: SafetyScoreProps) {
+export default function SafetyScore({ score, size = 120, label, tooltip, detail }: SafetyScoreProps) {
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
   const { stroke, text, label: ratingLabel } = getScoreColor(clamped);
   const r = 40;
@@ -84,6 +86,11 @@ export default function SafetyScore({ score, size = 120, label, tooltip }: Safet
         <span className={`text-sm font-semibold ${text}`} aria-hidden="true">
           {displayLabel}
         </span>
+        {detail && (
+          <span className="max-w-[180px] text-center text-[10px] leading-tight text-zinc-400 dark:text-zinc-500">
+            {detail}
+          </span>
+        )}
       </div>
     </Tooltip>
   );

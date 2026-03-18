@@ -232,3 +232,114 @@ html.dark input[type='month']::-webkit-calendar-picker-indicator {
   filter: invert(1) brightness(1.4);
   opacity: 1;
 }
+
+/* ── Print / PDF export styles ─────────────── */
+@media print {
+  /* Force light mode colours */
+  html, html.dark {
+    color-scheme: light !important;
+  }
+
+  body, html.dark body {
+    background: white !important;
+    color: #18181b !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Remove dark mode overrides so everything prints as light */
+  .dark * {
+    color: inherit !important;
+    background-color: inherit !important;
+    border-color: inherit !important;
+  }
+
+  /* Hide interactive / non-printable elements */
+  #theme-controls,
+  [data-print-hide],
+  button,
+  .animate-ping {
+    display: none !important;
+  }
+
+  /* Keep export/print buttons hidden but show structural buttons (filter pills etc.) */
+  /* The print button itself adds data-print-hide */
+
+  /* Remove min-height, backdrop blur, shadows */
+  * {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Reset page container */
+  .min-h-screen {
+    min-height: auto !important;
+  }
+
+  /* Full width — no max-width constraint */
+  .max-w-7xl {
+    max-width: 100% !important;
+  }
+
+  /* Tighter padding for print */
+  .px-4, .sm\:px-6, .lg\:px-8 {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  .py-6 {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+
+  /* Reduce section gaps */
+  .gap-4, .gap-5, .gap-6 {
+    gap: 0.5rem !important;
+  }
+
+  /* Cards: remove glass effects, keep borders */
+  .backdrop-blur-sm {
+    backdrop-filter: none !important;
+  }
+
+  /* Ensure SVG charts print with colour */
+  svg {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Prevent page breaks inside cards/sections */
+  section, .rounded-xl {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Allow page breaks between major sections */
+  .flex.flex-col > * {
+    break-before: auto;
+  }
+
+  /* Ensure grid items don't get clipped */
+  .overflow-x-auto, .overflow-hidden {
+    overflow: visible !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  /* Brand pattern — too noisy for print */
+  .brand-pattern {
+    background-image: none !important;
+  }
+
+  /* Animations — disable */
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

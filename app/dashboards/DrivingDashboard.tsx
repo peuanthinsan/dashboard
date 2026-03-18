@@ -10,6 +10,7 @@ import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import EmptyState from 'app/ui/EmptyState';
 import TrendChart from 'app/ui/TrendChart';
+import HorizontalBarChart from 'app/ui/HorizontalBarChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import Sparkline from 'app/ui/Sparkline';
 import TrendIndicator from 'app/ui/TrendIndicator';
@@ -275,7 +276,7 @@ export default function DrivingDashboard({
 
   // --- Per-driver sorted by cnt drv hours (for requested bar+line chart) ---
   const driversByCntDrv = useMemo(() =>
-    [...aggregates].sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours).slice(0, 15),
+    [...aggregates].sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours).slice(0, 10),
     [aggregates],
   );
 
@@ -290,7 +291,7 @@ export default function DrivingDashboard({
       c.tripCount += 1;
       map.set(row.driver, c);
     });
-    return Array.from(map.values()).sort((a, b) => b.totalCntDrvHours - a.totalCntDrvHours).slice(0, 15);
+    return Array.from(map.values()).sort((a, b) => b.totalCntDrvHours - a.totalCntDrvHours).slice(0, 10);
   }, [filteredRows]);
 
   // --- Driving hours donut chart ---
@@ -737,10 +738,9 @@ export default function DrivingDashboard({
             {topDriversByHours.length === 0 ? (
               <EmptyState title={lang === 'th' ? 'ไม่มีข้อมูล' : 'No data'} />
             ) : (
-              <TrendChart
+              <HorizontalBarChart
                 data={topDriversByHours}
-                mode="bar"
-                height={240}
+                maxItems={5}
                 colors={CHART_COLORS}
                 ariaLabel={lang === 'th' ? 'คนขับที่มีชั่วโมงขับมากสุด' : 'Top drivers by driving hours'}
               />

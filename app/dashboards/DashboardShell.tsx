@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { formatDateTimeGB } from './dateFormat';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import SongdeeLogo from 'app/ui/SongdeeLogo';
+import PrintButton from 'app/ui/PrintButton';
 import {
   pageContainer,
   pageContent,
@@ -56,6 +57,7 @@ export default function DashboardShell({
                 <div className="space-y-1">
                   <Link
                     href="/dashboard"
+                    data-print-hide
                     className="mb-3 inline-flex items-center gap-1.5 text-sm text-zinc-400 transition-colors duration-200 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400"
                   >
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -95,7 +97,10 @@ export default function DashboardShell({
                     </div>
                   ) : null}
                 </div>
-                {actions ? <div className="flex items-start gap-2">{actions}</div> : null}
+                <div className="flex items-start gap-2" data-print-hide>
+                  {actions}
+                  <PrintButton label={lang === 'th' ? 'พิมพ์ / PDF' : 'Print / PDF'} />
+                </div>
               </div>
             </div>
           </header>

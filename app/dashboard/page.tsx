@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import Link from 'next/link';
 import { auth, signOut } from 'app/auth';
 import { getDashboardsForUser, getUser } from 'app/db';
 import AdminShortcut from './AdminShortcut';
@@ -8,7 +9,8 @@ import LanguageToggle from './LanguageToggle';
 import WelcomeBanner from './WelcomeBanner';
 import { getDashboardCopy, getDashboardLang } from './i18n';
 import EmptyState from 'app/ui/EmptyState';
-import { pageContainer, pageContent, heading2, textSecondary, btnSecondary, btnSmall } from 'app/ui/design-tokens';
+import { pageContainer, pageContent, heading2, heading3, textSecondary, btnSecondary, btnSmall } from 'app/ui/design-tokens';
+import { DashboardByCompany } from './DashboardByCompany';
 
 export default async function DashboardPage() {
   const lang = getDashboardLang();
@@ -42,6 +44,15 @@ export default async function DashboardPage() {
             <div className="flex items-center gap-2">
               <LanguageToggle lang={lang} />
               {isAdmin ? <AdminShortcut lang={lang} /> : null}
+              <Link
+                href="/dashboard/change-password"
+                className={`${btnSecondary} ${btnSmall} inline-flex items-center gap-1.5`}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                {lang === 'th' ? 'เปลี่ยนรหัสผ่าน' : 'Password'}
+              </Link>
               <SignOut text={copy.signOut} />
             </div>
           </div>
@@ -52,18 +63,7 @@ export default async function DashboardPage() {
               description={copy.noDashboardsHelp}
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 stagger-children">
-              {dashboards.map((dashboard) => (
-                <DashboardCard
-                  key={dashboard.id}
-                  id={dashboard.publicId}
-                  name={dashboard.name ?? ''}
-                  template={dashboard.template}
-                  sheetUrl={dashboard.sheetUrl ?? ''}
-                  lang={lang}
-                />
-              ))}
-            </div>
+            <DashboardByCompany dashboards={dashboards} lang={lang} copy={copy} />
           )}
         </div>
       </div>

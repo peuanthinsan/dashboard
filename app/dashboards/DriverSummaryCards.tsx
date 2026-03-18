@@ -39,7 +39,13 @@ export default function DriverSummaryCards({
           value=""
         >
           <div className="mt-2 flex justify-center">
-            <SafetyScore score={safetyScore} size={80} />
+            <SafetyScore
+              score={safetyScore}
+              size={80}
+              detail={lang === 'th'
+                ? `${totalAlerts} แจ้งเตือน ÷ ${activeDays} วัน`
+                : `${totalAlerts} alerts over ${activeDays} days`}
+            />
           </div>
         </KpiCard>
         <KpiCard

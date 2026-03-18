@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import { saveDashboardScore } from './scoreCache';
 import InlineMonthPicker from 'app/ui/InlineMonthPicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
@@ -210,6 +211,12 @@ export default function SummaryDashboard({
     [previousRows.length, prevUniqueVehicles, prevDayCount],
   );
 
+  // Cache score for display on dashboards listing page
+  useEffect(() => {
+    if (loading || currentRows.length === 0) return;
+    saveDashboardScore(dashboardId, safetyScore, currentRows.length);
+  }, [dashboardId, loading, safetyScore, currentRows.length]);
+
   // Heatmap dates
   const heatmapDates = useMemo(
     () => currentRows.map((r) => r.parsedDate).filter((d): d is Date => d !== null),
@@ -250,6 +257,15 @@ export default function SummaryDashboard({
   const vehicleSummary = useMemo(() => buildCounts(currentRows, ['vehicle']), [currentRows]);
   const driverSummary = useMemo(() => buildCounts(currentRows, ['driver']), [currentRows]);
 
+  // Build a stable remark→color map from the donut data order so highlights match the donut
+  const remarkColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    remarkSummary.forEach((r, i) => {
+      map.set(normalizeLabel(r.label), CHART_COLORS[i % CHART_COLORS.length]);
+    });
+    return map;
+  }, [remarkSummary]);
+
   // Highlights
   const highlightItems = useMemo(() => {
     type HighlightItem = { label: string; field: 'remarks' | 'alertType'; current: number; previous: number };
@@ -276,13 +292,14 @@ export default function SummaryDashboard({
       { label: 'Forward Collision-A2', field: 'alertType' as const },
     ];
     return targets
-      .map((item, index) => {
+      .map((item) => {
         const monthRows = monthsAsc.map((month) => {
           const mRows = baseFilteredRows.filter((r) => r.monthKey === month.key);
           return { monthKey: month.key, monthLabel: month.label, total: countMatches(item.label, item.field, mRows) };
         }).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
         const total = monthRows.reduce((sum, r) => sum + r.total, 0);
-        return { label: item.label, color: CHART_COLORS[index % CHART_COLORS.length], rows: monthRows, total };
+        const color = remarkColorMap.get(normalizeLabel(item.label)) ?? CHART_COLORS[0];
+        return { label: item.label, color, rows: monthRows, total };
       })
       .filter((c) => c.total > 0)
       .map(({ total: _total, ...c }) => c);
@@ -356,7 +373,13 @@ export default function SummaryDashboard({
               trend={activeMonthKey ? { value: previousRows.length === 0 ? 0 : Math.round(((currentRows.length - previousRows.length) / Math.max(1, previousRows.length)) * 100), label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month' } : undefined}
             />
             <div className={`${dashboardSectionClass} flex flex-col items-center justify-center gap-2`}>
-              <SafetyScore score={safetyScore} size={90} />
+              <SafetyScore
+                score={safetyScore}
+                size={90}
+                detail={lang === 'th'
+                  ? `${currentRows.length} แจ้งเตือน ÷ ${uniqueVehicles} คัน ÷ ${dayCount} วัน`
+                  : `${currentRows.length} alerts ÷ ${uniqueVehicles} vehicles ÷ ${dayCount} days`}
+              />
               {activeMonthKey && prevSafetyScore !== safetyScore && (
                 <TrendIndicator current={safetyScore} previous={prevSafetyScore} suffix={lang === 'th' ? 'เทียบเดือนก่อน' : 'vs prior'} invertColor />
               )}
@@ -409,8 +432,8 @@ export default function SummaryDashboard({
                 : (lang === 'th' ? `${activeMonthLabel}` : `${activeMonthLabel} totals.`)}
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {highlightItems.map((item, idx) => {
-                const accentColor = CHART_COLORS[idx % CHART_COLORS.length];
+              {highlightItems.map((item) => {
+                const accentColor = remarkColorMap.get(normalizeLabel(item.label)) ?? CHART_COLORS[0];
                 return (
                   <div
                     key={item.label}

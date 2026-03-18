@@ -76,11 +76,21 @@ export default function AlertTimeline({
 
   return (
     <div className={cardSection}>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className={heading2}>{lang === 'th' ? 'ไทม์ไลน์การแจ้งเตือน' : 'Alert Timeline'}</h2>
-        <span className={textSecondary}>
-          {sorted.length} {lang === 'th' ? 'รายการล่าสุด' : 'most recent'}
-        </span>
+        <div className="flex items-center gap-4">
+          {highlights.size > 0 && (
+            <span className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="inline-block h-3 w-1 rounded-full bg-red-500" />
+              {lang === 'th'
+                ? 'แจ้งเตือนซ้ำภายใน 2 ชม.'
+                : 'Repeated alerts within 2 hrs'}
+            </span>
+          )}
+          <span className={textSecondary}>
+            {sorted.length} {lang === 'th' ? 'รายการล่าสุด' : 'most recent'}
+          </span>
+        </div>
       </div>
       <div className="mt-4 overflow-hidden rounded-lg border border-zinc-100/80 dark:border-zinc-800/40">
         {sorted.map((entry, index) => {

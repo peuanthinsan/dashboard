@@ -57,23 +57,21 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
     >
       <div className="overflow-x-auto">
         {/* Axis label */}
-        <div className="mb-1 ml-12 text-center text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
+        <div className="mb-1.5 ml-12 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500">
           Hour of day →
         </div>
         <div className="flex items-start gap-0">
           {/* Y-axis label */}
           <div className="flex h-full items-center pt-4">
-            <span className="block -rotate-90 whitespace-nowrap text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
+            <span className="block -rotate-90 whitespace-nowrap text-xs font-medium text-zinc-400 dark:text-zinc-500">
               Day of week
             </span>
           </div>
-          <div className="inline-grid gap-px" style={{ gridTemplateColumns: `auto repeat(24, 1fr)` }}>
+          <div className="inline-grid gap-0.5" style={{ gridTemplateColumns: `auto repeat(24, 1fr)` }}>
           <div />
           {HOURS.map((h) => (
-            <div key={h} className="text-center text-[8px] tabular-nums text-zinc-400">
-              {h % 2 === 0
-                ? h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`
-                : ''}
+            <div key={h} className="text-center text-[10px] tabular-nums text-zinc-400">
+              {h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}
             </div>
           ))}
           {DAYS.map((day, di) => (
@@ -85,7 +83,7 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
                 return (
                   <div
                     key={`${di}-${h}`}
-                    className={`relative flex h-4 w-4 items-center justify-center rounded-sm ${getColor(count)} transition-all hover:scale-125 hover:z-10`}
+                    className={`relative flex h-5 w-5 items-center justify-center rounded-sm ${getColor(count)} transition-all hover:scale-110 hover:z-10`}
                     aria-label={`${day} ${String(h).padStart(2, '0')}:00, ${count} alert${count !== 1 ? 's' : ''}`}
                     onMouseMove={(e) => {
                       const intensity = count / Math.max(1, maxCount);
@@ -110,7 +108,7 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
                   >
                     {symbol && (
                       <span
-                        className="pointer-events-none select-none text-[6px] font-bold leading-none text-white/80"
+                        className="pointer-events-none select-none text-[8px] font-bold leading-none text-white/80"
                         aria-hidden="true"
                       >
                         {symbol}
@@ -124,14 +122,14 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
         </div>
         </div>
         <ChartTooltip visible={tooltip.visible} x={tooltip.x} y={tooltip.y} header={tooltip.header} rows={tooltip.rows} />
-        <div className="mt-3 flex items-center gap-2 text-[10px] text-zinc-400" aria-hidden="true">
+        <div className="mt-4 flex items-center gap-2 text-xs text-zinc-400" aria-hidden="true">
           <span>Less</span>
           <div className="flex gap-0.5">
-            <div className="h-3 w-3 rounded-sm bg-zinc-100 dark:bg-zinc-800" title="0 alerts" />
-            <div className="h-3 w-3 rounded-sm bg-sky-300 dark:bg-sky-500" title="Low" />
-            <div className="h-3 w-3 rounded-sm bg-amber-300 dark:bg-amber-400" title="Moderate" />
-            <div className="h-3 w-3 rounded-sm bg-orange-400" title="High" />
-            <div className="h-3 w-3 rounded-sm bg-rose-500" title="Very high" />
+            <div className="h-4 w-4 rounded-sm bg-zinc-100 dark:bg-zinc-800" title="0 alerts" />
+            <div className="h-4 w-4 rounded-sm bg-sky-300 dark:bg-sky-500" title="Low" />
+            <div className="h-4 w-4 rounded-sm bg-amber-300 dark:bg-amber-400" title="Moderate" />
+            <div className="h-4 w-4 rounded-sm bg-orange-400" title="High" />
+            <div className="h-4 w-4 rounded-sm bg-rose-500" title="Very high" />
           </div>
           <span>More</span>
         </div>

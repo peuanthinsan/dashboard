@@ -231,6 +231,8 @@ export const getDashboardsForUser = cache(async ({
     name: dashboards.name,
     template: dashboards.template,
     sheetUrl: dashboards.sheetUrl,
+    companyId: dashboards.companyId,
+    companyName: companies.name,
   };
   if (!(await hasOrganizationCompanyColumn())) {
     const organizationRows =
@@ -268,6 +270,7 @@ export const getDashboardsForUser = cache(async ({
     return await db
       .select(dashboardListSelect)
       .from(dashboards)
+      .leftJoin(companies, eq(dashboards.companyId, companies.id))
       .where(or(...visibilityFilters))
       .orderBy(dashboards.name);
   }
@@ -306,6 +309,7 @@ export const getDashboardsForUser = cache(async ({
   return await db
     .select(dashboardListSelect)
     .from(dashboards)
+    .leftJoin(companies, eq(dashboards.companyId, companies.id))
     .where(or(...visibilityFilters))
     .orderBy(dashboards.name);
 });
