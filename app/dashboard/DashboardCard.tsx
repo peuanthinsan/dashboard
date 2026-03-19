@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { textSecondary } from 'app/ui/design-tokens';
 import { getDashboardScore, type CachedScore } from 'app/dashboards/scoreCache';
+import ScoreBlock from 'app/ui/ScoreBlock';
 
 type DashboardCardProps = {
   id: string | null;
@@ -88,33 +89,12 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
         <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{name}</h3>
         <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? desc.th : desc.en}</p>
         {cachedScore && (
-          <div
-            className={`mt-4 flex items-baseline gap-3 rounded-xl px-4 py-3 ring-1 ring-inset ${
-              cachedScore.score >= 80
-                ? 'bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/50 dark:ring-emerald-800/40'
-                : cachedScore.score >= 50
-                  ? 'bg-amber-50/80 ring-amber-200/60 dark:bg-amber-950/50 dark:ring-amber-800/40'
-                  : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40'
-            }`}
-            title={lang === 'th' ? `คะแนน: ${cachedScore.score} · ${cachedScore.alertCount} แจ้งเตือน` : `Score: ${cachedScore.score} · ${cachedScore.alertCount} alerts`}
-          >
-            <span
-              className={`text-2xl font-bold tabular-nums ${
-                cachedScore.score >= 80
-                  ? 'text-emerald-700 dark:text-emerald-300'
-                  : cachedScore.score >= 50
-                    ? 'text-amber-700 dark:text-amber-300'
-                    : 'text-red-700 dark:text-red-300'
-              }`}
-            >
-              {cachedScore.score}
-            </span>
-            <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-              {lang === 'th' ? 'คะแนน' : 'score'}
-            </span>
-            <span className={`ml-auto text-sm ${textSecondary}`}>
-              {cachedScore.alertCount} {lang === 'th' ? 'แจ้งเตือน' : 'alerts'}
-            </span>
+          <div className="mt-4" title={lang === 'th' ? `คะแนน: ${cachedScore.score} · ${cachedScore.alertCount} แจ้งเตือน` : `Score: ${cachedScore.score} · ${cachedScore.alertCount} alerts`}>
+            <ScoreBlock
+              score={cachedScore.score}
+              label={lang === 'th' ? 'คะแนน' : 'score'}
+              detail={`${cachedScore.alertCount} ${lang === 'th' ? 'แจ้งเตือน' : 'alerts'}`}
+            />
           </div>
         )}
       </div>
