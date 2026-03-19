@@ -5,10 +5,14 @@ import AdminShell from './AdminShell';
 import { AdminSection, AdminSectionHeader, AdminStatCard } from './admin-components';
 import { requireAdmin } from './admin-utils';
 import { getCompanies, getOrganizations, getUsers, getDashboards } from 'app/db';
+import { getDashboardLang } from 'app/dashboard/i18n';
+import { getAdminCopy } from './i18n-copy';
 import { btnPrimary, cardHover, badgeInfo, heading3, textSecondary } from 'app/ui/design-tokens';
 
 export default async function AdminPage() {
   await requireAdmin();
+  const lang = await getDashboardLang();
+  const copy = getAdminCopy(lang);
   const [companies, organizations, users, dashboards] = await Promise.all([
     getCompanies(),
     getOrganizations(),
@@ -19,55 +23,32 @@ export default async function AdminPage() {
   const adminCount = users.filter((u) => u.isAdmin).length;
 
   const sections = [
-    {
-      href: '/admin/companies',
-      title: 'Companies',
-      description: 'Create and manage company profiles.',
-      count: companies.length,
-      badge: 'Profiles',
-    },
-    {
-      href: '/admin/organizations',
-      title: 'Fleets',
-      description: 'Create and manage fleet groups.',
-      count: organizations.length,
-      badge: 'Groups',
-    },
-    {
-      href: '/admin/users',
-      title: 'Users',
-      description: 'Assign users, companies, and fleets.',
-      count: users.length,
-      badge: 'Access',
-    },
-    {
-      href: '/admin/dashboards',
-      title: 'Dashboards',
-      description: 'Set templates and Google Sheet links.',
-      count: dashboards.length,
-      badge: 'Templates',
-    },
+    { href: '/admin/companies', title: copy.companies, description: copy.createAndManage, count: companies.length, badge: copy.manageProfiles },
+    { href: '/admin/organizations', title: copy.fleets, description: copy.createAndManageFleets, count: organizations.length, badge: copy.manageGroups },
+    { href: '/admin/users', title: copy.users, description: copy.assignUsersCompaniesFleets, count: users.length, badge: copy.accessAndRoles },
+    { href: '/admin/dashboards', title: copy.dashboardsNav, description: copy.setTemplatesAndLinks, count: dashboards.length, badge: copy.templatesAndLinks },
   ];
 
   return (
     <AdminShell
       backHref="/dashboard"
-      backLabel="Back to dashboards"
-      eyebrow="Admin hub"
-      title="Administration"
-      description="Manage companies, fleets, users, and dashboards from one place."
+      backLabel={copy.backToDashboards}
+      eyebrow={copy.adminHub}
+      title={copy.administration}
+      description={copy.adminDescription}
+      lang={lang}
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <AdminStatCard label="Companies" value={companies.length} description="Active company profiles" />
-        <AdminStatCard label="Fleets" value={organizations.length} description="Fleet groups configured" />
-        <AdminStatCard label="Users" value={users.length} description={`${adminCount} admin${adminCount !== 1 ? 's' : ''}`} />
-        <AdminStatCard label="Dashboards" value={dashboards.length} description="Across all companies" />
+        <AdminStatCard label={copy.companies} value={companies.length} description={copy.activeCompanyProfiles} />
+        <AdminStatCard label={copy.fleets} value={organizations.length} description={copy.fleetGroupsConfigured} />
+        <AdminStatCard label={copy.users} value={users.length} description={copy.adminsCount(adminCount)} />
+        <AdminStatCard label={copy.dashboardsNav} value={dashboards.length} description={copy.acrossAllCompanies} />
       </div>
 
       <AdminSection>
         <AdminSectionHeader
-          title="Administration sections"
-          description="Manage company data, fleet structure, users, and dashboard templates."
+          title={copy.administrationSections}
+          description={copy.administrationSectionsDesc}
           count={4}
         />
         <div className="grid gap-4 md:grid-cols-2">
@@ -101,7 +82,7 @@ export default async function AdminPage() {
                 </span>
               </div>
               <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
-                Open section
+                {copy.openSection}
               </span>
             </Link>
           ))}
@@ -111,13 +92,13 @@ export default async function AdminPage() {
       <AdminSection className="sm:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className={heading3}>Quick setup</h2>
+            <h2 className={heading3}>{copy.quickSetup}</h2>
             <p className={`mt-1 ${textSecondary}`}>
-              Onboard a new customer in minutes — create company, fleet, user, and dashboard in one flow.
+              {copy.quickSetupDesc}
             </p>
           </div>
           <Link href="/admin/quick-setup" className={btnPrimary}>
-            Start quick setup
+            {copy.startQuickSetup}
           </Link>
         </div>
       </AdminSection>

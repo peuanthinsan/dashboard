@@ -5,11 +5,15 @@ import { createCompany, deleteCompany, getCompanies, updateCompany } from 'app/d
 import { bulkCreateCompanies, bulkDeleteCompanies } from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { requireAdmin } from '../admin-utils';
+import { getDashboardLang } from 'app/dashboard/i18n';
+import { getAdminCopy } from '../i18n-copy';
 import CompaniesClient from './CompaniesClient';
 import type { ActionState } from '../types';
 
 export default async function AdminCompaniesPage() {
   await requireAdmin();
+  const lang = await getDashboardLang();
+  const copy = getAdminCopy(lang);
   const companies = await getCompanies();
 
   async function addCompanyAction(
@@ -71,10 +75,11 @@ export default async function AdminCompaniesPage() {
   return (
     <AdminShell
       backHref="/admin"
-      backLabel="Back to admin overview"
-      eyebrow="Administration"
-      title="Companies"
-      description="Create and manage company records."
+      backLabel={copy.backToAdminOverview}
+      eyebrow={copy.administration}
+      title={copy.companies}
+      description={copy.createAndManageCompanyRecords}
+      lang={lang}
     >
       <CompaniesClient
         companies={companies}

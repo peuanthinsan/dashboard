@@ -16,11 +16,15 @@ import {
 } from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { parseSheetLink, requireAdmin } from '../admin-utils';
+import { getDashboardLang } from 'app/dashboard/i18n';
+import { getAdminCopy } from '../i18n-copy';
 import DashboardsClient from './DashboardsClient';
 import type { ActionState } from '../types';
 
 export default async function AdminDashboardsPage() {
   await requireAdmin();
+  const lang = await getDashboardLang();
+  const copy = getAdminCopy(lang);
   const [dashboards, companies, organizations] = await Promise.all([
     getDashboards(),
     getCompanies(),
@@ -125,10 +129,11 @@ export default async function AdminDashboardsPage() {
   return (
     <AdminShell
       backHref="/admin"
-      backLabel="Back to admin overview"
-      eyebrow="Admin tools"
-      title="Dashboards"
-      description="Create dashboards for a company and link them to Google Sheets."
+      backLabel={copy.backToAdminOverview}
+      eyebrow={copy.adminTools}
+      title={copy.dashboardsNav}
+      description={copy.createDashboardsForCompany}
+      lang={lang}
     >
       <DashboardsClient
         dashboards={dashboards}

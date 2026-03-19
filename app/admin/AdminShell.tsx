@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import AdminNav from './AdminNav';
 import { pageContainer, pageContent, heading1, textSecondary } from 'app/ui/design-tokens';
+import type { DashboardLang } from 'app/dashboard/i18n-copy';
 
 type AdminShellProps = {
   backHref: string;
@@ -9,6 +10,7 @@ type AdminShellProps = {
   eyebrow: string;
   title: string;
   description: string;
+  lang: DashboardLang;
   children: ReactNode;
 };
 
@@ -18,6 +20,7 @@ export default function AdminShell({
   eyebrow,
   title,
   description,
+  lang,
   children,
 }: AdminShellProps) {
   return (
@@ -41,7 +44,7 @@ export default function AdminShell({
               <h1 className={heading1}>{title}</h1>
               <p className={textSecondary}>{description}</p>
             </div>
-            <AdminNav />
+            <AdminNav lang={lang} />
           </header>
 
           {children}

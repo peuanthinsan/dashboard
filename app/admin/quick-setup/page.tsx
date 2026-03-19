@@ -12,6 +12,8 @@ import {
 } from 'app/db';
 import AdminShell from '../AdminShell';
 import { parseSheetLink, requireAdmin } from '../admin-utils';
+import { getDashboardLang } from 'app/dashboard/i18n';
+import { getAdminCopy } from '../i18n-copy';
 import QuickSetupClient from './QuickSetupClient';
 import type { ActionState } from '../types';
 
@@ -24,6 +26,8 @@ type QuickSetupState = ActionState & {
 
 export default async function QuickSetupPage() {
   await requireAdmin();
+  const lang = await getDashboardLang();
+  const copy = getAdminCopy(lang);
   const [companies, organizations] = await Promise.all([getCompanies(), getOrganizations()]);
 
   async function quickSetupAction(
@@ -124,10 +128,11 @@ export default async function QuickSetupPage() {
   return (
     <AdminShell
       backHref="/admin"
-      backLabel="Back to admin overview"
-      eyebrow="Quick setup"
-      title="Onboard a new customer"
-      description="Create a company, fleet, user account, and dashboard in one step."
+      backLabel={copy.backToAdminOverview}
+      eyebrow={copy.quickSetup}
+      title={copy.onboardNewCustomer}
+      description={copy.onboardNewCustomerDesc}
+      lang={lang}
     >
       <QuickSetupClient
         companies={companies}

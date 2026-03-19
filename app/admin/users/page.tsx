@@ -20,11 +20,15 @@ import {
 } from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { requireAdmin } from '../admin-utils';
+import { getDashboardLang } from 'app/dashboard/i18n';
+import { getAdminCopy } from '../i18n-copy';
 import UsersClient from './UsersClient';
 import type { ActionState } from '../types';
 
 export default async function AdminUsersPage() {
   await requireAdmin();
+  const lang = await getDashboardLang();
+  const copy = getAdminCopy(lang);
   const [users, companies, organizations] = await Promise.all([
     getUsers(),
     getCompanies(),
@@ -119,10 +123,11 @@ export default async function AdminUsersPage() {
   return (
     <AdminShell
       backHref="/admin"
-      backLabel="Back to admin overview"
-      eyebrow="Administration"
-      title="Users"
-      description="Assign users to companies and fleets and manage admin access."
+      backLabel={copy.backToAdminOverview}
+      eyebrow={copy.administration}
+      title={copy.users}
+      description={copy.assignUsersToCompaniesAndFleets}
+      lang={lang}
     >
       <UsersClient
         users={users}

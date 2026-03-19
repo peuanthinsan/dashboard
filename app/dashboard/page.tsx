@@ -5,7 +5,6 @@ import { auth, signOut } from 'app/auth';
 import { getDashboardsForUser, getUser } from 'app/db';
 import AdminShortcut from './AdminShortcut';
 import DashboardCard from './DashboardCard';
-import LanguageToggle from './LanguageToggle';
 import WelcomeBanner from './WelcomeBanner';
 import { getDashboardCopy, getDashboardLang } from './i18n';
 import EmptyState from 'app/ui/EmptyState';
@@ -13,7 +12,7 @@ import { pageContainer, pageContent, heading2, heading3, textSecondary, btnSecon
 import { DashboardByCompany } from './DashboardByCompany';
 
 export default async function DashboardPage() {
-  const lang = getDashboardLang();
+  const lang = await getDashboardLang();
   const copy = getDashboardCopy(lang);
   const session = await auth();
   const user = session?.user?.email ? await getUser(session.user.email) : [];
@@ -42,7 +41,6 @@ export default async function DashboardPage() {
               <p className={textSecondary}>{copy.dashboardsSubtitle}</p>
             </div>
             <div className="flex items-center gap-2">
-              <LanguageToggle lang={lang} />
               {isAdmin ? <AdminShortcut lang={lang} /> : null}
               <Link
                 href="/dashboard/change-password"

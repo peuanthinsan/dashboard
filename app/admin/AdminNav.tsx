@@ -2,16 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { getAdminCopy } from './i18n-copy';
+import type { DashboardLang } from 'app/dashboard/i18n-copy';
 
-const NAV_LINKS = [
-  { href: '/admin', label: 'Overview', hint: 'Admin home' },
-  { href: '/admin/companies', label: 'Companies', hint: 'Manage profiles' },
-  { href: '/admin/organizations', label: 'Fleets', hint: 'Manage groups' },
-  { href: '/admin/users', label: 'Users', hint: 'Access & roles' },
-  { href: '/admin/dashboards', label: 'Dashboards', hint: 'Templates & links' },
-];
-
-export default function AdminNav() {
+export default function AdminNav({ lang }: { lang: DashboardLang }) {
+  const copy = getAdminCopy(lang);
+  const NAV_LINKS = [
+    { href: '/admin', label: copy.overview, hint: copy.adminHome },
+    { href: '/admin/companies', label: copy.companies, hint: copy.manageProfiles },
+    { href: '/admin/organizations', label: copy.fleets, hint: copy.manageGroups },
+    { href: '/admin/users', label: copy.users, hint: copy.accessAndRoles },
+    { href: '/admin/dashboards', label: copy.dashboardsNav, hint: copy.templatesAndLinks },
+  ];
   const pathname = usePathname();
 
   return (
@@ -20,7 +22,7 @@ export default function AdminNav() {
       className="flex flex-col gap-3 text-sm text-zinc-600 dark:text-zinc-300"
     >
       <span className="text-xs font-medium uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-        Jump to section
+        {copy.jumpToSection}
       </span>
       <div className="flex flex-wrap gap-2">
         {NAV_LINKS.map((link) => {
@@ -53,7 +55,7 @@ export default function AdminNav() {
                 </span>
                 {isActive ? (
                   <span className="rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-900 dark:text-red-300">
-                    Active
+                    {copy.active}
                   </span>
                 ) : null}
               </span>

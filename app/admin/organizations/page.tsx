@@ -15,6 +15,8 @@ import {
 } from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { requireAdmin } from '../admin-utils';
+import { getDashboardLang } from 'app/dashboard/i18n';
+import { getAdminCopy } from '../i18n-copy';
 import OrganizationsClient from './OrganizationsClient';
 import type { ActionState } from '../types';
 
@@ -27,6 +29,8 @@ function parseOptionalCompanyId(companyValue: string) {
 
 export default async function AdminOrganizationsPage() {
   await requireAdmin();
+  const lang = await getDashboardLang();
+  const copy = getAdminCopy(lang);
   const [organizations, companies] = await Promise.all([getOrganizations(), getCompanies()]);
 
   async function addOrganizationAction(
@@ -90,10 +94,11 @@ export default async function AdminOrganizationsPage() {
   return (
     <AdminShell
       backHref="/admin"
-      backLabel="Back to admin overview"
-      eyebrow="Administration"
-      title="Fleets"
-      description="Create and manage fleet groups."
+      backLabel={copy.backToAdminOverview}
+      eyebrow={copy.administration}
+      title={copy.fleets}
+      description={copy.createAndManageFleetRecords}
+      lang={lang}
     >
       <OrganizationsClient
         organizations={organizations}
