@@ -10,9 +10,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const lang = await getDashboardLang();
+  try {
+    const lang = await getDashboardLang();
 
-  return (
+    return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <header
         className={`sticky top-0 z-40 border-b border-zinc-200/60 ${surface} backdrop-blur-sm dark:border-zinc-800/60`}
@@ -42,5 +43,9 @@ export default async function DashboardLayout({
       </header>
       <main>{children}</main>
     </div>
-  );
+    );
+  } catch (err) {
+    console.error('[Dashboard layout error]', err);
+    throw err;
+  }
 }

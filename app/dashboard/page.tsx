@@ -12,20 +12,21 @@ import { pageContainer, pageContent, heading2, heading3, textSecondary, btnSecon
 import { DashboardByCompany } from './DashboardByCompany';
 
 export default async function DashboardPage() {
-  const lang = await getDashboardLang();
-  const copy = getDashboardCopy(lang);
-  const session = await auth();
-  const user = session?.user?.email ? await getUser(session.user.email) : [];
-  const isAdmin = user.length > 0 && user[0].isAdmin;
-  const dashboards =
-    user.length > 0
-      ? await getDashboardsForUser({
-          companyIds: user[0].companyIds ?? [],
-          organizationIds: user[0].organizationIds ?? [],
-        })
-      : [];
+  try {
+    const lang = await getDashboardLang();
+    const copy = getDashboardCopy(lang);
+    const session = await auth();
+    const user = session?.user?.email ? await getUser(session.user.email) : [];
+    const isAdmin = user.length > 0 && user[0].isAdmin;
+    const dashboards =
+      user.length > 0
+        ? await getDashboardsForUser({
+            companyIds: user[0].companyIds ?? [],
+            organizationIds: user[0].organizationIds ?? [],
+          })
+        : [];
 
-  return (
+    return (
     <div className={pageContainer}>
       <div className={pageContent}>
         <div className="flex flex-col gap-5">
@@ -66,7 +67,11 @@ export default async function DashboardPage() {
         </div>
       </div>
     </div>
-  );
+    );
+  } catch (err) {
+    console.error('[Dashboard page error]', err);
+    throw err;
+  }
 }
 
 function SignOut({ text }: { text: string }) {
