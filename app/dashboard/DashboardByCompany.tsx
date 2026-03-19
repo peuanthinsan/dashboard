@@ -15,7 +15,8 @@ type DashboardRow = {
 
 type Copy = {
   unassignedCompany: string;
-  dashboardCount: (n: number) => string;
+  dashboardCountOne: string;
+  dashboardCountMany: string;
 };
 
 const COMPANY_ACCENTS = [
@@ -105,7 +106,9 @@ export function DashboardByCompany({ dashboards, lang, copy }: Props) {
                     {companyName}
                   </h3>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {copy.dashboardCount(items.length)}
+                    {items.length === 1
+                      ? copy.dashboardCountOne
+                      : `${items.length} ${copy.dashboardCountMany}`}
                   </p>
                 </div>
               </div>
