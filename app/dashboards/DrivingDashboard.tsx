@@ -8,6 +8,7 @@ import { computeComplianceScore, findValue, normalizeLabel, parseDate, toDisplay
 import { saveDashboardScore } from './scoreCache';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import KpiCard from 'app/ui/KpiCard';
+import ScoreBlock from 'app/ui/ScoreBlock';
 import ExportButton from 'app/ui/ExportButton';
 import EmptyState from 'app/ui/EmptyState';
 import TrendChart from 'app/ui/TrendChart';
@@ -485,6 +486,13 @@ export default function DrivingDashboard({
         <svg width="6" height="6" viewBox="0 0 6 6" className="shrink-0 text-red-400/50" aria-hidden="true"><polygon points="3,0 6,3 3,6 0,3" fill="currentColor" /></svg>
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-400/50 to-transparent dark:via-red-600/30" />
       </div>
+
+      {/* Compliance score — prominent block */}
+      <ScoreBlock
+        score={complianceScore}
+        label={lang === 'th' ? 'คะแนนการปฏิบัติตาม' : 'Compliance score'}
+        detail={`${cntDrvViolations.length + restHrViolations.length} ${lang === 'th' ? 'การฝ่าฝืน' : 'violations'} · ${filteredRows.length} ${lang === 'th' ? 'ทริป' : 'trips'}`}
+      />
 
       {/* Safety KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

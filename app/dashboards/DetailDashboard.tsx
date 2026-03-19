@@ -729,7 +729,15 @@ export default function DetailDashboard({
 
           {/* ── KPI Row with Safety Score ── */}
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div className={`${dashboardSectionClass} flex flex-col items-center justify-center`}>
+            <div
+              className={`flex flex-col items-center justify-center rounded-xl px-4 py-4 ring-1 ring-inset ${
+                safetyScore >= 80
+                  ? 'bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/50 dark:ring-emerald-800/40'
+                  : safetyScore >= 50
+                    ? 'bg-amber-50/80 ring-amber-200/60 dark:bg-amber-950/50 dark:ring-amber-800/40'
+                    : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40'
+              }`}
+            >
               <SafetyScore
                 score={safetyScore}
                 size={100}

@@ -372,10 +372,18 @@ export default function SummaryDashboard({
               accentColor="#DC2626"
               trend={activeMonthKey ? { value: previousRows.length === 0 ? 0 : Math.round(((currentRows.length - previousRows.length) / Math.max(1, previousRows.length)) * 100), label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs last month' } : undefined}
             />
-            <div className={`${dashboardSectionClass} flex flex-col items-center justify-center gap-2`}>
+            <div
+              className={`flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-4 ring-1 ring-inset ${
+                safetyScore >= 80
+                  ? 'bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/50 dark:ring-emerald-800/40'
+                  : safetyScore >= 50
+                    ? 'bg-amber-50/80 ring-amber-200/60 dark:bg-amber-950/50 dark:ring-amber-800/40'
+                    : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40'
+              }`}
+            >
               <SafetyScore
                 score={safetyScore}
-                size={90}
+                size={100}
                 detail={lang === 'th'
                   ? `${currentRows.length} แจ้งเตือน ÷ ${uniqueVehicles} คัน ÷ ${dayCount} วัน`
                   : `${currentRows.length} alerts ÷ ${uniqueVehicles} vehicles ÷ ${dayCount} days`}

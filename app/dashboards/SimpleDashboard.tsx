@@ -19,6 +19,7 @@ import { saveDashboardScore } from './scoreCache';
 import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import KpiCard from 'app/ui/KpiCard';
+import ScoreBlock from 'app/ui/ScoreBlock';
 import ExportButton from 'app/ui/ExportButton';
 import { heading2 } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
@@ -444,6 +445,13 @@ export default function SimpleDashboard({
               </button>
             )}
           </FilterBar>
+
+          {/* Safety score — prominent block */}
+          <ScoreBlock
+            score={safetyScore}
+            label={lang === 'th' ? 'คะแนนความปลอดภัย' : 'Safety score'}
+            detail={`${stats.total} ${lang === 'th' ? 'แจ้งเตือน' : 'alerts'} · ${stats.vehicles} ${lang === 'th' ? 'คัน' : 'vehicles'} · ${stats.dayCount} ${lang === 'th' ? 'วัน' : 'days'}`}
+          />
 
           {/* KPIs — one row, the only numbers that matter */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
