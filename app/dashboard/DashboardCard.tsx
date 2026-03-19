@@ -83,7 +83,7 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
         <div className="flex items-center gap-2">
           {cachedScore && (
             <span
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold ring-1 ring-inset ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-bold ring-1 ring-inset ${
                 cachedScore.score >= 80
                   ? 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30'
                   : cachedScore.score >= 50
@@ -92,8 +92,8 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
               }`}
               title={lang === 'th' ? `คะแนน: ${cachedScore.score} · ${cachedScore.alertCount} แจ้งเตือน` : `Score: ${cachedScore.score} · ${cachedScore.alertCount} alerts`}
             >
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-              {cachedScore.score}
+              <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+              <span className="tabular-nums">{cachedScore.score}</span>
             </span>
           )}
           <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeColor}`}>
@@ -104,6 +104,25 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
       <div className="relative flex-1">
         <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{name}</h3>
         <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? desc.th : desc.en}</p>
+        {cachedScore && (
+          <p className="mt-2 text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-300">
+            {lang === 'th' ? 'คะแนน ' : 'Score '}
+            <span
+              className={
+                cachedScore.score >= 80
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : cachedScore.score >= 50
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-red-600 dark:text-red-400'
+              }
+            >
+              {cachedScore.score}
+            </span>
+            <span className={`ml-1 font-normal ${textSecondary}`}>
+              · {cachedScore.alertCount} {lang === 'th' ? 'แจ้งเตือน' : 'alerts'}
+            </span>
+          </p>
+        )}
       </div>
       <div className="relative flex items-center justify-between border-t border-zinc-100/80 pt-3 dark:border-zinc-800/60">
         <div className="flex min-w-0 items-center gap-2">

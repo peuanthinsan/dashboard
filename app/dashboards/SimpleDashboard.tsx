@@ -7,6 +7,7 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
+  computeSafetyScore,
   findValue,
   normalizeLabel,
   parseDate,
@@ -14,6 +15,7 @@ import {
   toMonthKey,
   withDerivedRemark,
 } from './dashboardDataUtils';
+import { saveDashboardScore } from './scoreCache';
 import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import KpiCard from 'app/ui/KpiCard';
@@ -196,11 +198,13 @@ export default function SimpleDashboard({
   const stats = useMemo(() => {
     const vehicles = new Set<string>();
     const drivers = new Set<string>();
+    const days = new Set<string>();
     const remarkTotals = { fatigue: 0, yawning: 0, distraction: 0 };
 
     filteredAlerts.forEach((row) => {
       if (row.vehicle) vehicles.add(row.vehicle);
       if (row.driver && row.driver !== '—') drivers.add(row.driver);
+      if (row.parsedDate) days.add(toDayKey(row.parsedDate));
       const remark = normalizeLabel(row.remarks);
       if (remark === 'fatigue') remarkTotals.fatigue += 1;
       if (remark === 'yawning') remarkTotals.yawning += 1;
@@ -211,9 +215,26 @@ export default function SimpleDashboard({
       total: filteredAlerts.length,
       vehicles: vehicles.size,
       drivers: drivers.size,
+      dayCount: days.size,
       remarks: remarkTotals,
     };
   }, [filteredAlerts]);
+
+  // ── Safety score (cached for main dashboard listing) ─────────────────────
+  const safetyScore = useMemo(
+    () =>
+      computeSafetyScore(
+        stats.total,
+        Math.max(1, stats.vehicles),
+        Math.max(1, stats.dayCount),
+      ),
+    [stats.total, stats.vehicles, stats.dayCount],
+  );
+
+  useEffect(() => {
+    if (loading) return;
+    saveDashboardScore(dashboardId, safetyScore, stats.total);
+  }, [dashboardId, loading, safetyScore, stats.total]);
 
   // ── Trend vs prior period for Total alerts KPI ─────────────────────────
   const alertsTrend = useMemo(() => {

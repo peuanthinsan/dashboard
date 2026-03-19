@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
-import { findValue, normalizeLabel, parseDate, toDisplayString } from './dashboardDataUtils';
+import { computeComplianceScore, findValue, normalizeLabel, parseDate, toDisplayString } from './dashboardDataUtils';
+import { saveDashboardScore } from './scoreCache';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
@@ -75,7 +76,13 @@ const getMonthLabel = (key: string) => {
 };
 
 export default function DrivingDashboard({
-  dashboardName, sheetId, sheetGid, dashboardNotes, organizationName, lang = 'en',
+  dashboardId,
+  dashboardName,
+  sheetId,
+  sheetGid,
+  dashboardNotes,
+  organizationName,
+  lang = 'en',
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
@@ -273,6 +280,22 @@ export default function DrivingDashboard({
 
   const cntDrvViolations = useMemo(() => violations.filter((v) => v.type === 'cnt_drv'), [violations]);
   const restHrViolations = useMemo(() => violations.filter((v) => v.type === 'rest_hr'), [violations]);
+
+  // --- Compliance score (cached for main dashboard listing) ---
+  const complianceScore = useMemo(
+    () =>
+      computeComplianceScore(
+        cntDrvViolations.length + restHrViolations.length,
+        Math.max(1, filteredRows.length),
+      ),
+    [cntDrvViolations.length, restHrViolations.length, filteredRows.length],
+  );
+
+  useEffect(() => {
+    if (loading) return;
+    const violationCount = cntDrvViolations.length + restHrViolations.length;
+    saveDashboardScore(dashboardId, complianceScore, violationCount);
+  }, [dashboardId, loading, complianceScore, cntDrvViolations.length, restHrViolations.length]);
 
   // --- Per-driver sorted by cnt drv hours (for requested bar+line chart) ---
   const driversByCntDrv = useMemo(() =>
