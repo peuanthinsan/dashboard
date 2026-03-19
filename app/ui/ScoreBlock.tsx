@@ -1,10 +1,14 @@
+import Tooltip from './Tooltip';
+
 type ScoreBlockProps = {
   score: number;
   label: string;
   detail?: string;
+  /** Optional tooltip explaining what the score means. */
+  tooltip?: string;
 };
 
-export default function ScoreBlock({ score, label, detail }: ScoreBlockProps) {
+export default function ScoreBlock({ score, label, detail, tooltip }: ScoreBlockProps) {
   const scoreColor =
     score >= 80
       ? 'bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/50 dark:ring-emerald-800/40'
@@ -19,7 +23,7 @@ export default function ScoreBlock({ score, label, detail }: ScoreBlockProps) {
         ? 'text-amber-700 dark:text-amber-300'
         : 'text-red-700 dark:text-red-300';
 
-  return (
+  const block = (
     <div
       className={`flex flex-wrap items-baseline gap-3 rounded-xl px-4 py-3 ring-1 ring-inset ${scoreColor}`}
     >
@@ -30,4 +34,9 @@ export default function ScoreBlock({ score, label, detail }: ScoreBlockProps) {
       )}
     </div>
   );
+
+  if (tooltip) {
+    return <Tooltip content={tooltip}>{block}</Tooltip>;
+  }
+  return block;
 }

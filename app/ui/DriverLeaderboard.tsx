@@ -1,9 +1,9 @@
 import Tooltip from './Tooltip';
 
 type DriverEntry = { name: string; score: number; alertCount: number; trend?: number };
-type DriverLeaderboardProps = { drivers: DriverEntry[]; title?: string; variant?: 'safest' | 'riskiest' };
+type DriverLeaderboardProps = { drivers: DriverEntry[]; title?: string; variant?: 'safest' | 'riskiest'; lang?: 'en' | 'th' };
 
-export default function DriverLeaderboard({ drivers, title, variant = 'safest' }: DriverLeaderboardProps) {
+export default function DriverLeaderboard({ drivers, title, variant = 'safest', lang = 'en' }: DriverLeaderboardProps) {
   const sorted = [...drivers]
     .sort((a, b) => (variant === 'safest' ? b.score - a.score : a.score - b.score))
     .slice(0, 5);
@@ -35,10 +35,10 @@ export default function DriverLeaderboard({ drivers, title, variant = 'safest' }
   };
 
   const getScoreLabel = (score: number) => {
-    if (score >= 90) return 'excellent';
-    if (score >= 70) return 'good';
-    if (score >= 50) return 'moderate';
-    return 'poor';
+    if (score >= 90) return lang === 'th' ? 'ดีเยี่ยม' : 'excellent';
+    if (score >= 70) return lang === 'th' ? 'ดี' : 'good';
+    if (score >= 50) return lang === 'th' ? 'ปานกลาง' : 'moderate';
+    return lang === 'th' ? 'ต้องปรับปรุง' : 'poor';
   };
 
   return (
@@ -48,7 +48,9 @@ export default function DriverLeaderboard({ drivers, title, variant = 'safest' }
         {sorted.map((driver, i) => (
           <Tooltip
             key={driver.name}
-            content={`${driver.name}: ${driver.alertCount} alert${driver.alertCount === 1 ? '' : 's'}, score ${driver.score} (${getScoreLabel(driver.score)})`}
+            content={lang === 'th'
+              ? `${driver.name}: ${driver.alertCount} แจ้งเตือน · คะแนน ${driver.score} (${getScoreLabel(driver.score)}). คะแนน 0–100 ยิ่งสูงยิ่งปลอดภัย`
+              : `${driver.name}: ${driver.alertCount} alert${driver.alertCount === 1 ? '' : 's'}, score ${driver.score} (${getScoreLabel(driver.score)}). Score 0–100, higher = safer`}
           >
             <div
               role="listitem"

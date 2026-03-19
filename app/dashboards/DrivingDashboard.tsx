@@ -491,6 +491,9 @@ export default function DrivingDashboard({
       <ScoreBlock
         score={complianceScore}
         label={lang === 'th' ? 'คะแนนการปฏิบัติตาม' : 'Compliance score'}
+        tooltip={lang === 'th'
+          ? `คะแนนการปฏิบัติตาม (0–100): คำนวณจากจำนวนการฝ่าฝืนต่อทริป (เช่น ขับเกิน 9 ชม. พักน้อยกว่า 11 ชม.) ยิ่งสูงยิ่งปฏิบัติตามดี`
+          : `Compliance score (0–100): Based on driving violations per trip (e.g. driving >9 hrs, rest <11 hrs). Higher = fewer violations.`}
         detail={`${cntDrvViolations.length + restHrViolations.length} ${lang === 'th' ? 'การฝ่าฝืน' : 'violations'} · ${filteredRows.length} ${lang === 'th' ? 'ทริป' : 'trips'}`}
       />
 

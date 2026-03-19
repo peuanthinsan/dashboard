@@ -89,10 +89,17 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
         <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{name}</h3>
         <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? desc.th : desc.en}</p>
         {cachedScore && (
-          <div className="mt-4" title={lang === 'th' ? `คะแนน: ${cachedScore.score} · ${cachedScore.alertCount} แจ้งเตือน` : `Score: ${cachedScore.score} · ${cachedScore.alertCount} alerts`}>
+          <div className="mt-4">
             <ScoreBlock
               score={cachedScore.score}
               label={lang === 'th' ? 'คะแนน' : 'score'}
+              tooltip={template === 'Driving'
+                ? (lang === 'th'
+                  ? 'คะแนนการปฏิบัติตาม (0–100): ยิ่งสูงยิ่งปฏิบัติตามกฎการขับขี่ดี'
+                  : 'Compliance score (0–100): Higher = fewer driving violations.')
+                : (lang === 'th'
+                  ? 'คะแนนความปลอดภัย (0–100): ยิ่งสูงยิ่งมีการแจ้งเตือนน้อย'
+                  : 'Safety score (0–100): Higher = fewer alerts.')}
               detail={`${cachedScore.alertCount} ${lang === 'th' ? 'แจ้งเตือน' : 'alerts'}`}
             />
           </div>

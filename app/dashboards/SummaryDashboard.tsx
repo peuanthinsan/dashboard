@@ -384,6 +384,9 @@ export default function SummaryDashboard({
               <SafetyScore
                 score={safetyScore}
                 size={100}
+                tooltip={lang === 'th'
+                  ? `คะแนนความปลอดภัย (0–100): คำนวณจากจำนวนการแจ้งเตือนต่อคันต่อวัน ยิ่งสูงยิ่งปลอดภัย สูตร: 100 ลบค่าปรับจาก (แจ้งเตือน ÷ คัน ÷ วัน)`
+                  : `Safety score (0–100): Based on alerts per vehicle per day. Higher = fewer alerts. Formula: 100 − penalty from (alerts ÷ vehicles ÷ days).`}
                 detail={lang === 'th'
                   ? `${currentRows.length} แจ้งเตือน ÷ ${uniqueVehicles} คัน ÷ ${dayCount} วัน`
                   : `${currentRows.length} alerts ÷ ${uniqueVehicles} vehicles ÷ ${dayCount} days`}
@@ -480,10 +483,10 @@ export default function SummaryDashboard({
           {/* ⑥ Driver Leaderboards */}
           <div className="grid gap-6 lg:grid-cols-2">
             <section className={dashboardSectionClass}>
-              <DriverLeaderboard drivers={driverLeaderboardData} title={lang === 'th' ? 'คนขับที่ปลอดภัยที่สุด' : 'Safest Drivers'} variant="safest" />
+              <DriverLeaderboard drivers={driverLeaderboardData} title={lang === 'th' ? 'คนขับที่ปลอดภัยที่สุด' : 'Safest Drivers'} variant="safest" lang={lang} />
             </section>
             <section className={dashboardSectionClass}>
-              <DriverLeaderboard drivers={driverLeaderboardData} title={lang === 'th' ? 'คนขับที่ต้องปรับปรุง' : 'Needs Improvement'} variant="riskiest" />
+              <DriverLeaderboard drivers={driverLeaderboardData} title={lang === 'th' ? 'คนขับที่ต้องปรับปรุง' : 'Needs Improvement'} variant="riskiest" lang={lang} />
             </section>
           </div>
 

@@ -42,6 +42,9 @@ export default function DriverSummaryCards({
             <SafetyScore
               score={safetyScore}
               size={80}
+              tooltip={lang === 'th'
+                ? `คะแนนความปลอดภัยคนขับ (0–100): คำนวณจากจำนวนการแจ้งเตือนต่อวันที่ขับ ยิ่งสูงยิ่งปลอดภัย`
+                : `Driver safety score (0–100): Based on alerts per active day. Higher = fewer alerts.`}
               detail={lang === 'th'
                 ? `${totalAlerts} แจ้งเตือน ÷ ${activeDays} วัน`
                 : `${totalAlerts} alerts over ${activeDays} days`}
