@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { signIn } from 'app/auth';
 import { LoginForm } from 'app/login/login-form';
 import SongdeeLogo from 'app/ui/SongdeeLogo';
+import ThemeToggle from 'app/theme/ThemeToggle';
 
 const loginSchema = z.object({
   email: z
@@ -112,7 +113,10 @@ export default function Login() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
+      <div className="relative flex flex-1 items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
+        <div className="absolute right-4 top-4 z-10">
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-sm animate-fade-in">
           <div className="mb-8 text-center lg:text-left">
             {/* Mobile brand — visible only on small screens */}

@@ -20,8 +20,8 @@ const getTemplate = (template: string | null) => {
   return templateComponents[resolved] ?? SummaryDashboard;
 };
 
-export default async function DashboardPage({ params }: { params: { id: string } }) {
-  const lang = getDashboardLang();
+export default async function DashboardPage({ params }: { params: Promise<{ id: string }> }) {
+  const lang = await getDashboardLang();
   const session = await auth();
   if (!session?.user?.email) {
     redirect('/login');
@@ -32,7 +32,8 @@ export default async function DashboardPage({ params }: { params: { id: string }
     redirect('/login');
   }
 
-  const dashboardResult = await getDashboardByPublicId(params.id);
+  const { id } = await params;
+  const dashboardResult = await getDashboardByPublicId(id);
   if (dashboardResult.length === 0) {
     notFound();
   }
@@ -59,7 +60,7 @@ export default async function DashboardPage({ params }: { params: { id: string }
   return (
     <Template
       lang={lang}
-      dashboardId={params.id}
+      dashboardId={id}
       dashboardName={dashboard.name ?? 'Company dashboard'}
       sheetId={dashboard.sheetId ?? ''}
       sheetGid={dashboard.sheetGid ?? '0'}

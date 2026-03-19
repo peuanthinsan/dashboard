@@ -17,7 +17,8 @@ import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 
-let client = postgres(`${process.env.POSTGRES_URL!}?sslmode=require`);
+const dbUrl = process.env.POSTGRES_URL || 'postgresql://localhost:5432/placeholder?sslmode=require';
+let client = postgres(dbUrl);
 let db = drizzle(client);
 
 // --- Schema re-declarations (mirrors app/db.ts) ---

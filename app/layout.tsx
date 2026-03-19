@@ -1,7 +1,6 @@
 import './globals.css';
 
 import { GeistSans } from 'geist/font/sans';
-import ThemeToggle from './theme/ThemeToggle';
 
 let title = 'SongdeeGPS Dashboard';
 let description =
@@ -38,9 +37,6 @@ export default function RootLayout({
         `}} />
       </head>
       <body className={GeistSans.variable}>
-        <div id="theme-controls" className="fixed right-4 top-4 z-50">
-          <ThemeToggle />
-        </div>
         {children}
       </body>
     </html>

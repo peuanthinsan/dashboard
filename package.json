@@ -4,28 +4,38 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:push": "drizzle-kit push",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@types/node": "^20.10.5",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "bcrypt-ts": "^5.0.0",
-    "drizzle-orm": "^0.29.2",
+    "drizzle-orm": "^0.29.5",
     "geist": "^1.2.0",
-    "next": "^14.0.4",
+    "next": "^16.2.0",
     "next-auth": "5.0.0-beta.4",
     "postgres": "^3.4.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "autoprefixer": "^10.4.16",
+    "drizzle-kit": "^0.29.0",
     "eslint": "8.56.0",
-    "eslint-config-next": "^14.0.4",
+    "eslint-config-next": "^16.2.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.3.3"
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3",
+    "vitest": "^2.1.9"
   }
 }

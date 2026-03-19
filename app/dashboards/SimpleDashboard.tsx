@@ -7,7 +7,6 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
-  computeSafetyScore,
   findValue,
   normalizeLabel,
   parseDate,
@@ -15,11 +14,9 @@ import {
   toMonthKey,
   withDerivedRemark,
 } from './dashboardDataUtils';
-import { saveDashboardScore } from './scoreCache';
 import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import KpiCard from 'app/ui/KpiCard';
-import ScoreBlock from 'app/ui/ScoreBlock';
 import ExportButton from 'app/ui/ExportButton';
 import { heading2 } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
@@ -220,22 +217,6 @@ export default function SimpleDashboard({
       remarks: remarkTotals,
     };
   }, [filteredAlerts]);
-
-  // ── Safety score (cached for main dashboard listing) ─────────────────────
-  const safetyScore = useMemo(
-    () =>
-      computeSafetyScore(
-        stats.total,
-        Math.max(1, stats.vehicles),
-        Math.max(1, stats.dayCount),
-      ),
-    [stats.total, stats.vehicles, stats.dayCount],
-  );
-
-  useEffect(() => {
-    if (loading) return;
-    saveDashboardScore(dashboardId, safetyScore, stats.total);
-  }, [dashboardId, loading, safetyScore, stats.total]);
 
   // ── Trend vs prior period for Total alerts KPI ─────────────────────────
   const alertsTrend = useMemo(() => {
@@ -445,13 +426,6 @@ export default function SimpleDashboard({
               </button>
             )}
           </FilterBar>
-
-          {/* Safety score — prominent block */}
-          <ScoreBlock
-            score={safetyScore}
-            label={lang === 'th' ? 'คะแนนความปลอดภัย' : 'Safety score'}
-            detail={`${stats.total} ${lang === 'th' ? 'แจ้งเตือน' : 'alerts'} · ${stats.vehicles} ${lang === 'th' ? 'คัน' : 'vehicles'} · ${stats.dayCount} ${lang === 'th' ? 'วัน' : 'days'}`}
-          />
 
           {/* KPIs — one row, the only numbers that matter */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

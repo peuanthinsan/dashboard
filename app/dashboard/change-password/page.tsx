@@ -32,7 +32,7 @@ export default async function ChangePasswordPage() {
   const session = await auth();
   if (!session?.user?.email) redirect('/login');
 
-  const lang = getDashboardLang();
+  const lang = await getDashboardLang();
 
   async function changePassword(
     _prevState: ChangePasswordState,

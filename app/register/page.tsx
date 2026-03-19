@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { createUser, getUser } from 'app/db';
 import { RegisterForm } from 'app/register/register-form';
+import ThemeToggle from 'app/theme/ThemeToggle';
 
 const registerSchema = z.object({
   email: z
@@ -29,11 +30,12 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-function getClientIdentifier() {
-  const forwardedFor = headers().get('x-forwarded-for');
+async function getClientIdentifier() {
+  const h = await headers();
+  const forwardedFor = h.get('x-forwarded-for');
   const ip = forwardedFor?.split(',')[0]?.trim();
 
-  return ip || headers().get('x-real-ip') || 'unknown';
+  return ip || h.get('x-real-ip') || 'unknown';
 }
 
 function checkRateLimit(key: string) {
@@ -68,7 +70,7 @@ export default function Login() {
       return { error: firstError ?? 'Invalid registration details.' };
     }
 
-    const rateLimitKey = getClientIdentifier();
+    const rateLimitKey = await getClientIdentifier();
     const rateLimitResult = checkRateLimit(rateLimitKey);
 
     if (!rateLimitResult.ok) {
@@ -131,7 +133,10 @@ export default function Login() {
           © 2026 SongdeeGPS. All rights reserved.
         </p>
       </div>
-      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
+      <div className="relative flex flex-1 items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
+        <div className="absolute right-4 top-4 z-10">
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-sm">
           <div className="mb-8 text-center lg:text-left">
             <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">

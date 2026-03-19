@@ -36,6 +36,9 @@ const memoryCache = new Map<string, CachedSheet>();
 const buildSheetUrl = (sheetId: string, gid: string) =>
   `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
 
+const buildApiUrl = (sheetId: string, gid: string) =>
+  `/api/sheets/${encodeURIComponent(sheetId)}/${encodeURIComponent(gid)}`;
+
 const parseGoogleSheet = (payload: string) => {
   const match = payload.match(/setResponse\(([\s\S]*)\);/);
   if (!match) {
@@ -144,18 +147,39 @@ export default function useGoogleSheet({ sheetId, gid }: UseGoogleSheetOptions):
 
     setLoading(true);
     setError(null);
-    try {
-      const response = await fetch(buildSheetUrl(sheetId, gid));
-      if (!response.ok) {
-        throw new Error('Unable to fetch the Google Sheet data.');
+    const tryFetch = async (url: string, isJson: boolean): Promise<CachedSheet | null> => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Unable to fetch the Google Sheet data.');
+      if (isJson) {
+        const data = await response.json();
+        return {
+          columns: data.columns,
+          rows: data.rows,
+          lastUpdated: data.lastUpdated ?? Date.now(),
+        };
       }
       const text = await response.text();
       const parsed = parseGoogleSheet(text);
-      setColumns(parsed.columns);
-      setRows(parsed.rows);
-      const now = Date.now();
-      setLastUpdated(new Date(now));
-      writeCache({ columns: parsed.columns, rows: parsed.rows, lastUpdated: now });
+      return {
+        columns: parsed.columns,
+        rows: parsed.rows,
+        lastUpdated: Date.now(),
+      };
+    };
+
+    try {
+      let result: CachedSheet | null = null;
+      try {
+        result = await tryFetch(buildApiUrl(sheetId, gid), true);
+      } catch {
+        result = await tryFetch(buildSheetUrl(sheetId, gid), false);
+      }
+      if (result) {
+        setColumns(result.columns);
+        setRows(result.rows);
+        setLastUpdated(new Date(result.lastUpdated));
+        writeCache(result);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to fetch the Google Sheet data.';
       setError(message);

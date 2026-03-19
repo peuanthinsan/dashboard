@@ -6,7 +6,6 @@ import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
-import { saveDashboardScore } from './scoreCache';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
   ALLOWED_ALERT_TYPES,
@@ -32,7 +31,6 @@ import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
 import DonutChart from 'app/ui/DonutChart';
-import SafetyScore from 'app/ui/SafetyScore';
 import InlineMonthPicker from 'app/ui/InlineMonthPicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import {
@@ -529,19 +527,6 @@ export default function DetailDashboard({
       .map(([label, value]) => ({ label, value }));
   }, [filteredAlerts]);
 
-  // ── Safety score ──
-  const safetyScore = useMemo(() => {
-    const daySet = new Set<string>();
-    filteredAlerts.forEach((r) => {
-      if (r.parsedDate) daySet.add(toDayKey(r.parsedDate));
-    });
-    const dayCount = daySet.size;
-    if (uniqueVehicles === 0 || dayCount === 0) return 100;
-    const alertsPerVehiclePerDay = filteredAlerts.length / uniqueVehicles / dayCount;
-    const penalty = Math.min(70, alertsPerVehiclePerDay * 70);
-    return Math.round(Math.max(0, 100 - penalty));
-  }, [filteredAlerts, uniqueVehicles]);
-
   // ── Alerts with video count ──
   const videoCount = useMemo(
     () => filteredAlerts.filter((r) => hasVideoLink(r.videoUrl)).length,
@@ -653,12 +638,6 @@ export default function DetailDashboard({
     driverFilters.length +
     (showExcluded ? 1 : 0);
 
-  // Cache score for display on dashboards listing page
-  useEffect(() => {
-    if (loading || filteredAlerts.length === 0) return;
-    saveDashboardScore(dashboardId, safetyScore, filteredAlerts.length);
-  }, [dashboardId, loading, safetyScore, filteredAlerts.length]);
-
   // Check if data might be stale (lastUpdated > 10 minutes ago)
   const isStale = useMemo(() => {
     if (!lastUpdated) return false;
@@ -727,26 +706,8 @@ export default function DetailDashboard({
             )}
           </FilterBar>
 
-          {/* ── KPI Row with Safety Score ── */}
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div
-              className={`flex flex-col items-center justify-center rounded-xl px-4 py-4 ring-1 ring-inset ${
-                safetyScore >= 80
-                  ? 'bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/50 dark:ring-emerald-800/40'
-                  : safetyScore >= 50
-                    ? 'bg-amber-50/80 ring-amber-200/60 dark:bg-amber-950/50 dark:ring-amber-800/40'
-                    : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40'
-              }`}
-            >
-              <SafetyScore
-                score={safetyScore}
-                size={100}
-                tooltip={lang === 'th' ? 'คะแนนความปลอดภัยตามจำนวนการแจ้งเตือนต่อคันต่อวัน' : 'Safety score based on alerts per vehicle per day'}
-                detail={lang === 'th'
-                  ? `${filteredAlerts.length} แจ้งเตือน ÷ ${uniqueVehicles} คัน`
-                  : `${filteredAlerts.length} alerts across ${uniqueVehicles} vehicles`}
-              />
-            </div>
+          {/* ── KPI Row ── */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total alerts'}
               value={filteredAlerts.length}
