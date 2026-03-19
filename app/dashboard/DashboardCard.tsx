@@ -80,48 +80,42 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
         <div className={`flex h-10 w-10 items-center justify-center rounded-lg text-lg ring-1 ${iconBg}`}>
           {icon}
         </div>
-        <div className="flex items-center gap-2">
-          {cachedScore && (
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-bold ring-1 ring-inset ${
-                cachedScore.score >= 80
-                  ? 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30'
-                  : cachedScore.score >= 50
-                    ? 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30'
-                    : 'bg-red-50 text-red-700 ring-red-200/50 dark:bg-red-950/60 dark:text-red-300 dark:ring-red-800/30'
-              }`}
-              title={lang === 'th' ? `คะแนน: ${cachedScore.score} · ${cachedScore.alertCount} แจ้งเตือน` : `Score: ${cachedScore.score} · ${cachedScore.alertCount} alerts`}
-            >
-              <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-              <span className="tabular-nums">{cachedScore.score}</span>
-            </span>
-          )}
-          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeColor}`}>
-            {template ?? 'Summary'}
-          </span>
-        </div>
+        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeColor}`}>
+          {template ?? 'Summary'}
+        </span>
       </div>
       <div className="relative flex-1">
         <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{name}</h3>
         <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? desc.th : desc.en}</p>
         {cachedScore && (
-          <p className="mt-2 text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-300">
-            {lang === 'th' ? 'คะแนน ' : 'Score '}
+          <div
+            className={`mt-4 flex items-baseline gap-3 rounded-xl px-4 py-3 ring-1 ring-inset ${
+              cachedScore.score >= 80
+                ? 'bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/50 dark:ring-emerald-800/40'
+                : cachedScore.score >= 50
+                  ? 'bg-amber-50/80 ring-amber-200/60 dark:bg-amber-950/50 dark:ring-amber-800/40'
+                  : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40'
+            }`}
+            title={lang === 'th' ? `คะแนน: ${cachedScore.score} · ${cachedScore.alertCount} แจ้งเตือน` : `Score: ${cachedScore.score} · ${cachedScore.alertCount} alerts`}
+          >
             <span
-              className={
+              className={`text-2xl font-bold tabular-nums ${
                 cachedScore.score >= 80
-                  ? 'text-emerald-600 dark:text-emerald-400'
+                  ? 'text-emerald-700 dark:text-emerald-300'
                   : cachedScore.score >= 50
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-red-600 dark:text-red-400'
-              }
+                    ? 'text-amber-700 dark:text-amber-300'
+                    : 'text-red-700 dark:text-red-300'
+              }`}
             >
               {cachedScore.score}
             </span>
-            <span className={`ml-1 font-normal ${textSecondary}`}>
-              · {cachedScore.alertCount} {lang === 'th' ? 'แจ้งเตือน' : 'alerts'}
+            <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+              {lang === 'th' ? 'คะแนน' : 'score'}
             </span>
-          </p>
+            <span className={`ml-auto text-sm ${textSecondary}`}>
+              {cachedScore.alertCount} {lang === 'th' ? 'แจ้งเตือน' : 'alerts'}
+            </span>
+          </div>
         )}
       </div>
       <div className="relative flex items-center justify-between border-t border-zinc-100/80 pt-3 dark:border-zinc-800/60">
