@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
-import { computeComplianceScore, findValue, normalizeLabel, parseDate, toDayKey, toDisplayString } from './dashboardDataUtils';
+import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import { computeComplianceScore, findValue, normalizeLabel, parseDate, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import KpiCard from 'app/ui/KpiCard';
@@ -95,6 +96,35 @@ export default function DrivingDashboard({
   const [dayFilters, setDayFilters] = useState<string[]>([]);
 
   const normalizedOrganizationName = useMemo(() => (organizationName ? normalizeLabel(organizationName) : null), [organizationName]);
+  const storageKey = useMemo(() => `${dashboardId}-driving`, [dashboardId]);
+  const didSetDefaultMonth = useRef(false);
+  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
+
+  // ── Load persisted filters ──────────────────────────────────────────────
+  useEffect(() => {
+    const stored = loadStoredFilters<{
+      selectedMonth?: string;
+      dayFilters?: string[];
+      driverFilters?: string[];
+      vehicleFilters?: string[];
+    }>(storageKey);
+    if (!stored) return;
+    didSetDefaultMonth.current = true;
+    if (typeof stored.selectedMonth === 'string') setSelectedMonth(stored.selectedMonth);
+    if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
+    if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
+    if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
+  }, [storageKey]);
+
+  // ── Persist filters ─────────────────────────────────────────────────────
+  useEffect(() => {
+    saveStoredFilters(storageKey, {
+      selectedMonth,
+      dayFilters,
+      driverFilters,
+      vehicleFilters,
+    });
+  }, [storageKey, selectedMonth, dayFilters, driverFilters, vehicleFilters]);
 
   const drivingRows = useMemo<DrivingRow[]>(() => rows.map((row) => ({
     driver: toDisplayString(findValue(row, ['Driver Name'])),
@@ -143,6 +173,28 @@ export default function DrivingDashboard({
     filteredRows.forEach((row) => { if (row.date) keys.add(getMonthKey(row.date)); });
     return Array.from(keys).sort();
   }, [filteredRows]);
+
+  // All months in raw data (for default month when no filter)
+  const allMonthsFromData = useMemo(() => {
+    const keys = new Set<string>();
+    drivingRows.forEach((row) => { if (row.date) keys.add(getMonthKey(row.date)); });
+    return Array.from(keys).sort();
+  }, [drivingRows]);
+
+  // ── Default to current month when no stored filters ──────────────────────
+  useEffect(() => {
+    if (didSetDefaultMonth.current) return;
+    if (allMonthsFromData.length === 0) return;
+    if (selectedMonth !== '') {
+      didSetDefaultMonth.current = true;
+      return;
+    }
+    didSetDefaultMonth.current = true;
+    if (allMonthsFromData.includes(currentMonthKey)) {
+      setSelectedMonth(currentMonthKey);
+      setDayFilters([]);
+    }
+  }, [allMonthsFromData, currentMonthKey, selectedMonth]);
 
   const aggregates = useMemo<DriverAggregate[]>(() => {
     const totals = new Map<string, { driver: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; monthlyMap: Map<string, number> }>();

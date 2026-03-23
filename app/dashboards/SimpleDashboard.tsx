@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
@@ -83,11 +83,14 @@ export default function SimpleDashboard({
 
   const [filters, setFilters] = useState<SimpleFilterState>(defaultFilters);
   const storageKey = useMemo(() => `${dashboardId}-v2`, [dashboardId]);
+  const didSetDefaultMonth = useRef(false);
+  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
 
   // ── Load persisted filters ──────────────────────────────────────────────
   useEffect(() => {
     const stored = loadStoredFilters<SimpleFilterState>(storageKey);
     if (!stored) return;
+    didSetDefaultMonth.current = true;
     setFilters({
       month: typeof stored.month === 'string' ? stored.month : '',
       dayFilters: Array.isArray(stored.dayFilters)
@@ -158,6 +161,28 @@ export default function SimpleDashboard({
       })
       .filter((row) => row.parsedDate);
   }, [normalizedOrganizationName, rows, effectiveAlertTypes, effectiveRemarks]);
+
+  // ── Default to current month when no stored filters ──────────────────────
+  const monthOptions = useMemo(() => {
+    const keys = new Set<string>();
+    baseAlerts.forEach((row) => {
+      if (row.parsedDate) keys.add(toMonthKey(row.parsedDate));
+    });
+    return Array.from(keys).sort();
+  }, [baseAlerts]);
+
+  useEffect(() => {
+    if (didSetDefaultMonth.current) return;
+    if (monthOptions.length === 0) return;
+    if (filters.month !== '') {
+      didSetDefaultMonth.current = true;
+      return;
+    }
+    didSetDefaultMonth.current = true;
+    if (monthOptions.includes(currentMonthKey)) {
+      setFilters((f) => ({ ...f, month: currentMonthKey, dayFilters: [] }));
+    }
+  }, [currentMonthKey, filters.month, monthOptions]);
 
   // ── Month-filtered alerts ───────────────────────────────────────────────
   const monthFilteredAlerts = useMemo(() => {
