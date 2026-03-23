@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
 import { AuthError } from 'next-auth';
 import { headers } from 'next/headers';
 import { z } from 'zod';
 
 import { signIn } from 'app/auth';
+
+export const metadata: Metadata = {
+  title: 'Sign in | SongdeeGPS',
+  description: 'Sign in to your SongdeeGPS account to access fleet safety dashboards and alerts.',
+};
 import {
   checkRateLimit,
   getClientIdentifier,
@@ -15,13 +21,13 @@ import ThemeToggle from 'app/theme/ThemeToggle';
 
 const loginSchema = z.object({
   email: z
-    .string({ required_error: 'Email is required.' })
+    .string({ error: 'Email is required.' })
     .trim()
-    .email('Enter a valid email address.'),
+    .email({ error: 'Enter a valid email address.' }),
   password: z
-    .string({ required_error: 'Password is required.' })
-    .min(8, 'Password must be at least 8 characters long.')
-    .max(72, 'Password must be at most 72 characters long.'),
+    .string({ error: 'Password is required.' })
+    .min(8, { error: 'Password must be at least 8 characters long.' })
+    .max(72, { error: 'Password must be at most 72 characters long.' }),
 });
 
 type LoginState = {
@@ -39,7 +45,7 @@ export default function Login() {
     const parsed = loginSchema.safeParse({ email, password });
 
     if (!parsed.success) {
-      const firstError = parsed.error.errors[0]?.message;
+      const firstError = parsed.error.issues[0]?.message;
       return { error: firstError ?? 'Invalid login details.' };
     }
 

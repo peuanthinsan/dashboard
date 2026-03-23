@@ -11,14 +11,15 @@ type LoadingStateProps = {
 };
 
 export default function LoadingState({
-  message = 'Loading dashboard...',
+  message,
   detail,
   fallbackDetail,
   error,
   onRetry,
-  lang = 'en',
+  lang = 'th',
 }: LoadingStateProps) {
   const copy = getDashboardCopy(lang);
+  const resolvedMessage = message ?? copy.loadingMessage;
 
   if (error) {
     return (
@@ -77,9 +78,9 @@ export default function LoadingState({
       <div className={`${cardSection} flex items-center gap-4`}>
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-200 border-t-red-600 dark:border-zinc-700 dark:border-t-red-400" />
         <div>
-          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{message}</p>
+          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{resolvedMessage}</p>
           <p className={textSecondary}>
-            {detail ?? fallbackDetail ?? 'Fetching the latest data.'}
+            {detail ?? fallbackDetail ?? copy.loadingDetail}
           </p>
         </div>
       </div>

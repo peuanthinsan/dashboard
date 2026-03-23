@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { useFocusTrap } from 'app/hooks/useFocusTrap';
 
 type DialogTitleProps = {
   id: string;
@@ -20,6 +21,7 @@ type DialogContentProps = {
   description: string;
   children: React.ReactNode;
   onClose: () => void;
+  isOpen: boolean;
 };
 
 function DialogContent({
@@ -27,9 +29,11 @@ function DialogContent({
   description,
   children,
   onClose,
+  isOpen,
 }: DialogContentProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const trapRef = useFocusTrap(isOpen, onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
@@ -40,6 +44,7 @@ function DialogContent({
         onClick={onClose}
       />
       <div
+        ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -93,6 +98,7 @@ export default function ConfirmDeleteDialog({
           title={title}
           description={description}
           onClose={() => setIsOpen(false)}
+          isOpen={isOpen}
         >
           <button
             type="button"

@@ -11,15 +11,15 @@ import { pageContainer, pageContent } from 'app/ui/design-tokens';
 
 const changePasswordSchema = z
   .object({
-    currentPassword: z.string().min(1, 'Current password is required.'),
+    currentPassword: z.string().min(1, { error: 'Current password is required.' }),
     newPassword: z
       .string()
-      .min(8, 'New password must be at least 8 characters.')
-      .max(72, 'New password must be at most 72 characters.'),
-    confirmPassword: z.string().min(1, 'Please confirm your new password.'),
+      .min(8, { error: 'New password must be at least 8 characters.' })
+      .max(72, { error: 'New password must be at most 72 characters.' }),
+    confirmPassword: z.string().min(1, { error: 'Please confirm your new password.' }),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
-    message: 'Passwords do not match.',
+    error: 'Passwords do not match.',
     path: ['confirmPassword'],
   });
 
@@ -52,7 +52,7 @@ export default async function ChangePasswordPage() {
     });
 
     if (!parsed.success) {
-      const firstError = parsed.error.errors[0]?.message;
+      const firstError = parsed.error.issues[0]?.message;
       return { error: firstError ?? 'Invalid input.', success: false };
     }
 

@@ -2,6 +2,7 @@
 
 import { useId } from 'react';
 import { createPortal } from 'react-dom';
+import { useFocusTrap } from 'app/hooks/useFocusTrap';
 
 type AdminModalProps = {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export default function AdminModal({
 }: AdminModalProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const trapRef = useFocusTrap(isOpen, onClose);
 
   if (!isOpen) {
     return null;
@@ -36,6 +38,7 @@ export default function AdminModal({
         onClick={onClose}
       />
       <div
+        ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

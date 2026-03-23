@@ -7,5 +7,5 @@ export { DASHBOARD_LANG_COOKIE, dashboardCopy, getDashboardCopy };
 export const getDashboardLang = async (): Promise<DashboardLang> => {
   const cookieStore = await cookies();
   const value = cookieStore.get(DASHBOARD_LANG_COOKIE)?.value;
-  return value === 'th' ? 'th' : 'en';
+  return value === 'en' ? 'en' : 'th';
 };

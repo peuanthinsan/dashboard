@@ -76,11 +76,16 @@ export const parseDate = (value: unknown) => {
   const raw = String(value).trim();
   if (!raw) return null;
   // Handle DD/MM/YYYY or DD/MM/YYYY HH:MM:SS
-  const ddmmyyyy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(.*)$/);
+  const ddmmyyyy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?$/);
   if (ddmmyyyy) {
-    const [, dd, mm, yyyy, rest] = ddmmyyyy;
-    const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}${rest}`;
-    const parsed = new Date(iso);
+    const [, dd, mm, yyyy, hh, mi, ss] = ddmmyyyy;
+    const d = parseInt(dd!, 10);
+    const m = parseInt(mm!, 10) - 1;
+    const y = parseInt(yyyy!, 10);
+    const hour = hh ? parseInt(hh, 10) : 0;
+    const min = mi ? parseInt(mi, 10) : 0;
+    const sec = ss ? parseInt(ss, 10) : 0;
+    const parsed = new Date(y, m, d, hour, min, sec);
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
   const parsed = new Date(raw);

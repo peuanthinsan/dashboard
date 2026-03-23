@@ -9,6 +9,15 @@ let description =
 export const metadata = {
   title,
   description,
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
+  openGraph: {
+    title,
+    description,
+    images: ['/opengraph-image'],
+  },
   twitter: {
     card: 'summary_large_image',
     title,
@@ -23,8 +32,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="th" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://docs.google.com" />
+        <link rel="dns-prefetch" href="https://docs.google.com" />
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             try {

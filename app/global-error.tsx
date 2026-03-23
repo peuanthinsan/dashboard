@@ -14,7 +14,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en">
+    <html lang="th">
       <body className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center px-4">
         <div className="max-w-md text-center">
           <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
