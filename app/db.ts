@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, count, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
@@ -21,6 +21,7 @@ const userSelect = {
   id: users.id,
   email: users.email,
   isAdmin: users.isAdmin,
+  showBothCompanyAndFleet: users.showBothCompanyAndFleet,
   companyId: users.companyId,
   organizationId: users.organizationId,
 };
@@ -121,6 +122,71 @@ export const getUsers = cache(async () => {
   });
 });
 
+export const USERS_PAGE_SIZE = 25;
+
+export type GetUsersPaginatedParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
+export async function getUsersPaginated(params: GetUsersPaginatedParams = {}) {
+  const page = Math.max(1, params.page ?? 1);
+  const limit = Math.min(100, Math.max(1, params.limit ?? USERS_PAGE_SIZE));
+  const offset = (page - 1) * limit;
+  const search = params.search?.trim();
+
+  const conds: Parameters<typeof and>[number][] = [];
+  if (search) {
+    const term = `%${search.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+    conds.push(ilike(users.email, term));
+  }
+  const whereClause = conds.length > 0 ? and(...conds) : undefined;
+
+  const [totalResult, userRows] = await Promise.all([
+    db.select({ count: count() }).from(users).where(whereClause),
+    db
+      .select(userSelect)
+      .from(users)
+      .where(whereClause)
+      .orderBy(users.id)
+      .limit(limit)
+      .offset(offset),
+  ]);
+
+  const total = totalResult[0]?.count ?? 0;
+  if (userRows.length === 0) {
+    return { items: [], total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  const assignmentsByUserId = await getUserAssignmentsByUserIds(userRows.map((u) => u.id));
+  const items = userRows.map((user) => {
+    const assignment = assignmentsByUserId.get(user.id) ?? {
+      companyIds: [],
+      organizationIds: [],
+    };
+    return {
+      ...user,
+      companyIds:
+        assignment.companyIds.length === 0 && user.companyId
+          ? [user.companyId]
+          : assignment.companyIds,
+      organizationIds:
+        assignment.organizationIds.length === 0 && user.organizationId
+          ? [user.organizationId]
+          : assignment.organizationIds,
+    };
+  });
+
+  return {
+    items,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
 export const getCompanies = cache(async () => {
   return await db.select().from(companies).orderBy(companies.name);
 });
@@ -151,6 +217,61 @@ export const getDashboards = cache(async () => {
   return await db.select().from(dashboards).orderBy(dashboards.name);
 });
 
+export const DASHBOARDS_PAGE_SIZE = 25;
+
+export type GetDashboardsPaginatedParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  companyId?: number | null;
+  organizationId?: number | null;
+};
+
+export async function getDashboardsPaginated(params: GetDashboardsPaginatedParams = {}) {
+  const page = Math.max(1, params.page ?? 1);
+  const limit = Math.min(100, Math.max(1, params.limit ?? DASHBOARDS_PAGE_SIZE));
+  const offset = (page - 1) * limit;
+  const search = params.search?.trim();
+  const companyId = params.companyId;
+  const organizationId = params.organizationId;
+
+  const conds: Parameters<typeof and>[number][] = [];
+  if (search) {
+    const term = `%${search.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+    conds.push(ilike(dashboards.name, term));
+  }
+  if (companyId != null) {
+    conds.push(eq(dashboards.companyId, companyId));
+  }
+  if (organizationId != null) {
+    conds.push(eq(dashboards.organizationId, organizationId));
+  }
+  const whereClause = conds.length > 0 ? and(...conds) : undefined;
+
+  const [totalResult, items] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(dashboards)
+      .where(whereClause),
+    db
+      .select()
+      .from(dashboards)
+      .where(whereClause)
+      .orderBy(dashboards.name)
+      .limit(limit)
+      .offset(offset),
+  ]);
+
+  const total = totalResult[0]?.count ?? 0;
+  return {
+    items,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
 export const getDashboardById = cache(async (id: number) => {
   return await db.select().from(dashboards).where(eq(dashboards.id, id));
 });
@@ -162,9 +283,11 @@ export const getDashboardByPublicId = cache(async (publicId: string) => {
 export const getDashboardsForUser = cache(async ({
   companyIds,
   organizationIds,
+  showBoth = false,
 }: {
   companyIds: number[];
   organizationIds: number[];
+  showBoth?: boolean;
 }) => {
   if (companyIds.length === 0) {
     return [];
@@ -207,6 +330,15 @@ export const getDashboardsForUser = cache(async ({
       if (scopedOrganizationIds.length === 0) {
         return and(eq(dashboards.companyId, companyId), isNull(dashboards.organizationId));
       }
+      if (showBoth) {
+        return and(
+          eq(dashboards.companyId, companyId),
+          or(
+            isNull(dashboards.organizationId),
+            inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
+          ),
+        );
+      }
       return and(
         eq(dashboards.companyId, companyId),
         inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
@@ -241,6 +373,15 @@ export const getDashboardsForUser = cache(async ({
     const scopedOrganizationIds = organizationIdsByCompanyId.get(companyId) ?? [];
     if (scopedOrganizationIds.length === 0) {
       return and(eq(dashboards.companyId, companyId), isNull(dashboards.organizationId));
+    }
+    if (showBoth) {
+      return and(
+        eq(dashboards.companyId, companyId),
+        or(
+          isNull(dashboards.organizationId),
+          inArray(dashboards.organizationId, Array.from(new Set(scopedOrganizationIds))),
+        ),
+      );
     }
     return and(
       eq(dashboards.companyId, companyId),
@@ -301,6 +442,8 @@ export async function createDashboard({
   sheetGid,
   sheetUrl,
   notes,
+  alertTypes,
+  remarks,
 }: {
   name: string;
   companyId: number;
@@ -310,6 +453,8 @@ export async function createDashboard({
   sheetGid: string;
   sheetUrl: string;
   notes?: string | null;
+  alertTypes?: string[] | null;
+  remarks?: string[] | null;
 }) {
   await assertOrganizationBelongsToCompany(companyId, organizationId);
   const [result] = await db.insert(dashboards).values({
@@ -321,6 +466,8 @@ export async function createDashboard({
     sheetGid,
     sheetUrl,
     notes: notes ?? null,
+    alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
+    remarks: remarks && remarks.length > 0 ? remarks : null,
     publicId: randomUUID(),
   }).returning({ id: dashboards.id });
   return result;
@@ -336,6 +483,8 @@ export async function updateDashboard({
   sheetGid,
   sheetUrl,
   notes,
+  alertTypes,
+  remarks,
 }: {
   id: number;
   name: string;
@@ -346,6 +495,8 @@ export async function updateDashboard({
   sheetGid: string;
   sheetUrl: string;
   notes?: string | null;
+  alertTypes?: string[] | null;
+  remarks?: string[] | null;
 }) {
   await assertOrganizationBelongsToCompany(companyId, organizationId);
   return await db
@@ -359,6 +510,8 @@ export async function updateDashboard({
       sheetGid,
       sheetUrl,
       notes: notes ?? null,
+      alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
+      remarks: remarks && remarks.length > 0 ? remarks : null,
     })
     .where(eq(dashboards.id, id));
 }
@@ -394,10 +547,12 @@ export async function updateUserAssignments(
     companyIds,
     organizationIds,
     isAdmin,
+    showBothCompanyAndFleet = false,
   }: {
     companyIds: number[];
     organizationIds: number[];
     isAdmin: boolean;
+    showBothCompanyAndFleet?: boolean;
   },
 ) {
   const uniqueCompanyIds = Array.from(new Set(companyIds));
@@ -410,6 +565,7 @@ export async function updateUserAssignments(
           companyId: uniqueCompanyIds[0] ?? null,
           organizationId: uniqueOrganizationIds[0] ?? null,
           isAdmin,
+          showBothCompanyAndFleet,
         })
         .where(eq(users.id, userId));
 
@@ -456,6 +612,7 @@ export async function updateUserAssignments(
         companyId: uniqueCompanyIds[0] ?? null,
         organizationId: uniqueValidOrganizationIds[0] ?? null,
         isAdmin,
+        showBothCompanyAndFleet,
       })
       .where(eq(users.id, userId));
 

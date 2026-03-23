@@ -18,11 +18,13 @@ export default async function DashboardPage() {
     const session = await auth();
     const user = session?.user?.email ? await getUser(session.user.email) : [];
     const isAdmin = user.length > 0 && user[0].isAdmin;
+    const showBoth = user[0]?.showBothCompanyAndFleet ?? false;
     const dashboards =
       user.length > 0
         ? await getDashboardsForUser({
             companyIds: user[0].companyIds ?? [],
             organizationIds: user[0].organizationIds ?? [],
+            showBoth,
           })
         : [];
 
@@ -58,6 +60,7 @@ export default async function DashboardPage() {
 
           {dashboards.length === 0 ? (
             <EmptyState
+              variant="dashboard"
               title={copy.noDashboards}
               description={copy.noDashboardsHelp}
             />

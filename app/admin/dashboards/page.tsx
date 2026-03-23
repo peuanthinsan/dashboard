@@ -13,6 +13,7 @@ import {
   bulkCreateDashboards,
   bulkReassignDashboards,
   bulkDeleteDashboards,
+  bulkUpdateDashboardFields,
 } from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { parseSheetLink, requireAdmin } from '../admin-utils';
@@ -25,6 +26,7 @@ export default async function AdminDashboardsPage() {
   await requireAdmin();
   const lang = await getDashboardLang();
   const copy = getAdminCopy(lang);
+
   const [dashboards, companies, organizations] = await Promise.all([
     getDashboards(),
     getCompanies(),
@@ -51,6 +53,14 @@ export default async function AdminDashboardsPage() {
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
+    const alertTypesRaw = formData.getAll('alertTypes');
+    const alertTypes = Array.isArray(alertTypesRaw)
+      ? alertTypesRaw.map((v) => String(v).trim()).filter(Boolean)
+      : [];
+    const remarksRaw = formData.getAll('remarks');
+    const remarks = Array.isArray(remarksRaw)
+      ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
+      : [];
     try {
       await createDashboard({
         name,
@@ -61,6 +71,8 @@ export default async function AdminDashboardsPage() {
         companyId,
         organizationId: organizationValue ? Number(organizationValue) : null,
         notes,
+        alertTypes: alertTypes.length > 0 ? alertTypes : null,
+        remarks: remarks.length > 0 ? remarks : null,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard created.' };
@@ -106,6 +118,14 @@ export default async function AdminDashboardsPage() {
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
+    const alertTypesRaw = formData.getAll('alertTypes');
+    const alertTypes = Array.isArray(alertTypesRaw)
+      ? alertTypesRaw.map((v) => String(v).trim()).filter(Boolean)
+      : [];
+    const remarksRaw = formData.getAll('remarks');
+    const remarks = Array.isArray(remarksRaw)
+      ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
+      : [];
     try {
       await updateDashboard({
         id: dashboardId,
@@ -117,6 +137,8 @@ export default async function AdminDashboardsPage() {
         companyId,
         organizationId: organizationValue ? Number(organizationValue) : null,
         notes,
+        alertTypes: alertTypes.length > 0 ? alertTypes : null,
+        remarks: remarks.length > 0 ? remarks : null,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard updated.' };
@@ -133,6 +155,7 @@ export default async function AdminDashboardsPage() {
       eyebrow={copy.adminTools}
       title={copy.dashboardsNav}
       description={copy.createDashboardsForCompany}
+      workflowHint={copy.workflowDashboards}
       lang={lang}
     >
       <DashboardsClient
@@ -144,6 +167,7 @@ export default async function AdminDashboardsPage() {
         bulkCreateAction={bulkCreateDashboards}
         bulkReassignAction={bulkReassignDashboards}
         bulkDeleteAction={bulkDeleteDashboards}
+        bulkUpdateFieldsAction={bulkUpdateDashboardFields}
       />
     </AdminShell>
   );

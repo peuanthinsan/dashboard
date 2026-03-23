@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
-import { useFormState } from 'react-dom';
+import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
@@ -64,7 +63,7 @@ function OrganizationRow({
   checked: boolean;
   onCheck: (id: number, checked: boolean) => void;
 }) {
-  const [state, formAction] = useFormState(action, INITIAL_STATE);
+  const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
   const company = companies.find((entry) => entry.id === organization.companyId);
   useRefreshOnSuccess(state);
@@ -78,7 +77,7 @@ function OrganizationRow({
   return (
     <>
       <tr className={tableRow}>
-        <td className="px-4 py-3">
+        <td className="w-0 whitespace-nowrap pl-4 pr-3 py-3">
           <input
             type="checkbox"
             checked={checked}
@@ -86,7 +85,7 @@ function OrganizationRow({
             className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
           />
         </td>
-        <td className={tableCell}>
+        <td className={`${tableCell} pl-3`}>
           <div className="font-semibold text-zinc-900 dark:text-white">
             {organization.name ?? 'Unnamed fleet'}
           </div>
@@ -165,9 +164,20 @@ export default function OrganizationsClient({
   bulkDeleteAction,
 }: OrganizationsClientProps) {
   const router = useRouter();
+  const [search, setSearch] = useState('');
+  const filteredOrganizations = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return organizations;
+    return organizations.filter((o) => {
+      const nameMatch = (o.name ?? '').toLowerCase().includes(q);
+      const company = companies.find((c) => c.id === o.companyId);
+      const companyMatch = company && (company.name ?? '').toLowerCase().includes(q);
+      return nameMatch || companyMatch;
+    });
+  }, [organizations, companies, search]);
   const totalOrganizations = organizations.length;
 
-  const [organizationCreateState, organizationCreateAction] = useFormState(
+  const [organizationCreateState, organizationCreateAction] = useActionState(
     addOrganizationAction,
     INITIAL_STATE,
   );
@@ -201,7 +211,7 @@ export default function OrganizationsClient({
 
   function handleSelectAll(checked: boolean) {
     if (checked) {
-      setSelectedIds(new Set(organizations.map((o) => o.id)));
+      setSelectedIds(new Set(filteredOrganizations.map((o) => o.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -242,7 +252,7 @@ export default function OrganizationsClient({
   }
 
   const allChecked =
-    organizations.length > 0 && selectedIds.size === organizations.length;
+    filteredOrganizations.length > 0 && selectedIds.size === filteredOrganizations.length;
 
   return (
     <AdminSection>
@@ -386,7 +396,15 @@ export default function OrganizationsClient({
                 Update fleet names and maintain access rules.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by fleet or company…"
+                className={`min-w-[12rem] ${ADMIN_INPUT}`}
+                aria-label="Search fleets"
+              />
               {selectedIds.size > 0 && (
                 <>
                   <button
@@ -423,7 +441,7 @@ export default function OrganizationsClient({
                   className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}
                 >
                   <tr>
-                    <th className="px-4 py-3">
+                    <th className="w-0 whitespace-nowrap pl-4 pr-3 py-3">
                       <input
                         type="checkbox"
                         checked={allChecked}
@@ -431,13 +449,13 @@ export default function OrganizationsClient({
                         className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
                       />
                     </th>
-                    <th className={tableHeadCell}>Fleet</th>
+                    <th className={`${tableHeadCell} pl-3`}>Fleet</th>
                     <th className={tableHeadCell}>Company</th>
                     <th className={`${tableHeadCell} text-right`}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {organizations.map((organization) => (
+                  {filteredOrganizations.map((organization) => (
                     <OrganizationRow
                       key={organization.id}
                       organization={organization}
@@ -450,9 +468,11 @@ export default function OrganizationsClient({
                 </tbody>
               </table>
             </div>
-            {organizations.length === 0 ? (
+            {filteredOrganizations.length === 0 ? (
               <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                No fleets yet. Create one to scope dashboard access.
+                {organizations.length === 0
+                  ? 'No fleets yet. Create one to scope dashboard access.'
+                  : 'No fleets match your search.'}
               </p>
             ) : null}
           </div>

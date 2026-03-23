@@ -56,6 +56,8 @@ export default async function DashboardPage({ params }: { params: Promise<{ id: 
   }
 
   const Template = getTemplate(dashboard.template ?? null);
+  const allowedAlertTypes = (dashboard as { alertTypes?: string[] | null }).alertTypes ?? null;
+  const allowedRemarks = (dashboard as { remarks?: string[] | null }).remarks ?? null;
 
   return (
     <Template
@@ -66,6 +68,8 @@ export default async function DashboardPage({ params }: { params: Promise<{ id: 
       sheetGid={dashboard.sheetGid ?? '0'}
       dashboardNotes={dashboard.notes ?? null}
       organizationName={organizationName}
+      allowedAlertTypes={allowedAlertTypes}
+      allowedRemarks={allowedRemarks}
     />
   );
 }

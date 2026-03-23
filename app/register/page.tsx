@@ -3,6 +3,11 @@ import { headers } from 'next/headers';
 import { z } from 'zod';
 
 import { createUser, getUser } from 'app/db';
+import {
+  checkAndIncrementRateLimit,
+  getClientIdentifier,
+  RATE_LIMIT_MAX_REGISTER,
+} from 'app/lib/rate-limit';
 import { RegisterForm } from 'app/register/register-form';
 import ThemeToggle from 'app/theme/ThemeToggle';
 
@@ -21,40 +26,6 @@ type RegisterState = {
   error: string | null;
 };
 
-type RateLimitEntry = {
-  count: number;
-  expiresAt: number;
-};
-
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_ATTEMPTS = 5;
-const rateLimitStore = new Map<string, RateLimitEntry>();
-
-async function getClientIdentifier() {
-  const h = await headers();
-  const forwardedFor = h.get('x-forwarded-for');
-  const ip = forwardedFor?.split(',')[0]?.trim();
-
-  return ip || h.get('x-real-ip') || 'unknown';
-}
-
-function checkRateLimit(key: string) {
-  const now = Date.now();
-  const entry = rateLimitStore.get(key);
-
-  if (!entry || entry.expiresAt <= now) {
-    rateLimitStore.set(key, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
-    return { ok: true };
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX_ATTEMPTS) {
-    return { ok: false, message: 'Too many sign up attempts. Please try again shortly.' };
-  }
-
-  entry.count += 1;
-  return { ok: true };
-}
-
 export default function Login() {
   async function register(
     _prevState: RegisterState,
@@ -70,11 +41,14 @@ export default function Login() {
       return { error: firstError ?? 'Invalid registration details.' };
     }
 
-    const rateLimitKey = await getClientIdentifier();
-    const rateLimitResult = checkRateLimit(rateLimitKey);
+    const clientId = await getClientIdentifier(headers);
+    const rateLimitResult = checkAndIncrementRateLimit(
+      `register:${clientId}`,
+      RATE_LIMIT_MAX_REGISTER
+    );
 
     if (!rateLimitResult.ok) {
-      return { error: rateLimitResult.message ?? 'Too many sign up attempts.' };
+      return { error: rateLimitResult.message };
     }
 
     const user = await getUser(parsed.data.email);

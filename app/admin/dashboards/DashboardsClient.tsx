@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
-import { useFormState } from 'react-dom';
+import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
@@ -31,14 +30,137 @@ import {
   btnSecondary,
 } from 'app/ui/design-tokens';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
-import type { bulkCreateDashboards, bulkReassignDashboards, bulkDeleteDashboards } from 'app/db-bulk';
-
+import type {
+  bulkCreateDashboards,
+  bulkReassignDashboards,
+  bulkDeleteDashboards,
+  bulkUpdateDashboardFields,
+} from 'app/db-bulk';
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving'] as const;
+const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving'] as const;
+const PAGE_SIZE = 25;
+
+function parseSheetLink(sheetUrl: string) {
+  const trimmed = sheetUrl.trim();
+  const idMatch = trimmed.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  const gidMatch = trimmed.match(/gid=([0-9]+)/);
+  return {
+    sheetId: idMatch?.[1] ?? null,
+    sheetGid: gidMatch?.[1] ?? '0',
+  };
+}
+
+function AlertTypesAndRemarksSelector({
+  sheetId: sheetIdProp,
+  sheetGid: sheetGidProp,
+  sheetUrl,
+  initialAlertTypes,
+  initialRemarks,
+}: {
+  sheetId?: string | null;
+  sheetGid?: string | null;
+  sheetUrl?: string;
+  initialAlertTypes: string[];
+  initialRemarks: string[];
+}) {
+  const parsed = sheetUrl ? parseSheetLink(sheetUrl) : { sheetId: null, sheetGid: '0' };
+  const sheetId = sheetIdProp ?? parsed.sheetId;
+  const sheetGid = sheetGidProp ?? parsed.sheetGid;
+  const [alertTypes, setAlertTypes] = useState<string[]>([]);
+  const [remarks, setRemarks] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFromSheet = async () => {
+    if (!sheetId || !sheetGid) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/sheets/${encodeURIComponent(sheetId)}/${encodeURIComponent(sheetGid)}/fields`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Failed to load alert types and remarks');
+      }
+      const data = await res.json();
+      setAlertTypes(data.alertTypes ?? []);
+      setRemarks(data.remarks ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showAllAlertTypes = initialAlertTypes.length === 0;
+  const showAllRemarks = initialRemarks.length === 0;
+  const hasLoaded = alertTypes.length > 0 || remarks.length > 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className={`${ADMIN_LABEL} mb-0`}>Alert types & remarks</p>
+        <button
+          type="button"
+          onClick={loadFromSheet}
+          disabled={loading || !sheetId || !sheetGid}
+          className={`${btnSecondary} ${btnSmall}`}
+        >
+          {loading ? 'Loading…' : 'Load from sheet'}
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {!hasLoaded && !loading && (
+        <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>
+          Click &quot;Load from sheet&quot; to fetch alert types and remarks from the Google Sheet. Leave all unchecked to show all.
+        </p>
+      )}
+      {alertTypes.length > 0 && (
+        <div>
+          <p className={`${ADMIN_LABEL} mb-1.5 text-xs`}>Alert types to display</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+            {alertTypes.map((type) => (
+              <label key={type} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="alertTypes"
+                  value={type}
+                  defaultChecked={showAllAlertTypes || initialAlertTypes.includes(type)}
+                  className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                />
+                {type}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      {remarks.length > 0 && (
+        <div>
+          <p className={`${ADMIN_LABEL} mb-1.5 text-xs`}>Remarks to display</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+            {remarks.map((remark) => (
+              <label key={remark} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="remarks"
+                  value={remark}
+                  defaultChecked={showAllRemarks || initialRemarks.includes(remark)}
+                  className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                />
+                {remark}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 type BulkCreateFn = typeof bulkCreateDashboards;
 type BulkReassignFn = typeof bulkReassignDashboards;
 type BulkDeleteFn = typeof bulkDeleteDashboards;
+type BulkUpdateFieldsFn = typeof bulkUpdateDashboardFields;
 
 type DashboardsClientProps = {
   dashboards: Dashboard[];
@@ -49,6 +171,7 @@ type DashboardsClientProps = {
   bulkCreateAction: BulkCreateFn;
   bulkReassignAction: BulkReassignFn;
   bulkDeleteAction: BulkDeleteFn;
+  bulkUpdateFieldsAction: BulkUpdateFieldsFn;
 };
 
 function DashboardRow({
@@ -70,7 +193,7 @@ function DashboardRow({
   checked: boolean;
   onCheck: (id: number, checked: boolean) => void;
 }) {
-  const [state, formAction] = useFormState(action, INITIAL_STATE);
+  const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
   useRefreshOnSuccess(state);
 
@@ -83,7 +206,7 @@ function DashboardRow({
   return (
     <>
       <tr className={tableRow}>
-        <td className="px-4 py-3">
+        <td className="w-0 whitespace-nowrap pl-4 pr-3 py-3">
           <input
             type="checkbox"
             checked={checked}
@@ -91,7 +214,7 @@ function DashboardRow({
             className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
           />
         </td>
-        <td className={tableCell}>
+        <td className={`${tableCell} pl-3`}>
           <div className="font-semibold text-zinc-900 dark:text-white">
             {dashboard.name ?? 'Untitled dashboard'}
           </div>
@@ -215,6 +338,13 @@ function DashboardRow({
               />
             </label>
           </div>
+          <AlertTypesAndRemarksSelector
+            sheetId={dashboard.sheetId ?? undefined}
+            sheetGid={dashboard.sheetGid ?? undefined}
+            sheetUrl={dashboard.sheetUrl ?? undefined}
+            initialAlertTypes={dashboard.alertTypes ?? []}
+            initialRemarks={dashboard.remarks ?? []}
+          />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -244,9 +374,16 @@ export default function DashboardsClient({
   bulkCreateAction,
   bulkReassignAction,
   bulkDeleteAction,
+  bulkUpdateFieldsAction,
 }: DashboardsClientProps) {
   const router = useRouter();
-  const totalDashboards = dashboards.length;
+
+  // Client-side search, filter, pagination
+  const [search, setSearch] = useState('');
+  const [filterCompanyId, setFilterCompanyId] = useState<string>('');
+  const [filterOrganizationId, setFilterOrganizationId] = useState<string>('');
+  const [page, setPage] = useState(1);
+
   const companyMap = useMemo(
     () => new Map(companies.map((company) => [company.id, company.name ?? 'Unassigned'])),
     [companies],
@@ -256,16 +393,49 @@ export default function DashboardsClient({
     [organizations],
   );
 
-  const [dashboardCreateState, dashboardCreateAction] = useFormState(
+  const filteredDashboards = useMemo(() => {
+    let list = dashboards;
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter((d) => {
+        const nameMatch = (d.name ?? '').toLowerCase().includes(q);
+        const companyName = d.companyId ? companyMap.get(d.companyId) ?? '' : '';
+        const orgName = d.organizationId ? organizationMap.get(d.organizationId) ?? '' : '';
+        return nameMatch || companyName.toLowerCase().includes(q) || orgName.toLowerCase().includes(q);
+      });
+    }
+    const cId = filterCompanyId ? parseInt(filterCompanyId, 10) : null;
+    if (cId) list = list.filter((d) => d.companyId === cId);
+    const oId = filterOrganizationId ? parseInt(filterOrganizationId, 10) : null;
+    if (oId) list = list.filter((d) => d.organizationId === oId);
+    return list;
+  }, [dashboards, search, filterCompanyId, filterOrganizationId, companyMap, organizationMap]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDashboards.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedDashboards = useMemo(
+    () => filteredDashboards.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredDashboards, currentPage],
+  );
+
+  const totalDashboards = dashboards.length;
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterCompanyId, filterOrganizationId]);
+
+  const [dashboardCreateState, dashboardCreateAction] = useActionState(
     addDashboardAction,
     INITIAL_STATE,
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createSheetUrl, setCreateSheetUrl] = useState('');
   useRefreshOnSuccess(dashboardCreateState);
 
   useEffect(() => {
     if (dashboardCreateState.status === 'success') {
       setIsCreateOpen(false);
+      setCreateSheetUrl('');
     }
   }, [dashboardCreateState.status]);
 
@@ -277,6 +447,7 @@ export default function DashboardsClient({
   const [isPending, startTransition] = useTransition();
 
   // Bulk create form state
+  const [bulkCreateCompleteSet, setBulkCreateCompleteSet] = useState(true);
   const [bulkTemplate, setBulkTemplate] = useState<string>(DASHBOARD_TEMPLATES[0]);
   const [bulkSheetUrl, setBulkSheetUrl] = useState('');
   const [bulkCompanyId, setBulkCompanyId] = useState('');
@@ -286,6 +457,17 @@ export default function DashboardsClient({
 
   // Reassign state
   const [reassignOrgId, setReassignOrgId] = useState('');
+
+  // Bulk update fields state
+  const [isBulkFieldsOpen, setIsBulkFieldsOpen] = useState(false);
+  const [bulkFieldsSheetUrl, setBulkFieldsSheetUrl] = useState('');
+  const [bulkFieldsAlertTypes, setBulkFieldsAlertTypes] = useState<string[]>([]);
+  const [bulkFieldsRemarks, setBulkFieldsRemarks] = useState<string[]>([]);
+  const [bulkFieldsLoaded, setBulkFieldsLoaded] = useState(false);
+  const [bulkFieldsLoading, setBulkFieldsLoading] = useState(false);
+  const [bulkFieldsError, setBulkFieldsError] = useState<string | null>(null);
+  const [bulkFieldsSelectedAlertTypes, setBulkFieldsSelectedAlertTypes] = useState<Set<string>>(new Set());
+  const [bulkFieldsSelectedRemarks, setBulkFieldsSelectedRemarks] = useState<Set<string>>(new Set());
 
   function handleCheck(id: number, checked: boolean) {
     setSelectedIds((prev) => {
@@ -298,7 +480,7 @@ export default function DashboardsClient({
 
   function handleSelectAll(checked: boolean) {
     if (checked) {
-      setSelectedIds(new Set(dashboards.map((d) => d.id)));
+      setSelectedIds(new Set(paginatedDashboards.map((d) => d.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -317,31 +499,50 @@ export default function DashboardsClient({
     const compId = parseInt(bulkCompanyId, 10);
     if (!bulkDashboardName.trim() || !bulkSheetUrl.trim() || !compId) return;
 
+    const { sheetId, sheetGid } = parseSheetLink(bulkSheetUrl);
+    if (!sheetId) {
+      setBulkStatus('Enter a valid Google Sheet link.');
+      return;
+    }
+
+    const baseName = bulkDashboardName.trim();
+    const sheetUrl = bulkSheetUrl.trim();
+    const notes = bulkNotes.trim() || undefined;
+
+    const templates = bulkCreateCompleteSet
+      ? COMPLETE_SET_TEMPLATES
+      : [bulkTemplate];
+
     const orgIds = Array.from(bulkOrgIds);
-    const items =
-      orgIds.length > 0
-        ? orgIds.map((orgId) => ({
-            name: bulkDashboardName.trim(),
-            template: bulkTemplate,
-            sheetId: '',
-            sheetGid: '',
-            sheetUrl: bulkSheetUrl.trim(),
-            companyId: compId,
-            organizationId: orgId,
-            notes: bulkNotes.trim() || undefined,
-          }))
-        : [
-            {
-              name: bulkDashboardName.trim(),
-              template: bulkTemplate,
-              sheetId: '',
-              sheetGid: '',
-              sheetUrl: bulkSheetUrl.trim(),
-              companyId: compId,
-              organizationId: undefined,
-              notes: bulkNotes.trim() || undefined,
-            },
-          ];
+    const scopes = orgIds.length > 0
+      ? orgIds.map((orgId) => ({ companyId: compId, organizationId: orgId }))
+      : [{ companyId: compId, organizationId: undefined as number | undefined }];
+
+    const items: {
+      name: string;
+      template: string;
+      sheetId: string;
+      sheetGid: string;
+      sheetUrl: string;
+      companyId: number;
+      organizationId?: number;
+      notes?: string;
+    }[] = [];
+
+    for (const scope of scopes) {
+      for (const template of templates) {
+        items.push({
+          name: baseName,
+          template,
+          sheetId,
+          sheetGid: sheetGid ?? '0',
+          sheetUrl,
+          companyId: compId,
+          organizationId: scope.organizationId,
+          notes,
+        });
+      }
+    }
 
     startTransition(async () => {
       const result = await bulkCreateAction(items);
@@ -376,6 +577,83 @@ export default function DashboardsClient({
     });
   }
 
+  function loadBulkFieldsFromSheet() {
+    const { sheetId, sheetGid } = parseSheetLink(bulkFieldsSheetUrl);
+    if (!sheetId || !sheetGid) {
+      setBulkFieldsError('Enter a valid Google Sheet link.');
+      return;
+    }
+    setBulkFieldsLoading(true);
+    setBulkFieldsError(null);
+    fetch(`/api/sheets/${encodeURIComponent(sheetId)}/${encodeURIComponent(sheetGid)}/fields`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load');
+        return res.json();
+      })
+      .then((data) => {
+        const at = data.alertTypes ?? [];
+        const rm = data.remarks ?? [];
+        setBulkFieldsAlertTypes(at);
+        setBulkFieldsRemarks(rm);
+        setBulkFieldsSelectedAlertTypes(new Set(at));
+        setBulkFieldsSelectedRemarks(new Set(rm));
+        setBulkFieldsLoaded(true);
+      })
+      .catch(() => setBulkFieldsError('Failed to load alert types and remarks.'))
+      .finally(() => setBulkFieldsLoading(false));
+  }
+
+  function toggleBulkFieldsAlertType(type: string) {
+    setBulkFieldsSelectedAlertTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  }
+
+  function toggleBulkFieldsRemark(remark: string) {
+    setBulkFieldsSelectedRemarks((prev) => {
+      const next = new Set(prev);
+      if (next.has(remark)) next.delete(remark);
+      else next.add(remark);
+      return next;
+    });
+  }
+
+  function handleBulkFieldsApply() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const alertTypes = bulkFieldsSelectedAlertTypes.size > 0 ? Array.from(bulkFieldsSelectedAlertTypes) : null;
+    const remarks = bulkFieldsSelectedRemarks.size > 0 ? Array.from(bulkFieldsSelectedRemarks) : null;
+    startTransition(async () => {
+      await bulkUpdateFieldsAction(ids, { alertTypes, remarks });
+      setSelectedIds(new Set());
+      setIsBulkFieldsOpen(false);
+      setBulkFieldsLoaded(false);
+      setBulkFieldsAlertTypes([]);
+      setBulkFieldsRemarks([]);
+      setBulkFieldsSelectedAlertTypes(new Set());
+      setBulkFieldsSelectedRemarks(new Set());
+      setBulkFieldsSheetUrl('');
+      setBulkStatus(`Updated alert types & remarks for ${ids.length} dashboard(s).`);
+      router.refresh();
+    });
+  }
+
+  function openBulkFieldsModal() {
+    const selected = dashboards.filter((d) => selectedIds.has(d.id));
+    const firstSheetUrl = selected[0]?.sheetUrl ?? '';
+    setBulkFieldsSheetUrl(firstSheetUrl);
+    setBulkFieldsLoaded(false);
+    setBulkFieldsAlertTypes([]);
+    setBulkFieldsRemarks([]);
+    setBulkFieldsSelectedAlertTypes(new Set());
+    setBulkFieldsSelectedRemarks(new Set());
+    setBulkFieldsError(null);
+    setIsBulkFieldsOpen(true);
+  }
+
   // Filter orgs for the selected bulk company
   const filteredOrgs = useMemo(() => {
     const cId = parseInt(bulkCompanyId, 10);
@@ -383,7 +661,7 @@ export default function DashboardsClient({
     return organizations.filter((o) => o.companyId === cId || o.companyId === null);
   }, [organizations, bulkCompanyId]);
 
-  const allChecked = dashboards.length > 0 && selectedIds.size === dashboards.length;
+  const allChecked = paginatedDashboards.length > 0 && selectedIds.size === paginatedDashboards.length;
 
   return (
     <AdminSection>
@@ -449,14 +727,264 @@ export default function DashboardsClient({
         </div>
       </AdminModal>
 
+      {/* Bulk Set Alert Types & Remarks Modal */}
+      <AdminModal
+        isOpen={isBulkFieldsOpen}
+        onClose={() => setIsBulkFieldsOpen(false)}
+        title="Set alert types & remarks"
+        description={`Apply alert types and remarks to ${selectedIds.size} selected dashboard(s).`}
+      >
+        <div className="grid gap-4">
+          <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Sheet link (to load options)
+            <input
+              value={bulkFieldsSheetUrl}
+              onChange={(e) => setBulkFieldsSheetUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              className={ADMIN_INPUT}
+            />
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={loadBulkFieldsFromSheet}
+              disabled={bulkFieldsLoading || !bulkFieldsSheetUrl.trim()}
+              className={`${btnSecondary} ${btnSmall}`}
+            >
+              {bulkFieldsLoading ? 'Loading…' : 'Load from sheet'}
+            </button>
+          </div>
+          {bulkFieldsError && <p className="text-xs text-red-600 dark:text-red-400">{bulkFieldsError}</p>}
+          {bulkFieldsLoaded && (
+            <>
+              {bulkFieldsAlertTypes.length > 0 && (
+                <div>
+                  <p className={`${ADMIN_LABEL} mb-1.5 text-xs`}>Alert types</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                    {bulkFieldsAlertTypes.map((type) => (
+                      <label key={type} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={bulkFieldsSelectedAlertTypes.has(type)}
+                          onChange={() => toggleBulkFieldsAlertType(type)}
+                          className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                        />
+                        {type}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {bulkFieldsRemarks.length > 0 && (
+                <div>
+                  <p className={`${ADMIN_LABEL} mb-1.5 text-xs`}>Remarks</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                    {bulkFieldsRemarks.map((remark) => (
+                      <label key={remark} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={bulkFieldsSelectedRemarks.has(remark)}
+                          onChange={() => toggleBulkFieldsRemark(remark)}
+                          className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                        />
+                        {remark}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>
+                Leave all unchecked to clear and show all. Checked items will be applied to all selected dashboards.
+              </p>
+            </>
+          )}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setIsBulkFieldsOpen(false)} className={ADMIN_SAVE_BUTTON}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkFieldsApply}
+              disabled={isPending}
+              className={ADMIN_PRIMARY_BUTTON}
+            >
+              {isPending ? 'Applying…' : `Apply to ${selectedIds.size} dashboard(s)`}
+            </button>
+          </div>
+        </div>
+      </AdminModal>
+
       <div className="grid gap-6">
+        {/* Manage Panel — table and bulk actions first */}
+        <AdminPanel>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className={heading3}>Manage dashboards</h3>
+              <p className={`mt-1 ${textSecondary}`}>
+                Select dashboards below to use bulk actions (reassign, set alert types &amp; remarks, delete).
+              </p>
+              {bulkStatus && (
+                <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">{bulkStatus}</p>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name…"
+                className={`min-w-[12rem] ${ADMIN_INPUT}`}
+                aria-label="Search dashboards"
+              />
+              <label className="flex items-center gap-2">
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">Company</span>
+                <select
+                  value={filterCompanyId}
+                  onChange={(e) => setFilterCompanyId(e.target.value)}
+                  className={ADMIN_SELECT}
+                  aria-label="Filter by company"
+                >
+                  <option value="">All</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">Fleet</span>
+                <select
+                  value={filterOrganizationId}
+                  onChange={(e) => setFilterOrganizationId(e.target.value)}
+                  className={ADMIN_SELECT}
+                  aria-label="Filter by fleet"
+                >
+                  <option value="">All</option>
+                  {organizations.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsReassignOpen(true)}
+                disabled={isPending || selectedIds.size === 0}
+                className={`${btnSecondary} ${btnSmall}`}
+                title={selectedIds.size === 0 ? 'Select dashboards below first' : undefined}
+              >
+                Reassign to fleet{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+              </button>
+              <button
+                type="button"
+                onClick={openBulkFieldsModal}
+                disabled={isPending || selectedIds.size === 0}
+                className={`${btnSecondary} ${btnSmall}`}
+                title={selectedIds.size === 0 ? 'Select dashboards below first' : undefined}
+              >
+                Set alert types & remarks{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={isPending || selectedIds.size === 0}
+                className={`${btnDanger} ${btnSmall}`}
+                title={selectedIds.size === 0 ? 'Select dashboards below first' : undefined}
+              >
+                {isPending ? 'Deleting…' : `Delete selected${selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}`}
+              </button>
+              <button type="button" onClick={() => setIsCreateOpen(true)} className={ADMIN_PRIMARY_BUTTON}>
+                Create dashboard
+              </button>
+            </div>
+          </div>
+          {totalPages > 1 && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Showing {paginatedDashboards.length} of {filteredDashboards.length} dashboard{filteredDashboards.length !== 1 ? 's' : ''}
+              </p>
+              <nav aria-label="Pagination" className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                >
+                  ← Prev
+                </button>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                >
+                  Next →
+                </button>
+              </nav>
+            </div>
+          )}
+          <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+            <div className="max-h-[32rem] overflow-auto">
+              <table className="min-w-full border-collapse text-left">
+                <thead className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}>
+                  <tr>
+                    <th className="w-0 whitespace-nowrap pl-4 pr-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                      />
+                    </th>
+                    <th className={`${tableHeadCell} pl-3`}>Dashboard</th>
+                    <th className={tableHeadCell}>Company</th>
+                    <th className={tableHeadCell}>Fleet</th>
+                    <th className={tableHeadCell}>Template</th>
+                    <th className={tableHeadCell}>Sheet link</th>
+                    <th className={tableHeadCell}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedDashboards.map((dashboard) => (
+                    <DashboardRow
+                      key={dashboard.id}
+                      dashboard={dashboard}
+                      companies={companies}
+                      organizations={organizations}
+                      action={manageDashboardAction}
+                      companyName={
+                        dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'
+                      }
+                      organizationName={
+                        dashboard.organizationId
+                          ? organizationMap.get(dashboard.organizationId) ?? 'No fleet'
+                          : 'No fleet'
+                      }
+                      checked={selectedIds.has(dashboard.id)}
+                      onCheck={handleCheck}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {paginatedDashboards.length === 0 ? (
+              <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                {dashboards.length === 0
+                  ? 'No dashboards yet. Create one to make it available to users.'
+                  : 'No dashboards match your search or filters.'}
+              </p>
+            ) : null}
+          </div>
+        </AdminPanel>
+
         {/* Bulk Create Panel */}
         <AdminPanel>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className={heading3}>Bulk create from template</h3>
               <p className={`mt-1 ${textSecondary}`}>
-                Create one dashboard per selected fleet, all sharing the same template and sheet.
+                Create dashboards in one go. Use &quot;Create complete set&quot; to add all four templates (Summary, Simple, Detail, Driving) per scope.
               </p>
             </div>
             <button
@@ -469,6 +997,15 @@ export default function DashboardsClient({
           </div>
           {isBulkCreateOpen && (
             <div className="mt-4 grid gap-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={bulkCreateCompleteSet}
+                  onChange={(e) => setBulkCreateCompleteSet(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
+                />
+                Create complete set (Summary, Simple, Detail, Driving)
+              </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                   Dashboard name *
@@ -488,18 +1025,20 @@ export default function DashboardsClient({
                     className={ADMIN_INPUT}
                   />
                 </label>
-                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-                  Template *
-                  <select
-                    value={bulkTemplate}
-                    onChange={(e) => setBulkTemplate(e.target.value)}
-                    className={ADMIN_SELECT}
-                  >
-                    {DASHBOARD_TEMPLATES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </label>
+                {!bulkCreateCompleteSet && (
+                  <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                    Template *
+                    <select
+                      value={bulkTemplate}
+                      onChange={(e) => setBulkTemplate(e.target.value)}
+                      className={ADMIN_SELECT}
+                    >
+                      {DASHBOARD_TEMPLATES.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                   Company *
                   <select
@@ -562,93 +1101,6 @@ export default function DashboardsClient({
             </div>
           )}
         </AdminPanel>
-
-        {/* Manage Panel */}
-        <AdminPanel>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className={heading3}>Manage dashboards</h3>
-              <p className={`mt-1 ${textSecondary}`}>
-                Scan and edit large dashboard lists quickly.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {selectedIds.size > 0 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setIsReassignOpen(true)}
-                    disabled={isPending}
-                    className={`${btnSecondary} ${btnSmall}`}
-                  >
-                    Reassign to fleet ({selectedIds.size})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleBulkDelete}
-                    disabled={isPending}
-                    className={`${btnDanger} ${btnSmall}`}
-                  >
-                    {isPending ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
-                  </button>
-                </>
-              )}
-              <button type="button" onClick={() => setIsCreateOpen(true)} className={ADMIN_PRIMARY_BUTTON}>
-                Create dashboard
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <div className="max-h-[32rem] overflow-auto">
-              <table className="min-w-full border-collapse text-left">
-                <thead className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}>
-                  <tr>
-                    <th className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={allChecked}
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                        className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
-                      />
-                    </th>
-                    <th className={tableHeadCell}>Dashboard</th>
-                    <th className={tableHeadCell}>Company</th>
-                    <th className={tableHeadCell}>Fleet</th>
-                    <th className={tableHeadCell}>Template</th>
-                    <th className={tableHeadCell}>Sheet link</th>
-                    <th className={tableHeadCell}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboards.map((dashboard) => (
-                    <DashboardRow
-                      key={dashboard.id}
-                      dashboard={dashboard}
-                      companies={companies}
-                      organizations={organizations}
-                      action={manageDashboardAction}
-                      companyName={
-                        dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'
-                      }
-                      organizationName={
-                        dashboard.organizationId
-                          ? organizationMap.get(dashboard.organizationId) ?? 'No fleet'
-                          : 'No fleet'
-                      }
-                      checked={selectedIds.has(dashboard.id)}
-                      onCheck={handleCheck}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {dashboards.length === 0 ? (
-              <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                No dashboards yet. Create one to make it available to users.
-              </p>
-            ) : null}
-          </div>
-        </AdminPanel>
       </div>
 
       <AdminModal
@@ -674,6 +1126,8 @@ export default function DashboardsClient({
               <label className={ADMIN_LABEL}>Google Sheet link *</label>
               <input
                 name="sheetUrl"
+                value={createSheetUrl}
+                onChange={(e) => setCreateSheetUrl(e.target.value)}
                 placeholder="https://docs.google.com/spreadsheets/d/..."
                 className={ADMIN_INPUT}
               />
@@ -726,6 +1180,13 @@ export default function DashboardsClient({
                 rows={3}
                 placeholder="Add any notes that should appear on the dashboard."
                 className={`${ADMIN_TEXTAREA} resize-none`}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <AlertTypesAndRemarksSelector
+                sheetUrl={createSheetUrl}
+                initialAlertTypes={[]}
+                initialRemarks={[]}
               />
             </div>
           </div>

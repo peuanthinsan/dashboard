@@ -79,6 +79,7 @@ export default async function AdminCompaniesPage() {
       eyebrow={copy.administration}
       title={copy.companies}
       description={copy.createAndManageCompanyRecords}
+      workflowHint={copy.workflowCompanies}
       lang={lang}
     >
       <CompaniesClient

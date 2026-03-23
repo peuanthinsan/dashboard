@@ -5,6 +5,7 @@ import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { saveDashboardScore } from './scoreCache';
 import InlineMonthPicker from 'app/ui/InlineMonthPicker';
+import InlineDayPicker from 'app/ui/InlineDayPicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
@@ -18,6 +19,7 @@ import {
   isExcludedAlertRemark,
   normalizeLabel,
   parseDate,
+  toDayKey,
   toDisplayString,
   toMonthKey,
   toMonthLabel,
@@ -43,6 +45,8 @@ type DashboardProps = {
   dashboardNotes?: string | null;
   organizationName?: string | null;
   lang?: DashboardLang;
+  allowedAlertTypes?: string[] | null;
+  allowedRemarks?: string[] | null;
 };
 
 const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
@@ -65,6 +69,8 @@ export default function SummaryDashboard({
   dashboardNotes,
   organizationName,
   lang = 'en',
+  allowedAlertTypes: allowedAlertTypesProp,
+  allowedRemarks: allowedRemarksProp,
 }: DashboardProps) {
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
   const normalizedOrganizationName = useMemo(
@@ -74,6 +80,7 @@ export default function SummaryDashboard({
 
   const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
+  const [dayFilters, setDayFilters] = useState<string[]>([]);
   const [fleetFilters, setFleetFilters] = useState<string[]>([]);
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
@@ -81,25 +88,34 @@ export default function SummaryDashboard({
   useEffect(() => {
     const stored = loadStoredFilters<{
       monthFilters: string[];
+      dayFilters?: string[];
       fleetFilters: string[];
     }>(storageKey);
     if (!stored) return;
     didSetDefaultMonth.current = true;
     if (Array.isArray(stored.monthFilters)) setMonthFilters(stored.monthFilters.filter((v) => typeof v === 'string'));
+    if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
     if (Array.isArray(stored.fleetFilters)) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
   }, [storageKey]);
 
   useEffect(() => {
-    saveStoredFilters(storageKey, { monthFilters, fleetFilters });
-  }, [fleetFilters, monthFilters, storageKey]);
+    saveStoredFilters(storageKey, { monthFilters, dayFilters, fleetFilters });
+  }, [dayFilters, fleetFilters, monthFilters, storageKey]);
 
   const resetFilters = () => {
     setMonthFilters([]);
+    setDayFilters([]);
     setFleetFilters([]);
   };
 
-  const allowedAlertTypes = useMemo(() => ALLOWED_ALERT_TYPES, []);
-  const allowedRemarkTargets = useMemo(() => ALLOWED_REMARK_TARGETS, []);
+  const allowedAlertTypes = useMemo(
+    () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : ALLOWED_ALERT_TYPES),
+    [allowedAlertTypesProp],
+  );
+  const allowedRemarkTargets = useMemo(
+    () => (allowedRemarksProp && allowedRemarksProp.length > 0 ? allowedRemarksProp : ALLOWED_REMARK_TARGETS),
+    [allowedRemarksProp],
+  );
 
   const alertRows = useMemo(() => {
     const mappedRows = rows.map((row) => {
@@ -138,17 +154,23 @@ export default function SummaryDashboard({
     if (monthOptions.some((o) => o.key === currentMonthKey)) setMonthFilters([currentMonthKey]);
   }, [currentMonthKey, monthFilters, monthOptions]);
 
-  // Filtered data — only filter by allowed alert types + fleet
+  // Filtered data — filter by allowed alert types, remarks, and fleet
   const baseFilteredRows = useMemo(() => {
     const nAllowed = allowedAlertTypes.map((a) => normalizeLabel(a));
+    const nAllowedRemarks = allowedRemarkTargets.map((r) => normalizeLabel(r));
     const nFleet = fleetFilters.map((f) => normalizeLabel(f));
     return alertRows.filter((row) => {
       if (!row.alertType || row.alertType === '—') return false;
       if (!nAllowed.includes(normalizeLabel(row.alertType))) return false;
+      if (nAllowedRemarks.length > 0) {
+        const nRemark = normalizeLabel(row.remarks);
+        const matchesRemark = nAllowedRemarks.some((r) => nRemark.includes(r) || r.includes(nRemark));
+        if (!matchesRemark) return false;
+      }
       if (nFleet.length > 0 && !nFleet.includes(normalizeLabel(row.fleet))) return false;
       return true;
     });
-  }, [alertRows, allowedAlertTypes, fleetFilters]);
+  }, [alertRows, allowedAlertTypes, allowedRemarkTargets, fleetFilters]);
 
   const activeMonthKey = monthFilters.length === 1 ? monthFilters[0] : null;
   const activeMonthLabel = activeMonthKey
@@ -156,9 +178,15 @@ export default function SummaryDashboard({
     : monthFilters.length > 1 ? 'Selected months' : 'All months';
 
   const currentRows = useMemo(() => {
-    if (monthFilters.length === 0) return baseFilteredRows;
-    return baseFilteredRows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
-  }, [baseFilteredRows, monthFilters]);
+    let rows = baseFilteredRows;
+    if (monthFilters.length > 0) {
+      rows = rows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
+    }
+    if (dayFilters.length > 0) {
+      rows = rows.filter((row) => row.parsedDate && dayFilters.includes(toDayKey(row.parsedDate)));
+    }
+    return rows;
+  }, [baseFilteredRows, dayFilters, monthFilters]);
 
   const previousMonthKey = useMemo(() => {
     if (!activeMonthKey) return null;
@@ -326,7 +354,7 @@ export default function SummaryDashboard({
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
       isStale={lastUpdated ? (Date.now() - lastUpdated.getTime()) > 5 * 60 * 1000 : false}
-      activeFilterCount={monthFilters.length + fleetFilters.length}
+      activeFilterCount={monthFilters.length + dayFilters.length + fleetFilters.length}
       actions={<ExportButton data={exportData} dashboardName={`${dashboardName}-summary`} dateRange={activeMonthKey ?? undefined} label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'} />}
     >
       {(loading || error) ? (
@@ -344,10 +372,22 @@ export default function SummaryDashboard({
           <FilterBar>
             <InlineMonthPicker
               value={monthFilters}
-              onChange={(v) => setMonthFilters(v as string[])}
+              onChange={(v) => {
+                setMonthFilters(v as string[]);
+                if (Array.isArray(v) && v.length !== 1) setDayFilters([]);
+              }}
               multi
               lang={lang}
             />
+            {monthFilters.length === 1 && (
+              <InlineDayPicker
+                monthKey={monthFilters[0]}
+                value={dayFilters}
+                onChange={(v) => setDayFilters(v as string[])}
+                multi
+                lang={lang}
+              />
+            )}
             {!organizationName && (
               <MultiSelect
                 label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
@@ -357,7 +397,7 @@ export default function SummaryDashboard({
                 lang={lang}
               />
             )}
-            {(monthFilters.length + fleetFilters.length) > 0 && (
+            {(monthFilters.length + dayFilters.length + fleetFilters.length) > 0 && (
               <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
                 {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
               </button>

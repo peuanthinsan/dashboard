@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
-import { computeComplianceScore, findValue, normalizeLabel, parseDate, toDisplayString } from './dashboardDataUtils';
+import { computeComplianceScore, findValue, normalizeLabel, parseDate, toDayKey, toDisplayString } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import KpiCard from 'app/ui/KpiCard';
@@ -17,6 +17,7 @@ import { DataTable, type Column } from 'app/ui/DataTable';
 import Sparkline from 'app/ui/Sparkline';
 import TrendIndicator from 'app/ui/TrendIndicator';
 import InlineMonthPicker from 'app/ui/InlineMonthPicker';
+import InlineDayPicker from 'app/ui/InlineDayPicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import FilterBar from 'app/ui/FilterBar';
 import DonutChart from 'app/ui/DonutChart';
@@ -33,6 +34,8 @@ type DashboardProps = {
   dashboardNotes?: string | null;
   organizationName?: string | null;
   lang?: DashboardLang;
+  allowedAlertTypes?: string[] | null;
+  allowedRemarks?: string[] | null;
 };
 
 type DrivingRow = { driver: string; vehicle: string; date: Date | null; distanceKm: number; cntDrvDurationHours: number; restHours: number; fleet?: string };
@@ -89,6 +92,7 @@ export default function DrivingDashboard({
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [dayFilters, setDayFilters] = useState<string[]>([]);
 
   const normalizedOrganizationName = useMemo(() => (organizationName ? normalizeLabel(organizationName) : null), [organizationName]);
 
@@ -117,12 +121,18 @@ export default function DrivingDashboard({
         const rowMonth = getMonthKey(row.date);
         if (rowMonth !== selectedMonth) return false;
       }
+      if (dayFilters.length > 0 && row.date) {
+        if (!dayFilters.includes(toDayKey(row.date))) return false;
+      }
       return true;
     });
-  }, [drivingRows, driverFilters, vehicleFilters, selectedMonth]);
+  }, [drivingRows, driverFilters, vehicleFilters, selectedMonth, dayFilters]);
 
   // Active filter count for DashboardShell badge
-  const activeFilterCount = useMemo(() => [driverFilters.length > 0, vehicleFilters.length > 0, selectedMonth].filter(Boolean).length, [driverFilters, vehicleFilters, selectedMonth]);
+  const activeFilterCount = useMemo(
+    () => [driverFilters.length > 0, vehicleFilters.length > 0, selectedMonth, dayFilters.length > 0].filter(Boolean).length,
+    [driverFilters, vehicleFilters, selectedMonth, dayFilters],
+  );
 
   // Date range string for ExportButton
   const dateRange = useMemo(() => selectedMonth || undefined, [selectedMonth]);
@@ -448,9 +458,21 @@ export default function DrivingDashboard({
       <FilterBar>
         <InlineMonthPicker
           value={selectedMonth}
-          onChange={(v) => setSelectedMonth(v as string)}
+          onChange={(v) => {
+            setSelectedMonth(v as string);
+            setDayFilters([]);
+          }}
           lang={lang}
         />
+        {selectedMonth && (
+          <InlineDayPicker
+            monthKey={selectedMonth}
+            value={dayFilters}
+            onChange={(v) => setDayFilters(v as string[])}
+            multi
+            lang={lang}
+          />
+        )}
         <MultiSelect
           label={lang === 'th' ? 'คนขับ' : 'drivers'}
           options={driverOptions}
@@ -465,10 +487,10 @@ export default function DrivingDashboard({
           onChange={setVehicleFilters}
           lang={lang}
         />
-        {(selectedMonth || driverFilters.length > 0 || vehicleFilters.length > 0) && (
+        {(selectedMonth || dayFilters.length > 0 || driverFilters.length > 0 || vehicleFilters.length > 0) && (
           <button
             type="button"
-            onClick={() => { setSelectedMonth(''); setDriverFilters([]); setVehicleFilters([]); }}
+            onClick={() => { setSelectedMonth(''); setDayFilters([]); setDriverFilters([]); setVehicleFilters([]); }}
             className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           >
             {lang === 'th' ? 'รีเซ็ต' : 'Reset'}

@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
-import { useFormState } from 'react-dom';
+import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
@@ -53,7 +52,7 @@ function CompanyRow({
   checked: boolean;
   onCheck: (id: number, checked: boolean) => void;
 }) {
-  const [state, formAction] = useFormState(action, INITIAL_STATE);
+  const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
   useRefreshOnSuccess(state);
 
@@ -66,7 +65,7 @@ function CompanyRow({
   return (
     <>
       <tr className={tableRow}>
-        <td className="px-4 py-3">
+        <td className="w-0 whitespace-nowrap pl-4 pr-3 py-3">
           <input
             type="checkbox"
             checked={checked}
@@ -74,7 +73,7 @@ function CompanyRow({
             className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
           />
         </td>
-        <td className={tableCell}>
+        <td className={`${tableCell} pl-3`}>
           <div className="font-semibold text-zinc-900 dark:text-white">
             {company.name ?? 'Unnamed company'}
           </div>
@@ -127,9 +126,17 @@ export default function CompaniesClient({
   bulkDeleteAction,
 }: CompaniesClientProps) {
   const router = useRouter();
+  const [search, setSearch] = useState('');
+  const filteredCompanies = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return companies;
+    return companies.filter(
+      (c) => (c.name ?? '').toLowerCase().includes(q)
+    );
+  }, [companies, search]);
   const totalCompanies = companies.length;
 
-  const [companyCreateState, companyCreateAction] = useFormState(addCompanyAction, INITIAL_STATE);
+  const [companyCreateState, companyCreateAction] = useActionState(addCompanyAction, INITIAL_STATE);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(companyCreateState);
 
@@ -157,7 +164,7 @@ export default function CompaniesClient({
 
   function handleSelectAll(checked: boolean) {
     if (checked) {
-      setSelectedIds(new Set(companies.map((c) => c.id)));
+      setSelectedIds(new Set(filteredCompanies.map((c) => c.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -184,7 +191,7 @@ export default function CompaniesClient({
     });
   }
 
-  const allChecked = companies.length > 0 && selectedIds.size === companies.length;
+  const allChecked = filteredCompanies.length > 0 && selectedIds.size === filteredCompanies.length;
 
   return (
     <AdminSection>
@@ -270,7 +277,15 @@ export default function CompaniesClient({
                 Update names and remove unused companies.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name…"
+                className={`min-w-[12rem] ${ADMIN_INPUT}`}
+                aria-label="Search companies"
+              />
               {selectedIds.size > 0 && (
                 <button
                   type="button"
@@ -297,7 +312,7 @@ export default function CompaniesClient({
                   className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}
                 >
                   <tr>
-                    <th className="px-4 py-3">
+                    <th className="w-0 whitespace-nowrap pl-4 pr-3 py-3">
                       <input
                         type="checkbox"
                         checked={allChecked}
@@ -305,12 +320,12 @@ export default function CompaniesClient({
                         className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
                       />
                     </th>
-                    <th className={tableHeadCell}>Company</th>
+                    <th className={`${tableHeadCell} pl-3`}>Company</th>
                     <th className={`${tableHeadCell} text-right`}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {companies.map((company) => (
+                  {filteredCompanies.map((company) => (
                     <CompanyRow
                       key={company.id}
                       company={company}
@@ -322,9 +337,11 @@ export default function CompaniesClient({
                 </tbody>
               </table>
             </div>
-            {companies.length === 0 ? (
+            {filteredCompanies.length === 0 ? (
               <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                No companies yet. Create one to begin assigning dashboards.
+                {companies.length === 0
+                  ? 'No companies yet. Create one to begin assigning dashboards.'
+                  : 'No companies match your search.'}
               </p>
             ) : null}
           </div>

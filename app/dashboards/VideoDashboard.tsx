@@ -26,6 +26,8 @@ type DashboardProps = {
   dashboardNotes?: string | null;
   organizationName?: string | null;
   lang?: DashboardLang;
+  allowedAlertTypes?: string[] | null;
+  allowedRemarks?: string[] | null;
 };
 
 type VideoSample = {

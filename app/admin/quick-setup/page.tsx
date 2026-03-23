@@ -8,8 +8,11 @@ import {
   createDashboard,
   getCompanies,
   getOrganizations,
+  getOrganizationById,
   getUser,
+  updateUserAssignments,
 } from 'app/db';
+import { bulkCreateDashboards } from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { parseSheetLink, requireAdmin } from '../admin-utils';
 import { getDashboardLang } from 'app/dashboard/i18n';
@@ -17,11 +20,14 @@ import { getAdminCopy } from '../i18n-copy';
 import QuickSetupClient from './QuickSetupClient';
 import type { ActionState } from '../types';
 
+const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving'] as const;
+
 type QuickSetupState = ActionState & {
   createdCompanyId?: number;
   createdOrganizationId?: number;
   createdUserId?: number;
   createdDashboardId?: number;
+  createdDashboardCount?: number;
 };
 
 export default async function QuickSetupPage() {
@@ -44,6 +50,7 @@ export default async function QuickSetupPage() {
     const dashboardName = (formData.get('dashboardName') as string)?.trim();
     const template = (formData.get('template') as string)?.trim() || 'Summary';
     const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
+    const createCompleteSet = formData.get('createCompleteSet') === 'on';
 
     const useExistingCompany = formData.get('useExistingCompany') === 'on';
     const existingCompanyId = Number(formData.get('existingCompanyId'));
@@ -75,6 +82,11 @@ export default async function QuickSetupPage() {
       // Step 2: Fleet (optional)
       let organizationId: number | null = null;
       if (useExistingFleet && existingFleetId) {
+        const fleetRows = await getOrganizationById(existingFleetId);
+        const fleet = fleetRows[0];
+        if (fleet?.companyId != null && fleet.companyId !== companyId) {
+          return { status: 'error', message: 'Selected fleet does not belong to the selected company.' };
+        }
         organizationId = existingFleetId;
       } else if (fleetName) {
         const result = await createOrganization(fleetName, companyId);
@@ -90,19 +102,45 @@ export default async function QuickSetupPage() {
         }
         const result = await createUserWithRole({ email: userEmail, password: userPassword, isAdmin: false });
         userId = result.id;
+        await updateUserAssignments(userId, {
+          companyIds: [companyId],
+          organizationIds: organizationId ? [organizationId] : [],
+          isAdmin: false,
+        });
       }
 
-      // Step 4: Dashboard
-      const dashboard = await createDashboard({
-        name: dashboardName,
-        template,
-        sheetUrl,
-        sheetId,
-        sheetGid,
-        companyId,
-        organizationId,
-        notes: null,
-      });
+      // Step 4: Dashboard(s)
+      let createdDashboardId: number | undefined;
+      let createdDashboardCount: number;
+
+      if (createCompleteSet) {
+        const items = COMPLETE_SET_TEMPLATES.map((t) => ({
+          name: dashboardName,
+          template: t,
+          sheetId,
+          sheetGid,
+          sheetUrl,
+          companyId,
+          organizationId: organizationId ?? undefined,
+          notes: undefined as string | undefined,
+        }));
+        const result = await bulkCreateDashboards(items);
+        createdDashboardCount = result.created;
+        createdDashboardId = undefined;
+      } else {
+        const dashboard = await createDashboard({
+          name: dashboardName,
+          template,
+          sheetUrl,
+          sheetId,
+          sheetGid,
+          companyId,
+          organizationId,
+          notes: null,
+        });
+        createdDashboardId = dashboard.id;
+        createdDashboardCount = 1;
+      }
 
       revalidatePath('/admin');
       revalidatePath('/admin/companies');
@@ -111,13 +149,19 @@ export default async function QuickSetupPage() {
       revalidatePath('/admin/dashboards');
       revalidatePath('/dashboard');
 
+      const dashboardMsg =
+        createCompleteSet
+          ? `${createdDashboardCount} dashboards (complete set)`
+          : 'dashboard';
+
       return {
         status: 'success',
-        message: 'Customer setup complete! Company, dashboard, and all resources have been created.',
+        message: `Customer setup complete! Company, ${dashboardMsg}, and all resources have been created.`,
         createdCompanyId: companyId,
         createdOrganizationId: organizationId ?? undefined,
         createdUserId: userId,
-        createdDashboardId: dashboard.id,
+        createdDashboardId,
+        createdDashboardCount,
       };
     } catch (error) {
       console.error('Quick setup failed', error);

@@ -14,7 +14,7 @@ export const metadata = {
     title,
     description,
   },
-  metadataBase: new URL('https://songdeegps-dashboard.vercel.app'),
+  metadataBase: new URL('https://dashboard.songdeegps.com'),
 };
 
 export default function RootLayout({

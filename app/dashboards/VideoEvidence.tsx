@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import EmptyState from 'app/ui/EmptyState';
-import { cardSection, heading2, heading3, textSecondary, badgeInfo } from 'app/ui/design-tokens';
+import { cardSection, heading2, heading3, textSecondary, textMuted, badgeInfo } from 'app/ui/design-tokens';
 import { formatDateTimeGB } from './dateFormat';
 
 export interface VideoEntry {
@@ -26,6 +26,13 @@ export default function VideoEvidence({
   lang = 'en',
 }: VideoEvidenceProps) {
   const grouped = useMemo(() => {
+    // Count total alerts per driver (worst drivers = most alerts)
+    const driverAlertCount = new Map<string, number>();
+    for (const entry of entries) {
+      const key = entry.driver || '—';
+      driverAlertCount.set(key, (driverAlertCount.get(key) ?? 0) + 1);
+    }
+
     const map = new Map<string, VideoEntry[]>();
     for (const entry of entries) {
       const existing = map.get(entry.alertType);
@@ -38,10 +45,24 @@ export default function VideoEvidence({
 
     const groups: { alertType: string; items: VideoEntry[] }[] = [];
     Array.from(map.entries()).forEach(([alertType, items]) => {
-      const sorted = [...items]
-        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-        .slice(0, maxPerType);
-      groups.push({ alertType, items: sorted });
+      // Sort: worst drivers first (most alerts), then latest timestamp
+      const sorted = [...items].sort((a, b) => {
+        const countA = driverAlertCount.get(a.driver || '—') ?? 0;
+        const countB = driverAlertCount.get(b.driver || '—') ?? 0;
+        if (countB !== countA) return countB - countA;
+        return b.timestamp.getTime() - a.timestamp.getTime();
+      });
+      // One video per driver — take first (most recent) per worst driver
+      const seen = new Set<string>();
+      const unique: VideoEntry[] = [];
+      for (const item of sorted) {
+        const key = item.driver || '—';
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(item);
+        if (unique.length >= maxPerType) break;
+      }
+      groups.push({ alertType, items: unique });
     });
     return groups.sort((a, b) => a.alertType.localeCompare(b.alertType));
   }, [entries, maxPerType]);
@@ -65,13 +86,21 @@ export default function VideoEvidence({
     );
   }
 
+  const description =
+    lang === 'th'
+      ? 'จัดอันดับตามผู้ขับที่มีการแจ้งเตือนมากที่สุด โดยแสดงวิดีโอล่าสุด 1 คลิปต่อคนในแต่ละประเภท'
+      : 'Ranked by drivers with the most alerts. One video per driver per alert type — showing their most recent incident.';
+
   return (
     <div className={cardSection}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className={heading2}>
-          {lang === 'th' ? 'วิดีโอล่าสุดตามประเภทการแจ้งเตือน' : 'Latest videos by alert type'}
-        </h2>
-        <span className={textSecondary}>
+        <div>
+          <h2 className={heading2}>
+            {lang === 'th' ? 'วิดีโอล่าสุดตามประเภทการแจ้งเตือน' : 'Latest videos by alert type'}
+          </h2>
+          <p className={`mt-1 ${textMuted}`}>{description}</p>
+        </div>
+        <span className={`shrink-0 ${textSecondary}`}>
           {totalCount} {lang === 'th' ? 'ตัวอย่าง' : 'samples'}
         </span>
       </div>
@@ -88,24 +117,24 @@ export default function VideoEvidence({
                 {lang === 'th' ? 'รายการล่าสุด' : 'latest'}
               </span>
             </div>
-            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-5">
               {group.items.map((item, idx) => (
                 <div
                   key={`${item.url}-${idx}`}
-                  className="group rounded-lg border border-zinc-200/60 bg-white p-4 transition-all duration-200 hover:border-red-200/60 hover:shadow-card dark:border-zinc-700/40 dark:bg-zinc-900/60 dark:hover:border-red-800/40"
+                  className="group flex min-w-0 flex-col rounded-lg border border-zinc-200/60 bg-white p-4 transition-all duration-200 hover:border-red-200/60 hover:shadow-card dark:border-zinc-700/40 dark:bg-zinc-900/60 dark:hover:border-red-800/40"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                        {item.vehicle}
-                      </p>
-                      <p className={textSecondary}>{item.driver}</p>
-                      <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                        {formatDateTimeGB(item.timestamp)}
-                      </p>
-                      <p className="tabular-nums text-xs text-zinc-500 dark:text-zinc-400">{item.speed}</p>
-                    </div>
-                    <span className={badgeInfo}>{item.alertType}</span>
+                  <span className={`mb-2 shrink-0 self-start ${badgeInfo}`}>{item.alertType}</span>
+                  <div className="min-w-0 space-y-1">
+                    <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                      {item.vehicle}
+                    </p>
+                    <p className={`truncate ${textSecondary}`}>{item.driver}</p>
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                      {formatDateTimeGB(item.timestamp)}
+                    </p>
+                    <p className="tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
+                      {lang === 'th' ? 'ความเร็ว: ' : 'Speed: '}{item.speed}
+                    </p>
                   </div>
                   <a
                     href={item.url}

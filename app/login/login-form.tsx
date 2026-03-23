@@ -1,6 +1,7 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 
 import { inputBase, labelBase, btnPrimary } from 'app/ui/design-tokens';
 
@@ -71,7 +72,7 @@ export function LoginForm({
 }: {
   action: (state: LoginState, formData: FormData) => Promise<LoginState>;
 }) {
-  const [state, formAction] = useFormState(action, initialState);
+  const [state, formAction] = useActionState(action, initialState);
 
   return (
     <form action={formAction} className="space-y-4">

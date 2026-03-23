@@ -1,6 +1,7 @@
 'use client';
 
 import { useId } from 'react';
+import { createPortal } from 'react-dom';
 
 type AdminModalProps = {
   isOpen: boolean;
@@ -26,7 +27,7 @@ export default function AdminModal({
     return null;
   }
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
       <button
         type="button"
@@ -57,4 +58,8 @@ export default function AdminModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }

@@ -124,7 +124,10 @@ export default function AlertTimeline({
                 {entry.driver}
               </span>
               <span className={badgeDefault}>{entry.alertType}</span>
-              <span className="ml-auto tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="ml-auto flex items-center gap-1.5 tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="shrink-0 text-zinc-400 dark:text-zinc-500">
+                  {lang === 'th' ? 'ความเร็ว:' : 'Speed:'}
+                </span>
                 {entry.speed}
               </span>
             </div>

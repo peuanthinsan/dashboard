@@ -29,6 +29,7 @@ export default async function AdminUsersPage() {
   await requireAdmin();
   const lang = await getDashboardLang();
   const copy = getAdminCopy(lang);
+
   const [users, companies, organizations] = await Promise.all([
     getUsers(),
     getCompanies(),
@@ -91,6 +92,7 @@ export default async function AdminUsersPage() {
     const companyValues = formData.getAll('companyIds') as string[];
     const organizationValues = formData.getAll('organizationIds') as string[];
     const isAdmin = formData.get('isAdmin') === 'on';
+    const showBothCompanyAndFleet = formData.get('showBothCompanyAndFleet') === 'on';
 
     if (adminUser.id === userId && !isAdmin) {
       return { status: 'error', message: 'You cannot remove your own admin access.' };
@@ -111,6 +113,7 @@ export default async function AdminUsersPage() {
           .map(Number)
           .filter((value) => !Number.isNaN(value)),
         isAdmin,
+        showBothCompanyAndFleet,
       });
       revalidatePath('/admin/users');
       return { status: 'success', message: 'User updated.' };
@@ -127,12 +130,17 @@ export default async function AdminUsersPage() {
       eyebrow={copy.administration}
       title={copy.users}
       description={copy.assignUsersToCompaniesAndFleets}
+      workflowHint={copy.workflowUsers}
       lang={lang}
     >
       <UsersClient
         users={users}
         companies={companies}
         organizations={organizations}
+        adminCopy={{
+          showBothCompanyAndFleet: copy.showBothCompanyAndFleet,
+          showBothCompanyAndFleetHint: copy.showBothCompanyAndFleetHint,
+        }}
         addUserAction={addUserAction}
         manageUserAction={manageUserAction}
         bulkCreateAction={bulkCreateUsers}

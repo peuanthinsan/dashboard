@@ -5,6 +5,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   serial,
@@ -93,6 +94,8 @@ const dashboards = pgTable(
     sheetGid: varchar('sheetGid', { length: 24 }).notNull(),
     sheetUrl: varchar('sheetUrl', { length: 512 }).notNull(),
     notes: text('notes'),
+    alertTypes: jsonb('alertTypes').$type<string[]>(),
+    remarks: jsonb('remarks').$type<string[]>(),
     companyId: integer('companyId'),
     organizationId: integer('organizationId'),
   },
@@ -280,5 +283,20 @@ export async function bulkReassignDashboards(ids: number[], organizationId: numb
 export async function bulkDeleteDashboards(ids: number[]) {
   if (ids.length === 0) return;
   await db.delete(dashboards).where(inArray(dashboards.id, ids));
+  revalidatePath('/admin');
+}
+
+export async function bulkUpdateDashboardFields(
+  ids: number[],
+  { alertTypes, remarks }: { alertTypes: string[] | null; remarks: string[] | null }
+) {
+  if (ids.length === 0) return;
+  await db
+    .update(dashboards)
+    .set({
+      alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
+      remarks: remarks && remarks.length > 0 ? remarks : null,
+    })
+    .where(inArray(dashboards.id, ids));
   revalidatePath('/admin');
 }

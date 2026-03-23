@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
-import { useFormState } from 'react-dom';
+import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
 import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
@@ -48,10 +47,13 @@ type BulkAssignOrgFn = typeof bulkAssignUsersToOrganization;
 type BulkSetAdminFn = typeof bulkSetAdmin;
 type BulkDeleteFn = typeof bulkDeleteUsers;
 
+const USERS_PAGE_SIZE = 25;
+
 type UsersClientProps = {
   users: User[];
   companies: Company[];
   organizations: Organization[];
+  adminCopy?: { showBothCompanyAndFleet: string; showBothCompanyAndFleetHint: string };
   addUserAction: FormAction;
   manageUserAction: FormAction;
   bulkCreateAction: BulkCreateFn;
@@ -83,6 +85,7 @@ function UserRow({
   action,
   checked,
   onCheck,
+  showBothCopy,
 }: {
   user: User;
   companyNames: string[];
@@ -92,8 +95,9 @@ function UserRow({
   action: FormAction;
   checked: boolean;
   onCheck: (id: number, checked: boolean) => void;
+  showBothCopy?: { showBothCompanyAndFleet: string; showBothCompanyAndFleetHint: string };
 }) {
-  const [state, formAction] = useFormState(action, INITIAL_STATE);
+  const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
   useRefreshOnSuccess(state);
 
@@ -109,7 +113,7 @@ function UserRow({
   return (
     <>
       <tr className={tableRow}>
-        <td className="px-4 py-3">
+        <td className="w-0 whitespace-nowrap pl-4 pr-3 py-3">
           <input
             type="checkbox"
             checked={checked}
@@ -117,7 +121,7 @@ function UserRow({
             className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
           />
         </td>
-        <td className={tableCell}>
+        <td className={`${tableCell} pl-3`}>
           <div className="font-semibold text-zinc-900 dark:text-white">
             {user.email ?? 'Unknown email'}
           </div>
@@ -229,6 +233,23 @@ function UserRow({
               </span>
             </label>
           </div>
+          <label className={`flex items-start gap-3 ${ADMIN_LABEL}`}>
+            <input
+              type="checkbox"
+              name="showBothCompanyAndFleet"
+              defaultChecked={!!user.showBothCompanyAndFleet}
+              className="mt-1 h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+            />
+            <div>
+              <span className="font-medium">
+                {showBothCopy?.showBothCompanyAndFleet ?? 'Include company-wide dashboards with fleet dashboards'}
+              </span>
+              <p className={`mt-0.5 text-sm ${ADMIN_HINT_TEXT}`}>
+                {showBothCopy?.showBothCompanyAndFleetHint ??
+                  'When checked, user sees both company-wide and fleet-specific dashboards. When unchecked, user sees only fleet dashboards (if fleets assigned) or only company-wide (if no fleets).'}
+              </p>
+            </div>
+          </label>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -253,6 +274,7 @@ export default function UsersClient({
   users,
   companies,
   organizations,
+  adminCopy,
   addUserAction,
   manageUserAction,
   bulkCreateAction,
@@ -262,7 +284,11 @@ export default function UsersClient({
   bulkDeleteAction,
 }: UsersClientProps) {
   const router = useRouter();
-  const adminCount = users.filter((user) => user.isAdmin).length;
+
+  // Client-side search and pagination
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+
   const companyMap = useMemo(
     () => new Map(companies.map((company) => [company.id, company.name ?? 'Unnamed company'])),
     [companies],
@@ -278,7 +304,25 @@ export default function UsersClient({
     [organizations],
   );
 
-  const [userCreateState, userCreateAction] = useFormState(addUserAction, INITIAL_STATE);
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => (u.email ?? '').toLowerCase().includes(q));
+  }, [users, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedUsers = useMemo(
+    () => filteredUsers.slice((currentPage - 1) * USERS_PAGE_SIZE, currentPage * USERS_PAGE_SIZE),
+    [filteredUsers, currentPage],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const adminCount = users.filter((user) => user.isAdmin).length;
+  const [userCreateState, userCreateAction] = useActionState(addUserAction, INITIAL_STATE);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(userCreateState);
 
@@ -311,7 +355,7 @@ export default function UsersClient({
 
   function handleSelectAll(checked: boolean) {
     if (checked) {
-      setSelectedIds(new Set(users.map((u) => u.id)));
+      setSelectedIds(new Set(paginatedUsers.map((u) => u.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -370,7 +414,7 @@ export default function UsersClient({
     });
   }
 
-  const allChecked = users.length > 0 && selectedIds.size === users.length;
+  const allChecked = paginatedUsers.length > 0 && selectedIds.size === paginatedUsers.length;
 
   return (
     <AdminSection>
@@ -534,7 +578,15 @@ export default function UsersClient({
                 View and update large user lists with quick edits.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by email…"
+                className={`min-w-[12rem] ${ADMIN_INPUT}`}
+                aria-label="Search users"
+              />
               {selectedIds.size > 0 && (
                 <>
                   <button
@@ -584,12 +636,40 @@ export default function UsersClient({
               </button>
             </div>
           </div>
+          {totalPages > 1 && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Showing {paginatedUsers.length} of {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
+              </p>
+              <nav aria-label="Pagination" className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                >
+                  ← Prev
+                </button>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                >
+                  Next →
+                </button>
+              </nav>
+            </div>
+          )}
           <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
             <div className="max-h-[32rem] overflow-auto">
               <table className="min-w-full border-collapse text-left">
                 <thead className={`sticky top-0 z-10 ${tableHead} bg-zinc-50 dark:bg-zinc-800/50`}>
                   <tr>
-                    <th className="px-4 py-3">
+                    <th className="w-0 whitespace-nowrap pl-4 pr-3 py-3">
                       <input
                         type="checkbox"
                         checked={allChecked}
@@ -597,7 +677,7 @@ export default function UsersClient({
                         className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
                       />
                     </th>
-                    <th className={tableHeadCell}>User</th>
+                    <th className={`${tableHeadCell} pl-3`}>User</th>
                     <th className={tableHeadCell}>Role</th>
                     <th className={tableHeadCell}>Companies</th>
                     <th className={tableHeadCell}>Fleets</th>
@@ -605,7 +685,7 @@ export default function UsersClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => {
+                  {paginatedUsers.map((user) => {
                     const companyNames = (user.companyIds ?? [])
                       .map((id) => companyMap.get(id))
                       .filter(Boolean) as string[];
@@ -624,15 +704,18 @@ export default function UsersClient({
                         action={manageUserAction}
                         checked={selectedIds.has(user.id)}
                         onCheck={handleCheck}
+                        showBothCopy={adminCopy}
                       />
                     );
                   })}
                 </tbody>
               </table>
             </div>
-            {users.length === 0 ? (
+            {paginatedUsers.length === 0 ? (
               <p className={`px-4 py-6 text-sm ${ADMIN_TEXT_SUBTLE}`}>
-                No users yet. Create the first account to get started.
+                {users.length === 0
+                  ? 'No users yet. Create the first account to get started.'
+                  : 'No users match your search.'}
               </p>
             ) : null}
           </div>

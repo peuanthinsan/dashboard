@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useFormState } from 'react-dom';
+import { useActionState, useState } from 'react';
 import { INITIAL_STATE, StatusMessage } from '../admin-client-utils';
 import { AdminSection } from '../admin-components';
 import {
@@ -26,11 +25,13 @@ type QuickSetupState = ActionState & {
   createdOrganizationId?: number;
   createdUserId?: number;
   createdDashboardId?: number;
+  createdDashboardCount?: number;
 };
 
 type FormAction = (prevState: QuickSetupState, formData: FormData) => Promise<QuickSetupState>;
 
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving'] as const;
+const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving'] as const;
 
 const STEPS = [
   { number: 1, label: 'Company', description: 'Create or select a company' },
@@ -48,10 +49,17 @@ export default function QuickSetupClient({
   organizations: Organization[];
   quickSetupAction: FormAction;
 }) {
-  const [state, formAction] = useFormState(quickSetupAction, INITIAL_STATE as QuickSetupState);
+  const [state, formAction] = useActionState(quickSetupAction, INITIAL_STATE as QuickSetupState);
   const [step, setStep] = useState(1);
   const [useExistingCompany, setUseExistingCompany] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
   const [useExistingFleet, setUseExistingFleet] = useState(false);
+  const [createCompleteSet, setCreateCompleteSet] = useState(true);
+
+  const fleetsForCompany =
+    useExistingCompany && selectedCompanyId
+      ? organizations.filter((o) => o.companyId === selectedCompanyId)
+      : organizations;
 
   if (state.status === 'success') {
     return (
@@ -78,6 +86,9 @@ export default function QuickSetupClient({
             ) : null}
             {state.createdDashboardId ? (
               <span className={badgeInfo}>Dashboard #{state.createdDashboardId}</span>
+            ) : null}
+            {state.createdDashboardCount != null && state.createdDashboardCount > 0 && !state.createdDashboardId ? (
+              <span className={badgeInfo}>{state.createdDashboardCount} dashboards (complete set)</span>
             ) : null}
           </div>
           <button
@@ -131,6 +142,7 @@ export default function QuickSetupClient({
         {/* Hidden fields for checkbox state */}
         {useExistingCompany ? <input type="hidden" name="useExistingCompany" value="on" /> : null}
         {useExistingFleet ? <input type="hidden" name="useExistingFleet" value="on" /> : null}
+        {createCompleteSet ? <input type="hidden" name="createCompleteSet" value="on" /> : null}
 
         {/* Step 1: Company */}
         <div className={step === 1 ? '' : 'hidden'}>
@@ -144,7 +156,10 @@ export default function QuickSetupClient({
                 <input
                   type="checkbox"
                   checked={useExistingCompany}
-                  onChange={(e) => setUseExistingCompany(e.target.checked)}
+                  onChange={(e) => {
+                    setUseExistingCompany(e.target.checked);
+                    if (!e.target.checked) setSelectedCompanyId(0);
+                  }}
                   className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
                 />
                 Use existing company
@@ -152,7 +167,12 @@ export default function QuickSetupClient({
               {useExistingCompany ? (
                 <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                   Select company
-                  <select name="existingCompanyId" className={ADMIN_SELECT}>
+                  <select
+                    name="existingCompanyId"
+                    value={selectedCompanyId || ''}
+                    onChange={(e) => setSelectedCompanyId(Number(e.target.value) || 0)}
+                    className={ADMIN_SELECT}
+                  >
                     <option value="">Choose a company</option>
                     {companies.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
@@ -196,7 +216,7 @@ export default function QuickSetupClient({
                   Select fleet
                   <select name="existingFleetId" className={ADMIN_SELECT}>
                     <option value="">Choose a fleet</option>
-                    {organizations.map((o) => (
+                    {fleetsForCompany.map((o) => (
                       <option key={o.id} value={o.id}>{o.name}</option>
                     ))}
                   </select>
@@ -253,21 +273,32 @@ export default function QuickSetupClient({
           <div className={cardBase}>
             <h3 className={heading3}>Step 4: Dashboard</h3>
             <p className={`mt-1 mb-4 ${textSecondary}`}>
-              Connect the customer&apos;s Google Sheet to create their dashboard.
+              Connect the customer&apos;s Google Sheet to create their dashboard(s).
             </p>
+            <label className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <input
+                type="checkbox"
+                checked={createCompleteSet}
+                onChange={(e) => setCreateCompleteSet(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
+              />
+              Create complete set (Summary, Simple, Detail, Driving)
+            </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                 Dashboard name *
                 <input name="dashboardName" placeholder="Operations Overview" className={ADMIN_INPUT} />
               </label>
-              <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-                Template
-                <select name="template" className={ADMIN_SELECT}>
-                  {DASHBOARD_TEMPLATES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </label>
+              {!createCompleteSet && (
+                <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+                  Template
+                  <select name="template" className={ADMIN_SELECT}>
+                    {DASHBOARD_TEMPLATES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label className={`flex flex-col gap-2 sm:col-span-2 ${ADMIN_LABEL}`}>
                 Google Sheet link *
                 <input name="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/..." className={ADMIN_INPUT} />

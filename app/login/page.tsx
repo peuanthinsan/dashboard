@@ -1,7 +1,14 @@
 import { AuthError } from 'next-auth';
+import { headers } from 'next/headers';
 import { z } from 'zod';
 
 import { signIn } from 'app/auth';
+import {
+  checkRateLimit,
+  getClientIdentifier,
+  recordFailedAttempt,
+  RATE_LIMIT_MAX_LOGIN,
+} from 'app/lib/rate-limit';
 import { LoginForm } from 'app/login/login-form';
 import SongdeeLogo from 'app/ui/SongdeeLogo';
 import ThemeToggle from 'app/theme/ThemeToggle';
@@ -36,6 +43,15 @@ export default function Login() {
       return { error: firstError ?? 'Invalid login details.' };
     }
 
+    const clientId = await getClientIdentifier(headers);
+    const rateLimitResult = checkRateLimit(
+      `login:${clientId}`,
+      RATE_LIMIT_MAX_LOGIN
+    );
+    if (!rateLimitResult.ok) {
+      return { error: rateLimitResult.message };
+    }
+
     try {
       await signIn('credentials', {
         redirectTo: '/dashboard',
@@ -44,6 +60,7 @@ export default function Login() {
       });
     } catch (error) {
       if (error instanceof AuthError) {
+        recordFailedAttempt(`login:${clientId}`);
         return { error: 'Invalid email or password.' };
       }
       throw error;

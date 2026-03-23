@@ -72,7 +72,7 @@ Sheets must be **published to the web** or **shared with "Anyone with the link"*
 
 ## Tech Stack
 
-- Next.js 14, React 18, TypeScript
+- Next.js 16, React 19, TypeScript
 - Drizzle ORM, PostgreSQL
 - NextAuth 5 (Credentials)
 - Tailwind CSS, Geist font

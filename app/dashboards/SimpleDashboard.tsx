@@ -21,7 +21,10 @@ import ExportButton from 'app/ui/ExportButton';
 import { heading2 } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
 import InlineMonthPicker from 'app/ui/InlineMonthPicker';
+import InlineDayPicker from 'app/ui/InlineDayPicker';
 import MultiSelect from 'app/ui/MultiSelect';
+
+const DEFAULT_SIMPLE_ALERT_TYPES = ['Eye Closing-A2', 'Yawning-A2'];
 
 type DashboardProps = {
   dashboardId: string;
@@ -31,16 +34,20 @@ type DashboardProps = {
   dashboardNotes?: string | null;
   organizationName?: string | null;
   lang?: DashboardLang;
+  allowedAlertTypes?: string[] | null;
+  allowedRemarks?: string[] | null;
 };
 
 type SimpleFilterState = {
   month: string;
+  dayFilters: string[];
   vehicleFilters: string[];
   driverFilters: string[];
 };
 
 const defaultFilters: SimpleFilterState = {
   month: '',
+  dayFilters: [],
   vehicleFilters: [],
   driverFilters: [],
 };
@@ -64,6 +71,8 @@ export default function SimpleDashboard({
   dashboardNotes,
   organizationName,
   lang = 'en',
+  allowedAlertTypes: allowedAlertTypesProp,
+  allowedRemarks: allowedRemarksProp,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
@@ -81,6 +90,9 @@ export default function SimpleDashboard({
     if (!stored) return;
     setFilters({
       month: typeof stored.month === 'string' ? stored.month : '',
+      dayFilters: Array.isArray(stored.dayFilters)
+        ? stored.dayFilters.filter((v) => typeof v === 'string')
+        : [],
       vehicleFilters: Array.isArray(stored.vehicleFilters)
         ? stored.vehicleFilters.filter((v) => typeof v === 'string')
         : [],
@@ -98,12 +110,25 @@ export default function SimpleDashboard({
   const resetFilters = () => setFilters(defaultFilters);
 
   const hasActiveFilters = useMemo(() => {
-    return filters.month !== '' || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
+    return filters.month !== '' || filters.dayFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
   }, [filters]);
+
+  const effectiveAlertTypes = useMemo(
+    () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : DEFAULT_SIMPLE_ALERT_TYPES),
+    [allowedAlertTypesProp],
+  );
+  const DEFAULT_SIMPLE_REMARKS = ['fatigue', 'yawning', 'distraction'];
+  const effectiveRemarks = useMemo(
+    () => (allowedRemarksProp && allowedRemarksProp.length > 0
+      ? allowedRemarksProp.map((r) => normalizeLabel(r))
+      : DEFAULT_SIMPLE_REMARKS),
+    [allowedRemarksProp],
+  );
 
   // ── Data pipeline (preserves alert type scope) ──────────────────────────
   const baseAlerts = useMemo(() => {
-    const allowedRemarks = new Set(['fatigue', 'yawning', 'distraction']);
+    const allowedRemarks = new Set(effectiveRemarks);
+    const normalizedAllowed = new Set(effectiveAlertTypes.map((a) => normalizeLabel(a)));
     return rows
       .map((row) => {
         const alertType = String(findValue(row, ['Alert Type']) ?? '');
@@ -128,22 +153,23 @@ export default function SimpleDashboard({
       })
       .filter((row) => {
         const normalizedAlertType = normalizeLabel(row.alertType);
-        const isSupportedAlertType =
-          normalizedAlertType === normalizeLabel('Eye Closing-A2') ||
-          normalizedAlertType === normalizeLabel('Yawning-A2');
-        if (!isSupportedAlertType) return false;
+        if (!normalizedAllowed.has(normalizedAlertType)) return false;
         return allowedRemarks.has(normalizeLabel(row.remarks));
       })
       .filter((row) => row.parsedDate);
-  }, [normalizedOrganizationName, rows]);
+  }, [normalizedOrganizationName, rows, effectiveAlertTypes, effectiveRemarks]);
 
   // ── Month-filtered alerts ───────────────────────────────────────────────
   const monthFilteredAlerts = useMemo(() => {
-    if (!filters.month) return baseAlerts;
-    return baseAlerts.filter((row) => {
-      return row.parsedDate && toMonthKey(row.parsedDate) === filters.month;
-    });
-  }, [baseAlerts, filters.month]);
+    let alerts = baseAlerts;
+    if (filters.month) {
+      alerts = alerts.filter((row) => row.parsedDate && toMonthKey(row.parsedDate) === filters.month);
+    }
+    if (filters.dayFilters.length > 0) {
+      alerts = alerts.filter((row) => row.parsedDate && filters.dayFilters.includes(toDayKey(row.parsedDate)));
+    }
+    return alerts;
+  }, [baseAlerts, filters.month, filters.dayFilters]);
 
   // ── Compute options from month-filtered data ────────────────────────────
   const vehicleOptions = useMemo(() => {
@@ -258,10 +284,11 @@ export default function SimpleDashboard({
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filters.month) count += 1;
+    count += filters.dayFilters.length;
     count += filters.vehicleFilters.length;
     count += filters.driverFilters.length;
     return count;
-  }, [filters.month, filters.vehicleFilters.length, filters.driverFilters.length]);
+  }, [filters.month, filters.dayFilters.length, filters.vehicleFilters.length, filters.driverFilters.length]);
 
   // ── Trend chart data (TrendChart format) ───────────────────────────────
   const trendChartData = useMemo(() => {
@@ -403,9 +430,18 @@ export default function SimpleDashboard({
           <FilterBar>
             <InlineMonthPicker
               value={filters.month}
-              onChange={(v) => setFilters((f) => ({ ...f, month: v as string }))}
+              onChange={(v) => setFilters((f) => ({ ...f, month: v as string, dayFilters: [] }))}
               lang={lang}
             />
+            {filters.month && (
+              <InlineDayPicker
+                monthKey={filters.month}
+                value={filters.dayFilters}
+                onChange={(v) => setFilters((f) => ({ ...f, dayFilters: v as string[] }))}
+                multi
+                lang={lang}
+              />
+            )}
             <MultiSelect
               label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'}
               options={vehicleOptions}

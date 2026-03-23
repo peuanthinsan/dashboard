@@ -32,6 +32,7 @@ import ExportButton from 'app/ui/ExportButton';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
 import DonutChart from 'app/ui/DonutChart';
 import InlineMonthPicker from 'app/ui/InlineMonthPicker';
+import InlineDayPicker from 'app/ui/InlineDayPicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import {
   heading2,
@@ -57,6 +58,8 @@ type DashboardProps = {
   dashboardNotes?: string | null;
   organizationName?: string | null;
   lang?: DashboardLang;
+  allowedAlertTypes?: string[] | null;
+  allowedRemarks?: string[] | null;
 };
 
 type AlertRow = {
@@ -77,6 +80,7 @@ type AlertRow = {
 
 type DetailFilterState = {
   monthFilters: string[];
+  dayFilters: string[];
   fleetFilters: string[];
   remarkFilters: string[];
   vehicleFilters: string[];
@@ -120,6 +124,8 @@ export default function DetailDashboard({
   dashboardNotes,
   organizationName,
   lang = 'en',
+  allowedAlertTypes: allowedAlertTypesProp,
+  allowedRemarks: allowedRemarksProp,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
   const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
@@ -130,6 +136,7 @@ export default function DetailDashboard({
   const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
   const [filters, setFilters] = useState<DetailFilterState>({
     monthFilters: [],
+    dayFilters: [],
     fleetFilters: [],
     remarkFilters: [],
     vehicleFilters: [],
@@ -137,7 +144,7 @@ export default function DetailDashboard({
     trendRemarkFilter: 'all',
     showExcluded: false,
   });
-  const { monthFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter, showExcluded } = filters;
+  const { monthFilters, dayFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter, showExcluded } = filters;
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
@@ -149,6 +156,7 @@ export default function DetailDashboard({
     setFilters((prev) => ({
       ...prev,
       monthFilters: Array.isArray(stored.monthFilters) ? stored.monthFilters.filter((v) => typeof v === 'string') : prev.monthFilters,
+      dayFilters: Array.isArray(stored.dayFilters) ? stored.dayFilters.filter((v) => typeof v === 'string') : prev.dayFilters,
       fleetFilters: Array.isArray(stored.fleetFilters) ? stored.fleetFilters.filter((v) => typeof v === 'string') : prev.fleetFilters,
       remarkFilters: Array.isArray(stored.remarkFilters) ? stored.remarkFilters.filter((v) => typeof v === 'string') : prev.remarkFilters,
       vehicleFilters: Array.isArray(stored.vehicleFilters) ? stored.vehicleFilters.filter((v) => typeof v === 'string') : prev.vehicleFilters,
@@ -165,6 +173,7 @@ export default function DetailDashboard({
   const resetFilters = () => {
     setFilters({
       monthFilters: [],
+      dayFilters: [],
       fleetFilters: [],
       remarkFilters: [],
       vehicleFilters: [],
@@ -176,14 +185,21 @@ export default function DetailDashboard({
 
   const hasActiveFilters =
     monthFilters.length > 0 ||
+    dayFilters.length > 0 ||
     fleetFilters.length > 0 ||
     remarkFilters.length > 0 ||
     vehicleFilters.length > 0 ||
     driverFilters.length > 0 ||
     showExcluded;
 
-  const allowedAlertTypes = useMemo(() => ALLOWED_ALERT_TYPES, []);
-  const allowedRemarkTargets = useMemo(() => ALLOWED_REMARK_TARGETS, []);
+  const allowedAlertTypes = useMemo(
+    () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : ALLOWED_ALERT_TYPES),
+    [allowedAlertTypesProp],
+  );
+  const allowedRemarkTargets = useMemo(
+    () => (allowedRemarksProp && allowedRemarksProp.length > 0 ? allowedRemarksProp : ALLOWED_REMARK_TARGETS),
+    [allowedRemarksProp],
+  );
 
   // ── Data pipeline: alertRows -> baseFilteredRows -> filteredAlerts ──
   const alertRows = useMemo<AlertRow[]>(() => {
@@ -289,6 +305,7 @@ export default function DetailDashboard({
 
   const baseFilteredRows = useMemo(() => {
     const normalizedAllowedAlertTypes = allowedAlertTypes.map((alert) => normalizeLabel(alert));
+    const normalizedAllowedRemarks = allowedRemarkTargets.map((r) => normalizeLabel(r));
     const normalizedFleetFilters = fleetFilters.map((fleet) => normalizeLabel(fleet));
     const normalizedRemarkFilters = remarkFilters.map((remark) => normalizeLabel(remark));
     const normalizedVehicleFilters = vehicleFilters.map((vehicle) => normalizeLabel(vehicle));
@@ -297,6 +314,11 @@ export default function DetailDashboard({
       if (!row.alertType || row.alertType === '—') return false;
       const normalizedAlertType = normalizeLabel(row.alertType);
       if (!normalizedAllowedAlertTypes.includes(normalizedAlertType)) return false;
+      if (normalizedAllowedRemarks.length > 0) {
+        const nRemark = normalizeLabel(row.remarks);
+        const matchesRemark = normalizedAllowedRemarks.some((r) => nRemark.includes(r) || r.includes(nRemark));
+        if (!matchesRemark) return false;
+      }
       if (normalizedFleetFilters.length > 0) {
         const normalizedFleet = normalizeLabel(row.fleet);
         if (!normalizedFleetFilters.includes(normalizedFleet)) return false;
@@ -315,12 +337,18 @@ export default function DetailDashboard({
       }
       return true;
     });
-  }, [alertRows, allowedAlertTypes, fleetFilters, remarkFilters, vehicleFilters, driverFilters]);
+  }, [alertRows, allowedAlertTypes, allowedRemarkTargets, fleetFilters, remarkFilters, vehicleFilters, driverFilters]);
 
   const filteredAlerts = useMemo(() => {
-    if (monthFilters.length === 0) return baseFilteredRows;
-    return baseFilteredRows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
-  }, [baseFilteredRows, monthFilters]);
+    let rows = baseFilteredRows;
+    if (monthFilters.length > 0) {
+      rows = rows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
+    }
+    if (dayFilters.length > 0) {
+      rows = rows.filter((row) => row.parsedDate && dayFilters.includes(toDayKey(row.parsedDate)));
+    }
+    return rows;
+  }, [baseFilteredRows, dayFilters, monthFilters]);
 
   // ── Trend remark filter options ──
   const availableTrendRemarkOptions = useMemo(() => {
@@ -632,6 +660,7 @@ export default function DetailDashboard({
   // Active filter count for DashboardShell
   const activeFilterCount =
     monthFilters.length +
+    dayFilters.length +
     fleetFilters.length +
     remarkFilters.length +
     vehicleFilters.length +
@@ -690,7 +719,24 @@ export default function DetailDashboard({
         <>
           {/* ── Filters ── */}
           <FilterBar>
-            <InlineMonthPicker value={filters.monthFilters} onChange={(v) => setFilters(f => ({ ...f, monthFilters: v as string[] }))} multi lang={lang} />
+            <InlineMonthPicker
+              value={filters.monthFilters}
+              onChange={(v) => {
+                const arr = v as string[];
+                setFilters((f) => ({ ...f, monthFilters: arr, dayFilters: arr.length === 1 ? f.dayFilters : [] }));
+              }}
+              multi
+              lang={lang}
+            />
+            {monthFilters.length === 1 && (
+              <InlineDayPicker
+                monthKey={monthFilters[0]}
+                value={filters.dayFilters}
+                onChange={(v) => setFilters((f) => ({ ...f, dayFilters: v as string[] }))}
+                multi
+                lang={lang}
+              />
+            )}
             {!organizationName && (
               <MultiSelect label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'} options={fleetOptions} selected={filters.fleetFilters} onChange={(v) => setFilters(f => ({ ...f, fleetFilters: v }))} lang={lang} />
             )}

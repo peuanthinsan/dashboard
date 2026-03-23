@@ -98,6 +98,7 @@ export default async function AdminOrganizationsPage() {
       eyebrow={copy.administration}
       title={copy.fleets}
       description={copy.createAndManageFleetRecords}
+      workflowHint={copy.workflowFleets}
       lang={lang}
     >
       <OrganizationsClient
