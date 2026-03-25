@@ -2,7 +2,7 @@ import Link from 'next/link';
 import SongdeeLogo from 'app/ui/SongdeeLogo';
 import ThemeToggle from 'app/theme/ThemeToggle';
 import LanguageToggle from './LanguageToggle';
-import { getDashboardLang } from './i18n';
+import { getDashboardLang, type DashboardLang } from './i18n';
 import { surface } from 'app/ui/design-tokens';
 
 export default async function DashboardLayout({
@@ -10,10 +10,15 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  let lang: DashboardLang;
   try {
-    const lang = await getDashboardLang();
+    lang = await getDashboardLang();
+  } catch (err) {
+    console.error('[Dashboard layout error]', err);
+    throw err;
+  }
 
-    return (
+  return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <header
         className={`sticky top-0 z-40 border-b border-zinc-200/60 ${surface} backdrop-blur-sm dark:border-zinc-800/60`}
@@ -43,9 +48,5 @@ export default async function DashboardLayout({
       </header>
       <main>{children}</main>
     </div>
-    );
-  } catch (err) {
-    console.error('[Dashboard layout error]', err);
-    throw err;
-  }
+  );
 }

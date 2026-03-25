@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import { saveDashboardScore } from './scoreCache';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
@@ -11,6 +12,7 @@ import {
   ALLOWED_ALERT_TYPES,
   ALLOWED_REMARK_TARGETS,
   computeDriverSafetyScore,
+  computeSafetyScore,
   findValue,
   hasRemark,
   isExcludedAlertRemark,
@@ -64,6 +66,7 @@ type DashboardProps = {
 
 type AlertRow = {
   id: string;
+  sourceRow: Record<string, unknown>;
   vehicle: string;
   driver: string;
   alertType: string;
@@ -128,7 +131,15 @@ export default function DetailDashboard({
   allowedRemarks: allowedRemarksProp,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
-  const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
+    sheetId,
+    gid: sheetGid,
+  });
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
@@ -153,17 +164,20 @@ export default function DetailDashboard({
     const stored = loadStoredFilters<DetailFilterState>(storageKey);
     if (!stored) return;
     didSetDefaultMonth.current = true;
-    setFilters((prev) => ({
-      ...prev,
-      monthFilters: Array.isArray(stored.monthFilters) ? stored.monthFilters.filter((v) => typeof v === 'string') : prev.monthFilters,
-      dayFilters: Array.isArray(stored.dayFilters) ? stored.dayFilters.filter((v) => typeof v === 'string') : prev.dayFilters,
-      fleetFilters: Array.isArray(stored.fleetFilters) ? stored.fleetFilters.filter((v) => typeof v === 'string') : prev.fleetFilters,
-      remarkFilters: Array.isArray(stored.remarkFilters) ? stored.remarkFilters.filter((v) => typeof v === 'string') : prev.remarkFilters,
-      vehicleFilters: Array.isArray(stored.vehicleFilters) ? stored.vehicleFilters.filter((v) => typeof v === 'string') : prev.vehicleFilters,
-      driverFilters: Array.isArray(stored.driverFilters) ? stored.driverFilters.filter((v) => typeof v === 'string') : prev.driverFilters,
-      trendRemarkFilter: typeof stored.trendRemarkFilter === 'string' ? stored.trendRemarkFilter : prev.trendRemarkFilter,
-      showExcluded: typeof stored.showExcluded === 'boolean' ? stored.showExcluded : prev.showExcluded,
-    }));
+    const frame = requestAnimationFrame(() => {
+      setFilters((prev) => ({
+        ...prev,
+        monthFilters: Array.isArray(stored.monthFilters) ? stored.monthFilters.filter((v) => typeof v === 'string') : prev.monthFilters,
+        dayFilters: Array.isArray(stored.dayFilters) ? stored.dayFilters.filter((v) => typeof v === 'string') : prev.dayFilters,
+        fleetFilters: Array.isArray(stored.fleetFilters) ? stored.fleetFilters.filter((v) => typeof v === 'string') : prev.fleetFilters,
+        remarkFilters: Array.isArray(stored.remarkFilters) ? stored.remarkFilters.filter((v) => typeof v === 'string') : prev.remarkFilters,
+        vehicleFilters: Array.isArray(stored.vehicleFilters) ? stored.vehicleFilters.filter((v) => typeof v === 'string') : prev.vehicleFilters,
+        driverFilters: Array.isArray(stored.driverFilters) ? stored.driverFilters.filter((v) => typeof v === 'string') : prev.driverFilters,
+        trendRemarkFilter: typeof stored.trendRemarkFilter === 'string' ? stored.trendRemarkFilter : prev.trendRemarkFilter,
+        showExcluded: typeof stored.showExcluded === 'boolean' ? stored.showExcluded : prev.showExcluded,
+      }));
+    });
+    return () => cancelAnimationFrame(frame);
   }, [storageKey]);
 
   useEffect(() => {
@@ -210,6 +224,7 @@ export default function DetailDashboard({
       const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'Unknown month';
       return {
         id: `${index}-${findValue(row, ['Vehicle No']) ?? 'vehicle'}`,
+        sourceRow: row,
         vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
         driver: toDisplayString(findValue(row, ['Driver Name'])),
         alertType: toDisplayString(findValue(row, ['Alert Type'])),
@@ -291,16 +306,19 @@ export default function DetailDashboard({
   }, [alertRows]);
 
   useEffect(() => {
-    if (didSetDefaultMonth.current) return;
-    if (monthOptions.length === 0) return;
-    if (monthFilters.length > 0) {
+    const frame = requestAnimationFrame(() => {
+      if (didSetDefaultMonth.current) return;
+      if (monthOptions.length === 0) return;
+      if (monthFilters.length > 0) {
+        didSetDefaultMonth.current = true;
+        return;
+      }
       didSetDefaultMonth.current = true;
-      return;
-    }
-    didSetDefaultMonth.current = true;
-    if (monthOptions.some((option) => option.key === currentMonthKey)) {
-      setFilters((f) => ({ ...f, monthFilters: [currentMonthKey] }));
-    }
+      if (monthOptions.some((option) => option.key === currentMonthKey)) {
+        setFilters((f) => ({ ...f, monthFilters: [currentMonthKey] }));
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [currentMonthKey, monthFilters, monthOptions]);
 
   const baseFilteredRows = useMemo(() => {
@@ -372,9 +390,12 @@ export default function DetailDashboard({
   }, [allowedRemarkTargets, filteredAlerts, lang]);
 
   useEffect(() => {
-    if (trendRemarkFilter === 'all') return;
-    if (availableTrendRemarkOptions.some((option) => option.value === trendRemarkFilter)) return;
-    setFilters((f) => ({ ...f, trendRemarkFilter: 'all' }));
+    const frame = requestAnimationFrame(() => {
+      if (trendRemarkFilter === 'all') return;
+      if (availableTrendRemarkOptions.some((option) => option.value === trendRemarkFilter)) return;
+      setFilters((f) => ({ ...f, trendRemarkFilter: 'all' }));
+    });
+    return () => cancelAnimationFrame(frame);
   }, [availableTrendRemarkOptions, trendRemarkFilter]);
 
   // ── Trend chart data (TrendDatum[]) ──
@@ -445,6 +466,24 @@ export default function DetailDashboard({
     });
     return s.size;
   }, [filteredAlerts]);
+
+  const dayCountForScore = useMemo(() => {
+    const days = new Set<string>();
+    filteredAlerts.forEach((r) => {
+      if (r.parsedDate) days.add(toDayKey(r.parsedDate));
+    });
+    return Math.max(1, days.size);
+  }, [filteredAlerts]);
+
+  const overallSafetyScore = useMemo(
+    () => computeSafetyScore(filteredAlerts.length, Math.max(1, uniqueVehicles), dayCountForScore),
+    [filteredAlerts.length, uniqueVehicles, dayCountForScore],
+  );
+
+  useEffect(() => {
+    if (loading) return;
+    saveDashboardScore(dashboardId, overallSafetyScore, filteredAlerts.length);
+  }, [dashboardId, loading, overallSafetyScore, filteredAlerts.length]);
 
   const uniqueDrivers = useMemo(() => {
     const s = new Set<string>();
@@ -657,6 +696,30 @@ export default function DetailDashboard({
     return monthFilters.sort().join('_');
   }, [monthFilters]);
 
+  const detailExportColumns = useMemo(
+    () =>
+      lang === 'th'
+        ? [
+            { key: 'time', label: 'เวลาแจ้งเตือน' },
+            { key: 'vehicle', label: 'ยานพาหนะ' },
+            { key: 'driver', label: 'คนขับ' },
+            { key: 'speed', label: 'ความเร็ว' },
+            { key: 'fleet', label: 'กลุ่มรถ' },
+            { key: 'remarks', label: 'ประเภทการแจ้งเตือน' },
+            { key: 'videoUrl', label: 'ลิงก์วิดีโอ' },
+          ]
+        : [
+            { key: 'time', label: 'Alert Time' },
+            { key: 'vehicle', label: 'Vehicle' },
+            { key: 'driver', label: 'Driver' },
+            { key: 'speed', label: 'Speed' },
+            { key: 'fleet', label: 'Fleet' },
+            { key: 'remarks', label: 'Alert Type' },
+            { key: 'videoUrl', label: 'Video URL' },
+          ],
+    [lang],
+  );
+
   // Active filter count for DashboardShell
   const activeFilterCount =
     monthFilters.length +
@@ -667,11 +730,7 @@ export default function DetailDashboard({
     driverFilters.length +
     (showExcluded ? 1 : 0);
 
-  // Check if data might be stale (lastUpdated > 10 minutes ago)
-  const isStale = useMemo(() => {
-    if (!lastUpdated) return false;
-    return Date.now() - lastUpdated.getTime() > 10 * 60 * 1000;
-  }, [lastUpdated]);
+  const isStale = lastUpdated ? nowTick - lastUpdated.getTime() > 10 * 60 * 1000 : false;
 
   return (
     <DashboardShell
@@ -685,17 +744,12 @@ export default function DetailDashboard({
       actions={
         <ExportButton
           data={exportData}
+          fullSheetExport={{ rows, filteredRows: filteredAlerts.map((r) => r.sourceRow), columns: sheetColumns }}
           dashboardName="DetailDashboard"
           dateRange={dateRangeLabel}
-          columns={[
-            { key: 'time', label: 'Alert Time' },
-            { key: 'vehicle', label: 'Vehicle' },
-            { key: 'driver', label: 'Driver' },
-            { key: 'speed', label: 'Speed' },
-            { key: 'fleet', label: 'Fleet' },
-            { key: 'remarks', label: 'Alert Type' },
-            { key: 'videoUrl', label: 'Video URL' },
-          ]}
+          settingsStorageKey={`detail-${dashboardId}`}
+          lang={lang}
+          columns={detailExportColumns}
           label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
         />
       }

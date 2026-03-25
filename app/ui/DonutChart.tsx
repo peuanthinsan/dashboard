@@ -21,21 +21,22 @@ export default function DonutChart({ data, title, centerLabel, size = 160, ariaL
   if (total === 0) return <p className="text-sm text-zinc-400 dark:text-zinc-500">No data</p>;
   const r = 15.9;
   const circumference = 2 * Math.PI * r;
-  let offset = 0;
 
   const resolvedAriaLabel =
     ariaLabel ??
     (title ? `${title}: ${data.map((d) => `${d.label} ${d.value}`).join(', ')}` : 'Alert distribution by type');
 
-  // Pre-compute slice data (offsets must be cumulative, computed before render)
-  const slices = data.map((slice, i) => {
+  const slices = data.reduce<
+    { slice: DonutSlice; i: number; pct: number; dash: number; gap: number; currentOffset: number }[]
+  >((acc, slice, i) => {
     const pct = slice.value / total;
     const dash = pct * circumference;
     const gap = circumference - dash;
-    const currentOffset = offset;
-    offset += dash;
-    return { slice, i, pct, dash, gap, currentOffset };
-  });
+    const currentOffset =
+      acc.length === 0 ? 0 : acc[acc.length - 1]!.currentOffset + acc[acc.length - 1]!.dash;
+    acc.push({ slice, i, pct, dash, gap, currentOffset });
+    return acc;
+  }, []);
 
   const hoveredSlice = hoveredIndex !== null ? slices[hoveredIndex] : null;
   const hoveredPct = hoveredSlice ? Math.round(hoveredSlice.pct * 100) : null;
@@ -61,7 +62,6 @@ export default function DonutChart({ data, title, centerLabel, size = 160, ariaL
         />
         {slices.map(({ slice, i, dash, gap, currentOffset }) => {
           const isHovered = hoveredIndex === i;
-          const pct = Math.round((slice.value / total) * 100);
           return (
             <circle
               key={slice.label}

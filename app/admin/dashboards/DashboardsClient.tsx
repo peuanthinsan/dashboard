@@ -1,9 +1,14 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
+import { useActionState, useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
-import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
+import {
+  INITIAL_STATE,
+  StatusMessage,
+  useDeferredCloseOnSuccess,
+  useRefreshOnSuccess,
+} from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
 import {
@@ -196,12 +201,7 @@ function DashboardRow({
   const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
   useRefreshOnSuccess(state);
-
-  useEffect(() => {
-    if (state.status === 'success') {
-      setIsOpen(false);
-    }
-  }, [state.status]);
+  useDeferredCloseOnSuccess(state.status === 'success', () => setIsOpen(false));
 
   return (
     <>
@@ -420,10 +420,6 @@ export default function DashboardsClient({
 
   const totalDashboards = dashboards.length;
 
-  useEffect(() => {
-    setPage(1);
-  }, [search, filterCompanyId, filterOrganizationId]);
-
   const [dashboardCreateState, dashboardCreateAction] = useActionState(
     addDashboardAction,
     INITIAL_STATE,
@@ -431,13 +427,11 @@ export default function DashboardsClient({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createSheetUrl, setCreateSheetUrl] = useState('');
   useRefreshOnSuccess(dashboardCreateState);
-
-  useEffect(() => {
-    if (dashboardCreateState.status === 'success') {
-      setIsCreateOpen(false);
-      setCreateSheetUrl('');
-    }
-  }, [dashboardCreateState.status]);
+  const closeCreateDashboardModal = useCallback(() => {
+    setIsCreateOpen(false);
+    setCreateSheetUrl('');
+  }, []);
+  useDeferredCloseOnSuccess(dashboardCreateState.status === 'success', closeCreateDashboardModal);
 
   // Bulk state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -831,7 +825,10 @@ export default function DashboardsClient({
               <input
                 type="search"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search by name…"
                 className={`min-w-[12rem] ${ADMIN_INPUT}`}
                 aria-label="Search dashboards"
@@ -840,7 +837,10 @@ export default function DashboardsClient({
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">Company</span>
                 <select
                   value={filterCompanyId}
-                  onChange={(e) => setFilterCompanyId(e.target.value)}
+                  onChange={(e) => {
+                    setFilterCompanyId(e.target.value);
+                    setPage(1);
+                  }}
                   className={ADMIN_SELECT}
                   aria-label="Filter by company"
                 >
@@ -854,7 +854,10 @@ export default function DashboardsClient({
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">Fleet</span>
                 <select
                   value={filterOrganizationId}
-                  onChange={(e) => setFilterOrganizationId(e.target.value)}
+                  onChange={(e) => {
+                    setFilterOrganizationId(e.target.value);
+                    setPage(1);
+                  }}
                   className={ADMIN_SELECT}
                   aria-label="Filter by fleet"
                 >

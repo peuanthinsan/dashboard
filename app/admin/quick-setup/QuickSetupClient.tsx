@@ -282,7 +282,7 @@ export default function QuickSetupClient({
                 onChange={(e) => setCreateCompleteSet(e.target.checked)}
                 className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
               />
-              Create complete set (Summary, Simple, Detail, Driving)
+              Create complete set ({COMPLETE_SET_TEMPLATES.join(', ')})
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>

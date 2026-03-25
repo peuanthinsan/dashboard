@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { ComponentProps } from 'react';
 import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from 'app/auth';
@@ -46,17 +47,22 @@ export async function generateMetadata({
   };
 }
 
-const templateComponents: Record<string, typeof SummaryDashboard> = {
-  Summary: SummaryDashboard,
-  Detail: DetailDashboard,
-  Simple: SimpleDashboard,
-  Driving: DrivingDashboard,
-};
+type DashboardViewProps = ComponentProps<typeof SummaryDashboard>;
 
-const getTemplate = (template: string | null) => {
-  const resolved = resolveTemplateName(template ?? 'Summary');
-  return templateComponents[resolved] ?? SummaryDashboard;
-};
+function DashboardByTemplate({ template, ...props }: { template: string | null } & DashboardViewProps) {
+  const name = resolveTemplateName(template ?? 'Summary');
+  switch (name) {
+    case 'Detail':
+      return <DetailDashboard {...props} />;
+    case 'Simple':
+      return <SimpleDashboard {...props} />;
+    case 'Driving':
+      return <DrivingDashboard {...props} />;
+    case 'Summary':
+    default:
+      return <SummaryDashboard {...props} />;
+  }
+}
 
 async function DashboardContent({
   id,
@@ -89,12 +95,12 @@ async function DashboardContent({
     organizationName = organizationResult[0]?.name ?? null;
   }
 
-  const Template = getTemplate(dashboard.template ?? null);
   const allowedAlertTypes = (dashboard as { alertTypes?: string[] | null }).alertTypes ?? null;
   const allowedRemarks = (dashboard as { remarks?: string[] | null }).remarks ?? null;
 
   return (
-    <Template
+    <DashboardByTemplate
+      template={dashboard.template ?? null}
       lang={lang as 'en' | 'th'}
       dashboardId={id}
       dashboardName={dashboard.name ?? 'Company dashboard'}

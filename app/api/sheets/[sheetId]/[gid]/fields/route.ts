@@ -6,44 +6,11 @@ import {
   toDisplayString,
   withDerivedRemark,
 } from 'app/dashboards/dashboardDataUtils';
+import { parseGoogleSheetGvizText } from 'app/dashboards/googleSheetParse';
 
 const CACHE_TTL_SEC = 5 * 60;
 const buildSheetUrl = (sheetId: string, gid: string) =>
   `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
-
-function parseGoogleSheet(payload: string) {
-  const match = payload.match(/setResponse\(([\s\S]*)\);/);
-  if (!match) {
-    throw new Error('Unable to read the Google Sheet response.');
-  }
-  const json = JSON.parse(match[1]);
-  const columns = (json.table?.cols ?? []).map(
-    (col: { label?: string; type?: string }, index: number) => ({
-      label: col?.label ? String(col.label).trim() : `Column ${index + 1}`,
-      type: col?.type ?? 'string',
-    })
-  );
-  const rows = (json.table?.rows ?? []).map(
-    (row: { c?: Array<{ f?: unknown; v?: unknown } | null> }) => {
-      const record: Record<string, string | number | boolean | null> = {};
-      (row?.c ?? []).forEach((cell, index) => {
-        const column = columns[index];
-        if (!column) return;
-        record[column.label] = (cell?.f ?? cell?.v ?? null) as string | number | boolean | null;
-      });
-      return record;
-    }
-  );
-  const isHeaderRow = (row: Record<string, unknown>) =>
-    columns.length > 0 &&
-    columns.every(
-      (column: { label: string }) =>
-        String(row[column.label] ?? '').trim() === column.label
-    );
-  const trimmedRows =
-    rows.length > 0 && isHeaderRow(rows[0]) ? rows.slice(1) : rows;
-  return { columns, rows: trimmedRows };
-}
 
 /** GET /api/sheets/[sheetId]/[gid]/fields — returns alert types and remarks from the sheet in one call */
 export async function GET(
@@ -74,7 +41,7 @@ export async function GET(
     }
 
     const text = await response.text();
-    const { rows } = parseGoogleSheet(text);
+    const { rows } = parseGoogleSheetGvizText(text);
 
     const alertTypes = new Set<string>();
     const remarks = new Set<string>();

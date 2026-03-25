@@ -15,8 +15,13 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: 'pnpm dev',
+    command: 'bun run dev',
     url: 'http://localhost:3000',
+    // CI starts a fresh server with ALLOW_E2E_FIXTURES. Locally, reuse `bun run dev` if :3000 is up (see e2e/csv-export skip).
     reuseExistingServer: !process.env.CI,
+    env: {
+      ...process.env,
+      ALLOW_E2E_FIXTURES: 'true',
+    },
   },
 });

@@ -1,9 +1,14 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
+import { useActionState, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
-import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
+import {
+  INITIAL_STATE,
+  StatusMessage,
+  useDeferredCloseOnSuccess,
+  useRefreshOnSuccess,
+} from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
 import {
@@ -100,12 +105,7 @@ function UserRow({
   const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
   useRefreshOnSuccess(state);
-
-  useEffect(() => {
-    if (state.status === 'success') {
-      setIsOpen(false);
-    }
-  }, [state.status]);
+  useDeferredCloseOnSuccess(state.status === 'success', () => setIsOpen(false));
 
   const companyDisplay = formatList(companyNames);
   const organizationDisplay = formatList(organizationNames);
@@ -317,20 +317,11 @@ export default function UsersClient({
     [filteredUsers, currentPage],
   );
 
-  useEffect(() => {
-    setPage(1);
-  }, [search]);
-
   const adminCount = users.filter((user) => user.isAdmin).length;
   const [userCreateState, userCreateAction] = useActionState(addUserAction, INITIAL_STATE);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(userCreateState);
-
-  useEffect(() => {
-    if (userCreateState.status === 'success') {
-      setIsCreateOpen(false);
-    }
-  }, [userCreateState.status]);
+  useDeferredCloseOnSuccess(userCreateState.status === 'success', () => setIsCreateOpen(false));
 
   // Bulk state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -582,7 +573,10 @@ export default function UsersClient({
               <input
                 type="search"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search by email…"
                 className={`min-w-[12rem] ${ADMIN_INPUT}`}
                 aria-label="Search users"

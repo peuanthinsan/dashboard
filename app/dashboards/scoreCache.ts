@@ -1,4 +1,8 @@
-const STORAGE_KEY = 'dashboard-scores';
+export const DASHBOARD_SCORES_STORAGE_KEY = 'dashboard-scores';
+const STORAGE_KEY = DASHBOARD_SCORES_STORAGE_KEY;
+
+/** Fired on same-tab updates (localStorage "storage" only fires in other tabs). */
+export const DASHBOARD_SCORES_EVENT = 'dashboard-scores-updated';
 
 export type CachedScore = {
   score: number;
@@ -24,6 +28,9 @@ export function saveDashboardScore(dashboardId: string, score: number, alertCoun
     const map = readAll();
     map[dashboardId] = { score, alertCount, updatedAt: Date.now() };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+    window.dispatchEvent(
+      new CustomEvent<{ dashboardId: string }>(DASHBOARD_SCORES_EVENT, { detail: { dashboardId } }),
+    );
   } catch {
     // Ignore storage failures.
   }

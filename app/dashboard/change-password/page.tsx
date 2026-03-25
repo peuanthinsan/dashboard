@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { compare } from 'bcrypt-ts';
 import { auth } from 'app/auth';
-import { getUserForAuth, updateUserProfile, getUser } from 'app/db';
+import { getUserForAuth, updateUserProfile } from 'app/db';
 import { getDashboardLang } from 'app/dashboard/i18n';
 import { ChangePasswordForm } from './change-password-form';
 import { pageContainer, pageContent } from 'app/ui/design-tokens';

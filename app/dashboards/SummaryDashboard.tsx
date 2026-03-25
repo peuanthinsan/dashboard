@@ -33,6 +33,7 @@ import TrendIndicator from 'app/ui/TrendIndicator';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
 import DriverLeaderboard from 'app/ui/DriverLeaderboard';
 import ExportButton from 'app/ui/ExportButton';
+import { calendarDateToIsoLocal } from 'app/ui/exportCsvFormat';
 import TrendChart from 'app/ui/TrendChart';
 import { heading2, textSecondary, CHART_COLORS } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
@@ -49,7 +50,7 @@ type DashboardProps = {
   allowedRemarks?: string[] | null;
 };
 
-const buildCounts = (rows: Record<string, any>[], labels: string[]) => {
+const buildCounts = (rows: Record<string, unknown>[], labels: string[]) => {
   const totals = new Map<string, number>();
   rows.forEach((row) => {
     const value = findValue(row, labels);
@@ -72,7 +73,15 @@ export default function SummaryDashboard({
   allowedAlertTypes: allowedAlertTypesProp,
   allowedRemarks: allowedRemarksProp,
 }: DashboardProps) {
-  const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
+    sheetId,
+    gid: sheetGid,
+  });
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
@@ -93,9 +102,12 @@ export default function SummaryDashboard({
     }>(storageKey);
     if (!stored) return;
     didSetDefaultMonth.current = true;
-    if (Array.isArray(stored.monthFilters)) setMonthFilters(stored.monthFilters.filter((v) => typeof v === 'string'));
-    if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
-    if (Array.isArray(stored.fleetFilters)) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
+    const frame = requestAnimationFrame(() => {
+      if (Array.isArray(stored.monthFilters)) setMonthFilters(stored.monthFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.fleetFilters)) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
+    });
+    return () => cancelAnimationFrame(frame);
   }, [storageKey]);
 
   useEffect(() => {
@@ -128,7 +140,7 @@ export default function SummaryDashboard({
       const parsedDate = parseDate(dateValue);
       const monthKey = parsedDate ? toMonthKey(parsedDate) : null;
       const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'Unknown month';
-      return { alertType, driver, fleet, remarks, vehicle, monthKey, monthLabel, dateValue, parsedDate };
+      return { sourceRow: row, alertType, driver, fleet, remarks, vehicle, monthKey, monthLabel, dateValue, parsedDate };
     });
     const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks) && !isExcludedAlertRemark(row.remarks));
     if (!normalizedOrganizationName) return remarkRows;
@@ -147,11 +159,17 @@ export default function SummaryDashboard({
     return Array.from(unique.entries()).map(([key, label]) => ({ key, label })).sort((a, b) => b.key.localeCompare(a.key));
   }, [alertRows]);
   useEffect(() => {
-    if (didSetDefaultMonth.current) return;
-    if (monthOptions.length === 0) return;
-    if (monthFilters.length > 0) { didSetDefaultMonth.current = true; return; }
-    didSetDefaultMonth.current = true;
-    if (monthOptions.some((o) => o.key === currentMonthKey)) setMonthFilters([currentMonthKey]);
+    const frame = requestAnimationFrame(() => {
+      if (didSetDefaultMonth.current) return;
+      if (monthOptions.length === 0) return;
+      if (monthFilters.length > 0) {
+        didSetDefaultMonth.current = true;
+        return;
+      }
+      didSetDefaultMonth.current = true;
+      if (monthOptions.some((o) => o.key === currentMonthKey)) setMonthFilters([currentMonthKey]);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [currentMonthKey, monthFilters, monthOptions]);
 
   // Filtered data — filter by allowed alert types, remarks, and fleet
@@ -239,9 +257,9 @@ export default function SummaryDashboard({
     [previousRows.length, prevUniqueVehicles, prevDayCount],
   );
 
-  // Cache score for display on dashboards listing page
+  // Cache score for dashboards listing (matches current filter selection, including empty result)
   useEffect(() => {
-    if (loading || currentRows.length === 0) return;
+    if (loading) return;
     saveDashboardScore(dashboardId, safetyScore, currentRows.length);
   }, [dashboardId, loading, safetyScore, currentRows.length]);
 
@@ -330,8 +348,8 @@ export default function SummaryDashboard({
         return { label: item.label, color, rows: monthRows, total };
       })
       .filter((c) => c.total > 0)
-      .map(({ total: _total, ...c }) => c);
-  }, [allowedRemarkTargets, baseFilteredRows, countMatches, monthOptions]);
+      .map((c) => ({ label: c.label, color: c.color, rows: c.rows }));
+  }, [allowedRemarkTargets, baseFilteredRows, countMatches, monthOptions, remarkColorMap]);
 
   // Export data
   const exportData = useMemo(() => {
@@ -342,9 +360,33 @@ export default function SummaryDashboard({
       'Fleet': r.fleet,
       'Remarks': r.remarks,
       'Month': r.monthLabel,
-      'Date': r.parsedDate ? r.parsedDate.toISOString().slice(0, 10) : '',
+      'Date': r.parsedDate ? calendarDateToIsoLocal(r.parsedDate) : '',
     }));
   }, [currentRows]);
+
+  const exportColumns = useMemo(
+    () =>
+      lang === 'th'
+        ? [
+            { key: 'Alert Type', label: 'ประเภทการแจ้งเตือน' },
+            { key: 'Driver', label: 'คนขับ' },
+            { key: 'Vehicle', label: 'ยานพาหนะ' },
+            { key: 'Fleet', label: 'กลุ่มรถ' },
+            { key: 'Remarks', label: 'หมายเหตุ' },
+            { key: 'Month', label: 'เดือน' },
+            { key: 'Date', label: 'วันที่' },
+          ]
+        : [
+            { key: 'Alert Type', label: 'Alert Type' },
+            { key: 'Driver', label: 'Driver' },
+            { key: 'Vehicle', label: 'Vehicle' },
+            { key: 'Fleet', label: 'Fleet' },
+            { key: 'Remarks', label: 'Remarks' },
+            { key: 'Month', label: 'Month' },
+            { key: 'Date', label: 'Date' },
+          ],
+    [lang],
+  );
 
   return (
     <DashboardShell
@@ -353,9 +395,20 @@ export default function SummaryDashboard({
       lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
-      isStale={lastUpdated ? (Date.now() - lastUpdated.getTime()) > 5 * 60 * 1000 : false}
+      isStale={lastUpdated ? nowTick - lastUpdated.getTime() > 5 * 60 * 1000 : false}
       activeFilterCount={monthFilters.length + dayFilters.length + fleetFilters.length}
-      actions={<ExportButton data={exportData} dashboardName={`${dashboardName}-summary`} dateRange={activeMonthKey ?? undefined} label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'} />}
+      actions={
+        <ExportButton
+          data={exportData}
+          fullSheetExport={{ rows, filteredRows: currentRows.map((r) => r.sourceRow), columns: sheetColumns }}
+          dashboardName={`${dashboardName}-summary`}
+          dateRange={activeMonthKey ?? undefined}
+          settingsStorageKey={`summary-${dashboardId}`}
+          lang={lang}
+          columns={exportColumns}
+          label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
+        />
+      }
     >
       {(loading || error) ? (
         <LoadingState

@@ -1,9 +1,9 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
+import { useActionState, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
-import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
+import { INITIAL_STATE, StatusMessage, useDeferredCloseOnSuccess, useRefreshOnSuccess } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
 import {
@@ -55,12 +55,7 @@ function CompanyRow({
   const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
   useRefreshOnSuccess(state);
-
-  useEffect(() => {
-    if (state.status === 'success') {
-      setIsOpen(false);
-    }
-  }, [state.status]);
+  useDeferredCloseOnSuccess(state.status === 'success', () => setIsOpen(false));
 
   return (
     <>
@@ -139,12 +134,7 @@ export default function CompaniesClient({
   const [companyCreateState, companyCreateAction] = useActionState(addCompanyAction, INITIAL_STATE);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(companyCreateState);
-
-  useEffect(() => {
-    if (companyCreateState.status === 'success') {
-      setIsCreateOpen(false);
-    }
-  }, [companyCreateState.status]);
+  useDeferredCloseOnSuccess(companyCreateState.status === 'success', () => setIsCreateOpen(false));
 
   // Bulk state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());

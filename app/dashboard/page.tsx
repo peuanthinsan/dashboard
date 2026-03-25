@@ -4,11 +4,10 @@ import Link from 'next/link';
 import { auth, signOut } from 'app/auth';
 import { getDashboardsForUser, getUser } from 'app/db';
 import AdminShortcut from './AdminShortcut';
-import DashboardCard from './DashboardCard';
 import WelcomeBanner from './WelcomeBanner';
 import { getDashboardCopy, getDashboardLang } from './i18n';
 import EmptyState from 'app/ui/EmptyState';
-import { pageContainer, pageContent, heading2, heading3, textSecondary, btnSecondary, btnSmall } from 'app/ui/design-tokens';
+import { pageContainer, pageContent, heading2, textSecondary, btnSecondary, btnSmall } from 'app/ui/design-tokens';
 import { DashboardByCompany } from './DashboardByCompany';
 
 export default async function DashboardPage() {

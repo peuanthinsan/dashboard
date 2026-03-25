@@ -12,15 +12,15 @@ import {
   text,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { eq, inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
 
 const dbUrl = process.env.POSTGRES_URL || 'postgresql://localhost:5432/placeholder?sslmode=require';
-let client = postgres(dbUrl);
-let db = drizzle(client);
+const client = postgres(dbUrl);
+const db = drizzle(client);
 
 // --- Schema re-declarations (mirrors app/db.ts) ---
 

@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import { saveDashboardScore } from './scoreCache';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import {
+  computeSafetyScore,
   findValue,
   normalizeLabel,
   parseDate,
@@ -25,6 +27,7 @@ import InlineDayPicker from 'app/ui/InlineDayPicker';
 import MultiSelect from 'app/ui/MultiSelect';
 
 const DEFAULT_SIMPLE_ALERT_TYPES = ['Eye Closing-A2', 'Yawning-A2'];
+const DEFAULT_SIMPLE_REMARKS = ['fatigue', 'yawning', 'distraction'];
 
 type DashboardProps = {
   dashboardId: string;
@@ -75,7 +78,10 @@ export default function SimpleDashboard({
   allowedRemarks: allowedRemarksProp,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
-  const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
+    sheetId,
+    gid: sheetGid,
+  });
   const normalizedOrganizationName = useMemo(
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
@@ -91,18 +97,21 @@ export default function SimpleDashboard({
     const stored = loadStoredFilters<SimpleFilterState>(storageKey);
     if (!stored) return;
     didSetDefaultMonth.current = true;
-    setFilters({
-      month: typeof stored.month === 'string' ? stored.month : '',
-      dayFilters: Array.isArray(stored.dayFilters)
-        ? stored.dayFilters.filter((v) => typeof v === 'string')
-        : [],
-      vehicleFilters: Array.isArray(stored.vehicleFilters)
-        ? stored.vehicleFilters.filter((v) => typeof v === 'string')
-        : [],
-      driverFilters: Array.isArray(stored.driverFilters)
-        ? stored.driverFilters.filter((v) => typeof v === 'string')
-        : [],
+    const frame = requestAnimationFrame(() => {
+      setFilters({
+        month: typeof stored.month === 'string' ? stored.month : '',
+        dayFilters: Array.isArray(stored.dayFilters)
+          ? stored.dayFilters.filter((v) => typeof v === 'string')
+          : [],
+        vehicleFilters: Array.isArray(stored.vehicleFilters)
+          ? stored.vehicleFilters.filter((v) => typeof v === 'string')
+          : [],
+        driverFilters: Array.isArray(stored.driverFilters)
+          ? stored.driverFilters.filter((v) => typeof v === 'string')
+          : [],
+      });
     });
+    return () => cancelAnimationFrame(frame);
   }, [storageKey]);
 
   // ── Persist filters ─────────────────────────────────────────────────────
@@ -120,7 +129,6 @@ export default function SimpleDashboard({
     () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : DEFAULT_SIMPLE_ALERT_TYPES),
     [allowedAlertTypesProp],
   );
-  const DEFAULT_SIMPLE_REMARKS = ['fatigue', 'yawning', 'distraction'];
   const effectiveRemarks = useMemo(
     () => (allowedRemarksProp && allowedRemarksProp.length > 0
       ? allowedRemarksProp.map((r) => normalizeLabel(r))
@@ -142,6 +150,7 @@ export default function SimpleDashboard({
         const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
         const parsedDate = parseDate(dateValue);
         return {
+          sourceRow: row,
           alertType,
           remarks,
           parsedDate,
@@ -172,16 +181,19 @@ export default function SimpleDashboard({
   }, [baseAlerts]);
 
   useEffect(() => {
-    if (didSetDefaultMonth.current) return;
-    if (monthOptions.length === 0) return;
-    if (filters.month !== '') {
+    const frame = requestAnimationFrame(() => {
+      if (didSetDefaultMonth.current) return;
+      if (monthOptions.length === 0) return;
+      if (filters.month !== '') {
+        didSetDefaultMonth.current = true;
+        return;
+      }
       didSetDefaultMonth.current = true;
-      return;
-    }
-    didSetDefaultMonth.current = true;
-    if (monthOptions.includes(currentMonthKey)) {
-      setFilters((f) => ({ ...f, month: currentMonthKey, dayFilters: [] }));
-    }
+      if (monthOptions.includes(currentMonthKey)) {
+        setFilters((f) => ({ ...f, month: currentMonthKey, dayFilters: [] }));
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [currentMonthKey, filters.month, monthOptions]);
 
   // ── Month-filtered alerts ───────────────────────────────────────────────
@@ -206,11 +218,14 @@ export default function SimpleDashboard({
   }, [monthFilteredAlerts]);
 
   useEffect(() => {
-    setFilters((current) => {
-      const next = current.vehicleFilters.filter((v) => vehicleOptions.includes(v));
-      if (next.length === current.vehicleFilters.length) return current;
-      return { ...current, vehicleFilters: next };
+    const frame = requestAnimationFrame(() => {
+      setFilters((current) => {
+        const next = current.vehicleFilters.filter((v) => vehicleOptions.includes(v));
+        if (next.length === current.vehicleFilters.length) return current;
+        return { ...current, vehicleFilters: next };
+      });
     });
+    return () => cancelAnimationFrame(frame);
   }, [vehicleOptions]);
 
   const driverOptions = useMemo(() => {
@@ -222,11 +237,14 @@ export default function SimpleDashboard({
   }, [monthFilteredAlerts]);
 
   useEffect(() => {
-    setFilters((current) => {
-      const next = current.driverFilters.filter((d) => driverOptions.includes(d));
-      if (next.length === current.driverFilters.length) return current;
-      return { ...current, driverFilters: next };
+    const frame = requestAnimationFrame(() => {
+      setFilters((current) => {
+        const next = current.driverFilters.filter((d) => driverOptions.includes(d));
+        if (next.length === current.driverFilters.length) return current;
+        return { ...current, driverFilters: next };
+      });
     });
+    return () => cancelAnimationFrame(frame);
   }, [driverOptions]);
 
   // ── Fully filtered alerts ───────────────────────────────────────────────
@@ -242,6 +260,27 @@ export default function SimpleDashboard({
     }
     return alerts;
   }, [monthFilteredAlerts, filters.vehicleFilters, filters.driverFilters]);
+
+  const uniqueVehiclesForScore = useMemo(
+    () => new Set(filteredAlerts.map((r) => r.vehicle).filter((v) => v && v !== '—')).size,
+    [filteredAlerts],
+  );
+  const dayCountForScore = useMemo(() => {
+    const days = new Set<string>();
+    filteredAlerts.forEach((r) => {
+      if (r.parsedDate) days.add(toDayKey(r.parsedDate));
+    });
+    return Math.max(1, days.size);
+  }, [filteredAlerts]);
+  const overallSafetyScore = useMemo(
+    () => computeSafetyScore(filteredAlerts.length, Math.max(1, uniqueVehiclesForScore), dayCountForScore),
+    [filteredAlerts.length, uniqueVehiclesForScore, dayCountForScore],
+  );
+
+  useEffect(() => {
+    if (loading) return;
+    saveDashboardScore(dashboardId, overallSafetyScore, filteredAlerts.length);
+  }, [dashboardId, loading, overallSafetyScore, filteredAlerts.length]);
 
   // ── Stats ───────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -277,9 +316,6 @@ export default function SimpleDashboard({
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10); // 1-based
     if (isNaN(year) || isNaN(month)) return undefined;
-
-    const currentFrom = new Date(year, month - 1, 1);
-    const currentTo = new Date(year, month, 0, 23, 59, 59, 999); // last day of month
 
     // Prior period = previous month
     const priorFrom = new Date(year, month - 2, 1);
@@ -435,8 +471,24 @@ export default function SimpleDashboard({
       actions={
         <ExportButton
           data={exportData}
+          fullSheetExport={{ rows, filteredRows: filteredAlerts.map((r) => r.sourceRow), columns: sheetColumns }}
           dashboardName="SimpleDashboard"
           dateRange={exportDateRange}
+          settingsStorageKey={`simple-${dashboardId}`}
+          lang={lang}
+          fullSheetHint={
+            lang === 'th'
+              ? 'ใช้ตัวกรองเดียวกับตารางนี้ แต่ส่งออกแถวดิบจากชีตหนึ่งแถวต่อเหตุการณ์ ไม่ใช่หนึ่งแถวต่อแถวที่รวมในตาราง — รวมทุกคอลัมน์ในชีต'
+              : 'Same filters as this table, but exports raw spreadsheet rows (one row per underlying event), not one row per aggregated table row. Includes every sheet column.'
+          }
+          columns={[
+            { key: 'date', label: lang === 'th' ? 'วันที่' : 'Date' },
+            { key: 'vehicle', label: lang === 'th' ? 'เลขรถ' : 'Vehicle number' },
+            { key: 'fatigue', label: lang === 'th' ? 'ง่วงนอน' : 'Fatigue' },
+            { key: 'yawning', label: lang === 'th' ? 'หาว' : 'Yawning' },
+            { key: 'distraction', label: lang === 'th' ? 'ไม่สนใจ' : 'Distraction' },
+            { key: 'total', label: lang === 'th' ? 'ทั้งหมด' : 'Total' },
+          ]}
           label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
         />
       }

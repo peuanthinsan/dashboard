@@ -39,7 +39,16 @@ type DashboardProps = {
   allowedRemarks?: string[] | null;
 };
 
-type DrivingRow = { driver: string; vehicle: string; date: Date | null; distanceKm: number; cntDrvDurationHours: number; restHours: number; fleet?: string };
+type DrivingRow = {
+  sourceRow: Record<string, unknown>;
+  driver: string;
+  vehicle: string;
+  date: Date | null;
+  distanceKm: number;
+  cntDrvDurationHours: number;
+  restHours: number;
+  fleet?: string;
+};
 type DriverAggregate = {
   driver: string;
   tripCount: number;
@@ -89,7 +98,15 @@ export default function DrivingDashboard({
   organizationName,
   lang = 'en',
 }: DashboardProps) {
-  const { rows, loading, error, lastUpdated, refresh } = useGoogleSheet({ sheetId, gid: sheetGid });
+  const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
+    sheetId,
+    gid: sheetGid,
+  });
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState('');
@@ -110,10 +127,13 @@ export default function DrivingDashboard({
     }>(storageKey);
     if (!stored) return;
     didSetDefaultMonth.current = true;
-    if (typeof stored.selectedMonth === 'string') setSelectedMonth(stored.selectedMonth);
-    if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
-    if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
-    if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
+    const frame = requestAnimationFrame(() => {
+      if (typeof stored.selectedMonth === 'string') setSelectedMonth(stored.selectedMonth);
+      if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
+    });
+    return () => cancelAnimationFrame(frame);
   }, [storageKey]);
 
   // ── Persist filters ─────────────────────────────────────────────────────
@@ -127,6 +147,7 @@ export default function DrivingDashboard({
   }, [storageKey, selectedMonth, dayFilters, driverFilters, vehicleFilters]);
 
   const drivingRows = useMemo<DrivingRow[]>(() => rows.map((row) => ({
+    sourceRow: row,
     driver: toDisplayString(findValue(row, ['Driver Name'])),
     vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
     date: parseDate(findValue(row, ['DateTime', 'Start Time', 'Date', 'Alert Date Time'])),
@@ -137,7 +158,15 @@ export default function DrivingDashboard({
   })).filter((row) => {
     if (!normalizedOrganizationName) return true;
     return normalizeLabel(row.fleet ?? '') === normalizedOrganizationName;
-  }).map((row) => ({ driver: row.driver, vehicle: row.vehicle, date: row.date, distanceKm: row.distanceKm, cntDrvDurationHours: row.cntDrvDurationHours, restHours: row.restHours })), [rows, normalizedOrganizationName]);
+  }).map((row) => ({
+    sourceRow: row.sourceRow,
+    driver: row.driver,
+    vehicle: row.vehicle,
+    date: row.date,
+    distanceKm: row.distanceKm,
+    cntDrvDurationHours: row.cntDrvDurationHours,
+    restHours: row.restHours,
+  })), [rows, normalizedOrganizationName]);
 
   const driverOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.driver).filter((n) => n !== '—'))).sort(), [drivingRows]);
   const vehicleOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.vehicle).filter((n) => n !== '—'))).sort(), [drivingRows]);
@@ -183,17 +212,20 @@ export default function DrivingDashboard({
 
   // ── Default to current month when no stored filters ──────────────────────
   useEffect(() => {
-    if (didSetDefaultMonth.current) return;
-    if (allMonthsFromData.length === 0) return;
-    if (selectedMonth !== '') {
+    const frame = requestAnimationFrame(() => {
+      if (didSetDefaultMonth.current) return;
+      if (allMonthsFromData.length === 0) return;
+      if (selectedMonth !== '') {
+        didSetDefaultMonth.current = true;
+        return;
+      }
       didSetDefaultMonth.current = true;
-      return;
-    }
-    didSetDefaultMonth.current = true;
-    if (allMonthsFromData.includes(currentMonthKey)) {
-      setSelectedMonth(currentMonthKey);
-      setDayFilters([]);
-    }
+      if (allMonthsFromData.includes(currentMonthKey)) {
+        setSelectedMonth(currentMonthKey);
+        setDayFilters([]);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [allMonthsFromData, currentMonthKey, selectedMonth]);
 
   const aggregates = useMemo<DriverAggregate[]>(() => {
@@ -494,14 +526,31 @@ export default function DrivingDashboard({
       lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
-      isStale={lastUpdated ? (Date.now() - lastUpdated.getTime()) > 5 * 60 * 1000 : false}
+      isStale={lastUpdated ? nowTick - lastUpdated.getTime() > 5 * 60 * 1000 : false}
       activeFilterCount={activeFilterCount}
       actions={
         <ExportButton
           data={exportData}
+          fullSheetExport={{ rows, filteredRows: filteredRows.map((r) => r.sourceRow), columns: sheetColumns }}
           dashboardName={dashboardName}
           dateRange={dateRange}
           filename={`${dashboardName}-driving`}
+          settingsStorageKey={`driving-${dashboardId}`}
+          lang={lang}
+          fullSheetHint={
+            lang === 'th'
+              ? 'ใช้ตัวกรองเดียวกับตารางนี้ แต่ส่งออกแถวดิบจากชีตหนึ่งแถวต่อทริป/เหตุการณ์ ไม่ใช่หนึ่งแถวต่อแถวสรุปคนขับ — รวมทุกคอลัมน์ในชีต'
+              : 'Same filters as this table, but exports raw spreadsheet rows (one row per trip/event), not one row per aggregated driver summary. Includes every sheet column.'
+          }
+          columns={[
+            { key: 'Driver', label: lang === 'th' ? 'คนขับ' : 'Driver' },
+            { key: 'Trips', label: lang === 'th' ? 'ทริป' : 'Trips' },
+            { key: 'Duration (h)', label: lang === 'th' ? 'ระยะเวลา (ชม.)' : 'Duration (h)' },
+            { key: 'Distance (km)', label: lang === 'th' ? 'ระยะทาง (กม.)' : 'Distance (km)' },
+            { key: 'Avg Distance/Trip (km)', label: lang === 'th' ? 'เฉลี่ยระยะทาง/ทริป (กม.)' : 'Avg distance/trip (km)' },
+            { key: 'Avg Duration/Trip (h)', label: lang === 'th' ? 'เฉลี่ยเวลา/ทริป (ชม.)' : 'Avg duration/trip (h)' },
+          ]}
+          label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
         />
       }
     >

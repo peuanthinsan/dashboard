@@ -14,8 +14,8 @@ import {
 } from './db-schema';
 
 const dbUrl = process.env.POSTGRES_URL || 'postgresql://localhost:5432/placeholder?sslmode=require';
-let client = postgres(dbUrl);
-let db = drizzle(client);
+const client = postgres(dbUrl);
+const db = drizzle(client);
 
 const userSelect = {
   id: users.id,

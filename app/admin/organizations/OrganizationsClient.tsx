@@ -1,9 +1,14 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
+import { useActionState, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
-import { INITIAL_STATE, StatusMessage, useRefreshOnSuccess } from '../admin-client-utils';
+import {
+  INITIAL_STATE,
+  StatusMessage,
+  useDeferredCloseOnSuccess,
+  useRefreshOnSuccess,
+} from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
 import {
@@ -67,12 +72,7 @@ function OrganizationRow({
   const [isOpen, setIsOpen] = useState(false);
   const company = companies.find((entry) => entry.id === organization.companyId);
   useRefreshOnSuccess(state);
-
-  useEffect(() => {
-    if (state.status === 'success') {
-      setIsOpen(false);
-    }
-  }, [state.status]);
+  useDeferredCloseOnSuccess(state.status === 'success', () => setIsOpen(false));
 
   return (
     <>
@@ -183,12 +183,7 @@ export default function OrganizationsClient({
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   useRefreshOnSuccess(organizationCreateState);
-
-  useEffect(() => {
-    if (organizationCreateState.status === 'success') {
-      setIsCreateOpen(false);
-    }
-  }, [organizationCreateState.status]);
+  useDeferredCloseOnSuccess(organizationCreateState.status === 'success', () => setIsCreateOpen(false));
 
   // Bulk state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());

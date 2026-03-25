@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ActionState } from './types';
 
@@ -32,4 +32,18 @@ export function useRefreshOnSuccess(state: ActionState) {
       router.refresh();
     }
   }, [router, state.status]);
+}
+
+/** Close modals after server action success without synchronous setState in an effect (react-hooks/set-state-in-effect). */
+export function useDeferredCloseOnSuccess(shouldClose: boolean, close: () => void) {
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  }, [close]);
+
+  useEffect(() => {
+    if (!shouldClose) return;
+    const id = requestAnimationFrame(() => closeRef.current());
+    return () => cancelAnimationFrame(id);
+  }, [shouldClose]);
 }

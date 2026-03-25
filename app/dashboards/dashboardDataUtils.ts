@@ -25,7 +25,7 @@ type TrendLabel = {
   position: number;
 };
 
-type Row = Record<string, any>;
+type Row = Record<string, unknown>;
 
 const normalizedKeyCache = new WeakMap<Row, Map<string, string>>();
 
@@ -250,7 +250,7 @@ export const computeComplianceScore = (violationCount: number, tripCount: number
 };
 
 // CSV export helper
-export const buildExportRows = (rows: Record<string, any>[], columns: string[]) => {
+export const buildExportRows = (rows: Record<string, unknown>[], columns: string[]) => {
   return rows.map((row) => {
     const out: Record<string, unknown> = {};
     columns.forEach((col) => {

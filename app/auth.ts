@@ -26,10 +26,18 @@ export const {
           return null;
         }
         const { email, password } = parsed.data;
-        let user = await getUserForAuth(email);
+        const user = await getUserForAuth(email);
         if (user.length === 0) return null;
-        let passwordsMatch = await compare(password, user[0].password!);
-        if (passwordsMatch) return user[0] as any;
+        const passwordsMatch = await compare(password, user[0].password!);
+        if (passwordsMatch) {
+          const row = user[0];
+          return {
+            id: String(row.id),
+            email: row.email,
+            name: row.email,
+          };
+        }
+        return null;
       },
     }),
   ],

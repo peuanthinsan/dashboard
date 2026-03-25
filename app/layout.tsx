@@ -2,8 +2,8 @@ import './globals.css';
 
 import { GeistSans } from 'geist/font/sans';
 
-let title = 'SongdeeGPS Dashboard';
-let description =
+const title = 'SongdeeGPS Dashboard';
+const description =
   'SongdeeGPS Dashboard for monitoring and managing alert data.';
 
 export const metadata = {

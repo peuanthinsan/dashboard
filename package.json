@@ -10,7 +10,8 @@
     "db:push": "drizzle-kit push",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "CI=1 playwright test"
   },
   "dependencies": {
     "@types/node": "^25.5.0",

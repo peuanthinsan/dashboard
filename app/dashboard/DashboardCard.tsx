@@ -1,9 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { textSecondary } from 'app/ui/design-tokens';
-import { getDashboardScore, type CachedScore } from 'app/dashboards/scoreCache';
+import {
+  DASHBOARD_SCORES_EVENT,
+  DASHBOARD_SCORES_STORAGE_KEY,
+  getDashboardScore,
+  type CachedScore,
+} from 'app/dashboards/scoreCache';
 import ScoreBlock from 'app/ui/ScoreBlock';
 
 type DashboardCardProps = {
@@ -45,10 +51,47 @@ const templateDescriptions: Record<string, { en: string; th: string }> = {
 export default function DashboardCard({ id, name, template, sheetUrl, lang }: DashboardCardProps) {
   const [copied, setCopied] = useState(false);
   const [cachedScore, setCachedScore] = useState<CachedScore | null>(null);
+  const pathname = usePathname();
+
+  const refreshScore = useCallback(() => {
+    if (!id) {
+      setCachedScore(null);
+      return;
+    }
+    setCachedScore(getDashboardScore(id));
+  }, [id]);
 
   useEffect(() => {
-    if (id) setCachedScore(getDashboardScore(id));
-  }, [id]);
+    const id = requestAnimationFrame(() => refreshScore());
+    return () => cancelAnimationFrame(id);
+  }, [refreshScore, pathname]);
+
+  useEffect(() => {
+    const onScoresUpdated = (e: Event) => {
+      if (!(e instanceof CustomEvent)) return;
+      const updatedId = (e.detail as { dashboardId?: string } | undefined)?.dashboardId;
+      if (!updatedId || updatedId === id) refreshScore();
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) refreshScore();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshScore();
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DASHBOARD_SCORES_STORAGE_KEY) refreshScore();
+    };
+    window.addEventListener(DASHBOARD_SCORES_EVENT, onScoresUpdated);
+    window.addEventListener('pageshow', onPageShow);
+    window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener(DASHBOARD_SCORES_EVENT, onScoresUpdated);
+      window.removeEventListener('pageshow', onPageShow);
+      window.removeEventListener('storage', onStorage);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [id, refreshScore]);
 
   const icon = templateIcons[template ?? ''] ?? '📊';
   const badgeColor =
@@ -100,7 +143,11 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
                 : (lang === 'th'
                   ? 'คะแนนความปลอดภัย (0–100): ยิ่งสูงยิ่งมีการแจ้งเตือนน้อย'
                   : 'Safety score (0–100): Higher = fewer alerts.')}
-              detail={`${cachedScore.alertCount} ${lang === 'th' ? 'แจ้งเตือน' : 'alerts'}`}
+              detail={
+                template === 'Driving'
+                  ? `${cachedScore.alertCount} ${lang === 'th' ? 'การฝ่าฝืน' : 'violations'}`
+                  : `${cachedScore.alertCount} ${lang === 'th' ? 'แจ้งเตือน' : 'alerts'}`
+              }
             />
           </div>
         )}
