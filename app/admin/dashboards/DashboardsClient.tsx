@@ -45,6 +45,44 @@ const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving'] 
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving'] as const;
 const PAGE_SIZE = 25;
 
+function bulkSheetTargetKey(organizationId: number | undefined, template: string) {
+  return `${organizationId ?? 'company'}::${template}`;
+}
+
+type BulkSheetTargetRow = {
+  key: string;
+  organizationId: number | undefined;
+  scopeLabel: string;
+  template: string;
+};
+
+function buildBulkSheetTargets(
+  orgIds: number[],
+  templates: string[],
+  organizationMap: Map<number, string>,
+): BulkSheetTargetRow[] {
+  const scopes: { organizationId: number | undefined; scopeLabel: string }[] =
+    orgIds.length > 0
+      ? orgIds.map((id) => ({
+          organizationId: id,
+          scopeLabel: organizationMap.get(id) ?? `Fleet #${id}`,
+        }))
+      : [{ organizationId: undefined, scopeLabel: 'Company (no fleet)' }];
+
+  const rows: BulkSheetTargetRow[] = [];
+  for (const s of scopes) {
+    for (const template of templates) {
+      rows.push({
+        key: bulkSheetTargetKey(s.organizationId, template),
+        organizationId: s.organizationId,
+        scopeLabel: s.scopeLabel,
+        template,
+      });
+    }
+  }
+  return rows;
+}
+
 function parseSheetLink(sheetUrl: string) {
   const trimmed = sheetUrl.trim();
   const idMatch = trimmed.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -448,6 +486,8 @@ export default function DashboardsClient({
   const [bulkOrgIds, setBulkOrgIds] = useState<Set<number>>(new Set());
   const [bulkDashboardName, setBulkDashboardName] = useState('');
   const [bulkNotes, setBulkNotes] = useState('');
+  const [bulkPerTargetSheets, setBulkPerTargetSheets] = useState(false);
+  const [bulkSheetByTarget, setBulkSheetByTarget] = useState<Record<string, string>>({});
 
   // Reassign state
   const [reassignOrgId, setReassignOrgId] = useState('');
@@ -491,26 +531,17 @@ export default function DashboardsClient({
 
   function handleBulkCreate() {
     const compId = parseInt(bulkCompanyId, 10);
-    if (!bulkDashboardName.trim() || !bulkSheetUrl.trim() || !compId) return;
-
-    const { sheetId, sheetGid } = parseSheetLink(bulkSheetUrl);
-    if (!sheetId) {
-      setBulkStatus('Enter a valid Google Sheet link.');
-      return;
-    }
+    if (!bulkDashboardName.trim() || !compId) return;
 
     const baseName = bulkDashboardName.trim();
-    const sheetUrl = bulkSheetUrl.trim();
+    const defaultSheetUrl = bulkSheetUrl.trim();
     const notes = bulkNotes.trim() || undefined;
 
     const templates = bulkCreateCompleteSet
-      ? COMPLETE_SET_TEMPLATES
+      ? [...COMPLETE_SET_TEMPLATES]
       : [bulkTemplate];
 
     const orgIds = Array.from(bulkOrgIds);
-    const scopes = orgIds.length > 0
-      ? orgIds.map((orgId) => ({ companyId: compId, organizationId: orgId }))
-      : [{ companyId: compId, organizationId: undefined as number | undefined }];
 
     const items: {
       name: string;
@@ -523,16 +554,58 @@ export default function DashboardsClient({
       notes?: string;
     }[] = [];
 
-    for (const scope of scopes) {
-      for (const template of templates) {
+    if (!bulkPerTargetSheets) {
+      if (!defaultSheetUrl) return;
+      const { sheetId, sheetGid } = parseSheetLink(defaultSheetUrl);
+      if (!sheetId) {
+        setBulkStatus('Enter a valid Google Sheet link.');
+        return;
+      }
+
+      const scopes = orgIds.length > 0
+        ? orgIds.map((orgId) => ({ companyId: compId, organizationId: orgId }))
+        : [{ companyId: compId, organizationId: undefined as number | undefined }];
+
+      for (const scope of scopes) {
+        for (const template of templates) {
+          items.push({
+            name: baseName,
+            template,
+            sheetId,
+            sheetGid: sheetGid ?? '0',
+            sheetUrl: defaultSheetUrl,
+            companyId: compId,
+            organizationId: scope.organizationId,
+            notes,
+          });
+        }
+      }
+    } else {
+      const targetRows = buildBulkSheetTargets(orgIds, templates, organizationMap);
+
+      for (const row of targetRows) {
+        const rowUrl = (bulkSheetByTarget[row.key] ?? '').trim() || defaultSheetUrl;
+        if (!rowUrl) {
+          setBulkStatus(
+            `Missing sheet link for ${row.scopeLabel} — ${row.template}. Enter a link in that row or set the default sheet link below.`,
+          );
+          return;
+        }
+        const { sheetId, sheetGid } = parseSheetLink(rowUrl);
+        if (!sheetId) {
+          setBulkStatus(
+            `Invalid Google Sheet link for ${row.scopeLabel} — ${row.template}.`,
+          );
+          return;
+        }
         items.push({
           name: baseName,
-          template,
+          template: row.template,
           sheetId,
           sheetGid: sheetGid ?? '0',
-          sheetUrl,
+          sheetUrl: rowUrl,
           companyId: compId,
-          organizationId: scope.organizationId,
+          organizationId: row.organizationId,
           notes,
         });
       }
@@ -545,6 +618,8 @@ export default function DashboardsClient({
       setBulkSheetUrl('');
       setBulkOrgIds(new Set());
       setBulkNotes('');
+      setBulkSheetByTarget({});
+      setBulkPerTargetSheets(false);
       router.refresh();
     });
   }
@@ -655,7 +730,21 @@ export default function DashboardsClient({
     return organizations.filter((o) => o.companyId === cId || o.companyId === null);
   }, [organizations, bulkCompanyId]);
 
+  const bulkSheetTargetRows = useMemo(() => {
+    const cId = parseInt(bulkCompanyId, 10);
+    if (!cId) return [];
+    const templates = bulkCreateCompleteSet ? [...COMPLETE_SET_TEMPLATES] : [bulkTemplate];
+    return buildBulkSheetTargets(Array.from(bulkOrgIds), templates, organizationMap);
+  }, [bulkCompanyId, bulkCreateCompleteSet, bulkTemplate, bulkOrgIds, organizationMap]);
+
   const allChecked = paginatedDashboards.length > 0 && selectedIds.size === paginatedDashboards.length;
+
+  const bulkCreateButtonDisabled =
+    isPending ||
+    !bulkDashboardName.trim() ||
+    !bulkCompanyId ||
+    (!bulkPerTargetSheets && !bulkSheetUrl.trim()) ||
+    (bulkPerTargetSheets && bulkSheetTargetRows.length === 0);
 
   return (
     <AdminSection>
@@ -987,7 +1076,7 @@ export default function DashboardsClient({
             <div>
               <h3 className={heading3}>Bulk create from template</h3>
               <p className={`mt-1 ${textSecondary}`}>
-                Create dashboards in one go. Use &quot;Create complete set&quot; to add all four templates (Summary, Simple, Detail, Driving) per scope.
+                Create dashboards in one go. Use one sheet link for every fleet and template, or turn on per-row links when Driving and other templates use different spreadsheets.
               </p>
             </div>
             <button
@@ -1009,6 +1098,15 @@ export default function DashboardsClient({
                 />
                 Create complete set (Summary, Simple, Detail, Driving)
               </label>
+              <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={bulkPerTargetSheets}
+                  onChange={(e) => setBulkPerTargetSheets(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
+                />
+                Different sheet link per fleet and template
+              </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                   Dashboard name *
@@ -1020,7 +1118,16 @@ export default function DashboardsClient({
                   />
                 </label>
                 <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-                  Google Sheet link *
+                  {bulkPerTargetSheets ? (
+                    <>
+                      Default Google Sheet link
+                      <span className={`text-xs font-normal ${ADMIN_TEXT_SUBTLE}`}>
+                        Used for any row you leave blank below (optional if every row has its own link).
+                      </span>
+                    </>
+                  ) : (
+                    'Google Sheet link *'
+                  )}
                   <input
                     value={bulkSheetUrl}
                     onChange={(e) => setBulkSheetUrl(e.target.value)}
@@ -1062,7 +1169,7 @@ export default function DashboardsClient({
               {filteredOrgs.length > 0 && (
                 <div>
                   <p className={`mb-2 ${ADMIN_LABEL}`}>
-                    Fleets (optional — one dashboard per checked fleet)
+                    Fleets (optional — one dashboard per checked fleet per template)
                   </p>
                   <div className="flex flex-wrap gap-3">
                     {filteredOrgs.map((o) => (
@@ -1079,6 +1186,59 @@ export default function DashboardsClient({
                   </div>
                 </div>
               )}
+              {bulkPerTargetSheets && (
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700">
+                  <p className={`border-b border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 ${ADMIN_LABEL}`}>
+                    Sheet link per scope and template
+                  </p>
+                  {bulkSheetTargetRows.length === 0 ? (
+                    <p className={`px-3 py-4 text-sm ${ADMIN_TEXT_SUBTLE}`}>
+                      Select a company to see rows. With no fleets checked, you get one row group for the company; with fleets checked, each fleet gets a row per template.
+                    </p>
+                  ) : (
+                    <div className="max-h-72 overflow-auto">
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="sticky top-0 bg-zinc-50 text-xs font-medium text-zinc-600 dark:bg-zinc-800/80 dark:text-zinc-400">
+                          <tr>
+                            <th className="whitespace-nowrap px-3 py-2">Scope</th>
+                            <th className="whitespace-nowrap px-3 py-2">Template</th>
+                            <th className="min-w-[12rem] px-3 py-2">Google Sheet link</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bulkSheetTargetRows.map((row) => (
+                            <tr
+                              key={row.key}
+                              className="border-t border-zinc-100 dark:border-zinc-800"
+                            >
+                              <td className="whitespace-nowrap px-3 py-2 text-zinc-800 dark:text-zinc-200">
+                                {row.scopeLabel}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-zinc-700 dark:text-zinc-300">
+                                {row.template}
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="url"
+                                  value={bulkSheetByTarget[row.key] ?? ''}
+                                  onChange={(e) =>
+                                    setBulkSheetByTarget((prev) => ({
+                                      ...prev,
+                                      [row.key]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder={bulkSheetUrl.trim() ? 'Uses default link' : 'https://docs.google.com/...'}
+                                  className={`${ADMIN_INPUT} w-full min-w-[14rem] font-mono text-xs`}
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
               <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                 Notes (optional)
                 <textarea
@@ -1092,7 +1252,7 @@ export default function DashboardsClient({
                 <button
                   type="button"
                   onClick={handleBulkCreate}
-                  disabled={isPending || !bulkDashboardName.trim() || !bulkSheetUrl.trim() || !bulkCompanyId}
+                  disabled={bulkCreateButtonDisabled}
                   className={ADMIN_PRIMARY_BUTTON}
                 >
                   {isPending ? 'Creating…' : 'Create dashboards'}
