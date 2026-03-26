@@ -51,6 +51,13 @@
     @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-50;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  /* Skip link: off-screen until keyboard focus (Nielsen #7, WCAG 2.4.1) */
+  .skip-to-content {
+    @apply absolute z-[100] -translate-y-full rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-lg outline-none transition-transform focus:translate-y-4 focus:ring-2 focus:ring-red-500/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:ring-red-400/50;
+    left: max(1rem, env(safe-area-inset-left));
+    top: max(0px, env(safe-area-inset-top));
+  }
 }
 
 /* ── Animations ──────────────────────────────── */

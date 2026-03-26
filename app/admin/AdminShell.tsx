@@ -26,7 +26,7 @@ export default function AdminShell({
   children,
 }: AdminShellProps) {
   return (
-    <div className={`${pageContainer} px-4 py-6 text-zinc-900 dark:text-white sm:px-6 sm:py-8`}>
+    <div className={`${pageContainer} text-zinc-900 dark:text-white`}>
       <div className={pageContent}>
         <div className="flex flex-col gap-6">
           <header

@@ -103,7 +103,7 @@ export function DataTable<T extends object>({
   const pagedData = pageSize ? sortedData.slice(clampedPage * pageSize, (clampedPage + 1) * pageSize) : sortedData;
 
   return (
-    <div className="overflow-x-auto w-full rounded-lg">
+    <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-lg [-webkit-overflow-scrolling:touch]">
       <table
         className="w-full border-collapse"
         aria-label={ariaLabel}

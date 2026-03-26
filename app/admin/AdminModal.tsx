@@ -31,9 +31,8 @@ export default function AdminModal({
 
   const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-      <button
-        type="button"
-        aria-hidden="true"
+      <div
+        role="presentation"
         className="absolute inset-0 bg-zinc-900/30 backdrop-blur-sm dark:bg-zinc-950/70"
         onClick={onClose}
       />

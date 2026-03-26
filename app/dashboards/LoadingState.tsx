@@ -76,7 +76,12 @@ export default function LoadingState({
     <div className="flex flex-col gap-4" role="status" aria-live="polite">
       {/* Loading header */}
       <div className={`${cardSection} flex items-center gap-4`}>
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-200 border-t-red-600 dark:border-zinc-700 dark:border-t-red-400" />
+        <div
+          className="h-10 w-10 shrink-0 animate-spin rounded-full border-2 border-zinc-200 border-t-red-600 dark:border-zinc-700 dark:border-t-red-400"
+          role="status"
+          aria-live="polite"
+          aria-label={resolvedMessage}
+        />
         <div>
           <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{resolvedMessage}</p>
           <p className={textSecondary}>

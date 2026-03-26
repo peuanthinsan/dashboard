@@ -22,6 +22,7 @@ type DialogContentProps = {
   children: React.ReactNode;
   onClose: () => void;
   isOpen: boolean;
+  dialogId: string;
 };
 
 function DialogContent({
@@ -30,6 +31,7 @@ function DialogContent({
   children,
   onClose,
   isOpen,
+  dialogId,
 }: DialogContentProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -37,14 +39,15 @@ function DialogContent({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-      <button
-        type="button"
-        aria-hidden="true"
+      {/* Click-catcher only — not focusable so focus moves into the dialog (focus trap). */}
+      <div
+        role="presentation"
         className="absolute inset-0 bg-zinc-900/30 backdrop-blur-sm dark:bg-zinc-950/70"
         onClick={onClose}
       />
       <div
         ref={trapRef}
+        id={dialogId}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -83,18 +86,23 @@ export default function ConfirmDeleteDialog({
   triggerLabel = 'Delete',
 }: ConfirmDeleteDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const dialogId = useId();
 
   return (
     <>
       <button
         type="button"
         onClick={() => setIsOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? dialogId : undefined}
         className={triggerClassName}
       >
         {triggerLabel}
       </button>
       {isOpen ? (
         <DialogContent
+          dialogId={dialogId}
           title={title}
           description={description}
           onClose={() => setIsOpen(false)}

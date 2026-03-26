@@ -1,27 +1,14 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
-import { z } from 'zod';
 import { compare } from 'bcrypt-ts';
 import { auth } from 'app/auth';
 import { getUserForAuth, updateUserProfile } from 'app/db';
 import { getDashboardLang } from 'app/dashboard/i18n';
+import { buildChangePasswordSchema } from 'app/lib/site-auth-schemas';
+import { getSiteCopy } from 'app/site-i18n-copy';
 import { ChangePasswordForm } from './change-password-form';
 import { pageContainer, pageContent } from 'app/ui/design-tokens';
-
-const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1, { error: 'Current password is required.' }),
-    newPassword: z
-      .string()
-      .min(8, { error: 'New password must be at least 8 characters.' })
-      .max(72, { error: 'New password must be at most 72 characters.' }),
-    confirmPassword: z.string().min(1, { error: 'Please confirm your new password.' }),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    error: 'Passwords do not match.',
-    path: ['confirmPassword'],
-  });
 
 type ChangePasswordState = {
   error: string | null;
@@ -33,6 +20,7 @@ export default async function ChangePasswordPage() {
   if (!session?.user?.email) redirect('/login');
 
   const lang = await getDashboardLang();
+  const copy = getSiteCopy(lang);
 
   async function changePassword(
     _prevState: ChangePasswordState,
@@ -40,9 +28,13 @@ export default async function ChangePasswordPage() {
   ): Promise<ChangePasswordState> {
     'use server';
 
+    const pageLang = await getDashboardLang();
+    const pageCopy = getSiteCopy(pageLang);
+    const changePasswordSchema = buildChangePasswordSchema(pageCopy.validation);
+
     const session = await auth();
     if (!session?.user?.email) {
-      return { error: 'Not authenticated.', success: false };
+      return { error: pageCopy.authErrors.notAuthenticated, success: false };
     }
 
     const parsed = changePasswordSchema.safeParse({
@@ -53,18 +45,18 @@ export default async function ChangePasswordPage() {
 
     if (!parsed.success) {
       const firstError = parsed.error.issues[0]?.message;
-      return { error: firstError ?? 'Invalid input.', success: false };
+      return { error: firstError ?? pageCopy.validation.invalidInput, success: false };
     }
 
     const userRows = await getUserForAuth(session.user.email);
     if (userRows.length === 0) {
-      return { error: 'User not found.', success: false };
+      return { error: pageCopy.authErrors.userNotFound, success: false };
     }
 
     const user = userRows[0];
     const isValid = await compare(parsed.data.currentPassword, user.password!);
     if (!isValid) {
-      return { error: lang === 'th' ? 'รหัสผ่านปัจจุบันไม่ถูกต้อง' : 'Current password is incorrect.', success: false };
+      return { error: pageCopy.authErrors.currentPasswordWrong, success: false };
     }
 
     await updateUserProfile({
@@ -86,14 +78,10 @@ export default async function ChangePasswordPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-              {lang === 'th' ? 'เปลี่ยนรหัสผ่าน' : 'Change password'}
-            </h2>
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              {lang === 'th' ? 'กรอกรหัสผ่านปัจจุบันและรหัสผ่านใหม่' : 'Enter your current password and a new password'}
-            </p>
+            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{copy.changePassword.title}</h2>
+            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{copy.changePassword.subtitle}</p>
           </div>
-          <ChangePasswordForm action={changePassword} lang={lang} />
+          <ChangePasswordForm action={changePassword} copy={copy.changePassword} />
         </div>
       </div>
     </div>

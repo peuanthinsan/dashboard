@@ -7,7 +7,8 @@ export const surfaceRaised = 'bg-white dark:bg-zinc-900 border border-zinc-200/6
 export const surfaceInset = 'bg-zinc-50/80 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800/40';
 
 // ── Typography ──────────────────────────────────────────
-export const heading1 = 'text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50';
+export const heading1 =
+  'text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-zinc-50';
 export const heading2 = 'text-lg font-semibold tracking-tight text-zinc-800 dark:text-zinc-100';
 export const heading3 = 'text-sm font-semibold text-zinc-800 dark:text-zinc-200';
 export const textSecondary = 'text-sm text-zinc-500 dark:text-zinc-400';
@@ -49,15 +50,19 @@ export const labelBase = 'block text-sm font-medium text-zinc-700 dark:text-zinc
 export const tableHead =
   'border-b border-zinc-200/80 bg-zinc-50/80 dark:border-zinc-800 dark:bg-zinc-900/50';
 export const tableHeadCell =
-  'px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400';
+  'px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-500 sm:px-4 sm:py-3 dark:text-zinc-400';
 export const tableHeadSticky = `${tableHead} sticky top-0 z-10 backdrop-blur-sm`;
 export const tableRow =
   'border-b border-zinc-100/80 transition-colors duration-150 hover:bg-red-50/30 dark:border-zinc-800/50 dark:hover:bg-red-950/10';
-export const tableCell = 'px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300';
+export const tableCell =
+  'px-2 py-2.5 text-sm text-zinc-700 sm:px-4 sm:py-3 dark:text-zinc-300';
 
 // ── Layout ──────────────────────────────────────────────
-export const pageContainer = 'min-h-screen bg-zinc-50 dark:bg-zinc-950';
-export const pageContent = 'mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8';
+/** min-h-screen fallback + dvh for mobile browser chrome (address bar) */
+export const pageContainer =
+  'min-h-[100dvh] min-h-screen bg-zinc-50 dark:bg-zinc-950';
+/** Narrower horizontal padding on very small screens */
+export const pageContent = 'mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8';
 export const pageHeader = 'mb-8';
 
 // ── Filter chips ────────────────────────────────────────

@@ -1,8 +1,10 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 
-import { inputBase, labelBase, btnPrimary } from 'app/ui/design-tokens';
+import type { SiteCopy } from 'app/site-i18n-copy';
+import { inputBase, labelBase, btnPrimary, textMuted } from 'app/ui/design-tokens';
 
 type RegisterState = {
   error: string | null;
@@ -12,7 +14,9 @@ const initialState: RegisterState = {
   error: null,
 };
 
-function FormError({ message }: { message: string | null }) {
+type RegisterCopy = SiteCopy['register'];
+
+function FormError({ message, id }: { message: string | null; id: string }) {
   const { pending } = useFormStatus();
 
   if (!message || pending) {
@@ -20,13 +24,13 @@ function FormError({ message }: { message: string | null }) {
   }
 
   return (
-    <p className="text-center text-sm text-red-600 dark:text-red-400" role="alert">
+    <p id={id} className="text-center text-sm text-red-600 dark:text-red-400" role="alert">
       {message}
     </p>
   );
 }
 
-function SubmitButton() {
+function SubmitButton({ copy }: { copy: RegisterCopy }) {
   const { pending } = useFormStatus();
 
   return (
@@ -41,6 +45,7 @@ function SubmitButton() {
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <circle
             className="opacity-25"
@@ -57,27 +62,33 @@ function SubmitButton() {
           />
         </svg>
       ) : (
-        'Create account'
+        copy.createAccount
       )}
-      <span aria-live="polite" className="sr-only" role="status">
-        {pending ? 'Loading' : 'Submit form'}
-      </span>
+      {pending ? (
+        <span className="sr-only" role="status">
+          {copy.creatingAccount}
+        </span>
+      ) : null}
     </button>
   );
 }
 
-export function RegisterForm({
-  action,
-}: {
-  action: (state: RegisterState, formData: FormData) => Promise<RegisterState>;
-}) {
-  const [state, formAction] = useFormState(action, initialState);
+const REGISTER_ERROR_ID = 'register-form-error';
+const REGISTER_PASSWORD_HINT_ID = 'register-password-hint';
+
+function RegisterFields({ state, copy }: { state: RegisterState; copy: RegisterCopy }) {
+  const { pending } = useFormStatus();
+  const associateError = Boolean(state.error) && !pending;
+
+  const passwordDescribedBy = [associateError ? REGISTER_ERROR_ID : '', REGISTER_PASSWORD_HINT_ID]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <form action={formAction} className="space-y-4">
+    <>
       <div>
         <label htmlFor="email" className={labelBase}>
-          Email address
+          {copy.emailLabel}
         </label>
         <input
           id="email"
@@ -85,25 +96,54 @@ export function RegisterForm({
           type="email"
           placeholder="user@acme.com"
           autoComplete="email"
+          inputMode="email"
           required
+          aria-required="true"
+          aria-invalid={associateError || undefined}
+          aria-describedby={associateError ? REGISTER_ERROR_ID : undefined}
           className={`mt-1.5 ${inputBase}`}
         />
       </div>
       <div>
         <label htmlFor="password" className={labelBase}>
-          Password
+          {copy.passwordLabel}
         </label>
         <input
           id="password"
           name="password"
           type="password"
           placeholder="••••••••"
+          autoComplete="new-password"
           required
+          minLength={8}
+          maxLength={72}
+          aria-required="true"
+          aria-invalid={associateError || undefined}
+          aria-describedby={passwordDescribedBy}
           className={`mt-1.5 ${inputBase}`}
         />
+        <p id={REGISTER_PASSWORD_HINT_ID} className={`mt-1.5 ${textMuted}`}>
+          {copy.passwordHint}
+        </p>
       </div>
-      <FormError message={state.error} />
-      <SubmitButton />
+      <FormError id={REGISTER_ERROR_ID} message={state.error} />
+      <SubmitButton copy={copy} />
+    </>
+  );
+}
+
+export function RegisterForm({
+  action,
+  copy,
+}: {
+  action: (state: RegisterState, formData: FormData) => Promise<RegisterState>;
+  copy: RegisterCopy;
+}) {
+  const [state, formAction] = useActionState(action, initialState);
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <RegisterFields state={state} copy={copy} />
     </form>
   );
 }

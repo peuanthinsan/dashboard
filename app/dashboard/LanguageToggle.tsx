@@ -15,6 +15,11 @@ export default function LanguageToggle({ lang }: { lang: DashboardLang }) {
         document.cookie = `${DASHBOARD_LANG_COOKIE}=${nextLang}; path=/; max-age=31536000; SameSite=Lax`;
         router.refresh();
       }}
+      aria-label={
+        lang === 'en'
+          ? 'Switch interface language to Thai'
+          : 'Switch interface language to English'
+      }
       className={`${btnSecondary} ${btnSmall}`}
     >
       {lang === 'en' ? dashboardCopy.en.thai : dashboardCopy.th.english}

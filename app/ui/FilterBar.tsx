@@ -12,7 +12,7 @@ export default function FilterBar({ children, className = '' }: FilterBarProps) 
     <div
       data-print-hide
       className={[
-        'relative z-20 overflow-visible flex flex-wrap items-start gap-3 rounded-xl border border-zinc-200/60 bg-white/60 px-4 py-3 shadow-card backdrop-blur-sm',
+        'relative z-20 max-w-full min-w-0 overflow-visible flex flex-wrap items-start gap-3 rounded-xl border border-zinc-200/60 bg-white/60 px-3 py-3 shadow-card backdrop-blur-sm sm:px-4',
         'dark:border-zinc-800/60 dark:bg-zinc-900/60',
         'animate-fade-in',
         className,

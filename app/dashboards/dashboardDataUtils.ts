@@ -241,7 +241,7 @@ export const computeDriverSafetyScore = (alertCount: number, dayCount: number): 
   return Math.round(Math.max(0, 100 - penalty));
 };
 
-/** Compliance score for Driving dashboard: violations per trip. */
+/** Driving safety score for Driving dashboard: violations per trip. */
 export const computeComplianceScore = (violationCount: number, tripCount: number): number => {
   if (tripCount === 0) return 100;
   const violationsPerTrip = violationCount / tripCount;

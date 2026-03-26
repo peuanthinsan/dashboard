@@ -18,7 +18,7 @@ export const RATE_LIMIT_MAX_REGISTER = 5;
 export function checkRateLimit(
   key: string,
   maxAttempts: number
-): { ok: true } | { ok: false; message: string } {
+): { ok: true } | { ok: false } {
   const now = Date.now();
   const entry = store.get(key);
 
@@ -27,10 +27,7 @@ export function checkRateLimit(
   }
 
   if (entry.count >= maxAttempts) {
-    return {
-      ok: false,
-      message: 'Too many attempts. Please try again in a minute.',
-    };
+    return { ok: false };
   }
 
   return { ok: true };
@@ -53,7 +50,7 @@ export function recordFailedAttempt(key: string): void {
 export function checkAndIncrementRateLimit(
   key: string,
   maxAttempts: number
-): { ok: true } | { ok: false; message: string } {
+): { ok: true } | { ok: false } {
   const now = Date.now();
   const entry = store.get(key);
 
@@ -63,10 +60,7 @@ export function checkAndIncrementRateLimit(
   }
 
   if (entry.count >= maxAttempts) {
-    return {
-      ok: false,
-      message: 'Too many attempts. Please try again in a minute.',
-    };
+    return { ok: false };
   }
 
   entry.count += 1;

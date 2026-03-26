@@ -9,7 +9,7 @@ export function SubmitButton({ children }: { children: React.ReactNode }) {
     <button
       type={pending ? 'button' : 'submit'}
       aria-disabled={pending}
-      className="flex h-10 w-full items-center justify-center rounded-md border border-gray-200 bg-white text-sm text-slate-900 transition-all hover:border-gray-300 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-slate-500"
+      className="flex h-10 w-full items-center justify-center rounded-md border border-gray-200 bg-white text-sm text-slate-900 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:ring-offset-2 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:border-slate-500 dark:focus:ring-offset-slate-950"
     >
       {children}
       {pending && (
@@ -18,6 +18,7 @@ export function SubmitButton({ children }: { children: React.ReactNode }) {
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <circle
             className="opacity-25"

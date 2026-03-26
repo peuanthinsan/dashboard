@@ -25,6 +25,7 @@ const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving'] as con
 type QuickSetupState = ActionState & {
   createdCompanyId?: number;
   createdOrganizationId?: number;
+  createdOrganizationIds?: number[];
   createdUserId?: number;
   createdDashboardId?: number;
   createdDashboardCount?: number;
@@ -44,7 +45,11 @@ export default async function QuickSetupPage() {
     await requireAdmin();
 
     const companyName = (formData.get('companyName') as string)?.trim();
-    const fleetName = (formData.get('fleetName') as string)?.trim();
+    const fleetNamesRaw = (formData.get('fleetNames') as string) ?? '';
+    const fleetNameLines = fleetNamesRaw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
     const userEmail = (formData.get('userEmail') as string)?.trim();
     const userPassword = (formData.get('userPassword') as string)?.trim();
     const dashboardName = (formData.get('dashboardName') as string)?.trim();
@@ -56,6 +61,7 @@ export default async function QuickSetupPage() {
     const existingCompanyId = Number(formData.get('existingCompanyId'));
     const useExistingFleet = formData.get('useExistingFleet') === 'on';
     const existingFleetId = Number(formData.get('existingFleetId'));
+    const dashboardFleetTarget = ((formData.get('dashboardFleetTarget') as string) ?? '__none__').trim();
 
     if (!useExistingCompany && !companyName) {
       return { status: 'error', message: 'Enter a company name or select an existing one.' };
@@ -79,8 +85,10 @@ export default async function QuickSetupPage() {
         companyId = result.id;
       }
 
-      // Step 2: Fleet (optional)
+      // Step 2: Fleet(s) (optional)
       let organizationId: number | null = null;
+      const organizationIdsForUser: number[] = [];
+
       if (useExistingFleet && existingFleetId) {
         const fleetRows = await getOrganizationById(existingFleetId);
         const fleet = fleetRows[0];
@@ -88,9 +96,34 @@ export default async function QuickSetupPage() {
           return { status: 'error', message: 'Selected fleet does not belong to the selected company.' };
         }
         organizationId = existingFleetId;
-      } else if (fleetName) {
-        const result = await createOrganization(fleetName, companyId);
-        organizationId = result.id;
+        organizationIdsForUser.push(existingFleetId);
+      } else if (fleetNameLines.length > 0) {
+        const createdPairs: { name: string; id: number }[] = [];
+        for (const name of fleetNameLines) {
+          try {
+            const result = await createOrganization(name, companyId);
+            createdPairs.push({ name, id: result.id });
+          } catch {
+            // duplicate global fleet name or DB error — skip this line
+          }
+        }
+        if (createdPairs.length === 0) {
+          return {
+            status: 'error',
+            message:
+              'No fleets could be created. Each fleet name must be unique across the whole system. Check for duplicates and try again.',
+          };
+        }
+        organizationIdsForUser.push(...createdPairs.map((p) => p.id));
+
+        if (createdPairs.length === 1) {
+          organizationId = createdPairs[0].id;
+        } else if (dashboardFleetTarget === '__none__' || dashboardFleetTarget === '') {
+          organizationId = null;
+        } else {
+          const match = createdPairs.find((p) => p.name === dashboardFleetTarget);
+          organizationId = match?.id ?? createdPairs[0].id;
+        }
       }
 
       // Step 3: User (optional)
@@ -104,7 +137,7 @@ export default async function QuickSetupPage() {
         userId = result.id;
         await updateUserAssignments(userId, {
           companyIds: [companyId],
-          organizationIds: organizationId ? [organizationId] : [],
+          organizationIds: organizationIdsForUser,
           isAdmin: false,
         });
       }
@@ -154,11 +187,20 @@ export default async function QuickSetupPage() {
           ? `${createdDashboardCount} dashboards (complete set)`
           : 'dashboard';
 
+      const fleetCount = organizationIdsForUser.length;
+      const fleetSummary =
+        fleetCount === 0
+          ? ''
+          : fleetCount === 1
+            ? '1 fleet, '
+            : `${fleetCount} fleets, `;
+
       return {
         status: 'success',
-        message: `Customer setup complete! Company, ${dashboardMsg}, and all resources have been created.`,
+        message: `Customer setup complete! Company, ${fleetSummary}${dashboardMsg}, and related resources have been created.`,
         createdCompanyId: companyId,
         createdOrganizationId: organizationId ?? undefined,
+        createdOrganizationIds: organizationIdsForUser.length > 1 ? organizationIdsForUser : undefined,
         createdUserId: userId,
         createdDashboardId,
         createdDashboardCount,

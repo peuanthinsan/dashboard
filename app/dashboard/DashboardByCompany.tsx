@@ -85,8 +85,8 @@ export function DashboardByCompany({ dashboards, lang, copy }: Props) {
             />
             {/* Subtle brand pattern */}
             <div className="pointer-events-none absolute inset-0 brand-pattern opacity-[0.07] dark:opacity-[0.05]" />
-            <div className="relative p-6 pl-7">
-              <div className="mb-5 flex items-center gap-4">
+            <div className="relative p-4 pl-5 sm:p-6 sm:pl-7">
+              <div className="mb-4 flex min-w-0 items-center gap-3 sm:mb-5 sm:gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-50 ring-1 ring-zinc-200/60 shadow-sm dark:from-zinc-800 dark:to-zinc-900 dark:ring-zinc-700/60">
                   <svg
                     className="h-6 w-6 text-zinc-500 dark:text-zinc-400"

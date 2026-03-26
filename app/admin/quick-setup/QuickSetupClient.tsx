@@ -23,6 +23,7 @@ import type { ActionState, Company, Organization } from '../types';
 type QuickSetupState = ActionState & {
   createdCompanyId?: number;
   createdOrganizationId?: number;
+  createdOrganizationIds?: number[];
   createdUserId?: number;
   createdDashboardId?: number;
   createdDashboardCount?: number;
@@ -35,7 +36,7 @@ const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving'] as con
 
 const STEPS = [
   { number: 1, label: 'Company', description: 'Create or select a company' },
-  { number: 2, label: 'Fleet', description: 'Optional fleet grouping' },
+  { number: 2, label: 'Fleets', description: 'Optional — one or many' },
   { number: 3, label: 'User', description: 'Optional login account' },
   { number: 4, label: 'Dashboard', description: 'Connect to Google Sheet' },
 ];
@@ -55,6 +56,12 @@ export default function QuickSetupClient({
   const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
   const [useExistingFleet, setUseExistingFleet] = useState(false);
   const [createCompleteSet, setCreateCompleteSet] = useState(true);
+  const [fleetNamesText, setFleetNamesText] = useState('');
+
+  const fleetNameOptions = fleetNamesText
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   const fleetsForCompany =
     useExistingCompany && selectedCompanyId
@@ -78,7 +85,11 @@ export default function QuickSetupClient({
             {state.createdCompanyId ? (
               <span className={badgeSuccess}>Company #{state.createdCompanyId}</span>
             ) : null}
-            {state.createdOrganizationId ? (
+            {state.createdOrganizationIds && state.createdOrganizationIds.length > 0 ? (
+              <span className={badgeSuccess}>
+                Fleets #{state.createdOrganizationIds.join(', ')}
+              </span>
+            ) : state.createdOrganizationId ? (
               <span className={badgeSuccess}>Fleet #{state.createdOrganizationId}</span>
             ) : null}
             {state.createdUserId ? (
@@ -188,25 +199,30 @@ export default function QuickSetupClient({
             </div>
             <div className="mt-4 flex justify-end">
               <button type="button" onClick={() => setStep(2)} className={ADMIN_PRIMARY_BUTTON}>
-                Next: Fleet
+                Next: Fleets
               </button>
             </div>
           </div>
         </div>
 
-        {/* Step 2: Fleet */}
+        {/* Step 2: Fleets */}
         <div className={step === 2 ? '' : 'hidden'}>
           <div className={cardBase}>
-            <h3 className={heading3}>Step 2: Fleet (optional)</h3>
+            <h3 className={heading3}>Step 2: Fleets (optional)</h3>
             <p className={`mt-1 mb-4 ${textSecondary}`}>
-              Group dashboards by fleet for multi-fleet customers.
+              Add one fleet or several for the same company — one name per line (same idea as bulk create
+              elsewhere). If you create more than one, you will choose which fleet gets the new dashboard in
+              the next step.
             </p>
             <div className="space-y-4">
               <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 <input
                   type="checkbox"
                   checked={useExistingFleet}
-                  onChange={(e) => setUseExistingFleet(e.target.checked)}
+                  onChange={(e) => {
+                    setUseExistingFleet(e.target.checked);
+                    if (e.target.checked) setFleetNamesText('');
+                  }}
                   className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600"
                 />
                 Use existing fleet
@@ -223,9 +239,19 @@ export default function QuickSetupClient({
                 </label>
               ) : (
                 <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-                  Fleet name
-                  <input name="fleetName" placeholder="Bangkok Fleet" className={ADMIN_INPUT} />
-                  <span className={ADMIN_TEXT_SUBTLE}>Leave blank to skip fleet creation.</span>
+                  Fleet names (one per line)
+                  <textarea
+                    name="fleetNames"
+                    value={fleetNamesText}
+                    onChange={(e) => setFleetNamesText(e.target.value)}
+                    placeholder={'Bangkok Fleet\nChiang Mai Fleet'}
+                    rows={5}
+                    className={ADMIN_INPUT}
+                  />
+                  <span className={ADMIN_TEXT_SUBTLE}>
+                    Names must be unique across all fleets in the system. Leave empty to skip — dashboards
+                    can be attached to the company only.
+                  </span>
                 </label>
               )}
             </div>
@@ -285,6 +311,28 @@ export default function QuickSetupClient({
               Create complete set ({COMPLETE_SET_TEMPLATES.join(', ')})
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
+              {!useExistingFleet && fleetNameOptions.length > 1 ? (
+                <label className={`flex flex-col gap-2 sm:col-span-2 ${ADMIN_LABEL}`}>
+                  Attach new dashboard(s) to which fleet?
+                  <select
+                    key={fleetNameOptions.join('|')}
+                    name="dashboardFleetTarget"
+                    className={ADMIN_SELECT}
+                    defaultValue={fleetNameOptions[0] ?? '__none__'}
+                  >
+                    <option value="__none__">Company only (no fleet)</option>
+                    {fleetNameOptions.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className={ADMIN_TEXT_SUBTLE}>
+                    Other fleets are still created; assign dashboards to them later from Admin → Dashboards.
+                    If you add a user, they are linked to every fleet you listed in step 2.
+                  </span>
+                </label>
+              ) : null}
               <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                 Dashboard name *
                 <input name="dashboardName" placeholder="Operations Overview" className={ADMIN_INPUT} />

@@ -53,8 +53,8 @@ export default function DashboardShell({
             {/* Subtle brand pattern */}
             <div className="pointer-events-none absolute inset-0 brand-pattern opacity-30" />
             <div className="relative p-5 pt-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-1">
+              <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
                   <Link
                     href="/dashboard"
                     data-print-hide
@@ -68,9 +68,9 @@ export default function DashboardShell({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-400 dark:text-zinc-500">
                     {subtitle}
                   </p>
-                  <div className="flex items-center gap-3">
-                    <SongdeeLogo height={24} className="hidden sm:block" />
-                    <h1 className={heading1}>{title}</h1>
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                    <SongdeeLogo height={24} className="hidden shrink-0 sm:block" />
+                    <h1 className={`min-w-0 break-words ${heading1}`}>{title}</h1>
                   </div>
                   {lastUpdated ? (
                     <p className={`mt-1 ${textMuted}`}>
@@ -97,7 +97,10 @@ export default function DashboardShell({
                     </div>
                   ) : null}
                 </div>
-                <div className="flex items-start gap-2" data-print-hide>
+                <div
+                  className="flex w-full min-w-0 flex-wrap items-stretch justify-end gap-2 sm:w-auto sm:items-start"
+                  data-print-hide
+                >
                   {actions}
                   <PrintButton label={lang === 'th' ? 'พิมพ์ / PDF' : 'Print / PDF'} />
                 </div>

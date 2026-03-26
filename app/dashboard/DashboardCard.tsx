@@ -45,7 +45,7 @@ const templateDescriptions: Record<string, { en: string; th: string }> = {
   Summary: { en: 'Overview with KPIs and charts', th: 'ภาพรวม KPI และกราฟ' },
   Detail: { en: 'In-depth alert analysis', th: 'วิเคราะห์การแจ้งเตือนเชิงลึก' },
   Simple: { en: 'Minimal table view', th: 'มุมมองตารางอย่างง่าย' },
-  Driving: { en: 'Driving hours & compliance', th: 'ชั่วโมงขับขี่และการปฏิบัติตามกฎ' },
+  Driving: { en: 'Driving hours & safety', th: 'ชั่วโมงขับขี่และความปลอดภัย' },
 };
 
 export default function DashboardCard({ id, name, template, sheetUrl, lang }: DashboardCardProps) {
@@ -138,8 +138,8 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
               label={lang === 'th' ? 'คะแนน' : 'score'}
               tooltip={template === 'Driving'
                 ? (lang === 'th'
-                  ? 'คะแนนการปฏิบัติตาม (0–100): ยิ่งสูงยิ่งปฏิบัติตามกฎการขับขี่ดี'
-                  : 'Compliance score (0–100): Higher = fewer driving violations.')
+                  ? 'คะแนนความปลอดภัยการขับขี่ (0–100): ยิ่งสูงยิ่งมีการฝ่าฝืนน้อย'
+                  : 'Driving safety score (0–100): Higher = fewer driving violations.')
                 : (lang === 'th'
                   ? 'คะแนนความปลอดภัย (0–100): ยิ่งสูงยิ่งมีการแจ้งเตือนน้อย'
                   : 'Safety score (0–100): Higher = fewer alerts.')}

@@ -1,7 +1,13 @@
 export default function LoginLoading() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-      <div className="flex flex-col items-center gap-4">
+      <div
+        className="flex flex-col items-center gap-4"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        aria-label="Loading sign in"
+      >
         <div
           className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-200 border-t-red-600 dark:border-zinc-700 dark:border-t-red-400"
           aria-hidden

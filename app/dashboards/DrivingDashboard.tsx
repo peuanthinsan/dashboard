@@ -376,7 +376,7 @@ export default function DrivingDashboard({
   const cntDrvViolations = useMemo(() => violations.filter((v) => v.type === 'cnt_drv'), [violations]);
   const restHrViolations = useMemo(() => violations.filter((v) => v.type === 'rest_hr'), [violations]);
 
-  // --- Compliance score (cached for main dashboard listing) ---
+  // --- Driving safety score (cached for main dashboard listing) ---
   const complianceScore = useMemo(
     () =>
       computeComplianceScore(
@@ -599,24 +599,24 @@ export default function DrivingDashboard({
         )}
       </FilterBar>
 
-      {/* ═══════════════ SAFETY & COMPLIANCE ═══════════════ */}
+      {/* ═══════════════ DRIVING SAFETY ═══════════════ */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-400/50 to-transparent dark:via-red-600/30" />
         <svg width="6" height="6" viewBox="0 0 6 6" className="shrink-0 text-red-400/50" aria-hidden="true"><polygon points="3,0 6,3 3,6 0,3" fill="currentColor" /></svg>
         <h2 className="text-xs font-bold uppercase tracking-widest text-red-600 dark:text-red-400">
-          {lang === 'th' ? 'ความปลอดภัยและการปฏิบัติตามกฎ' : 'Safety & Compliance'}
+          {lang === 'th' ? 'ความปลอดภัยการขับขี่' : 'Driving safety'}
         </h2>
         <svg width="6" height="6" viewBox="0 0 6 6" className="shrink-0 text-red-400/50" aria-hidden="true"><polygon points="3,0 6,3 3,6 0,3" fill="currentColor" /></svg>
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-400/50 to-transparent dark:via-red-600/30" />
       </div>
 
-      {/* Compliance score — prominent block */}
+      {/* Driving safety score — prominent block */}
       <ScoreBlock
         score={complianceScore}
-        label={lang === 'th' ? 'คะแนนการปฏิบัติตาม' : 'Compliance score'}
+        label={lang === 'th' ? 'คะแนนความปลอดภัยการขับขี่' : 'Driving safety score'}
         tooltip={lang === 'th'
-          ? `คะแนนการปฏิบัติตาม (0–100): คำนวณจากจำนวนการฝ่าฝืนต่อทริป (เช่น ขับเกิน 9 ชม. พักน้อยกว่า 11 ชม.) ยิ่งสูงยิ่งปฏิบัติตามดี`
-          : `Compliance score (0–100): Based on driving violations per trip (e.g. driving >9 hrs, rest <11 hrs). Higher = fewer violations.`}
+          ? `คะแนนความปลอดภัยการขับขี่ (0–100): คำนวณจากจำนวนการฝ่าฝืนต่อทริป (เช่น ขับเกิน 9 ชม. พักน้อยกว่า 11 ชม.) ยิ่งสูงยิ่งมีการฝ่าฝืนน้อย`
+          : `Driving safety score (0–100): Based on driving violations per trip (e.g. driving >9 hrs, rest <11 hrs). Higher = fewer violations.`}
         detail={`${cntDrvViolations.length + restHrViolations.length} ${lang === 'th' ? 'การฝ่าฝืน' : 'violations'} · ${filteredRows.length} ${lang === 'th' ? 'ทริป' : 'trips'}`}
       />
 

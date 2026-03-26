@@ -34,6 +34,7 @@ export function Form({
           name="password"
           type="password"
           placeholder="••••••••"
+          autoComplete="current-password"
           required
           className={`mt-1.5 ${inputBase}`}
         />
