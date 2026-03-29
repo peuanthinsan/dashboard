@@ -55,15 +55,15 @@ export default function HorizontalBarChart({
                 setTooltip((t) => ({ ...t, visible: false }))
               }
             >
-              <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                <span className="flex min-w-0 items-center gap-2">
+              <div className="mb-1 flex items-start justify-between gap-2 text-xs">
+                <span className="flex min-w-0 flex-1 items-start gap-2">
                   <span
                     className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
                     style={{ backgroundColor: color }}
                   >
                     {i + 1}
                   </span>
-                  <span className="truncate text-zinc-700 dark:text-zinc-300">
+                  <span className="min-w-0 flex-1 break-words leading-snug text-zinc-700 dark:text-zinc-300">
                     {item.label}
                   </span>
                 </span>

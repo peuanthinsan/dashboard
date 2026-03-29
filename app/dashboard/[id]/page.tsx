@@ -10,6 +10,7 @@ import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
 import LoadingState from 'app/dashboards/LoadingState';
 import { resolveTemplate as resolveTemplateName } from 'app/dashboards/dashboardDataUtils';
+import { normalizeDrivingThresholds, type DrivingThresholds } from 'app/dashboards/drivingThresholds';
 import { getDashboardLang } from '../i18n';
 import { pageContent } from 'app/ui/design-tokens';
 
@@ -49,7 +50,12 @@ export async function generateMetadata({
 
 type DashboardViewProps = ComponentProps<typeof SummaryDashboard>;
 
-function DashboardByTemplate({ template, ...props }: { template: string | null } & DashboardViewProps) {
+type DashboardByTemplateProps = DashboardViewProps & {
+  template: string | null;
+  drivingThresholds?: DrivingThresholds;
+};
+
+function DashboardByTemplate({ template, drivingThresholds, ...props }: DashboardByTemplateProps) {
   const name = resolveTemplateName(template ?? 'Summary');
   switch (name) {
     case 'Detail':
@@ -57,7 +63,7 @@ function DashboardByTemplate({ template, ...props }: { template: string | null }
     case 'Simple':
       return <SimpleDashboard {...props} />;
     case 'Driving':
-      return <DrivingDashboard {...props} />;
+      return <DrivingDashboard {...props} drivingThresholds={drivingThresholds} />;
     case 'Summary':
     default:
       return <SummaryDashboard {...props} />;
@@ -97,6 +103,9 @@ async function DashboardContent({
 
   const allowedAlertTypes = (dashboard as { alertTypes?: string[] | null }).alertTypes ?? null;
   const allowedRemarks = (dashboard as { remarks?: string[] | null }).remarks ?? null;
+  const drivingThresholds = normalizeDrivingThresholds(
+    (dashboard as { drivingThresholds?: unknown }).drivingThresholds,
+  );
 
   return (
     <DashboardByTemplate
@@ -110,6 +119,7 @@ async function DashboardContent({
       organizationName={organizationName}
       allowedAlertTypes={allowedAlertTypes}
       allowedRemarks={allowedRemarks}
+      drivingThresholds={drivingThresholds}
     />
   );
 }

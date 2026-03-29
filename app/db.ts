@@ -444,6 +444,7 @@ export async function createDashboard({
   notes,
   alertTypes,
   remarks,
+  drivingThresholds,
 }: {
   name: string;
   companyId: number;
@@ -455,6 +456,11 @@ export async function createDashboard({
   notes?: string | null;
   alertTypes?: string[] | null;
   remarks?: string[] | null;
+  drivingThresholds?: {
+    continuousDrivingMaxHours: number;
+    restMinimumHours: number;
+    workingHoursMax: number;
+  } | null;
 }) {
   await assertOrganizationBelongsToCompany(companyId, organizationId);
   const [result] = await db.insert(dashboards).values({
@@ -468,6 +474,7 @@ export async function createDashboard({
     notes: notes ?? null,
     alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
     remarks: remarks && remarks.length > 0 ? remarks : null,
+    drivingThresholds: drivingThresholds ?? null,
     publicId: randomUUID(),
   }).returning({ id: dashboards.id });
   return result;
@@ -485,6 +492,7 @@ export async function updateDashboard({
   notes,
   alertTypes,
   remarks,
+  drivingThresholds,
 }: {
   id: number;
   name: string;
@@ -497,6 +505,11 @@ export async function updateDashboard({
   notes?: string | null;
   alertTypes?: string[] | null;
   remarks?: string[] | null;
+  drivingThresholds?: {
+    continuousDrivingMaxHours: number;
+    restMinimumHours: number;
+    workingHoursMax: number;
+  } | null;
 }) {
   await assertOrganizationBelongsToCompany(companyId, organizationId);
   return await db
@@ -512,6 +525,7 @@ export async function updateDashboard({
       notes: notes ?? null,
       alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
       remarks: remarks && remarks.length > 0 ? remarks : null,
+      drivingThresholds: drivingThresholds ?? null,
     })
     .where(eq(dashboards.id, id));
 }

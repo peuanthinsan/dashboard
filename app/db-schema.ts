@@ -83,6 +83,11 @@ export const dashboards = pgTable(
     notes: text('notes'),
     alertTypes: jsonb('alertTypes').$type<string[]>(),
     remarks: jsonb('remarks').$type<string[]>(),
+    drivingThresholds: jsonb('drivingThresholds').$type<{
+      continuousDrivingMaxHours: number;
+      restMinimumHours: number;
+      workingHoursMax: number;
+    }>(),
     companyId: integer('companyId'),
     organizationId: integer('organizationId'),
   },

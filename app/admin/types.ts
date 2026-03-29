@@ -34,6 +34,11 @@ export type Dashboard = {
   notes: string | null;
   alertTypes?: string[] | null;
   remarks?: string[] | null;
+  drivingThresholds?: {
+    continuousDrivingMaxHours: number;
+    restMinimumHours: number;
+    workingHoursMax: number;
+  } | null;
   companyId: number | null;
   organizationId: number | null;
 };

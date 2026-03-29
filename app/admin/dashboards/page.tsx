@@ -21,6 +21,7 @@ import { getDashboardLang } from 'app/dashboard/i18n';
 import { getAdminCopy } from '../i18n-copy';
 import DashboardsClient from './DashboardsClient';
 import type { ActionState } from '../types';
+import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
 
 export default async function AdminDashboardsPage() {
   await requireAdmin();
@@ -61,6 +62,7 @@ export default async function AdminDashboardsPage() {
     const remarks = Array.isArray(remarksRaw)
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
+    const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
     try {
       await createDashboard({
         name,
@@ -73,6 +75,7 @@ export default async function AdminDashboardsPage() {
         notes,
         alertTypes: alertTypes.length > 0 ? alertTypes : null,
         remarks: remarks.length > 0 ? remarks : null,
+        drivingThresholds,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard created.' };
@@ -126,6 +129,7 @@ export default async function AdminDashboardsPage() {
     const remarks = Array.isArray(remarksRaw)
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
+    const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
     try {
       await updateDashboard({
         id: dashboardId,
@@ -139,6 +143,7 @@ export default async function AdminDashboardsPage() {
         notes,
         alertTypes: alertTypes.length > 0 ? alertTypes : null,
         remarks: remarks.length > 0 ? remarks : null,
+        drivingThresholds,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard updated.' };

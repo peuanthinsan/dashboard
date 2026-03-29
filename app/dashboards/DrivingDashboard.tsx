@@ -26,6 +26,7 @@ import AlertHeatmap from 'app/ui/AlertHeatmap';
 import {
   heading2, textSecondary, CHART_COLORS,
 } from 'app/ui/design-tokens';
+import { normalizeDrivingThresholds, type DrivingThresholds } from './drivingThresholds';
 
 type DashboardProps = {
   dashboardId: string;
@@ -37,6 +38,7 @@ type DashboardProps = {
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
+  drivingThresholds?: DrivingThresholds | null;
 };
 
 type DrivingRow = {
@@ -47,6 +49,7 @@ type DrivingRow = {
   distanceKm: number;
   cntDrvDurationHours: number;
   restHours: number;
+  workingHours: number;
   fleet?: string;
 };
 type DriverAggregate = {
@@ -97,7 +100,16 @@ export default function DrivingDashboard({
   dashboardNotes,
   organizationName,
   lang = 'en',
+  drivingThresholds: drivingThresholdsProp,
 }: DashboardProps) {
+  const thresholds = useMemo(
+    () => normalizeDrivingThresholds(drivingThresholdsProp),
+    [
+      drivingThresholdsProp?.continuousDrivingMaxHours,
+      drivingThresholdsProp?.restMinimumHours,
+      drivingThresholdsProp?.workingHoursMax,
+    ],
+  );
   const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
@@ -154,6 +166,17 @@ export default function DrivingDashboard({
     distanceKm: parseNumber(findValue(row, ['Distance'])),
     cntDrvDurationHours: parseDurationHours(findValue(row, ['Cnt Drv Hr', 'Cnt Drv duration', 'DriveHrs duration'])),
     restHours: parseDurationHours(findValue(row, ['Rest Time', 'Rest Hr', 'RestHr', 'Rest Hour', 'Rest Hours', 'Rest duration', 'RestHrs duration'])),
+    workingHours: parseDurationHours(findValue(row, [
+      'Working Hr',
+      'Working Hour',
+      'Working Hours',
+      'Work Hr',
+      'Work Hour',
+      'Work Hours',
+      'Working Time',
+      'Work Time',
+      'Total Working',
+    ])),
     fleet: toDisplayString(findValue(row, ['Fleet'])),
   })).filter((row) => {
     if (!normalizedOrganizationName) return true;
@@ -166,6 +189,7 @@ export default function DrivingDashboard({
     distanceKm: row.distanceKm,
     cntDrvDurationHours: row.cntDrvDurationHours,
     restHours: row.restHours,
+    workingHours: row.workingHours,
   })), [rows, normalizedOrganizationName]);
 
   const driverOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.driver).filter((n) => n !== '—'))).sort(), [drivingRows]);
@@ -355,42 +379,88 @@ export default function DrivingDashboard({
   }, [aggregates]);
 
   // --- Violation reports ---
-  type ViolationRow = { driver: string; vehicle: string; date: string; cntDrvHours: number; restHours: number; type: 'cnt_drv' | 'rest_hr' };
+  type ViolationRow = {
+    driver: string;
+    vehicle: string;
+    date: string;
+    cntDrvHours: number;
+    restHours: number;
+    workingHours: number;
+    type: 'cnt_drv' | 'rest_hr' | 'working_hr';
+  };
   const violations = useMemo<ViolationRow[]>(() => {
     const result: ViolationRow[] = [];
+    const { continuousDrivingMaxHours, restMinimumHours, workingHoursMax } = thresholds;
     filteredRows.forEach((row) => {
       const dateStr = row.date ? row.date.toLocaleDateString('en-GB') : '—';
-      if (row.cntDrvDurationHours > 9) {
-        result.push({ driver: row.driver, vehicle: row.vehicle, date: dateStr, cntDrvHours: row.cntDrvDurationHours, restHours: row.restHours, type: 'cnt_drv' });
+      if (row.cntDrvDurationHours > continuousDrivingMaxHours) {
+        result.push({
+          driver: row.driver,
+          vehicle: row.vehicle,
+          date: dateStr,
+          cntDrvHours: row.cntDrvDurationHours,
+          restHours: row.restHours,
+          workingHours: row.workingHours,
+          type: 'cnt_drv',
+        });
       }
-      if (row.restHours > 0 && row.restHours < 11) {
-        result.push({ driver: row.driver, vehicle: row.vehicle, date: dateStr, cntDrvHours: row.cntDrvDurationHours, restHours: row.restHours, type: 'rest_hr' });
+      if (row.restHours > 0 && row.restHours < restMinimumHours) {
+        result.push({
+          driver: row.driver,
+          vehicle: row.vehicle,
+          date: dateStr,
+          cntDrvHours: row.cntDrvDurationHours,
+          restHours: row.restHours,
+          workingHours: row.workingHours,
+          type: 'rest_hr',
+        });
+      }
+      if (row.workingHours > 0 && row.workingHours > workingHoursMax) {
+        result.push({
+          driver: row.driver,
+          vehicle: row.vehicle,
+          date: dateStr,
+          cntDrvHours: row.cntDrvDurationHours,
+          restHours: row.restHours,
+          workingHours: row.workingHours,
+          type: 'working_hr',
+        });
       }
     });
+    const typeOrder = { cnt_drv: 0, rest_hr: 1, working_hr: 2 } as const;
     return result.sort((a, b) => {
-      if (a.type === b.type) return a.driver.localeCompare(b.driver);
-      return a.type === 'cnt_drv' ? -1 : 1;
+      if (a.type !== b.type) return typeOrder[a.type] - typeOrder[b.type];
+      return a.driver.localeCompare(b.driver);
     });
-  }, [filteredRows]);
+  }, [filteredRows, thresholds]);
 
   const cntDrvViolations = useMemo(() => violations.filter((v) => v.type === 'cnt_drv'), [violations]);
   const restHrViolations = useMemo(() => violations.filter((v) => v.type === 'rest_hr'), [violations]);
+  const workingHrViolations = useMemo(() => violations.filter((v) => v.type === 'working_hr'), [violations]);
 
   // --- Driving safety score (cached for main dashboard listing) ---
   const complianceScore = useMemo(
     () =>
       computeComplianceScore(
-        cntDrvViolations.length + restHrViolations.length,
+        cntDrvViolations.length + restHrViolations.length + workingHrViolations.length,
         Math.max(1, filteredRows.length),
       ),
-    [cntDrvViolations.length, restHrViolations.length, filteredRows.length],
+    [cntDrvViolations.length, restHrViolations.length, workingHrViolations.length, filteredRows.length],
   );
 
   useEffect(() => {
     if (loading) return;
-    const violationCount = cntDrvViolations.length + restHrViolations.length;
+    const violationCount =
+      cntDrvViolations.length + restHrViolations.length + workingHrViolations.length;
     saveDashboardScore(dashboardId, complianceScore, violationCount);
-  }, [dashboardId, loading, complianceScore, cntDrvViolations.length, restHrViolations.length]);
+  }, [
+    dashboardId,
+    loading,
+    complianceScore,
+    cntDrvViolations.length,
+    restHrViolations.length,
+    workingHrViolations.length,
+  ]);
 
   // --- Per-driver sorted by cnt drv hours (for requested bar+line chart) ---
   const driversByCntDrv = useMemo(() =>
@@ -422,25 +492,77 @@ export default function DrivingDashboard({
     return result;
   }, [aggregates, lang]);
 
-  const violationTableColumns = useMemo<Column<ViolationRow>[]>(() => [
-    { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
-    { key: 'vehicle', label: lang === 'th' ? 'ยานพาหนะ' : 'Vehicle', sortable: true },
-    { key: 'date', label: lang === 'th' ? 'วันที่' : 'Date', sortable: true },
-    { key: 'cntDrvHours', label: lang === 'th' ? 'ขับต่อเนื่อง' : 'Cnt Drv', sortable: true, render: (v) => {
-      const hours = Number(v);
-      return <span className={hours > 9 ? 'font-semibold text-red-600 dark:text-red-400' : ''}>{formatHours(hours)}</span>;
-    }},
-    { key: 'restHours', label: lang === 'th' ? 'ชั่วโมงพัก' : 'Rest Hr', sortable: true, render: (v) => {
-      const hours = Number(v);
-      if (hours === 0) return <span className="text-zinc-400">—</span>;
-      return <span className={hours < 11 ? 'font-semibold text-red-600 dark:text-red-400' : ''}>{formatHours(hours)}</span>;
-    }},
-    { key: 'type', label: lang === 'th' ? 'ประเภท' : 'Violation', sortable: true, render: (v) => {
-      return v === 'cnt_drv'
-        ? <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-950 dark:text-red-400">Cnt Drv &gt; 9h</span>
-        : <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-400">Rest &lt; 11h</span>;
-    }},
-  ], [lang]);
+  const violationTableColumns = useMemo<Column<ViolationRow>[]>(() => {
+    const maxCnt = thresholds.continuousDrivingMaxHours;
+    const minRest = thresholds.restMinimumHours;
+    const maxWork = thresholds.workingHoursMax;
+    return [
+      { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
+      { key: 'vehicle', label: lang === 'th' ? 'ยานพาหนะ' : 'Vehicle', sortable: true },
+      { key: 'date', label: lang === 'th' ? 'วันที่' : 'Date', sortable: true },
+      {
+        key: 'cntDrvHours',
+        label: lang === 'th' ? 'ขับต่อเนื่อง' : 'Cnt Drv',
+        sortable: true,
+        render: (v) => {
+          const hours = Number(v);
+          return (
+            <span className={hours > maxCnt ? 'font-semibold text-red-600 dark:text-red-400' : ''}>{formatHours(hours)}</span>
+          );
+        },
+      },
+      {
+        key: 'restHours',
+        label: lang === 'th' ? 'ชั่วโมงพัก' : 'Rest Hr',
+        sortable: true,
+        render: (v) => {
+          const hours = Number(v);
+          if (hours === 0) return <span className="text-zinc-400">—</span>;
+          return (
+            <span className={hours < minRest ? 'font-semibold text-red-600 dark:text-red-400' : ''}>{formatHours(hours)}</span>
+          );
+        },
+      },
+      {
+        key: 'workingHours',
+        label: lang === 'th' ? 'ชม.ทำงาน' : 'Working Hr',
+        sortable: true,
+        render: (v) => {
+          const hours = Number(v);
+          if (hours === 0) return <span className="text-zinc-400">—</span>;
+          return (
+            <span className={hours > maxWork ? 'font-semibold text-red-600 dark:text-red-400' : ''}>{formatHours(hours)}</span>
+          );
+        },
+      },
+      {
+        key: 'type',
+        label: lang === 'th' ? 'ประเภท' : 'Violation',
+        sortable: true,
+        render: (v) => {
+          if (v === 'cnt_drv') {
+            return (
+              <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-950 dark:text-red-400">
+                Cnt Drv &gt; {maxCnt}h
+              </span>
+            );
+          }
+          if (v === 'rest_hr') {
+            return (
+              <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                Rest &lt; {minRest}h
+              </span>
+            );
+          }
+          return (
+            <span className="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+              Work &gt; {maxWork}h
+            </span>
+          );
+        },
+      },
+    ];
+  }, [lang, thresholds]);
 
   // --- Vehicle table columns ---
   const vehicleTableColumns = useMemo<Column<VehicleAggregate>[]>(() => [
@@ -615,13 +737,13 @@ export default function DrivingDashboard({
         score={complianceScore}
         label={lang === 'th' ? 'คะแนนความปลอดภัยการขับขี่' : 'Driving safety score'}
         tooltip={lang === 'th'
-          ? `คะแนนความปลอดภัยการขับขี่ (0–100): คำนวณจากจำนวนการฝ่าฝืนต่อทริป (เช่น ขับเกิน 9 ชม. พักน้อยกว่า 11 ชม.) ยิ่งสูงยิ่งมีการฝ่าฝืนน้อย`
-          : `Driving safety score (0–100): Based on driving violations per trip (e.g. driving >9 hrs, rest <11 hrs). Higher = fewer violations.`}
-        detail={`${cntDrvViolations.length + restHrViolations.length} ${lang === 'th' ? 'การฝ่าฝืน' : 'violations'} · ${filteredRows.length} ${lang === 'th' ? 'ทริป' : 'trips'}`}
+          ? `คะแนน (0–100): คำนวณจากการฝ่าฝืนต่อทริป — ขับต่อเนื่องเกิน ${thresholds.continuousDrivingMaxHours} ชม. พักต่ำกว่า ${thresholds.restMinimumHours} ชม. ชม.ทำงานเกิน ${thresholds.workingHoursMax} ชม. (ตามที่ตั้งในแอดมิน)`
+          : `Score (0–100): Violations per trip vs your admin thresholds — cnt drv > ${thresholds.continuousDrivingMaxHours}h, rest < ${thresholds.restMinimumHours}h, working > ${thresholds.workingHoursMax}h.`}
+        detail={`${cntDrvViolations.length + restHrViolations.length + workingHrViolations.length} ${lang === 'th' ? 'การฝ่าฝืน' : 'violations'} · ${filteredRows.length} ${lang === 'th' ? 'ทริป' : 'trips'}`}
       />
 
       {/* Safety KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard
           label={lang === 'th' ? 'ชม.ขับต่อเนื่องรวม' : 'Total Cnt Drv Hr'}
           value={formatHours(kpis.totalCntDrvDurationHours)}
@@ -642,14 +764,19 @@ export default function DrivingDashboard({
           accentColor="#B91C1C"
         />
         <KpiCard
-          label={lang === 'th' ? 'ขับต่อเนื่อง > 9 ชม.' : 'Cnt Drv > 9 hrs'}
+          label={lang === 'th' ? `ขับต่อเนื่อง > ${thresholds.continuousDrivingMaxHours} ชม.` : `Cnt Drv > ${thresholds.continuousDrivingMaxHours} hrs`}
           value={cntDrvViolations.length}
           accentColor={cntDrvViolations.length > 0 ? '#ef4444' : '#10b981'}
         />
         <KpiCard
-          label={lang === 'th' ? 'พักผ่อน < 11 ชม.' : 'Rest < 11 hrs'}
+          label={lang === 'th' ? `พักผ่อน < ${thresholds.restMinimumHours} ชม.` : `Rest < ${thresholds.restMinimumHours} hrs`}
           value={restHrViolations.length}
           accentColor={restHrViolations.length > 0 ? '#f59e0b' : '#10b981'}
+        />
+        <KpiCard
+          label={lang === 'th' ? `ชม.ทำงาน > ${thresholds.workingHoursMax} ชม.` : `Working > ${thresholds.workingHoursMax} hrs`}
+          value={workingHrViolations.length}
+          accentColor={workingHrViolations.length > 0 ? '#8b5cf6' : '#10b981'}
         />
       </div>
 
@@ -665,13 +792,14 @@ export default function DrivingDashboard({
             mode="dual-axis"
             height={300}
             data={driversByCntDrv.map((d) => ({
-              label: d.driver.length > 12 ? d.driver.slice(0, 12) + '…' : d.driver,
+              label: d.driver,
               values: {
                 [lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr']: Math.round(d.totalCntDrvDurationHours * 100) / 100,
                 [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(d.totalDistanceKm * 10) / 10,
               },
             }))}
             ariaLabel={lang === 'th' ? 'ชม.ขับต่อเนื่อง vs ระยะทาง' : 'Continuous driving hours vs distance by driver'}
+            xAxisCategoryMode
           />
         )}
       </section>
@@ -689,13 +817,14 @@ export default function DrivingDashboard({
               mode="bar"
               height={300}
               data={restVsCntDrvByDriver.map((d) => ({
-                label: d.driver.length > 12 ? d.driver.slice(0, 12) + '…' : d.driver,
+                label: d.driver,
                 values: {
                   [lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr']: Math.round(d.totalCntDrvHours * 100) / 100,
                   [lang === 'th' ? 'ชม.พักผ่อน' : 'Rest Hr']: Math.round(d.totalRestHours * 100) / 100,
                 },
               }))}
               ariaLabel={lang === 'th' ? 'ชม.พัก vs ชม.ขับ' : 'Rest hours vs continuous driving hours by driver'}
+              xAxisCategoryMode
             />
           )}
         </section>
@@ -719,14 +848,18 @@ export default function DrivingDashboard({
         </section>
       </div>
 
-      {/* Violation tables side by side */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className={dashboardSectionClass}>
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{cntDrvViolations.length}</span>
-            <h2 className={heading2}>{lang === 'th' ? 'ขับต่อเนื่อง > 9 ชม.' : 'Cnt Drv > 9 hrs'}</h2>
+      {/* Violation tables — single column: avoids uneven column heights when one table is huge */}
+      <div className="flex flex-col gap-8">
+        <section className={`min-w-0 ${dashboardSectionClass}`}>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-red-100 px-2 text-xs font-bold tabular-nums text-red-700 dark:bg-red-900 dark:text-red-300">{cntDrvViolations.length}</span>
+            <h2 className={`min-w-0 ${heading2}`}>
+              {lang === 'th'
+                ? `ขับต่อเนื่อง > ${thresholds.continuousDrivingMaxHours} ชม.`
+                : `Cnt Drv > ${thresholds.continuousDrivingMaxHours} hrs`}
+            </h2>
           </div>
-          <div className="mt-3">
+          <div className="mt-4">
             {cntDrvViolations.length === 0 ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
                 {lang === 'th' ? 'ไม่พบการฝ่าฝืน' : 'No violations found'}
@@ -737,18 +870,26 @@ export default function DrivingDashboard({
                 data={cntDrvViolations}
                 defaultSort={{ key: 'cntDrvHours', direction: 'desc' }}
                 pageSize={8}
-                ariaLabel={lang === 'th' ? 'รายงานขับต่อเนื่องเกิน 9 ชม.' : 'Continuous driving over 9 hours report'}
+                ariaLabel={
+                  lang === 'th'
+                    ? `รายงานขับต่อเนื่องเกิน ${thresholds.continuousDrivingMaxHours} ชม.`
+                    : `Continuous driving over ${thresholds.continuousDrivingMaxHours} hours report`
+                }
               />
             )}
           </div>
         </section>
 
-        <section className={dashboardSectionClass}>
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-300">{restHrViolations.length}</span>
-            <h2 className={heading2}>{lang === 'th' ? 'พักผ่อน < 11 ชม.' : 'Rest < 11 hrs'}</h2>
+        <section className={`min-w-0 ${dashboardSectionClass}`}>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-amber-100 px-2 text-xs font-bold tabular-nums text-amber-700 dark:bg-amber-900 dark:text-amber-300">{restHrViolations.length}</span>
+            <h2 className={`min-w-0 ${heading2}`}>
+              {lang === 'th'
+                ? `พักผ่อน < ${thresholds.restMinimumHours} ชม.`
+                : `Rest < ${thresholds.restMinimumHours} hrs`}
+            </h2>
           </div>
-          <div className="mt-3">
+          <div className="mt-4">
             {restHrViolations.length === 0 ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
                 {lang === 'th' ? 'ไม่พบการฝ่าฝืน' : 'No violations found'}
@@ -759,7 +900,41 @@ export default function DrivingDashboard({
                 data={restHrViolations}
                 defaultSort={{ key: 'restHours', direction: 'asc' }}
                 pageSize={8}
-                ariaLabel={lang === 'th' ? 'รายงานพักผ่อนน้อยกว่า 11 ชม.' : 'Rest hours under 11 hours report'}
+                ariaLabel={
+                  lang === 'th'
+                    ? `รายงานพักผ่อนน้อยกว่า ${thresholds.restMinimumHours} ชม.`
+                    : `Rest hours under ${thresholds.restMinimumHours} hours report`
+                }
+              />
+            )}
+          </div>
+        </section>
+
+        <section className={`min-w-0 ${dashboardSectionClass}`}>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-violet-100 px-2 text-xs font-bold tabular-nums text-violet-700 dark:bg-violet-900 dark:text-violet-300">{workingHrViolations.length}</span>
+            <h2 className={`min-w-0 ${heading2}`}>
+              {lang === 'th'
+                ? `ชม.ทำงาน > ${thresholds.workingHoursMax} ชม.`
+                : `Working > ${thresholds.workingHoursMax} hrs`}
+            </h2>
+          </div>
+          <div className="mt-4">
+            {workingHrViolations.length === 0 ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
+                {lang === 'th' ? 'ไม่พบการฝ่าฝืน' : 'No violations found'}
+              </div>
+            ) : (
+              <DataTable
+                columns={violationTableColumns.filter((c) => c.key !== 'type')}
+                data={workingHrViolations}
+                defaultSort={{ key: 'workingHours', direction: 'desc' }}
+                pageSize={8}
+                ariaLabel={
+                  lang === 'th'
+                    ? `รายงานชั่วโมงทำงานเกิน ${thresholds.workingHoursMax} ชม.`
+                    : `Working hours over ${thresholds.workingHoursMax} hours report`
+                }
               />
             )}
           </div>

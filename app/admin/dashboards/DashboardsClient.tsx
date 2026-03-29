@@ -41,6 +41,7 @@ import type {
   bulkDeleteDashboards,
   bulkUpdateDashboardFields,
 } from 'app/db-bulk';
+import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving'] as const;
 const PAGE_SIZE = 25;
@@ -383,6 +384,7 @@ function DashboardRow({
             initialAlertTypes={dashboard.alertTypes ?? []}
             initialRemarks={dashboard.remarks ?? []}
           />
+          <DrivingThresholdAdminFields initial={dashboard.drivingThresholds} />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -1351,6 +1353,9 @@ export default function DashboardsClient({
                 initialAlertTypes={[]}
                 initialRemarks={[]}
               />
+            </div>
+            <div className="sm:col-span-2">
+              <DrivingThresholdAdminFields />
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
