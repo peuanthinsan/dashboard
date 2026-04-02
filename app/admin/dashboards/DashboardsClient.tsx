@@ -42,8 +42,8 @@ import type {
   bulkUpdateDashboardFields,
 } from 'app/db-bulk';
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving'] as const;
-const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving', 'OverSpeed'] as const;
+const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
 
 function bulkSheetTargetKey(organizationId: number | undefined, template: string) {

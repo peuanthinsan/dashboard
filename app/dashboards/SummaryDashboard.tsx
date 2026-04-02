@@ -514,7 +514,9 @@ export default function SummaryDashboard({
           <div className="grid gap-6 lg:grid-cols-5">
             <section className={`${dashboardSectionClass} lg:col-span-3`}>
               <h2 className={heading2}>{lang === 'th' ? 'ช่วงเวลาที่เกิดการแจ้งเตือน' : 'Alert timing heatmap'}</h2>
-              <p className={`mt-1 mb-4 ${textSecondary}`}>{lang === 'th' ? 'ความถี่ตามวันและเวลา' : 'Frequency by day and hour.'}</p>
+              <p className={`mt-1 mb-4 ${textSecondary}`}>{lang === 'th'
+                ? 'รวมทุกสัปดาห์และทุกเดือนในช่วงที่เลือก — แสดงจำนวนครั้งตามวันในสัปดาห์และชั่วโมงในวัน'
+                : 'Aggregated across all weeks and months in the selected period — shows event count by day of week and hour of day.'}</p>
               <AlertHeatmap dates={heatmapDates} />
             </section>
             <section className={`${dashboardSectionClass} lg:col-span-2`}>

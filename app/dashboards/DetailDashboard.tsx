@@ -918,8 +918,8 @@ export default function DetailDashboard({
                 </h2>
                 <p className={`mt-1 ${textSecondary}`}>
                   {lang === 'th'
-                    ? 'การกระจายตามวันในสัปดาห์และชั่วโมง'
-                    : 'Distribution by day of week and hour.'}
+                    ? 'รวมทุกสัปดาห์และทุกเดือนในช่วงที่เลือก — แสดงจำนวนครั้งตามวันในสัปดาห์และชั่วโมงในวัน'
+                    : 'Aggregated across all weeks and months in the selected period — shows event count by day of week and hour of day.'}
                 </p>
                 <div className="mt-4">
                   <AlertHeatmap dates={heatmapDates} />

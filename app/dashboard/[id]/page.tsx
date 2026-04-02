@@ -6,6 +6,7 @@ import { auth } from 'app/auth';
 import { getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import DrivingDashboard from 'app/dashboards/DrivingDashboard';
+import OverSpeedDashboard from 'app/dashboards/OverSpeedDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
 import LoadingState from 'app/dashboards/LoadingState';
@@ -64,6 +65,8 @@ function DashboardByTemplate({ template, drivingThresholds, ...props }: Dashboar
       return <SimpleDashboard {...props} />;
     case 'Driving':
       return <DrivingDashboard {...props} drivingThresholds={drivingThresholds} />;
+    case 'OverSpeed':
+      return <OverSpeedDashboard {...props} />;
     case 'Summary':
     default:
       return <SummaryDashboard {...props} />;

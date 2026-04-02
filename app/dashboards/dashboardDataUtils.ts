@@ -163,6 +163,7 @@ export const withDerivedRemark = (alertType: string, remarks: string) => {
 
 export function resolveTemplate(template: string): string {
   if (template === 'Video') return 'Detail';
+  if (template === 'OverSpeed') return 'OverSpeed';
   return template;
 }
 

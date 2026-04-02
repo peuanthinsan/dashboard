@@ -1054,7 +1054,9 @@ export default function DrivingDashboard({
       <div className="grid gap-4 lg:grid-cols-2">
         <section className={dashboardSectionClass}>
           <h2 className={heading2}>{lang === 'th' ? 'ช่วงเวลาการขับขี่' : 'Driving activity heatmap'}</h2>
-          <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ความถี่ของทริปตามวันและเวลา' : 'Trip frequency by day of week and hour.'}</p>
+          <p className={`mt-1 ${textSecondary}`}>{lang === 'th'
+              ? 'รวมทุกสัปดาห์และทุกเดือนในช่วงที่เลือก — แสดงจำนวนทริปตามวันในสัปดาห์และชั่วโมงในวัน'
+              : 'Aggregated across all weeks and months in the selected period — shows trip count by day of week and hour of day.'}</p>
           <div className="mt-4">
             {heatmapDates.length === 0 ? (
               <EmptyState title={lang === 'th' ? 'ไม่มีข้อมูลวันที่' : 'No dated trip data'} />
