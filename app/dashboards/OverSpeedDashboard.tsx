@@ -146,7 +146,8 @@ export default function OverSpeedDashboard({
 
   // ── Parse rows ──
   const overSpeedRows = useMemo<OverSpeedRow[]>(() => {
-    return rows.map((row) => {
+    // First pass: parse all rows
+    const parsed = rows.map((row) => {
       const driver = toDisplayString(findValue(row, ['Driver Name']));
       const vehicle = toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH', 'Plate']));
       const fleet = toDisplayString(findValue(row, ['Fleet', 'User']));
@@ -154,22 +155,83 @@ export default function OverSpeedDashboard({
       const parsedDate = parseDate(dateValue);
       const speed = parseNumber(findValue(row, ['Speed', 'Max Speed', 'Spd']));
       const overSpeed = parseNumber(findValue(row, ['Over Speed', 'OverSpeed', 'Over Spd']));
-      const rawGt1 = findValue(row, ['>1minutes', '>1min', '>1 min', '>1 minutes', 'GT1min', 'Over 1 min']);
+      const rawGt1 = findValue(row, ['>1minutes', '>1min', '>1 min', '>1 minutes', 'GT1min', 'Over 1 min', '1 Minutes', '1 Minute', '1 Min', '1minutes', '1minute']);
       const rawLt1 = findValue(row, ['Less than 1minutes', 'Less than 1min', '<1minutes', '<1min', '<1 min', 'LT1min', 'Under 1 min']);
-      const hasDurationColumns = rawGt1 != null || rawLt1 != null;
-      // If sheet has >1min/<1min columns, use them; otherwise count each row as 1 event
-      const gt1min = hasDurationColumns ? parseNumber(rawGt1) : 1;
-      const lt1min = hasDurationColumns ? parseNumber(rawLt1) : 0;
       const location = toDisplayString(findValue(row, ['Location', 'Address', 'Landmark']));
       const monthKey = parsedDate ? getMonthKey(parsedDate) : null;
       const monthLabel = parsedDate
         ? parsedDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
         : 'Unknown';
-      return { sourceRow: row, driver, vehicle, fleet, date: parsedDate, speed, overSpeed, gt1min, lt1min, location, monthKey, monthLabel };
+      return { sourceRow: row, driver, vehicle, fleet, date: parsedDate, speed, overSpeed, rawGt1, rawLt1, location, monthKey, monthLabel };
     }).filter((row) => {
       if (!normalizedOrganizationName) return true;
       return normalizeLabel(row.fleet) === normalizedOrganizationName;
     });
+
+    // Check if any row has explicit duration columns
+    const hasDurationColumns = parsed.some((r) => r.rawGt1 != null || r.rawLt1 != null);
+
+    if (hasDurationColumns) {
+      // Use explicit columns
+      return parsed.map((r) => {
+        const gt1minVal = parseNumber(r.rawGt1);
+        const lt1min = r.rawLt1 != null ? parseNumber(r.rawLt1) : Math.max(0, r.overSpeed - gt1minVal);
+        return { sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date, speed: r.speed, overSpeed: r.overSpeed, gt1min: gt1minVal, lt1min, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel };
+      });
+    }
+
+    // No duration columns — group consecutive events by vehicle into episodes
+    // Events within 5 minutes of each other = same episode
+    const EPISODE_GAP_MS = 5 * 60 * 1000;
+    // Sort by vehicle then time
+    const withTime = parsed.filter((r) => r.date != null).sort((a, b) => {
+      const vc = a.vehicle.localeCompare(b.vehicle);
+      return vc !== 0 ? vc : a.date!.getTime() - b.date!.getTime();
+    });
+    // Build episodes
+    type Episode = { rows: typeof withTime; startMs: number; endMs: number };
+    const episodes: Episode[] = [];
+    let curEpisode: Episode | null = null;
+    for (const row of withTime) {
+      const t = row.date!.getTime();
+      if (curEpisode && row.vehicle === curEpisode.rows[0].vehicle && t - curEpisode.endMs <= EPISODE_GAP_MS) {
+        curEpisode.rows.push(row);
+        curEpisode.endMs = t;
+      } else {
+        if (curEpisode) episodes.push(curEpisode);
+        curEpisode = { rows: [row], startMs: t, endMs: t };
+      }
+    }
+    if (curEpisode) episodes.push(curEpisode);
+
+    // Assign gt1min / lt1min based on episode duration
+    // Only the first row of each episode counts as 1; other rows in the same episode get 0
+    // so summaries count episodes, not individual pings
+    const rowDurationMap = new Map<Record<string, unknown>, { gt1min: number; lt1min: number; episodeMaxSpeed: number }>();
+    for (const ep of episodes) {
+      const durationMs = ep.endMs - ep.startMs;
+      const isGt1 = durationMs >= 60_000; // >= 1 minute
+      const episodeMaxSpeed = Math.max(...ep.rows.map((r) => r.speed));
+      // First row carries the episode count
+      rowDurationMap.set(ep.rows[0].sourceRow, { gt1min: isGt1 ? 1 : 0, lt1min: isGt1 ? 0 : 1, episodeMaxSpeed });
+      // Remaining rows in episode get 0 so they don't inflate totals
+      for (let i = 1; i < ep.rows.length; i++) {
+        rowDurationMap.set(ep.rows[i].sourceRow, { gt1min: 0, lt1min: 0, episodeMaxSpeed });
+      }
+    }
+
+    // Also include rows without dates
+    const noDateRows = parsed.filter((r) => r.date == null);
+
+    return [
+      ...parsed.filter((r) => r.date != null).map((r) => {
+        const dur = rowDurationMap.get(r.sourceRow) ?? { gt1min: 0, lt1min: 1, episodeMaxSpeed: r.speed };
+        return { sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date, speed: dur.episodeMaxSpeed, overSpeed: r.overSpeed, gt1min: dur.gt1min, lt1min: dur.lt1min, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel };
+      }),
+      ...noDateRows.map((r) => ({
+        sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date, speed: r.speed, overSpeed: r.overSpeed, gt1min: 0, lt1min: 1, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel,
+      })),
+    ];
   }, [rows, normalizedOrganizationName]);
 
   // ── Filter options ──
