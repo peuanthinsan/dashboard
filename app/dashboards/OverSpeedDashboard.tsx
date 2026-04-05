@@ -206,17 +206,20 @@ export default function OverSpeedDashboard({
 
     // Assign gt1min / lt1min based on episode duration
     // Only the first row of each episode counts as 1; other rows in the same episode get 0
-    // so summaries count episodes, not individual pings
-    const rowDurationMap = new Map<Record<string, unknown>, { gt1min: number; lt1min: number; episodeMaxSpeed: number }>();
+    // so summaries count episodes, not individual pings.
+    // All rows in an episode share the same driver (first non-empty) so vehicle & driver summaries stay consistent.
+    const rowEpisodeMap = new Map<Record<string, unknown>, { gt1min: number; lt1min: number; episodeMaxSpeed: number; driver: string }>();
     for (const ep of episodes) {
       const durationMs = ep.endMs - ep.startMs;
       const isGt1 = durationMs >= 60_000; // >= 1 minute
       const episodeMaxSpeed = Math.max(...ep.rows.map((r) => r.speed));
+      // Use the first non-empty driver name in the episode
+      const episodeDriver = ep.rows.find((r) => r.driver && r.driver !== '—')?.driver ?? ep.rows[0].driver;
       // First row carries the episode count
-      rowDurationMap.set(ep.rows[0].sourceRow, { gt1min: isGt1 ? 1 : 0, lt1min: isGt1 ? 0 : 1, episodeMaxSpeed });
+      rowEpisodeMap.set(ep.rows[0].sourceRow, { gt1min: isGt1 ? 1 : 0, lt1min: isGt1 ? 0 : 1, episodeMaxSpeed, driver: episodeDriver });
       // Remaining rows in episode get 0 so they don't inflate totals
       for (let i = 1; i < ep.rows.length; i++) {
-        rowDurationMap.set(ep.rows[i].sourceRow, { gt1min: 0, lt1min: 0, episodeMaxSpeed });
+        rowEpisodeMap.set(ep.rows[i].sourceRow, { gt1min: 0, lt1min: 0, episodeMaxSpeed, driver: episodeDriver });
       }
     }
 
@@ -225,8 +228,8 @@ export default function OverSpeedDashboard({
 
     return [
       ...parsed.filter((r) => r.date != null).map((r) => {
-        const dur = rowDurationMap.get(r.sourceRow) ?? { gt1min: 0, lt1min: 1, episodeMaxSpeed: r.speed };
-        return { sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date, speed: dur.episodeMaxSpeed, overSpeed: r.overSpeed, gt1min: dur.gt1min, lt1min: dur.lt1min, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel };
+        const ep = rowEpisodeMap.get(r.sourceRow) ?? { gt1min: 0, lt1min: 1, episodeMaxSpeed: r.speed, driver: r.driver };
+        return { sourceRow: r.sourceRow, driver: ep.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date, speed: ep.episodeMaxSpeed, overSpeed: r.overSpeed, gt1min: ep.gt1min, lt1min: ep.lt1min, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel };
       }),
       ...noDateRows.map((r) => ({
         sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date, speed: r.speed, overSpeed: r.overSpeed, gt1min: 0, lt1min: 1, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel,
