@@ -168,6 +168,22 @@ export default function OverSpeedDashboard({
       return normalizeLabel(row.fleet) === normalizedOrganizationName;
     });
 
+    // Fill missing driver names: if a vehicle has exactly one known driver, assign it to all rows
+    const vehicleDrivers = new Map<string, Set<string>>();
+    for (const r of parsed) {
+      if (r.driver && r.driver !== '—') {
+        const s = vehicleDrivers.get(r.vehicle) ?? new Set();
+        s.add(r.driver);
+        vehicleDrivers.set(r.vehicle, s);
+      }
+    }
+    for (const r of parsed) {
+      if (r.driver === '—' || !r.driver) {
+        const drivers = vehicleDrivers.get(r.vehicle);
+        if (drivers && drivers.size === 1) r.driver = drivers.values().next().value!;
+      }
+    }
+
     // Check if any row has explicit duration columns
     const hasDurationColumns = parsed.some((r) => r.rawGt1 != null || r.rawLt1 != null);
 
