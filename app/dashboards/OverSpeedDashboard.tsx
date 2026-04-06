@@ -168,22 +168,6 @@ export default function OverSpeedDashboard({
       return normalizeLabel(row.fleet) === normalizedOrganizationName;
     });
 
-    // Fill missing driver names: if a vehicle has exactly one known driver, assign it to all rows
-    const vehicleDrivers = new Map<string, Set<string>>();
-    for (const r of parsed) {
-      if (r.driver && r.driver !== '—') {
-        const s = vehicleDrivers.get(r.vehicle) ?? new Set();
-        s.add(r.driver);
-        vehicleDrivers.set(r.vehicle, s);
-      }
-    }
-    for (const r of parsed) {
-      if (r.driver === '—' || !r.driver) {
-        const drivers = vehicleDrivers.get(r.vehicle);
-        if (drivers && drivers.size === 1) r.driver = drivers.values().next().value!;
-      }
-    }
-
     // Check if any row has explicit duration columns
     const hasDurationColumns = parsed.some((r) => r.rawGt1 != null || r.rawLt1 != null);
 
@@ -196,61 +180,16 @@ export default function OverSpeedDashboard({
       });
     }
 
-    // No duration columns — group consecutive events by vehicle into episodes
-    // Events within 5 minutes of each other = same episode
-    const EPISODE_GAP_MS = 5 * 60 * 1000;
-    // Sort by vehicle then time
-    const withTime = parsed.filter((r) => r.date != null).sort((a, b) => {
-      const vc = a.vehicle.localeCompare(b.vehicle);
-      return vc !== 0 ? vc : a.date!.getTime() - b.date!.getTime();
-    });
-    // Build episodes
-    type Episode = { rows: typeof withTime; startMs: number; endMs: number };
-    const episodes: Episode[] = [];
-    let curEpisode: Episode | null = null;
-    for (const row of withTime) {
-      const t = row.date!.getTime();
-      if (curEpisode && row.vehicle === curEpisode.rows[0].vehicle && t - curEpisode.endMs <= EPISODE_GAP_MS) {
-        curEpisode.rows.push(row);
-        curEpisode.endMs = t;
-      } else {
-        if (curEpisode) episodes.push(curEpisode);
-        curEpisode = { rows: [row], startMs: t, endMs: t };
-      }
-    }
-    if (curEpisode) episodes.push(curEpisode);
-
-    // Assign gt1min / lt1min based on episode duration
-    // Only the first row of each episode counts as 1; other rows in the same episode get 0
-    // so summaries count episodes, not individual pings.
-    // All rows in an episode share the same driver (first non-empty) so vehicle & driver summaries stay consistent.
-    const rowEpisodeMap = new Map<Record<string, unknown>, { gt1min: number; lt1min: number; episodeMaxSpeed: number; driver: string }>();
-    for (const ep of episodes) {
-      const durationMs = ep.endMs - ep.startMs;
-      const isGt1 = durationMs >= 60_000; // >= 1 minute
-      const episodeMaxSpeed = Math.max(...ep.rows.map((r) => r.speed));
-      // Use the first non-empty driver name in the episode
-      const episodeDriver = ep.rows.find((r) => r.driver && r.driver !== '—')?.driver ?? ep.rows[0].driver;
-      // First row carries the episode count
-      rowEpisodeMap.set(ep.rows[0].sourceRow, { gt1min: isGt1 ? 1 : 0, lt1min: isGt1 ? 0 : 1, episodeMaxSpeed, driver: episodeDriver });
-      // Remaining rows in episode get 0 so they don't inflate totals
-      for (let i = 1; i < ep.rows.length; i++) {
-        rowEpisodeMap.set(ep.rows[i].sourceRow, { gt1min: 0, lt1min: 0, episodeMaxSpeed, driver: episodeDriver });
-      }
-    }
-
-    // Also include rows without dates
-    const noDateRows = parsed.filter((r) => r.date == null);
-
-    return [
-      ...parsed.filter((r) => r.date != null).map((r) => {
-        const ep = rowEpisodeMap.get(r.sourceRow) ?? { gt1min: 0, lt1min: 1, episodeMaxSpeed: r.speed, driver: r.driver };
-        return { sourceRow: r.sourceRow, driver: ep.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date, speed: ep.episodeMaxSpeed, overSpeed: r.overSpeed, gt1min: ep.gt1min, lt1min: ep.lt1min, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel };
-      }),
-      ...noDateRows.map((r) => ({
-        sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date, speed: r.speed, overSpeed: r.overSpeed, gt1min: 0, lt1min: 1, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel,
-      })),
-    ];
+    // No duration columns — classify each event using the OverSpeed column:
+    // OverSpeed = 0  → sustained overspeed (>1 min)
+    // OverSpeed > 0  → brief overspeed (<1 min)
+    return parsed.map((r) => ({
+      sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date,
+      speed: r.speed, overSpeed: r.overSpeed,
+      gt1min: r.overSpeed === 0 ? 1 : 0,
+      lt1min: r.overSpeed === 0 ? 0 : 1,
+      location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel,
+    }));
   }, [rows, normalizedOrganizationName]);
 
   // ── Filter options ──
@@ -313,9 +252,9 @@ export default function OverSpeedDashboard({
   const vehicleSummaries = useMemo<VehicleSummary[]>(() => {
     const map = new Map<string, { vehicle: string; drivers: Set<string>; gt1min: number; lt1min: number; maxSpeed: number }>();
     filteredRows.forEach((row) => {
-      if (row.vehicle === '—') return;
+      if (row.vehicle === '—' || row.driver === '—') return;
       const c = map.get(row.vehicle) ?? { vehicle: row.vehicle, drivers: new Set<string>(), gt1min: 0, lt1min: 0, maxSpeed: 0 };
-      if (row.driver !== '—') c.drivers.add(row.driver);
+      c.drivers.add(row.driver);
       c.gt1min += row.gt1min;
       c.lt1min += row.lt1min;
       if (row.speed > c.maxSpeed) c.maxSpeed = row.speed;
