@@ -32,6 +32,15 @@ type QuickSetupState = ActionState & {
 
 type FormAction = (prevState: QuickSetupState, formData: FormData) => Promise<QuickSetupState>;
 
+type AlertFilterCopy = {
+  legend: string;
+  hint: string;
+  standardLabel: string;
+  standardHint: string;
+  mergeLabel: string;
+  mergeHint: string;
+};
+
 const QUICK_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 
 const TEMPLATE_HINTS: Record<(typeof QUICK_TEMPLATES)[number], string> = {
@@ -61,10 +70,12 @@ export default function QuickSetupClient({
   companies,
   organizations,
   quickSetupAction,
+  alertFilterCopy,
 }: {
   companies: Company[];
   organizations: Organization[];
   quickSetupAction: FormAction;
+  alertFilterCopy: AlertFilterCopy;
 }) {
   const [state, formAction] = useActionState(quickSetupAction, INITIAL_STATE as QuickSetupState);
   const [step, setStep] = useState(1);
@@ -570,6 +581,44 @@ export default function QuickSetupClient({
                       <span className={ADMIN_TEXT_SUBTLE}>Leave empty to use the primary sheet for Driving too.</span>
                     </label>
                   ) : null}
+                </div>
+              </fieldset>
+
+              <fieldset className={sectionBoxClass(true)}>
+                <legend className={`px-1 text-sm font-medium text-zinc-800 dark:text-zinc-200`}>
+                  {alertFilterCopy.legend}
+                </legend>
+                <p className={`mb-3 text-xs ${ADMIN_TEXT_SUBTLE}`}>{alertFilterCopy.hint}</p>
+                <div className="space-y-3">
+                  <label className="flex cursor-pointer items-start gap-3 text-sm text-zinc-800 dark:text-zinc-200">
+                    <input
+                      type="radio"
+                      name="alertFilterMode"
+                      value="merge"
+                      defaultChecked
+                      className="mt-0.5 h-4 w-4 shrink-0 border-zinc-300 dark:border-zinc-600"
+                    />
+                    <span>
+                      <span className="font-medium">{alertFilterCopy.mergeLabel}</span>
+                      <span className={`mt-0.5 block text-xs font-normal ${ADMIN_TEXT_SUBTLE}`}>
+                        {alertFilterCopy.mergeHint}
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-3 text-sm text-zinc-800 dark:text-zinc-200">
+                    <input
+                      type="radio"
+                      name="alertFilterMode"
+                      value="standard"
+                      className="mt-0.5 h-4 w-4 shrink-0 border-zinc-300 dark:border-zinc-600"
+                    />
+                    <span>
+                      <span className="font-medium">{alertFilterCopy.standardLabel}</span>
+                      <span className={`mt-0.5 block text-xs font-normal ${ADMIN_TEXT_SUBTLE}`}>
+                        {alertFilterCopy.standardHint}
+                      </span>
+                    </span>
+                  </label>
                 </div>
               </fieldset>
 

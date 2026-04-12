@@ -247,6 +247,9 @@ export async function bulkCreateDashboards(
     companyId: number;
     organizationId?: number;
     notes?: string;
+    /** When set, restricts MDVR dashboards; null/undefined = use app defaults at runtime. */
+    alertTypes?: string[] | null;
+    remarks?: string[] | null;
   }[],
 ) {
   if (items.length === 0) return { created: 0 };
@@ -255,10 +258,13 @@ export async function bulkCreateDashboards(
 
   for (const item of items) {
     try {
+      const { alertTypes, remarks, ...rest } = item;
       await db.insert(dashboards).values({
-        ...item,
+        ...rest,
         organizationId: item.organizationId ?? null,
         notes: item.notes ?? null,
+        alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
+        remarks: remarks && remarks.length > 0 ? remarks : null,
         publicId: randomUUID(),
       });
       created++;

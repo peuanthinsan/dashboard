@@ -45,6 +45,15 @@ export const adminCopy = {
     startQuickSetup: 'Start quick setup',
     onboardNewCustomer: 'Onboard a new customer',
     onboardNewCustomerDesc: 'Three steps: company, fleets (optional), then dashboards and sheets.',
+    quickSetupAlertFilters: 'MDVR alert filters',
+    quickSetupAlertFiltersHint:
+      'Summary, Simple, Detail, and OverSpeed use the primary sheet. Driving keeps its own sheet without these filters.',
+    quickSetupAlertStandard: 'Songdee standard list only',
+    quickSetupAlertStandardHint:
+      'Only built-in alert types. New MDVR values (e.g. new AI events) stay hidden until you edit the dashboard in Admin.',
+    quickSetupAlertMerge: 'Standard + discover from primary sheet',
+    quickSetupAlertMergeHint:
+      'Scans the first rows of the sheet for Alert type and Remarks, merges with the standard list, and saves filters on each new dashboard (recommended).',
     adminTools: 'Admin tools',
     createAndManageCompanyRecords: 'Create and manage company records.',
     createAndManageFleetRecords: 'Create and manage fleet groups and assignments.',
@@ -110,6 +119,15 @@ export const adminCopy = {
     startQuickSetup: 'เริ่มตั้งค่าด่วน',
     onboardNewCustomer: 'เพิ่มลูกค้าใหม่',
     onboardNewCustomerDesc: 'สามขั้น: บริษัท ฟลีท (ถ้ามี) แล้วจึงแดชบอร์ดและชีต',
+    quickSetupAlertFilters: 'ตัวกรองแจ้งเตือน MDVR',
+    quickSetupAlertFiltersHint:
+      'Summary, Simple, Detail และ OverSpeed ใช้ชีตหลัก แดชบอร์ด Driving ใช้ชีตของตัวเองโดยไม่ใช้ตัวกรองเหล่านี้',
+    quickSetupAlertStandard: 'ใช้รายการมาตรฐาน Songdee เท่านั้น',
+    quickSetupAlertStandardHint:
+      'เฉพาะประเภทแจ้งเตือนที่มีในแอป ค่า MDVR ใหม่จะไม่แสดงจนกว่าจะแก้แดชบอร์ดในแอดมิน',
+    quickSetupAlertMerge: 'มาตรฐาน + ดึงจากชีตหลัก',
+    quickSetupAlertMergeHint:
+      'อ่านแถวแรกของชีตเพื่อหา Alert type และ Remarks รวมกับรายการมาตรฐาน และบันทึกไว้ที่แดชบอร์ดใหม่ (แนะนำ)',
     adminTools: 'เครื่องมือผู้ดูแล',
     createAndManageCompanyRecords: 'สร้างและจัดการข้อมูลบริษัท',
     createAndManageFleetRecords: 'สร้างและจัดการกลุ่มฟลีทและการกำหนดค่า',

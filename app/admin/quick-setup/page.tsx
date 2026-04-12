@@ -12,6 +12,7 @@ import {
   updateUserAssignments,
 } from 'app/db';
 import { bulkCreateDashboards } from 'app/db-bulk';
+import { mergeStandardWithProbed, probeSheetAlertFields } from 'app/dashboards/sheetFieldProbe';
 import AdminShell from '../AdminShell';
 import { parseSheetLink, requireAdmin } from '../admin-utils';
 import { getDashboardLang } from 'app/dashboard/i18n';
@@ -89,6 +90,17 @@ export default async function QuickSetupPage() {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
     const mainSheetGid = mainSheet.sheetGid;
+
+    const alertFilterMode = ((formData.get('alertFilterMode') as string) ?? 'merge').trim();
+    const useMergedSheetAlerts = alertFilterMode === 'merge';
+    let mdvrAlertTypes: string[] | null = null;
+    let mdvrRemarks: string[] | null = null;
+    if (useMergedSheetAlerts) {
+      const probe = await probeSheetAlertFields(mainSheetId, mainSheetGid);
+      const merged = mergeStandardWithProbed(probe);
+      mdvrAlertTypes = merged.alertTypes;
+      mdvrRemarks = merged.remarks;
+    }
 
     const includesDriving = selectedTemplates.includes('Driving');
     let drivingSheet: { sheetId: string; sheetGid: string; sheetUrl: string } | null = null;
@@ -206,10 +218,13 @@ export default async function QuickSetupPage() {
         companyId: number;
         organizationId?: number;
         notes?: string;
+        alertTypes?: string[] | null;
+        remarks?: string[] | null;
       }[] = [];
       for (const orgTarget of dashboardOrganizationTargets) {
         for (const t of selectedTemplates) {
           const s = sheetForTemplate(t);
+          const isDriving = t === 'Driving';
           items.push({
             name: dashboardName,
             template: t,
@@ -219,6 +234,8 @@ export default async function QuickSetupPage() {
             companyId,
             organizationId: orgTarget ?? undefined,
             notes: undefined,
+            alertTypes: isDriving ? null : mdvrAlertTypes,
+            remarks: isDriving ? null : mdvrRemarks,
           });
         }
       }
@@ -284,6 +301,14 @@ export default async function QuickSetupPage() {
         companies={companies}
         organizations={organizations}
         quickSetupAction={quickSetupAction}
+        alertFilterCopy={{
+          legend: copy.quickSetupAlertFilters,
+          hint: copy.quickSetupAlertFiltersHint,
+          standardLabel: copy.quickSetupAlertStandard,
+          standardHint: copy.quickSetupAlertStandardHint,
+          mergeLabel: copy.quickSetupAlertMerge,
+          mergeHint: copy.quickSetupAlertMergeHint,
+        }}
       />
     </AdminShell>
   );
