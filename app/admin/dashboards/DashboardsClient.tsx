@@ -114,20 +114,22 @@ function AlertTypesAndRemarksSelector({
   const [remarks, setRemarks] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usedFallback, setUsedFallback] = useState(false);
 
   const loadFromSheet = async () => {
     if (!sheetId || !sheetGid) return;
     setLoading(true);
     setError(null);
+    setUsedFallback(false);
     try {
       const res = await fetch(`/api/sheets/${encodeURIComponent(sheetId)}/${encodeURIComponent(sheetGid)}/fields`);
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? 'Failed to load alert types and remarks');
       }
-      const data = await res.json();
       setAlertTypes(data.alertTypes ?? []);
       setRemarks(data.remarks ?? []);
+      setUsedFallback(data.fallback === true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
@@ -153,6 +155,12 @@ function AlertTypesAndRemarksSelector({
         </button>
       </div>
       {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {usedFallback && !error && (
+        <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>
+          Sheet was too large or unavailable; showing default alert types and remarks. You can still narrow
+          selections or leave all unchecked to show everything on the dashboard.
+        </p>
+      )}
       {!hasLoaded && !loading && (
         <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>
           Click &quot;Load from sheet&quot; to fetch alert types and remarks from the Google Sheet. Leave all unchecked to show all.

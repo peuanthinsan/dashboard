@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
+import { buildGvizJsonUrl } from 'app/dashboards/googleSheetGvizUrl';
 import { parseGoogleSheetGvizText } from 'app/dashboards/googleSheetParse';
-
-const CACHE_TTL_SEC = 5 * 60; // 5 minutes
-const buildSheetUrl = (sheetId: string, gid: string) =>
-  `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
 
 export async function GET(
   _request: Request,
@@ -18,11 +15,12 @@ export async function GET(
   }
 
   try {
-    const response = await fetch(buildSheetUrl(sheetId, gid), {
+    // Full sheet: do not use Next.js data cache — large responses exceed the 2MB cache limit and can OOM.
+    const response = await fetch(buildGvizJsonUrl(sheetId, gid), {
       headers: {
         'User-Agent': 'SongdeeGPS-Dashboard/1.0',
       },
-      next: { revalidate: CACHE_TTL_SEC },
+      cache: 'no-store',
     });
 
     if (!response.ok) {
