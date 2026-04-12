@@ -18,6 +18,7 @@ import {
   isExcludedAlertRemark,
   normalizeLabel,
   parseDate,
+  remarkMatchesAllowedTarget,
   toDayKey,
   toDisplayString,
   toMonthKey,
@@ -334,7 +335,7 @@ export default function DetailDashboard({
       if (!normalizedAllowedAlertTypes.includes(normalizedAlertType)) return false;
       if (normalizedAllowedRemarks.length > 0) {
         const nRemark = normalizeLabel(row.remarks);
-        const matchesRemark = normalizedAllowedRemarks.some((r) => nRemark.includes(r) || r.includes(nRemark));
+        const matchesRemark = normalizedAllowedRemarks.some((r) => remarkMatchesAllowedTarget(nRemark, r));
         if (!matchesRemark) return false;
       }
       if (normalizedFleetFilters.length > 0) {
@@ -343,7 +344,10 @@ export default function DetailDashboard({
       }
       if (normalizedRemarkFilters.length > 0) {
         const normalizedRemark = normalizeLabel(row.remarks);
-        if (!normalizedRemarkFilters.includes(normalizedRemark)) return false;
+        const matchesFilter = normalizedRemarkFilters.some((f) =>
+          remarkMatchesAllowedTarget(normalizedRemark, f),
+        );
+        if (!matchesFilter) return false;
       }
       if (normalizedVehicleFilters.length > 0) {
         const normalizedVehicle = normalizeLabel(row.vehicle);

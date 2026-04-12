@@ -18,6 +18,7 @@ import {
   hasRemark,
   isExcludedAlertRemark,
   normalizeLabel,
+  remarkMatchesAllowedTarget,
   parseDate,
   toDayKey,
   toDisplayString,
@@ -182,7 +183,7 @@ export default function SummaryDashboard({
       if (!nAllowed.includes(normalizeLabel(row.alertType))) return false;
       if (nAllowedRemarks.length > 0) {
         const nRemark = normalizeLabel(row.remarks);
-        const matchesRemark = nAllowedRemarks.some((r) => nRemark.includes(r) || r.includes(nRemark));
+        const matchesRemark = nAllowedRemarks.some((r) => remarkMatchesAllowedTarget(nRemark, r));
         if (!matchesRemark) return false;
       }
       if (nFleet.length > 0 && !nFleet.includes(normalizeLabel(row.fleet))) return false;
@@ -321,22 +322,13 @@ export default function SummaryDashboard({
       current: countMatches(label, 'remarks', currentRows),
       previous: countMatches(label, 'remarks', previousRows),
     }));
-    items.push({
-      label: 'Forward Collision-A2',
-      field: 'alertType',
-      current: countMatches('Forward Collision-A2', 'alertType', currentRows),
-      previous: countMatches('Forward Collision-A2', 'alertType', previousRows),
-    });
     return items.filter((item) => item.current > 0);
   }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
 
   // Monthly comparisons
   const monthlyComparisons = useMemo(() => {
     const monthsAsc = [...monthOptions].sort((a, b) => a.key.localeCompare(b.key));
-    const targets = [
-      ...allowedRemarkTargets.map((l) => ({ label: l, field: 'remarks' as const })),
-      { label: 'Forward Collision-A2', field: 'alertType' as const },
-    ];
+    const targets = allowedRemarkTargets.map((l) => ({ label: l, field: 'remarks' as const }));
     return targets
       .map((item) => {
         const monthRows = monthsAsc.map((month) => {

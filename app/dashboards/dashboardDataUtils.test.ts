@@ -7,6 +7,8 @@ import {
   isExcludedAlertRemark,
   parseDate,
   resolveTemplate,
+  remarkMatchesAllowedTarget,
+  withDerivedRemark,
 } from './dashboardDataUtils';
 
 describe('dashboardDataUtils', () => {
@@ -102,6 +104,30 @@ describe('dashboardDataUtils', () => {
       expect(resolveTemplate('Detail')).toBe('Detail');
       expect(resolveTemplate('Simple')).toBe('Simple');
       expect(resolveTemplate('Driving')).toBe('Driving');
+    });
+  });
+
+  describe('remarkMatchesAllowedTarget', () => {
+    it('matches phone to mobile phone', () => {
+      expect(remarkMatchesAllowedTarget('mobile phone', 'phone')).toBe(true);
+    });
+    it('matches harsh brake variants', () => {
+      expect(remarkMatchesAllowedTarget('harsh brake(hb)', 'harsh brake')).toBe(true);
+    });
+  });
+
+  describe('withDerivedRemark', () => {
+    it('maps hardware alerts to canonical labels', () => {
+      expect(withDerivedRemark('OverSpeed', '—')).toBe('Overspeed');
+      expect(withDerivedRemark('Harsh Brake', '')).toBe('Harsh Brake(HB)');
+      expect(withDerivedRemark('Harsh Acceleration', '')).toBe('Harsh Acceleration(HA)');
+    });
+    it('maps eye closing rows from remark text', () => {
+      expect(withDerivedRemark('Eye Closing-A2', 'Yawning')).toBe('Yawning');
+      expect(withDerivedRemark('Eye Closing-A2', 'Driver fatigue')).toBe('Fatigue');
+    });
+    it('normalizes mobile phone to Phone', () => {
+      expect(withDerivedRemark('Distraction-A2', 'Mobile Phone')).toBe('Phone');
     });
   });
 });

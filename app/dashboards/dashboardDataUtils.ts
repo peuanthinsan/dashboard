@@ -105,44 +105,47 @@ export const toMonthLabel = (date: Date) =>
 export const toDayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-export const ALLOWED_ALERT_TYPES = [
+/** Typical MDVR sheet values that map into the standard remark categories below. */
+export const STANDARD_ALERT_TYPES = [
   'Distraction-A2',
   'Eye Closing-A2',
   'Yawning-A2',
   'OverSpeed',
   'Harsh Acceleration',
   'Harsh Brake',
-  'Forward Collision-A2',
-  'Seatbelt-A2',
-  'Camera Cover',
-];
+] as const;
 
-export const ALLOWED_REMARK_TARGETS = [
+/** Canonical remark categories (Songdee standard). */
+export const STANDARD_REMARK_TARGETS = [
   'Fatigue',
   'Yawning',
   'Distraction',
-  'Smoking',
-  'Mobile Phone',
+  'Phone',
   'Eating/Drinking',
-  'Seatbelt',
-  'Camera Cover',
-  'Harsh Brake',
-  'Harsh Acceleration',
-  'OverSpeed',
-  'Forward Collision',
-  'Maintenance',
-  'Mirror Check',
-  'Speed Meter Check',
-];
+  'Smoking',
+  'Harsh Brake(HB)',
+  'Harsh Acceleration(HA)',
+  'Overspeed',
+] as const;
+
+export const ALLOWED_ALERT_TYPES = [...STANDARD_ALERT_TYPES];
+
+export const ALLOWED_REMARK_TARGETS = [...STANDARD_REMARK_TARGETS];
+
+/** Substring-style match between a derived remark and an allowed target (both normalized). */
+export const remarkMatchesAllowedTarget = (normalizedRemark: string, normalizedTarget: string) =>
+  normalizedRemark.includes(normalizedTarget) || normalizedTarget.includes(normalizedRemark);
 
 export const withDerivedRemark = (alertType: string, remarks: string) => {
   const normalizedAlertType = normalizeLabel(alertType);
+  const rawTrimmed = remarks === '—' ? '' : remarks.trim();
+  const nRemarks = normalizeLabel(rawTrimmed);
+
   const derivedRemarkByAlertType: Record<string, string> = {
     [normalizeLabel('Yawning-A2')]: 'Yawning',
-    [normalizeLabel('OverSpeed')]: 'OverSpeed',
-    [normalizeLabel('Harsh Acceleration')]: 'Harsh Acceleration',
-    [normalizeLabel('Harsh Brake')]: 'Harsh Brake',
-    [normalizeLabel('Forward Collision-A2')]: 'Forward Collision',
+    [normalizeLabel('OverSpeed')]: 'Overspeed',
+    [normalizeLabel('Harsh Acceleration')]: 'Harsh Acceleration(HA)',
+    [normalizeLabel('Harsh Brake')]: 'Harsh Brake(HB)',
   };
 
   const derivedRemark = derivedRemarkByAlertType[normalizedAlertType];
@@ -150,15 +153,25 @@ export const withDerivedRemark = (alertType: string, remarks: string) => {
     return derivedRemark;
   }
 
-  // Eye Closing (A2) rows whose remark contains "Yawning" are counted as Yawning alerts
   if (
     normalizedAlertType === normalizeLabel('Eye Closing-A2') &&
-    normalizeLabel(remarks).includes('yawning')
+    nRemarks.includes('yawning')
   ) {
     return 'Yawning';
   }
 
-  return remarks;
+  if (
+    normalizedAlertType === normalizeLabel('Eye Closing-A2') &&
+    nRemarks.includes('fatigue')
+  ) {
+    return 'Fatigue';
+  }
+
+  if (nRemarks.includes('mobile phone') || nRemarks === 'phone') {
+    return 'Phone';
+  }
+
+  return rawTrimmed || remarks;
 };
 
 export function resolveTemplate(template: string): string {

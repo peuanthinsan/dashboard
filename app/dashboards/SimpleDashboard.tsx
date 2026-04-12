@@ -12,6 +12,9 @@ import {
   findValue,
   normalizeLabel,
   parseDate,
+  remarkMatchesAllowedTarget,
+  STANDARD_ALERT_TYPES,
+  STANDARD_REMARK_TARGETS,
   toDayKey,
   toMonthKey,
   withDerivedRemark,
@@ -26,8 +29,8 @@ import InlineMonthPicker from 'app/ui/InlineMonthPicker';
 import InlineDayPicker from 'app/ui/InlineDayPicker';
 import MultiSelect from 'app/ui/MultiSelect';
 
-const DEFAULT_SIMPLE_ALERT_TYPES = ['Eye Closing-A2', 'Yawning-A2'];
-const DEFAULT_SIMPLE_REMARKS = ['fatigue', 'yawning', 'distraction'];
+const DEFAULT_SIMPLE_ALERT_TYPES = [...STANDARD_ALERT_TYPES];
+const DEFAULT_SIMPLE_REMARKS = STANDARD_REMARK_TARGETS.map((r) => normalizeLabel(r));
 
 type DashboardProps = {
   dashboardId: string;
@@ -138,7 +141,7 @@ export default function SimpleDashboard({
 
   // ── Data pipeline (preserves alert type scope) ──────────────────────────
   const baseAlerts = useMemo(() => {
-    const allowedRemarks = new Set(effectiveRemarks);
+    const normalizedAllowedRemarks = effectiveRemarks;
     const normalizedAllowed = new Set(effectiveAlertTypes.map((a) => normalizeLabel(a)));
     return rows
       .map((row) => {
@@ -166,7 +169,8 @@ export default function SimpleDashboard({
       .filter((row) => {
         const normalizedAlertType = normalizeLabel(row.alertType);
         if (!normalizedAllowed.has(normalizedAlertType)) return false;
-        return allowedRemarks.has(normalizeLabel(row.remarks));
+        const nRemark = normalizeLabel(row.remarks);
+        return normalizedAllowedRemarks.some((t) => remarkMatchesAllowedTarget(nRemark, t));
       })
       .filter((row) => row.parsedDate);
   }, [normalizedOrganizationName, rows, effectiveAlertTypes, effectiveRemarks]);
