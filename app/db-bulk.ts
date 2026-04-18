@@ -1,5 +1,6 @@
 'use server';
 
+import { requireAdmin } from './admin/admin-utils';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import {
   boolean,
@@ -69,6 +70,7 @@ const userOrganizations = pgTable(
 const companies = pgTable('Company', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 128 }).notNull().unique(),
+  alertRules: jsonb('alertRules').$type<import('./dashboards/dashboardDataUtils').AlertRule[]>(),
 });
 
 const organizations = pgTable(
@@ -96,6 +98,7 @@ const dashboards = pgTable(
     notes: text('notes'),
     alertTypes: jsonb('alertTypes').$type<string[]>(),
     remarks: jsonb('remarks').$type<string[]>(),
+    alertRules: jsonb('alertRules').$type<import('./dashboards/dashboardDataUtils').AlertRule[]>(),
     companyId: integer('companyId'),
     organizationId: integer('organizationId'),
   },
@@ -108,6 +111,7 @@ const dashboards = pgTable(
 // --- Companies ---
 
 export async function bulkCreateCompanies(names: string[]) {
+  await requireAdmin();
   const trimmed = names.map((n) => n.trim()).filter(Boolean);
   if (trimmed.length === 0) return { created: 0, skipped: 0 };
 
@@ -118,7 +122,13 @@ export async function bulkCreateCompanies(names: string[]) {
     try {
       await db.insert(companies).values({ name });
       created++;
-    } catch {
+    } catch (err) {
+      // Most common cause is a unique-constraint violation (expected for
+      // "skip duplicate names" semantics). Anything else is worth seeing
+      // in logs so unexpected failures don't silently count as "skipped".
+      if (!(err instanceof Error) || !/unique|duplicate/i.test(err.message)) {
+        console.error('bulk insert failed:', err);
+      }
       skipped++;
     }
   }
@@ -128,6 +138,7 @@ export async function bulkCreateCompanies(names: string[]) {
 }
 
 export async function bulkDeleteCompanies(ids: number[]) {
+  await requireAdmin();
   if (ids.length === 0) return;
   await db.delete(companies).where(inArray(companies.id, ids));
   revalidatePath('/admin');
@@ -136,6 +147,7 @@ export async function bulkDeleteCompanies(ids: number[]) {
 // --- Organizations (Fleets) ---
 
 export async function bulkCreateOrganizations(names: string[], companyId: number) {
+  await requireAdmin();
   const trimmed = names.map((n) => n.trim()).filter(Boolean);
   if (trimmed.length === 0) return { created: 0, skipped: 0 };
 
@@ -146,7 +158,13 @@ export async function bulkCreateOrganizations(names: string[], companyId: number
     try {
       await db.insert(organizations).values({ name, companyId });
       created++;
-    } catch {
+    } catch (err) {
+      // Most common cause is a unique-constraint violation (expected for
+      // "skip duplicate names" semantics). Anything else is worth seeing
+      // in logs so unexpected failures don't silently count as "skipped".
+      if (!(err instanceof Error) || !/unique|duplicate/i.test(err.message)) {
+        console.error('bulk insert failed:', err);
+      }
       skipped++;
     }
   }
@@ -156,6 +174,7 @@ export async function bulkCreateOrganizations(names: string[], companyId: number
 }
 
 export async function bulkReassignOrganizations(ids: number[], companyId: number) {
+  await requireAdmin();
   if (ids.length === 0) return;
   await db
     .update(organizations)
@@ -165,6 +184,7 @@ export async function bulkReassignOrganizations(ids: number[], companyId: number
 }
 
 export async function bulkDeleteOrganizations(ids: number[]) {
+  await requireAdmin();
   if (ids.length === 0) return;
   await db.delete(organizations).where(inArray(organizations.id, ids));
   revalidatePath('/admin');
@@ -173,8 +193,12 @@ export async function bulkDeleteOrganizations(ids: number[]) {
 // --- Users ---
 
 export async function bulkCreateUsers(emails: string[], password: string) {
+  await requireAdmin();
   const trimmed = emails.map((e) => e.trim()).filter(Boolean);
   if (trimmed.length === 0) return { created: 0, skipped: 0 };
+  if (typeof password !== 'string' || password.length < 8) {
+    throw new Error('Password must be at least 8 characters.');
+  }
 
   const salt = await genSalt(10);
   const passwordHash = await hash(password, salt);
@@ -186,7 +210,13 @@ export async function bulkCreateUsers(emails: string[], password: string) {
     try {
       await db.insert(users).values({ email, password: passwordHash, isAdmin: false });
       created++;
-    } catch {
+    } catch (err) {
+      // Most common cause is a unique-constraint violation (expected for
+      // "skip duplicate names" semantics). Anything else is worth seeing
+      // in logs so unexpected failures don't silently count as "skipped".
+      if (!(err instanceof Error) || !/unique|duplicate/i.test(err.message)) {
+        console.error('bulk insert failed:', err);
+      }
       skipped++;
     }
   }
@@ -196,13 +226,16 @@ export async function bulkCreateUsers(emails: string[], password: string) {
 }
 
 export async function bulkAssignUsersToCompany(userIds: number[], companyId: number) {
+  await requireAdmin();
   if (userIds.length === 0) return;
 
   for (const userId of userIds) {
     try {
       await db.insert(userCompanies).values({ userId, companyId });
-    } catch {
-      // skip duplicates
+    } catch (err) {
+      if (!(err instanceof Error) || !/unique|duplicate/i.test(err.message)) {
+        console.error('bulkAssignUsersToCompany failed:', err);
+      }
     }
   }
 
@@ -210,13 +243,16 @@ export async function bulkAssignUsersToCompany(userIds: number[], companyId: num
 }
 
 export async function bulkAssignUsersToOrganization(userIds: number[], orgId: number) {
+  await requireAdmin();
   if (userIds.length === 0) return;
 
   for (const userId of userIds) {
     try {
       await db.insert(userOrganizations).values({ userId, organizationId: orgId });
-    } catch {
-      // skip duplicates
+    } catch (err) {
+      if (!(err instanceof Error) || !/unique|duplicate/i.test(err.message)) {
+        console.error('bulkAssignUsersToOrganization failed:', err);
+      }
     }
   }
 
@@ -224,12 +260,14 @@ export async function bulkAssignUsersToOrganization(userIds: number[], orgId: nu
 }
 
 export async function bulkSetAdmin(userIds: number[], isAdmin: boolean) {
+  await requireAdmin();
   if (userIds.length === 0) return;
   await db.update(users).set({ isAdmin }).where(inArray(users.id, userIds));
   revalidatePath('/admin');
 }
 
 export async function bulkDeleteUsers(userIds: number[]) {
+  await requireAdmin();
   if (userIds.length === 0) return;
   await db.delete(users).where(inArray(users.id, userIds));
   revalidatePath('/admin');
@@ -252,6 +290,7 @@ export async function bulkCreateDashboards(
     remarks?: string[] | null;
   }[],
 ) {
+  await requireAdmin();
   if (items.length === 0) return { created: 0 };
 
   let created = 0;
@@ -268,8 +307,8 @@ export async function bulkCreateDashboards(
         publicId: randomUUID(),
       });
       created++;
-    } catch {
-      // skip on error
+    } catch (err) {
+      console.error('bulkCreateDashboards: insert failed:', err);
     }
   }
 
@@ -278,6 +317,7 @@ export async function bulkCreateDashboards(
 }
 
 export async function bulkReassignDashboards(ids: number[], organizationId: number) {
+  await requireAdmin();
   if (ids.length === 0) return;
   await db
     .update(dashboards)
@@ -287,6 +327,7 @@ export async function bulkReassignDashboards(ids: number[], organizationId: numb
 }
 
 export async function bulkDeleteDashboards(ids: number[]) {
+  await requireAdmin();
   if (ids.length === 0) return;
   await db.delete(dashboards).where(inArray(dashboards.id, ids));
   revalidatePath('/admin');
@@ -296,6 +337,7 @@ export async function bulkUpdateDashboardFields(
   ids: number[],
   { alertTypes, remarks }: { alertTypes: string[] | null; remarks: string[] | null }
 ) {
+  await requireAdmin();
   if (ids.length === 0) return;
   await db
     .update(dashboards)
@@ -305,4 +347,192 @@ export async function bulkUpdateDashboardFields(
     })
     .where(inArray(dashboards.id, ids));
   revalidatePath('/admin');
+}
+
+type AlertRule = import('./dashboards/dashboardDataUtils').AlertRule;
+
+/** Invalidate the dashboard listing AND every /dashboard/[publicId] page. */
+function revalidateDashboardPages() {
+  revalidatePath('/admin');
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/[id]', 'page');
+}
+
+export async function bulkApplyDashboardAlertRules(
+  ids: number[],
+  rules: AlertRule[],
+  mode: 'append' | 'replace',
+) {
+  await requireAdmin();
+  if (ids.length === 0) return { updated: 0 };
+  const updated = await db.transaction(async (tx) => {
+    if (mode === 'replace') {
+      await tx
+        .update(dashboards)
+        .set({ alertRules: rules.length > 0 ? rules : null })
+        .where(inArray(dashboards.id, ids));
+      return ids.length;
+    }
+    const existing = await tx
+      .select({ id: dashboards.id, alertRules: dashboards.alertRules })
+      .from(dashboards)
+      .where(inArray(dashboards.id, ids));
+    for (const row of existing) {
+      const merged = [...(row.alertRules ?? []), ...rules];
+      await tx
+        .update(dashboards)
+        .set({ alertRules: merged.length > 0 ? merged : null })
+        .where(inArray(dashboards.id, [row.id]));
+    }
+    return existing.length;
+  });
+  revalidateDashboardPages();
+  return { updated };
+}
+
+async function rewriteAlertRulesByMatch<T extends { id: number; alertRules: AlertRule[] | null }>(
+  rows: T[],
+  targetSignature: string,
+  replacement: AlertRule | null,
+  signatureOf: (rule: AlertRule) => string,
+) {
+  return rows
+    .map((row) => {
+      const rules = row.alertRules ?? [];
+      if (rules.length === 0) return null;
+      let changed = false;
+      const next: AlertRule[] = [];
+      for (const r of rules) {
+        if (signatureOf(r) === targetSignature) {
+          changed = true;
+          if (replacement) next.push({ ...replacement, id: r.id });
+        } else {
+          next.push(r);
+        }
+      }
+      return changed ? { id: row.id, rules: next } : null;
+    })
+    .filter((x): x is { id: number; rules: AlertRule[] } => x !== null);
+}
+
+export async function bulkEditDashboardAlertRule(
+  ids: number[],
+  targetSignature: string,
+  replacement: AlertRule,
+) {
+  await requireAdmin();
+  if (ids.length === 0) return { updated: 0 };
+  const { alertRuleSignature } = await import('./dashboards/dashboardDataUtils');
+  const updatedCount = await db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ id: dashboards.id, alertRules: dashboards.alertRules })
+      .from(dashboards)
+      .where(inArray(dashboards.id, ids));
+    const updates = await rewriteAlertRulesByMatch(rows, targetSignature, replacement, alertRuleSignature);
+    for (const u of updates) {
+      await tx.update(dashboards).set({ alertRules: u.rules }).where(inArray(dashboards.id, [u.id]));
+    }
+    return updates.length;
+  });
+  revalidateDashboardPages();
+  return { updated: updatedCount };
+}
+
+export async function bulkRemoveDashboardAlertRule(ids: number[], targetSignature: string) {
+  await requireAdmin();
+  if (ids.length === 0) return { updated: 0 };
+  const { alertRuleSignature } = await import('./dashboards/dashboardDataUtils');
+  const updatedCount = await db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ id: dashboards.id, alertRules: dashboards.alertRules })
+      .from(dashboards)
+      .where(inArray(dashboards.id, ids));
+    const updates = await rewriteAlertRulesByMatch(rows, targetSignature, null, alertRuleSignature);
+    for (const u of updates) {
+      await tx
+        .update(dashboards)
+        .set({ alertRules: u.rules.length > 0 ? u.rules : null })
+        .where(inArray(dashboards.id, [u.id]));
+    }
+    return updates.length;
+  });
+  revalidateDashboardPages();
+  return { updated: updatedCount };
+}
+
+export async function bulkEditCompanyAlertRule(
+  ids: number[],
+  targetSignature: string,
+  replacement: AlertRule,
+) {
+  await requireAdmin();
+  if (ids.length === 0) return { updated: 0 };
+  const { alertRuleSignature } = await import('./dashboards/dashboardDataUtils');
+  const updatedCount = await db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ id: companies.id, alertRules: companies.alertRules })
+      .from(companies)
+      .where(inArray(companies.id, ids));
+    const updates = await rewriteAlertRulesByMatch(rows, targetSignature, replacement, alertRuleSignature);
+    for (const u of updates) {
+      await tx.update(companies).set({ alertRules: u.rules }).where(inArray(companies.id, [u.id]));
+    }
+    return updates.length;
+  });
+  revalidateDashboardPages();
+  return { updated: updatedCount };
+}
+
+export async function bulkRemoveCompanyAlertRule(ids: number[], targetSignature: string) {
+  await requireAdmin();
+  if (ids.length === 0) return { updated: 0 };
+  const { alertRuleSignature } = await import('./dashboards/dashboardDataUtils');
+  const updatedCount = await db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ id: companies.id, alertRules: companies.alertRules })
+      .from(companies)
+      .where(inArray(companies.id, ids));
+    const updates = await rewriteAlertRulesByMatch(rows, targetSignature, null, alertRuleSignature);
+    for (const u of updates) {
+      await tx
+        .update(companies)
+        .set({ alertRules: u.rules.length > 0 ? u.rules : null })
+        .where(inArray(companies.id, [u.id]));
+    }
+    return updates.length;
+  });
+  revalidateDashboardPages();
+  return { updated: updatedCount };
+}
+
+export async function bulkApplyCompanyAlertRules(
+  ids: number[],
+  rules: AlertRule[],
+  mode: 'append' | 'replace',
+) {
+  await requireAdmin();
+  if (ids.length === 0) return { updated: 0 };
+  const updated = await db.transaction(async (tx) => {
+    if (mode === 'replace') {
+      await tx
+        .update(companies)
+        .set({ alertRules: rules.length > 0 ? rules : null })
+        .where(inArray(companies.id, ids));
+      return ids.length;
+    }
+    const existing = await tx
+      .select({ id: companies.id, alertRules: companies.alertRules })
+      .from(companies)
+      .where(inArray(companies.id, ids));
+    for (const row of existing) {
+      const merged = [...(row.alertRules ?? []), ...rules];
+      await tx
+        .update(companies)
+        .set({ alertRules: merged.length > 0 ? merged : null })
+        .where(inArray(companies.id, [row.id]));
+    }
+    return existing.length;
+  });
+  revalidateDashboardPages();
+  return { updated };
 }

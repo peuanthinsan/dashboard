@@ -18,6 +18,8 @@ import {
   toDayKey,
   toMonthKey,
   withDerivedRemark,
+  applyAlertRules,
+  type AlertRule,
 } from './dashboardDataUtils';
 import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
@@ -42,6 +44,7 @@ type DashboardProps = {
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
+  alertRules?: AlertRule[] | null;
 };
 
 type SimpleFilterState = {
@@ -79,6 +82,7 @@ export default function SimpleDashboard({
   lang = 'en',
   allowedAlertTypes: allowedAlertTypesProp,
   allowedRemarks: allowedRemarksProp,
+  alertRules: alertRulesProp,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
   const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
@@ -128,28 +132,29 @@ export default function SimpleDashboard({
     return filters.month !== '' || filters.dayFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
   }, [filters]);
 
-  const effectiveAlertTypes = useMemo(
-    () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : DEFAULT_SIMPLE_ALERT_TYPES),
+  // null = allow-all; only restrict if admin explicitly set an allow-list.
+  const effectiveAlertTypes = useMemo<string[] | null>(
+    () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : null),
     [allowedAlertTypesProp],
   );
-  const effectiveRemarks = useMemo(
+  const effectiveRemarks = useMemo<string[] | null>(
     () => (allowedRemarksProp && allowedRemarksProp.length > 0
       ? allowedRemarksProp.map((r) => normalizeLabel(r))
-      : DEFAULT_SIMPLE_REMARKS),
+      : null),
     [allowedRemarksProp],
   );
 
   // ── Data pipeline (preserves alert type scope) ──────────────────────────
   const baseAlerts = useMemo(() => {
+    const rules = alertRulesProp ?? [];
     const normalizedAllowedRemarks = effectiveRemarks;
-    const normalizedAllowed = new Set(effectiveAlertTypes.map((a) => normalizeLabel(a)));
+    const normalizedAllowed = effectiveAlertTypes ? new Set(effectiveAlertTypes.map((a) => normalizeLabel(a))) : null;
     return rows
       .map((row) => {
         const alertType = String(findValue(row, ['Alert Type']) ?? '');
-        const remarks = withDerivedRemark(
-          alertType,
-          String(findValue(row, ['Remarks']) ?? ''),
-        );
+        const derived = withDerivedRemark(alertType, String(findValue(row, ['Remarks']) ?? ''));
+        const speed = Number(findValue(row, ['Speed', 'Max Speed']) ?? 0) || 0;
+        const remarks = applyAlertRules(alertType, derived, speed, rules);
         const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
         const parsedDate = parseDate(dateValue);
         return {
@@ -167,13 +172,15 @@ export default function SimpleDashboard({
         return normalizeLabel(row.fleet) === normalizedOrganizationName;
       })
       .filter((row) => {
-        const normalizedAlertType = normalizeLabel(row.alertType);
-        if (!normalizedAllowed.has(normalizedAlertType)) return false;
-        const nRemark = normalizeLabel(row.remarks);
-        return normalizedAllowedRemarks.some((t) => remarkMatchesAllowedTarget(nRemark, t));
+        if (normalizedAllowed && !normalizedAllowed.has(normalizeLabel(row.alertType))) return false;
+        if (normalizedAllowedRemarks) {
+          const nRemark = normalizeLabel(row.remarks);
+          if (!normalizedAllowedRemarks.some((t) => remarkMatchesAllowedTarget(nRemark, t))) return false;
+        }
+        return true;
       })
       .filter((row) => row.parsedDate);
-  }, [normalizedOrganizationName, rows, effectiveAlertTypes, effectiveRemarks]);
+  }, [alertRulesProp, normalizedOrganizationName, rows, effectiveAlertTypes, effectiveRemarks]);
 
   // ── Default to current month when no stored filters ──────────────────────
   const monthOptions = useMemo(() => {
@@ -421,29 +428,47 @@ export default function SimpleDashboard({
       sortable: true,
       render: (value) => <span className="font-semibold">{String(value)}</span>,
     },
+    // Tiny colored dot beside each number so columns stay distinguishable for
+    // color-blind readers — the shape is redundant but the column header label
+    // is the primary signifier regardless.
     {
       key: 'fatigue',
       label: lang === 'th' ? 'ง่วงนอน' : 'Fatigue',
       sortable: true,
-      render: (value) => <span className="text-amber-500 dark:text-amber-300">{String(value)}</span>,
+      render: (value) => (
+        <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-300">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          {String(value)}
+        </span>
+      ),
     },
     {
       key: 'yawning',
       label: lang === 'th' ? 'หาว' : 'Yawning',
       sortable: true,
-      render: (value) => <span className="text-emerald-500 dark:text-emerald-300">{String(value)}</span>,
+      render: (value) => (
+        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-300">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          {String(value)}
+        </span>
+      ),
     },
     {
       key: 'distraction',
       label: lang === 'th' ? 'ไม่สนใจ' : 'Distraction',
       sortable: true,
-      render: (value) => <span className="text-red-500 dark:text-red-300">{String(value)}</span>,
+      render: (value) => (
+        <span className="inline-flex items-center gap-1.5 text-red-600 dark:text-red-300">
+          <span aria-hidden className="h-1.5 w-1.5 rotate-45 bg-red-500" />
+          {String(value)}
+        </span>
+      ),
     },
     {
       key: 'total',
       label: lang === 'th' ? 'ทั้งหมด' : 'Total',
       sortable: true,
-      render: (value) => <span className="text-rose-500 dark:text-rose-300">{String(value)}</span>,
+      render: (value) => <span className="font-semibold text-rose-600 dark:text-rose-300">{String(value)}</span>,
     },
   ], [lang]);
 

@@ -1,4 +1,5 @@
 import Tooltip from './Tooltip';
+import { SAFETY_THRESHOLDS } from './design-tokens';
 
 type ScoreBlockProps = {
   score: number;
@@ -10,18 +11,22 @@ type ScoreBlockProps = {
 
 export default function ScoreBlock({ score, label, detail, tooltip }: ScoreBlockProps) {
   const scoreColor =
-    score >= 80
+    score >= SAFETY_THRESHOLDS.excellent
       ? 'bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/50 dark:ring-emerald-800/40'
-      : score >= 50
-        ? 'bg-amber-50/80 ring-amber-200/60 dark:bg-amber-950/50 dark:ring-amber-800/40'
-        : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40';
+      : score >= SAFETY_THRESHOLDS.good
+        ? 'bg-blue-50/80 ring-blue-200/60 dark:bg-blue-950/50 dark:ring-blue-800/40'
+        : score >= SAFETY_THRESHOLDS.moderate
+          ? 'bg-amber-50/80 ring-amber-200/60 dark:bg-amber-950/50 dark:ring-amber-800/40'
+          : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40';
 
   const textColor =
-    score >= 80
+    score >= SAFETY_THRESHOLDS.excellent
       ? 'text-emerald-700 dark:text-emerald-300'
-      : score >= 50
-        ? 'text-amber-700 dark:text-amber-300'
-        : 'text-red-700 dark:text-red-300';
+      : score >= SAFETY_THRESHOLDS.good
+        ? 'text-blue-700 dark:text-blue-300'
+        : score >= SAFETY_THRESHOLDS.moderate
+          ? 'text-amber-700 dark:text-amber-300'
+          : 'text-red-700 dark:text-red-300';
 
   const block = (
     <div

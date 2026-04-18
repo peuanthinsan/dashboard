@@ -86,6 +86,13 @@ export async function createUserWithRole({
 
   return await db.transaction(async (tx) => {
     const existing = await tx.select({ id: users.id }).from(users).limit(1);
+    const promotedAsFirst = !isAdmin && existing.length === 0;
+    if (promotedAsFirst) {
+      // Bootstrap behavior: the very first account in the system is auto-promoted
+      // to admin so there's someone who can manage the install. Logged so this
+      // elevation leaves an audit trail rather than happening silently.
+      console.warn(`[bootstrap] First user "${email}" auto-promoted to admin.`);
+    }
     const [result] = await tx.insert(users).values({
       email,
       password: passwordHash,
@@ -276,9 +283,41 @@ export const getDashboardById = cache(async (id: number) => {
   return await db.select().from(dashboards).where(eq(dashboards.id, id));
 });
 
+/**
+ * SECURITY: This returns the full dashboard row by publicId with NO authorization.
+ * Callers MUST verify the resulting `companyId` / `organizationId` against the
+ * current user's access (see app/dashboard/[id]/page.tsx for the canonical pattern).
+ */
 export const getDashboardByPublicId = cache(async (publicId: string) => {
   return await db.select().from(dashboards).where(eq(dashboards.publicId, publicId));
 });
+
+/**
+ * Returns true if a sheet (by sheetId + optional gid) belongs to a dashboard
+ * the user can access via their company/org assignments. Used by /api/sheets/* to
+ * gate the sheet-data proxy so it can't be used to scrape arbitrary Google Sheets.
+ */
+export async function userCanAccessSheet(
+  sheetId: string,
+  gid: string | null,
+  userCompanyIds: number[],
+  userOrganizationIds: number[],
+): Promise<boolean> {
+  const conditions = [eq(dashboards.sheetId, sheetId)];
+  if (gid) conditions.push(eq(dashboards.sheetGid, gid));
+  const matching = await db
+    .select({ companyId: dashboards.companyId, organizationId: dashboards.organizationId })
+    .from(dashboards)
+    .where(and(...conditions));
+  if (matching.length === 0) return false;
+  const companySet = new Set(userCompanyIds);
+  const orgSet = new Set(userOrganizationIds);
+  return matching.some((d) => {
+    const matchesCompany = d.companyId == null || companySet.has(d.companyId);
+    const matchesOrg = d.organizationId == null || orgSet.has(d.organizationId);
+    return matchesCompany && matchesOrg;
+  });
+}
 
 export const getDashboardsForUser = cache(async ({
   companyIds,
@@ -406,8 +445,35 @@ export async function createCompany(name: string) {
   return result;
 }
 
-export async function updateCompany(id: number, name: string) {
-  return await db.update(companies).set({ name }).where(eq(companies.id, id));
+export async function updateCompany(
+  id: number,
+  name: string,
+  alertRules?: import('./dashboards/dashboardDataUtils').AlertRule[] | null,
+) {
+  return await db
+    .update(companies)
+    .set({ name, alertRules: alertRules && alertRules.length > 0 ? alertRules : null })
+    .where(eq(companies.id, id));
+}
+
+export async function getCompanyById(id: number) {
+  return await db.select().from(companies).where(eq(companies.id, id)).limit(1);
+}
+
+export async function setCompanyAlertRules(
+  id: number,
+  rules: import('./dashboards/dashboardDataUtils').AlertRule[] | null,
+  mode: 'append' | 'replace' = 'replace',
+) {
+  if (mode === 'append' && rules && rules.length > 0) {
+    const existing = await db.select({ alertRules: companies.alertRules }).from(companies).where(eq(companies.id, id)).limit(1);
+    const merged = [...(existing[0]?.alertRules ?? []), ...rules];
+    return await db.update(companies).set({ alertRules: merged }).where(eq(companies.id, id));
+  }
+  return await db
+    .update(companies)
+    .set({ alertRules: rules && rules.length > 0 ? rules : null })
+    .where(eq(companies.id, id));
 }
 
 export async function deleteCompany(id: number) {
@@ -445,6 +511,7 @@ export async function createDashboard({
   alertTypes,
   remarks,
   drivingThresholds,
+  alertRules,
 }: {
   name: string;
   companyId: number;
@@ -461,6 +528,7 @@ export async function createDashboard({
     restMinimumHours: number;
     workingHoursMax: number;
   } | null;
+  alertRules?: import('./dashboards/dashboardDataUtils').AlertRule[] | null;
 }) {
   await assertOrganizationBelongsToCompany(companyId, organizationId);
   const [result] = await db.insert(dashboards).values({
@@ -475,6 +543,7 @@ export async function createDashboard({
     alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
     remarks: remarks && remarks.length > 0 ? remarks : null,
     drivingThresholds: drivingThresholds ?? null,
+    alertRules: alertRules && alertRules.length > 0 ? alertRules : null,
     publicId: randomUUID(),
   }).returning({ id: dashboards.id });
   return result;
@@ -493,6 +562,7 @@ export async function updateDashboard({
   alertTypes,
   remarks,
   drivingThresholds,
+  alertRules,
 }: {
   id: number;
   name: string;
@@ -510,6 +580,7 @@ export async function updateDashboard({
     restMinimumHours: number;
     workingHoursMax: number;
   } | null;
+  alertRules?: import('./dashboards/dashboardDataUtils').AlertRule[] | null;
 }) {
   await assertOrganizationBelongsToCompany(companyId, organizationId);
   return await db
@@ -526,6 +597,7 @@ export async function updateDashboard({
       alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
       remarks: remarks && remarks.length > 0 ? remarks : null,
       drivingThresholds: drivingThresholds ?? null,
+      alertRules: alertRules && alertRules.length > 0 ? alertRules : null,
     })
     .where(eq(dashboards.id, id));
 }
@@ -696,7 +768,10 @@ async function ensureOrganizationCompanyColumn() {
     `);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS "Organization_companyId_idx" ON "Organization" ("companyId")`);
     return await hasOrganizationCompanyColumn();
-  } catch {
+  } catch (err) {
+    // DDL can fail for legitimate reasons (permissions, lock timeouts, etc.).
+    // Surface it instead of masking behind a misleading "migration required" error upstream.
+    console.error('ensureOrganizationCompanyColumn: DDL failed:', err);
     return false;
   }
 }

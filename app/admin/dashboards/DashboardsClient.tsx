@@ -34,12 +34,19 @@ import {
   btnSmall,
   btnSecondary,
 } from 'app/ui/design-tokens';
+import MultiSelect from 'app/ui/MultiSelect';
 import type { ActionState, Company, Dashboard, Organization } from '../types';
+import AlertRulesEditor from '../AlertRulesEditor';
+import ExistingRulesTable from '../ExistingRulesTable';
+import ConfirmActionDialog from '../ConfirmActionDialog';
 import type {
   bulkCreateDashboards,
   bulkReassignDashboards,
   bulkDeleteDashboards,
   bulkUpdateDashboardFields,
+  bulkApplyDashboardAlertRules,
+  bulkEditDashboardAlertRule,
+  bulkRemoveDashboardAlertRule,
 } from 'app/db-bulk';
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving', 'OverSpeed'] as const;
@@ -208,11 +215,15 @@ function AlertTypesAndRemarksSelector({
   );
 }
 
+
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 type BulkCreateFn = typeof bulkCreateDashboards;
 type BulkReassignFn = typeof bulkReassignDashboards;
 type BulkDeleteFn = typeof bulkDeleteDashboards;
 type BulkUpdateFieldsFn = typeof bulkUpdateDashboardFields;
+type BulkApplyRulesFn = typeof bulkApplyDashboardAlertRules;
+type BulkEditRuleFn = typeof bulkEditDashboardAlertRule;
+type BulkRemoveRuleFn = typeof bulkRemoveDashboardAlertRule;
 
 type DashboardsClientProps = {
   dashboards: Dashboard[];
@@ -224,6 +235,9 @@ type DashboardsClientProps = {
   bulkReassignAction: BulkReassignFn;
   bulkDeleteAction: BulkDeleteFn;
   bulkUpdateFieldsAction: BulkUpdateFieldsFn;
+  bulkApplyRulesAction: BulkApplyRulesFn;
+  bulkEditRuleAction: BulkEditRuleFn;
+  bulkRemoveRuleAction: BulkRemoveRuleFn;
 };
 
 function DashboardRow({
@@ -393,6 +407,7 @@ function DashboardRow({
             initialRemarks={dashboard.remarks ?? []}
           />
           <DrivingThresholdAdminFields initial={dashboard.drivingThresholds} />
+          <AlertRulesEditor initial={dashboard.alertRules} />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -423,13 +438,16 @@ export default function DashboardsClient({
   bulkReassignAction,
   bulkDeleteAction,
   bulkUpdateFieldsAction,
+  bulkApplyRulesAction,
+  bulkEditRuleAction,
+  bulkRemoveRuleAction,
 }: DashboardsClientProps) {
   const router = useRouter();
 
   // Client-side search, filter, pagination
   const [search, setSearch] = useState('');
-  const [filterCompanyId, setFilterCompanyId] = useState<string>('');
-  const [filterOrganizationId, setFilterOrganizationId] = useState<string>('');
+  const [filterCompanyIds, setFilterCompanyIds] = useState<string[]>([]);
+  const [filterOrganizationIds, setFilterOrganizationIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
 
   const companyMap = useMemo(
@@ -452,12 +470,16 @@ export default function DashboardsClient({
         return nameMatch || companyName.toLowerCase().includes(q) || orgName.toLowerCase().includes(q);
       });
     }
-    const cId = filterCompanyId ? parseInt(filterCompanyId, 10) : null;
-    if (cId) list = list.filter((d) => d.companyId === cId);
-    const oId = filterOrganizationId ? parseInt(filterOrganizationId, 10) : null;
-    if (oId) list = list.filter((d) => d.organizationId === oId);
+    if (filterCompanyIds.length > 0) {
+      const cIds = new Set(filterCompanyIds.map((v) => parseInt(v, 10)).filter(Number.isFinite));
+      list = list.filter((d) => d.companyId != null && cIds.has(d.companyId));
+    }
+    if (filterOrganizationIds.length > 0) {
+      const oIds = new Set(filterOrganizationIds.map((v) => parseInt(v, 10)).filter(Number.isFinite));
+      list = list.filter((d) => d.organizationId != null && oIds.has(d.organizationId));
+    }
     return list;
-  }, [dashboards, search, filterCompanyId, filterOrganizationId, companyMap, organizationMap]);
+  }, [dashboards, search, filterCompanyIds, filterOrganizationIds, companyMap, organizationMap]);
 
   const totalPages = Math.max(1, Math.ceil(filteredDashboards.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -485,6 +507,9 @@ export default function DashboardsClient({
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
   const [isReassignOpen, setIsReassignOpen] = useState(false);
+  const [isBulkRulesOpen, setIsBulkRulesOpen] = useState(false);
+  const [bulkRulesMode, setBulkRulesMode] = useState<'append' | 'replace'>('append');
+  const [isBulkClearConfirmOpen, setIsBulkClearConfirmOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [isPending, startTransition] = useTransition();
 
@@ -523,11 +548,16 @@ export default function DashboardsClient({
   }
 
   function handleSelectAll(checked: boolean) {
-    if (checked) {
-      setSelectedIds(new Set(paginatedDashboards.map((d) => d.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
+    const pageIds = new Set(paginatedDashboards.map((d) => d.id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        pageIds.forEach((id) => next.add(id));
+      } else {
+        pageIds.forEach((id) => next.delete(id));
+      }
+      return next;
+    });
   }
 
   function toggleBulkOrg(id: number) {
@@ -656,6 +686,44 @@ export default function DashboardsClient({
     });
   }
 
+  function handleBulkApplyRules(formData: FormData) {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const raw = (formData.get('alertRulesJson') as string) ?? '[]';
+    let rules: import('app/dashboards/dashboardDataUtils').AlertRule[] = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) rules = parsed;
+    } catch {
+      setBulkStatus('Invalid rule data.');
+      return;
+    }
+    startTransition(async () => {
+      const result = await bulkApplyRulesAction(ids, rules, bulkRulesMode);
+      setBulkStatus(`Applied ${rules.length} rule(s) to ${result.updated} dashboard(s) (${bulkRulesMode}).`);
+      setSelectedIds(new Set());
+      setIsBulkRulesOpen(false);
+      router.refresh();
+    });
+  }
+
+  function handleBulkClearRules() {
+    if (selectedIds.size === 0) return;
+    setIsBulkClearConfirmOpen(true);
+  }
+
+  function runBulkClearRules() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      const result = await bulkApplyRulesAction(ids, [], 'replace');
+      setBulkStatus(`Cleared alert rules on ${result.updated} dashboard(s).`);
+      setSelectedIds(new Set());
+      setIsBulkRulesOpen(false);
+      router.refresh();
+    });
+  }
+
   function loadBulkFieldsFromSheet() {
     const { sheetId, sheetGid } = parseSheetLink(bulkFieldsSheetUrl);
     if (!sheetId || !sheetGid) {
@@ -747,7 +815,8 @@ export default function DashboardsClient({
     return buildBulkSheetTargets(Array.from(bulkOrgIds), templates, organizationMap);
   }, [bulkCompanyId, bulkCreateCompleteSet, bulkTemplate, bulkOrgIds, organizationMap]);
 
-  const allChecked = paginatedDashboards.length > 0 && selectedIds.size === paginatedDashboards.length;
+  const allChecked = paginatedDashboards.length > 0 && paginatedDashboards.every((d) => selectedIds.has(d.id));
+  const offScreenSelectedCount = Array.from(selectedIds).filter((id) => !filteredDashboards.some((d) => d.id === id)).length;
 
   const bulkCreateButtonDisabled =
     isPending ||
@@ -782,6 +851,76 @@ export default function DashboardsClient({
           </ul>
         </AdminStatCard>
       </div>
+
+      <ConfirmActionDialog
+        isOpen={isBulkClearConfirmOpen}
+        title="Clear all alert rules"
+        description={`Clear every alert rule from ${selectedIds.size} selected dashboard${selectedIds.size === 1 ? '' : 's'}? This cannot be undone.`}
+        confirmLabel="Clear rules"
+        destructive
+        onClose={() => setIsBulkClearConfirmOpen(false)}
+        onConfirm={runBulkClearRules}
+      />
+
+      {/* Bulk apply alert rules modal */}
+      <AdminModal
+        isOpen={isBulkRulesOpen}
+        onClose={() => setIsBulkRulesOpen(false)}
+        title="Alert rules — bulk manage"
+        description={`Review, edit, remove, or add rules across ${selectedIds.size} selected dashboard(s).`}
+      >
+        <div className="grid gap-5">
+          <section className="grid gap-2">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Existing rules across selection</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Every unique rule already applied on the selected dashboards. Edit or remove propagates to every dashboard that has it.</p>
+            <ExistingRulesTable
+              owners={dashboards.filter((d) => selectedIds.has(d.id))}
+              ownerLabel="dashboard"
+              editAction={bulkEditRuleAction}
+              removeAction={bulkRemoveRuleAction}
+              onChanged={() => router.refresh()}
+            />
+          </section>
+
+          <section className="grid gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Add new rules</h3>
+        <form
+          action={(fd) => handleBulkApplyRules(fd)}
+          className="grid gap-4"
+        >
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <span className={ADMIN_LABEL}>Mode</span>
+            <label className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+              <input type="radio" name="mode" checked={bulkRulesMode === 'append'} onChange={() => setBulkRulesMode('append')} />
+              Append (keep existing rules)
+            </label>
+            <label className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+              <input type="radio" name="mode" checked={bulkRulesMode === 'replace'} onChange={() => setBulkRulesMode('replace')} />
+              Replace (overwrite existing)
+            </label>
+          </div>
+          <AlertRulesEditor />
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleBulkClearRules}
+              disabled={isPending}
+              className={`${btnDanger} ${btnSmall}`}
+              title="Wipe every alert rule from selected dashboards"
+            >
+              Clear all rules on selected
+            </button>
+            <button type="button" onClick={() => setIsBulkRulesOpen(false)} className={ADMIN_SAVE_BUTTON}>
+              Cancel
+            </button>
+            <button type="submit" disabled={isPending} className={ADMIN_PRIMARY_BUTTON}>
+              {isPending ? 'Applying…' : `Apply to ${selectedIds.size} dashboard(s)`}
+            </button>
+          </div>
+        </form>
+          </section>
+        </div>
+      </AdminModal>
 
       {/* Reassign Modal */}
       <AdminModal
@@ -932,40 +1071,30 @@ export default function DashboardsClient({
                 className={`min-w-[12rem] ${ADMIN_INPUT}`}
                 aria-label="Search dashboards"
               />
-              <label className="flex items-center gap-2">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">Company</span>
-                <select
-                  value={filterCompanyId}
-                  onChange={(e) => {
-                    setFilterCompanyId(e.target.value);
-                    setPage(1);
-                  }}
-                  className={ADMIN_SELECT}
-                  aria-label="Filter by company"
-                >
-                  <option value="">All</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex items-center gap-2">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">Fleet</span>
-                <select
-                  value={filterOrganizationId}
-                  onChange={(e) => {
-                    setFilterOrganizationId(e.target.value);
-                    setPage(1);
-                  }}
-                  className={ADMIN_SELECT}
-                  aria-label="Filter by fleet"
-                >
-                  <option value="">All</option>
-                  {organizations.map((o) => (
-                    <option key={o.id} value={o.id}>{o.name}</option>
-                  ))}
-                </select>
-              </label>
+              <MultiSelect
+                label="Companies"
+                options={companies.map((c) => c.name ?? '').filter(Boolean)}
+                selected={filterCompanyIds
+                  .map((id) => companies.find((c) => String(c.id) === id)?.name ?? '')
+                  .filter(Boolean)}
+                onChange={(names) => {
+                  const ids = companies.filter((c) => c.name && names.includes(c.name)).map((c) => String(c.id));
+                  setFilterCompanyIds(ids);
+                  setPage(1);
+                }}
+              />
+              <MultiSelect
+                label="Fleets"
+                options={organizations.map((o) => o.name ?? '').filter(Boolean)}
+                selected={filterOrganizationIds
+                  .map((id) => organizations.find((o) => String(o.id) === id)?.name ?? '')
+                  .filter(Boolean)}
+                onChange={(names) => {
+                  const ids = organizations.filter((o) => o.name && names.includes(o.name)).map((o) => String(o.id));
+                  setFilterOrganizationIds(ids);
+                  setPage(1);
+                }}
+              />
               <button
                 type="button"
                 onClick={() => setIsReassignOpen(true)}
@@ -986,6 +1115,15 @@ export default function DashboardsClient({
               </button>
               <button
                 type="button"
+                onClick={() => setIsBulkRulesOpen(true)}
+                disabled={isPending || selectedIds.size === 0}
+                className={`${btnSecondary} ${btnSmall}`}
+                title={selectedIds.size === 0 ? 'Select dashboards below first' : undefined}
+              >
+                Apply alert rules{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+              </button>
+              <button
+                type="button"
                 onClick={handleBulkDelete}
                 disabled={isPending || selectedIds.size === 0}
                 className={`${btnDanger} ${btnSmall}`}
@@ -998,10 +1136,41 @@ export default function DashboardsClient({
               </button>
             </div>
           </div>
+          {selectedIds.size > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+              <span>
+                <strong>{selectedIds.size}</strong> selected
+                {offScreenSelectedCount > 0 ? ` (${offScreenSelectedCount} on other filters/pages)` : ''}
+              </span>
+              {filteredDashboards.length > paginatedDashboards.length && !filteredDashboards.every((d) => selectedIds.has(d.id)) && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    filteredDashboards.forEach((d) => next.add(d.id));
+                    return next;
+                  })}
+                  className="font-semibold underline hover:no-underline"
+                >
+                  Add all {filteredDashboards.length} filtered to selection
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="ml-auto text-xs underline hover:no-underline"
+              >
+                Clear selection
+              </button>
+            </div>
+          )}
           {totalPages > 1 && (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 Showing {paginatedDashboards.length} of {filteredDashboards.length} dashboard{filteredDashboards.length !== 1 ? 's' : ''}
+                {selectedIds.size === filteredDashboards.length && filteredDashboards.length > 0 ? (
+                  <span className="ml-2 text-amber-700 dark:text-amber-400">• all {filteredDashboards.length} selected</span>
+                ) : null}
               </p>
               <nav aria-label="Pagination" className="flex items-center gap-2">
                 <button

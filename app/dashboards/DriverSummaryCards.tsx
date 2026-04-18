@@ -7,7 +7,7 @@ export interface DriverSummaryProps {
   driverName: string;
   totalAlerts: number;
   mostCommonType: string;
-  safetyScore: number;
+  safetyScore: number | null;
   activeDays: number;
   lang?: 'en' | 'th';
 }
@@ -39,16 +39,22 @@ export default function DriverSummaryCards({
           value=""
         >
           <div className="mt-2 flex justify-center">
-            <SafetyScore
-              score={safetyScore}
-              size={80}
-              tooltip={lang === 'th'
-                ? `คะแนนความปลอดภัยคนขับ (0–100): คำนวณจากจำนวนการแจ้งเตือนต่อวันที่ขับ ยิ่งสูงยิ่งปลอดภัย`
-                : `Driver safety score (0–100): Based on alerts per active day. Higher = fewer alerts.`}
-              detail={lang === 'th'
-                ? `${totalAlerts} แจ้งเตือน ÷ ${activeDays} วัน`
-                : `${totalAlerts} alerts over ${activeDays} days`}
-            />
+            {safetyScore === null ? (
+              <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                {lang === 'th' ? 'ไม่มีข้อมูลวันที่' : 'No date data'}
+              </span>
+            ) : (
+              <SafetyScore
+                score={safetyScore}
+                size={80}
+                tooltip={lang === 'th'
+                  ? `คะแนนความปลอดภัยคนขับ (0–100): คำนวณจากจำนวนการแจ้งเตือนต่อวันที่ขับ ยิ่งสูงยิ่งปลอดภัย`
+                  : `Driver safety score (0–100): Based on alerts per active day. Higher = fewer alerts.`}
+                detail={lang === 'th'
+                  ? `${totalAlerts} แจ้งเตือน ÷ ${activeDays} วัน`
+                  : `${totalAlerts} alerts over ${activeDays} days`}
+              />
+            )}
           </div>
         </KpiCard>
         <KpiCard

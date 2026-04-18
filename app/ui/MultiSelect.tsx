@@ -106,22 +106,28 @@ export default function MultiSelect({
           <div className="max-h-[180px] overflow-y-auto py-1">
             {filtered.map((option) => {
               const checked = selected.includes(option);
+              // role="option" must sit on the focusable element so screen readers
+              // announce "selected/not selected" and keyboard users can reach it.
+              // Space/Enter toggle — matches the ARIA multiselect pattern.
               return (
-                <label
+                <div
                   key={option}
-                  className={`flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-xs transition ${
-                    checked ? 'bg-red-50 dark:bg-red-950/50' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                  }`}
                   role="option"
                   aria-selected={checked}
+                  tabIndex={0}
+                  onClick={() => toggleItem(option)}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      toggleItem(option);
+                    }
+                  }}
+                  className={`flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-xs transition focus:outline-none focus-visible:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-red-400/30 dark:focus-visible:bg-zinc-800 ${
+                    checked ? 'bg-red-50 dark:bg-red-950/50' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleItem(option)}
-                    className="sr-only"
-                  />
                   <span
+                    aria-hidden="true"
                     className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-sm border-2 text-[8px] font-bold ${
                       checked
                         ? 'border-red-600 bg-red-600 text-white'
@@ -131,7 +137,7 @@ export default function MultiSelect({
                     {checked && '✓'}
                   </span>
                   <span className="text-zinc-700 dark:text-zinc-200">{option}</span>
-                </label>
+                </div>
               );
             })}
             {filtered.length === 0 && (

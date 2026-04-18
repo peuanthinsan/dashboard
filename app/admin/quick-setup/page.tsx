@@ -5,12 +5,17 @@ import {
   createCompany,
   createOrganization,
   createUserWithRole,
+  deleteCompany,
+  deleteOrganization,
+  deleteUser,
   getCompanies,
   getOrganizations,
   getOrganizationById,
   getUser,
+  setCompanyAlertRules,
   updateUserAssignments,
 } from 'app/db';
+import type { AlertRule } from 'app/dashboards/dashboardDataUtils';
 import { bulkCreateDashboards } from 'app/db-bulk';
 import { mergeStandardWithProbed, probeSheetAlertFields } from 'app/dashboards/sheetFieldProbe';
 import AdminShell from '../AdminShell';
@@ -130,6 +135,12 @@ export default async function QuickSetupPage() {
       };
     };
 
+    // Track records we created so we can compensate-delete on later failure.
+    // We only roll back things WE created — existing company/fleet stay put.
+    let createdCompanyId: number | null = null;
+    const createdFleetIds: number[] = [];
+    let createdUserId: number | null = null;
+
     try {
       // Step 1: Company
       let companyId: number;
@@ -138,6 +149,24 @@ export default async function QuickSetupPage() {
       } else {
         const result = await createCompany(companyName);
         companyId = result.id;
+        createdCompanyId = companyId;
+      }
+
+      // Step 1b: Apply optional company-wide alert rules (append if existing company)
+      const alertRulesRaw = (formData.get('alertRulesJson') as string) ?? '';
+      if (alertRulesRaw.trim()) {
+        try {
+          const parsed = JSON.parse(alertRulesRaw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            await setCompanyAlertRules(
+              companyId,
+              parsed as AlertRule[],
+              useExistingCompany ? 'append' : 'replace',
+            );
+          }
+        } catch {
+          // ignore malformed rule JSON — non-fatal
+        }
       }
 
       // Step 2: Fleet(s) (optional) — existing (multi) or newly created names
@@ -163,8 +192,12 @@ export default async function QuickSetupPage() {
           try {
             const result = await createOrganization(name, companyId);
             fleetPairs.push({ name, id: result.id });
-          } catch {
-            // duplicate global fleet name or DB error — skip this line
+            createdFleetIds.push(result.id);
+          } catch (err) {
+            // Duplicate name is fine (skip); log anything else.
+            if (!(err instanceof Error) || !/unique|duplicate/i.test(err.message)) {
+              console.error('Quick setup: createOrganization failed:', err);
+            }
           }
         }
         if (fleetPairs.length === 0) {
@@ -201,6 +234,7 @@ export default async function QuickSetupPage() {
         }
         const result = await createUserWithRole({ email: userEmail, password: userPassword, isAdmin: false });
         userId = result.id;
+        createdUserId = result.id;
         await updateUserAssignments(userId, {
           companyIds: [companyId],
           organizationIds: organizationIdsForUser,
@@ -284,7 +318,22 @@ export default async function QuickSetupPage() {
       };
     } catch (error) {
       console.error('Quick setup failed', error);
-      return { status: 'error', message: 'Setup failed. Check the server logs for details.' };
+      // Compensating rollback — delete anything WE created. Deletes in reverse order
+      // so FKs don't block: user → fleets → company. Failures here are logged but
+      // don't override the original error message.
+      if (createdUserId != null) {
+        try { await deleteUser(createdUserId); } catch (e) { console.error('Rollback: deleteUser failed', e); }
+      }
+      for (const fid of createdFleetIds) {
+        try { await deleteOrganization(fid); } catch (e) { console.error('Rollback: deleteOrganization failed', e); }
+      }
+      if (createdCompanyId != null) {
+        try { await deleteCompany(createdCompanyId); } catch (e) { console.error('Rollback: deleteCompany failed', e); }
+      }
+      return {
+        status: 'error',
+        message: 'Setup failed and was rolled back. Check the server logs for details.',
+      };
     }
   }
 

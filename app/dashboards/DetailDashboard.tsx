@@ -24,6 +24,9 @@ import {
   toMonthKey,
   toMonthLabel,
   withDerivedRemark,
+  applyAlertRules,
+  colorForRemark,
+  type AlertRule,
 } from './dashboardDataUtils';
 
 // V2 components
@@ -63,10 +66,15 @@ type DashboardProps = {
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
+  alertRules?: AlertRule[] | null;
+  /** When true, show the raw "Alert Type" column from the sheet alongside the mapped remark. */
+  isAdmin?: boolean;
 };
 
 type AlertRow = {
   id: string;
+  /** 1-based row number in the Google Sheet (header = row 1). */
+  sheetRowNumber: number;
   sourceRow: Record<string, unknown>;
   vehicle: string;
   driver: string;
@@ -90,7 +98,6 @@ type DetailFilterState = {
   vehicleFilters: string[];
   driverFilters: string[];
   trendRemarkFilter: string;
-  showExcluded: boolean;
 };
 
 const toDateLabel = (value: unknown) => {
@@ -130,6 +137,8 @@ export default function DetailDashboard({
   lang = 'en',
   allowedAlertTypes: allowedAlertTypesProp,
   allowedRemarks: allowedRemarksProp,
+  alertRules: alertRulesProp,
+  isAdmin = false,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
   const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
@@ -154,9 +163,8 @@ export default function DetailDashboard({
     vehicleFilters: [],
     driverFilters: [],
     trendRemarkFilter: 'all',
-    showExcluded: false,
   });
-  const { monthFilters, dayFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter, showExcluded } = filters;
+  const { monthFilters, dayFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter } = filters;
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
@@ -175,7 +183,6 @@ export default function DetailDashboard({
         vehicleFilters: Array.isArray(stored.vehicleFilters) ? stored.vehicleFilters.filter((v) => typeof v === 'string') : prev.vehicleFilters,
         driverFilters: Array.isArray(stored.driverFilters) ? stored.driverFilters.filter((v) => typeof v === 'string') : prev.driverFilters,
         trendRemarkFilter: typeof stored.trendRemarkFilter === 'string' ? stored.trendRemarkFilter : prev.trendRemarkFilter,
-        showExcluded: typeof stored.showExcluded === 'boolean' ? stored.showExcluded : prev.showExcluded,
       }));
     });
     return () => cancelAnimationFrame(frame);
@@ -194,7 +201,6 @@ export default function DetailDashboard({
       vehicleFilters: [],
       driverFilters: [],
       trendRemarkFilter: 'all',
-      showExcluded: false,
     });
   };
 
@@ -204,37 +210,40 @@ export default function DetailDashboard({
     fleetFilters.length > 0 ||
     remarkFilters.length > 0 ||
     vehicleFilters.length > 0 ||
-    driverFilters.length > 0 ||
-    showExcluded;
+    driverFilters.length > 0;
 
-  const allowedAlertTypes = useMemo(
-    () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : ALLOWED_ALERT_TYPES),
+  // null = allow everything; filter only when admin explicitly sets an allow-list.
+  const allowedAlertTypes = useMemo<string[] | null>(
+    () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : null),
     [allowedAlertTypesProp],
   );
-  const allowedRemarkTargets = useMemo(
-    () => (allowedRemarksProp && allowedRemarksProp.length > 0 ? allowedRemarksProp : ALLOWED_REMARK_TARGETS),
+  const allowedRemarkTargets = useMemo<string[] | null>(
+    () => (allowedRemarksProp && allowedRemarksProp.length > 0 ? allowedRemarksProp : null),
     [allowedRemarksProp],
   );
 
   // ── Data pipeline: alertRows -> baseFilteredRows -> filteredAlerts ──
   const alertRows = useMemo<AlertRow[]>(() => {
+    const rules = alertRulesProp ?? [];
     const mappedRows = rows.map((row, index) => {
       const timeValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
       const parsedDate = parseDate(timeValue);
       const monthKey = parsedDate ? toMonthKey(parsedDate) : null;
       const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'Unknown month';
+      const alertType = toDisplayString(findValue(row, ['Alert Type']));
+      const derived = withDerivedRemark(alertType, toDisplayString(findValue(row, ['Remarks'])));
+      const speed = Number(findValue(row, ['Speed', 'Max Speed']) ?? 0) || 0;
+      const remarks = applyAlertRules(alertType, derived, speed, rules);
       return {
         id: `${index}-${findValue(row, ['Vehicle No']) ?? 'vehicle'}`,
+        sheetRowNumber: index + 2,
         sourceRow: row,
         vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
         driver: toDisplayString(findValue(row, ['Driver Name'])),
-        alertType: toDisplayString(findValue(row, ['Alert Type'])),
+        alertType,
         time: toDateLabel(timeValue),
         speed: toDisplayString(findValue(row, ['Speed'])),
-        remarks: withDerivedRemark(
-          toDisplayString(findValue(row, ['Alert Type'])),
-          toDisplayString(findValue(row, ['Remarks'])),
-        ),
+        remarks,
         fleet: toDisplayString(findValue(row, ['Fleet'])),
         videoUrl: toDisplayString(findValue(row, ['videoURL', 'Videoit'])),
         monthKey,
@@ -245,14 +254,14 @@ export default function DetailDashboard({
     });
     const remarkRows = mappedRows.filter((row) => {
       if (!hasRemark(row.remarks)) return false;
-      if (!showExcluded && isExcludedAlertRemark(row.remarks)) return false;
+      if (isExcludedAlertRemark(row.remarks)) return false;
       return true;
     });
     if (!normalizedOrganizationName) {
       return remarkRows;
     }
     return remarkRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
-  }, [normalizedOrganizationName, rows, showExcluded]);
+  }, [alertRulesProp, normalizedOrganizationName, rows]);
 
   // ── Filter option lists ──
   const fleetOptions = useMemo(() => {
@@ -264,6 +273,14 @@ export default function DetailDashboard({
   }, [alertRows]);
 
   const remarkOptions = useMemo(() => {
+    // When no allow-list is set, surface every unique remark seen in the data.
+    if (!allowedRemarkTargets) {
+      const uniq = new Set<string>();
+      alertRows.forEach((row) => {
+        if (row.remarks && row.remarks !== '—') uniq.add(row.remarks);
+      });
+      return Array.from(uniq).sort((a, b) => a.localeCompare(b));
+    }
     const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
     const matching = new Set<string>();
     alertRows.forEach((row) => {
@@ -323,8 +340,8 @@ export default function DetailDashboard({
   }, [currentMonthKey, monthFilters, monthOptions]);
 
   const baseFilteredRows = useMemo(() => {
-    const normalizedAllowedAlertTypes = allowedAlertTypes.map((alert) => normalizeLabel(alert));
-    const normalizedAllowedRemarks = allowedRemarkTargets.map((r) => normalizeLabel(r));
+    const normalizedAllowedAlertTypes = allowedAlertTypes?.map((alert) => normalizeLabel(alert)) ?? null;
+    const normalizedAllowedRemarks = allowedRemarkTargets?.map((r) => normalizeLabel(r)) ?? null;
     const normalizedFleetFilters = fleetFilters.map((fleet) => normalizeLabel(fleet));
     const normalizedRemarkFilters = remarkFilters.map((remark) => normalizeLabel(remark));
     const normalizedVehicleFilters = vehicleFilters.map((vehicle) => normalizeLabel(vehicle));
@@ -332,8 +349,8 @@ export default function DetailDashboard({
     return alertRows.filter((row) => {
       if (!row.alertType || row.alertType === '—') return false;
       const normalizedAlertType = normalizeLabel(row.alertType);
-      if (!normalizedAllowedAlertTypes.includes(normalizedAlertType)) return false;
-      if (normalizedAllowedRemarks.length > 0) {
+      if (normalizedAllowedAlertTypes && !normalizedAllowedAlertTypes.includes(normalizedAlertType)) return false;
+      if (normalizedAllowedRemarks && normalizedAllowedRemarks.length > 0) {
         const nRemark = normalizeLabel(row.remarks);
         const matchesRemark = normalizedAllowedRemarks.some((r) => remarkMatchesAllowedTarget(nRemark, r));
         if (!matchesRemark) return false;
@@ -374,17 +391,23 @@ export default function DetailDashboard({
 
   // ── Trend remark filter options ──
   const availableTrendRemarkOptions = useMemo(() => {
-    const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
     const matching = new Set<string>();
-    filteredAlerts.forEach((row) => {
-      if (!row.remarks || row.remarks === '—') return;
-      const normalizedValue = normalizeLabel(row.remarks);
-      normalizedTargets.forEach((target, index) => {
-        if (normalizedValue.includes(target)) {
-          matching.add(allowedRemarkTargets[index]);
-        }
+    if (!allowedRemarkTargets) {
+      filteredAlerts.forEach((row) => {
+        if (row.remarks && row.remarks !== '—') matching.add(row.remarks);
       });
-    });
+    } else {
+      const normalizedTargets = allowedRemarkTargets.map((label) => normalizeLabel(label));
+      filteredAlerts.forEach((row) => {
+        if (!row.remarks || row.remarks === '—') return;
+        const normalizedValue = normalizeLabel(row.remarks);
+        normalizedTargets.forEach((target, index) => {
+          if (normalizedValue.includes(target)) {
+            matching.add(allowedRemarkTargets[index]);
+          }
+        });
+      });
+    }
     return [
       { label: lang === 'th' ? 'การแจ้งเตือนทุกประเภท' : 'All alert types', value: 'all' },
       ...Array.from(matching)
@@ -537,7 +560,8 @@ export default function DetailDashboard({
     });
     const activeDays = daySet.size;
 
-    const safetyScore = computeDriverSafetyScore(totalAlerts, activeDays);
+    // If no dates parsed, we can't compute a meaningful score — don't show a misleading 100.
+    const safetyScore = activeDays > 0 ? computeDriverSafetyScore(totalAlerts, activeDays) : null;
 
     return { driverName, totalAlerts, mostCommonType, safetyScore, activeDays };
   }, [driverFilters, filteredAlerts]);
@@ -569,6 +593,17 @@ export default function DetailDashboard({
       .sort((a, b) => b[1] - a[1])
       .map(([label, value]) => ({ label, value }));
   }, [filteredAlerts]);
+
+  // Color map so downstream components (video chips, timeline badges) share
+  // colors with the donut chart — keyed by normalized label and stable across
+  // dashboards via colorForRemark.
+  const alertTypeColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    alertTypeDonut.forEach((item) => {
+      map.set(normalizeLabel(item.label), colorForRemark(item.label));
+    });
+    return map;
+  }, [alertTypeDonut]);
 
   // ── Top vehicles by alert count (top 5 for compact display) ──
   const topVehicles = useMemo(() => {
@@ -619,6 +654,14 @@ export default function DetailDashboard({
   const tableColumns = useMemo<Column<AlertRow>[]>(
     () => [
       {
+        key: 'sheetRowNumber',
+        label: lang === 'th' ? 'แถว' : 'Row #',
+        sortable: true,
+        render: (_v, row) => (
+          <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{row.sheetRowNumber}</span>
+        ),
+      },
+      {
         key: 'time',
         label: lang === 'th' ? 'วันเวลาแจ้งเตือน' : 'Alert time',
         sortable: true,
@@ -649,6 +692,23 @@ export default function DetailDashboard({
         label: lang === 'th' ? 'ฟลีท' : 'Fleet',
         sortable: true,
       },
+      ...(isAdmin
+        ? [
+            {
+              key: 'alertType',
+              label: lang === 'th' ? 'ประเภทดิบ (ผู้ดูแล)' : 'Raw alert type (admin)',
+              sortable: true,
+              render: (_v: unknown, row: AlertRow) => (
+                <span
+                  className="font-mono text-xs text-zinc-500 dark:text-zinc-400"
+                  title={lang === 'th' ? 'ค่าดิบจากชีต ก่อนจัดหมวดหมู่' : 'Raw "Alert Type" column from the sheet, before rule mapping.'}
+                >
+                  {row.alertType}
+                </span>
+              ),
+            } as Column<AlertRow>,
+          ]
+        : []),
       {
         key: 'remarks',
         label: lang === 'th' ? 'ประเภทการแจ้งเตือน' : 'Alert type',
@@ -676,22 +736,24 @@ export default function DetailDashboard({
           ),
       },
     ],
-    [lang],
+    [lang, isAdmin],
   );
 
   // ── Export data ──
   const exportData = useMemo(
     () =>
       filteredAlerts.map((r) => ({
+        sheetRowNumber: r.sheetRowNumber,
         time: r.time,
         vehicle: r.vehicle,
         driver: r.driver,
         speed: r.speed,
         fleet: r.fleet,
+        ...(isAdmin ? { rawAlertType: r.alertType } : {}),
         remarks: r.remarks,
         videoUrl: r.videoUrl,
       })),
-    [filteredAlerts],
+    [filteredAlerts, isAdmin],
   );
 
   // Date range string for export filename
@@ -704,6 +766,7 @@ export default function DetailDashboard({
     () =>
       lang === 'th'
         ? [
+            { key: 'sheetRowNumber', label: 'แถว' },
             { key: 'time', label: 'เวลาแจ้งเตือน' },
             { key: 'vehicle', label: 'ยานพาหนะ' },
             { key: 'driver', label: 'คนขับ' },
@@ -713,6 +776,7 @@ export default function DetailDashboard({
             { key: 'videoUrl', label: 'ลิงก์วิดีโอ' },
           ]
         : [
+            { key: 'sheetRowNumber', label: 'Row #' },
             { key: 'time', label: 'Alert Time' },
             { key: 'vehicle', label: 'Vehicle' },
             { key: 'driver', label: 'Driver' },
@@ -731,10 +795,9 @@ export default function DetailDashboard({
     fleetFilters.length +
     remarkFilters.length +
     vehicleFilters.length +
-    driverFilters.length +
-    (showExcluded ? 1 : 0);
+    driverFilters.length;
 
-  const isStale = lastUpdated ? nowTick - lastUpdated.getTime() > 10 * 60 * 1000 : false;
+  const isStale = lastUpdated ? nowTick - lastUpdated.getTime() > 5 * 60 * 1000 : false;
 
   return (
     <DashboardShell
@@ -801,10 +864,6 @@ export default function DetailDashboard({
             <MultiSelect label={lang === 'th' ? 'ประเภท' : 'types'} options={remarkOptions} selected={filters.remarkFilters} onChange={(v) => setFilters(f => ({ ...f, remarkFilters: v }))} lang={lang} />
             <MultiSelect label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'} options={vehicleOptions} selected={filters.vehicleFilters} onChange={(v) => setFilters(f => ({ ...f, vehicleFilters: v }))} lang={lang} />
             <MultiSelect label={lang === 'th' ? 'คนขับ' : 'drivers'} options={driverOptions} selected={filters.driverFilters} onChange={(v) => setFilters(f => ({ ...f, driverFilters: v }))} lang={lang} />
-            <label className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-              <input type="checkbox" checked={filters.showExcluded} onChange={(e) => setFilters(f => ({ ...f, showExcluded: e.target.checked }))} className="rounded border-zinc-300" />
-              {lang === 'th' ? 'แสดงที่ยกเว้น' : 'Show excluded'}
-            </label>
             {hasActiveFilters && (
               <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">{lang === 'th' ? 'รีเซ็ต' : 'Reset'}</button>
             )}
@@ -912,6 +971,7 @@ export default function DetailDashboard({
                   data={alertTypeDonut}
                   centerLabel={lang === 'th' ? 'ทั้งหมด' : 'total'}
                   ariaLabel={lang === 'th' ? 'สัดส่วนประเภทการแจ้งเตือน' : 'Alert type breakdown'}
+                  colorMap={alertTypeColorMap}
                 />
               </div>
             </section>
@@ -1033,10 +1093,10 @@ export default function DetailDashboard({
           </div>
 
           {/* ── Alert Timeline ── */}
-          <AlertTimeline entries={timelineEntries} maxEntries={30} lang={lang} />
+          <AlertTimeline entries={timelineEntries} maxEntries={30} lang={lang} colorMap={alertTypeColorMap} />
 
           {/* ── Video Evidence ── */}
-          <VideoEvidence entries={videoEntries} maxPerType={10} lang={lang} />
+          <VideoEvidence entries={videoEntries} maxPerType={10} lang={lang} colorMap={alertTypeColorMap} />
 
           {/* ── Section divider: Full Data ── */}
           <div className="flex items-center gap-3">

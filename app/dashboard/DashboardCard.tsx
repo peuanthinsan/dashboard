@@ -169,6 +169,7 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
             onClick={handleCopyLink}
             className="inline-flex items-center justify-center rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
             title={copied ? (lang === 'th' ? 'คัดลอกแล้ว' : 'Copied!') : (lang === 'th' ? 'คัดลอกลิงก์' : 'Copy link')}
+            aria-label={copied ? (lang === 'th' ? 'คัดลอกลิงก์ชีตแล้ว' : 'Sheet link copied') : (lang === 'th' ? 'คัดลอกลิงก์ชีต' : 'Copy sheet link')}
           >
             {copied ? (
               <svg className="h-3.5 w-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>

@@ -4,6 +4,10 @@ import { authConfig } from 'app/auth.config';
 export default NextAuth(authConfig).auth;
 
 export const config = {
-  // https://nextjs.org/docs/app/building-your-application/routing/proxy#matcher
-  matcher: ['/((?!api|_next/static|_next/image|.*\\.(?:png|svg|jpg|jpeg|gif|webp|ico)$).*)'],
+  // Run on app routes AND /api/* (except NextAuth's own callback). The `authorized`
+  // callback in auth.config returns 401 for unauthenticated /api/* requests instead
+  // of redirecting, so JSON clients see a clean error.
+  matcher: [
+    '/((?!api/auth|_next/static|_next/image|.*\\.(?:png|svg|jpg|jpeg|gif|webp|ico)$).*)',
+  ],
 };

@@ -252,9 +252,9 @@ export default function OverSpeedDashboard({
   const vehicleSummaries = useMemo<VehicleSummary[]>(() => {
     const map = new Map<string, { vehicle: string; drivers: Set<string>; gt1min: number; lt1min: number; maxSpeed: number }>();
     filteredRows.forEach((row) => {
-      if (row.vehicle === '—' || row.driver === '—') return;
+      if (row.vehicle === '—') return;
       const c = map.get(row.vehicle) ?? { vehicle: row.vehicle, drivers: new Set<string>(), gt1min: 0, lt1min: 0, maxSpeed: 0 };
-      c.drivers.add(row.driver);
+      if (row.driver !== '—') c.drivers.add(row.driver);
       c.gt1min += row.gt1min;
       c.lt1min += row.lt1min;
       if (row.speed > c.maxSpeed) c.maxSpeed = row.speed;

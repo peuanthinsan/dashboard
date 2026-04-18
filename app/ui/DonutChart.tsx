@@ -11,9 +11,15 @@ type DonutChartProps = {
   centerLabel?: string;
   size?: number;
   ariaLabel?: string;
+  /** Optional: per-label color (normalized → hex). Falls back to CHART_COLORS by index. */
+  colorMap?: Map<string, string>;
 };
 
-export default function DonutChart({ data, title, centerLabel, size = 160, ariaLabel }: DonutChartProps) {
+const norm = (s: string) => s.trim().toLowerCase();
+
+export default function DonutChart({ data, title, centerLabel, size = 160, ariaLabel, colorMap }: DonutChartProps) {
+  const colorAt = (label: string, i: number): string =>
+    colorMap?.get(norm(label)) ?? CHART_COLORS[i % CHART_COLORS.length];
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<{ visible: boolean; x: number; y: number; rows: ChartTooltipRow[] }>({ visible: false, x: 0, y: 0, rows: [] });
 
@@ -70,7 +76,7 @@ export default function DonutChart({ data, title, centerLabel, size = 160, ariaL
                   cy="21"
                   r={r}
                   fill="none"
-                  stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                  stroke={colorAt(slice.label, i)}
                   strokeWidth={isHovered ? 4 : 3}
                   strokeDasharray={`${dash} ${gap}`}
                   strokeDashoffset={-currentOffset}
@@ -87,7 +93,7 @@ export default function DonutChart({ data, title, centerLabel, size = 160, ariaL
                       visible: true,
                       x: e.clientX,
                       y: e.clientY,
-                      rows: [{ color: CHART_COLORS[i % CHART_COLORS.length], label: slice.label, value: slice.value }],
+                      rows: [{ color: colorAt(slice.label, i), label: slice.label, value: slice.value }],
                     });
                   }}
                   onMouseLeave={() => { setHoveredIndex(null); setTooltip(t => ({ ...t, visible: false })); }}
@@ -149,7 +155,7 @@ export default function DonutChart({ data, title, centerLabel, size = 160, ariaL
                 <span
                   className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-sm transition-transform"
                   style={{
-                    backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+                    backgroundColor: colorAt(slice.label, i),
                     transform: hoveredIndex === i ? 'scale(1.3)' : 'scale(1)',
                   }}
                   aria-hidden="true"
@@ -159,7 +165,7 @@ export default function DonutChart({ data, title, centerLabel, size = 160, ariaL
                   style={{
                     color:
                       hoveredIndex === i
-                        ? CHART_COLORS[i % CHART_COLORS.length]
+                        ? colorAt(slice.label, i)
                         : undefined,
                     fontWeight: hoveredIndex === i ? 600 : undefined,
                   }}

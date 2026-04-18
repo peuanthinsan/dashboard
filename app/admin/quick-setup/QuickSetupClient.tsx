@@ -20,6 +20,7 @@ import {
   badgeInfo,
 } from 'app/ui/design-tokens';
 import type { ActionState, Company, Organization } from '../types';
+import AlertRulesEditor from '../AlertRulesEditor';
 
 type QuickSetupState = ActionState & {
   createdCompanyId?: number;
@@ -621,6 +622,18 @@ export default function QuickSetupClient({
                   </label>
                 </div>
               </fieldset>
+
+              <details className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-600">
+                <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Alert rules (optional)
+                </summary>
+                <div className="border-t border-zinc-200 px-4 py-4 dark:border-zinc-700">
+                  <p className={`mb-3 text-xs ${ADMIN_TEXT_SUBTLE}`}>
+                    These rules apply company-wide — every dashboard created below will inherit them.
+                  </p>
+                  <AlertRulesEditor />
+                </div>
+              </details>
 
               <details className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-600">
                 <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">

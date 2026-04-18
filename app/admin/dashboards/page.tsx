@@ -14,6 +14,9 @@ import {
   bulkReassignDashboards,
   bulkDeleteDashboards,
   bulkUpdateDashboardFields,
+  bulkApplyDashboardAlertRules,
+  bulkEditDashboardAlertRule,
+  bulkRemoveDashboardAlertRule,
 } from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { parseSheetLink, requireAdmin } from '../admin-utils';
@@ -22,6 +25,19 @@ import { getAdminCopy } from '../i18n-copy';
 import DashboardsClient from './DashboardsClient';
 import type { ActionState } from '../types';
 import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
+import type { AlertRule } from 'app/dashboards/dashboardDataUtils';
+
+function parseAlertRulesFromFormData(formData: FormData): AlertRule[] | null {
+  const raw = (formData.get('alertRulesJson') as string) ?? '';
+  if (!raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed as AlertRule[];
+  } catch {
+    return null;
+  }
+}
 
 export default async function AdminDashboardsPage() {
   await requireAdmin();
@@ -63,6 +79,7 @@ export default async function AdminDashboardsPage() {
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
     const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
+    const alertRules = parseAlertRulesFromFormData(formData);
     try {
       await createDashboard({
         name,
@@ -76,6 +93,7 @@ export default async function AdminDashboardsPage() {
         alertTypes: alertTypes.length > 0 ? alertTypes : null,
         remarks: remarks.length > 0 ? remarks : null,
         drivingThresholds,
+        alertRules,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard created.' };
@@ -130,6 +148,7 @@ export default async function AdminDashboardsPage() {
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
     const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
+    const alertRules = parseAlertRulesFromFormData(formData);
     try {
       await updateDashboard({
         id: dashboardId,
@@ -144,6 +163,7 @@ export default async function AdminDashboardsPage() {
         alertTypes: alertTypes.length > 0 ? alertTypes : null,
         remarks: remarks.length > 0 ? remarks : null,
         drivingThresholds,
+        alertRules,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard updated.' };
@@ -173,6 +193,9 @@ export default async function AdminDashboardsPage() {
         bulkReassignAction={bulkReassignDashboards}
         bulkDeleteAction={bulkDeleteDashboards}
         bulkUpdateFieldsAction={bulkUpdateDashboardFields}
+        bulkApplyRulesAction={bulkApplyDashboardAlertRules}
+        bulkEditRuleAction={bulkEditDashboardAlertRule}
+        bulkRemoveRuleAction={bulkRemoveDashboardAlertRule}
       />
     </AdminShell>
   );

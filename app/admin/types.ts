@@ -6,6 +6,7 @@ export type ActionState = {
 export type Company = {
   id: number;
   name: string | null;
+  alertRules?: import('app/dashboards/dashboardDataUtils').AlertRule[] | null;
 };
 
 export type Organization = {
@@ -39,6 +40,7 @@ export type Dashboard = {
     restMinimumHours: number;
     workingHoursMax: number;
   } | null;
+  alertRules?: import('app/dashboards/dashboardDataUtils').AlertRule[] | null;
   companyId: number | null;
   organizationId: number | null;
 };

@@ -3,6 +3,20 @@
 import { useMemo } from 'react';
 import EmptyState from 'app/ui/EmptyState';
 import { cardSection, heading2, heading3, textSecondary, textMuted, badgeInfo } from 'app/ui/design-tokens';
+import { normalizeLabel } from './dashboardDataUtils';
+
+// Reject anything that isn't a plain http(s) URL — sheet cells could contain
+// `javascript:` or `data:` URIs that would execute on click.
+function safeVideoHref(raw: string): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.toString();
+    return null;
+  } catch {
+    return null;
+  }
+}
 import { formatDateTimeGB } from './dateFormat';
 
 export interface VideoEntry {
@@ -18,19 +32,27 @@ interface VideoEvidenceProps {
   entries: VideoEntry[];
   maxPerType?: number;
   lang?: 'en' | 'th';
+  /** Optional: alert-type → hex color map so chips match the donut/chart colors. */
+  colorMap?: Map<string, string>;
 }
 
 export default function VideoEvidence({
   entries,
   maxPerType = 10,
   lang = 'en',
+  colorMap,
 }: VideoEvidenceProps) {
   const grouped = useMemo(() => {
-    // Count total alerts per driver (worst drivers = most alerts)
-    const driverAlertCount = new Map<string, number>();
+    // Per-entry identity key: use driver when present, else fall back to vehicle.
+    // Lets dashboards with missing driver data still show multiple clips per alert type.
+    const subjectKey = (entry: VideoEntry) =>
+      (entry.driver && entry.driver !== '—' ? entry.driver : entry.vehicle) || '—';
+
+    // Count total alerts per subject (worst = most alerts)
+    const subjectAlertCount = new Map<string, number>();
     for (const entry of entries) {
-      const key = entry.driver || '—';
-      driverAlertCount.set(key, (driverAlertCount.get(key) ?? 0) + 1);
+      const key = subjectKey(entry);
+      subjectAlertCount.set(key, (subjectAlertCount.get(key) ?? 0) + 1);
     }
 
     const map = new Map<string, VideoEntry[]>();
@@ -45,18 +67,18 @@ export default function VideoEvidence({
 
     const groups: { alertType: string; items: VideoEntry[] }[] = [];
     Array.from(map.entries()).forEach(([alertType, items]) => {
-      // Sort: worst drivers first (most alerts), then latest timestamp
+      // Sort: worst subjects first (most alerts), then latest timestamp
       const sorted = [...items].sort((a, b) => {
-        const countA = driverAlertCount.get(a.driver || '—') ?? 0;
-        const countB = driverAlertCount.get(b.driver || '—') ?? 0;
+        const countA = subjectAlertCount.get(subjectKey(a)) ?? 0;
+        const countB = subjectAlertCount.get(subjectKey(b)) ?? 0;
         if (countB !== countA) return countB - countA;
         return b.timestamp.getTime() - a.timestamp.getTime();
       });
-      // One video per driver — take first (most recent) per worst driver
+      // One video per subject — take first (most recent) per worst subject
       const seen = new Set<string>();
       const unique: VideoEntry[] = [];
       for (const item of sorted) {
-        const key = item.driver || '—';
+        const key = subjectKey(item);
         if (seen.has(key)) continue;
         seen.add(key);
         unique.push(item);
@@ -123,7 +145,21 @@ export default function VideoEvidence({
                   key={`${item.url}-${idx}`}
                   className="group flex min-w-0 flex-col rounded-lg border border-zinc-200/60 bg-white p-4 transition-all duration-200 hover:border-red-200/60 hover:shadow-card dark:border-zinc-700/40 dark:bg-zinc-900/60 dark:hover:border-red-800/40"
                 >
-                  <span className={`mb-2 shrink-0 self-start ${badgeInfo}`}>{item.alertType}</span>
+                  {(() => {
+                    const color = colorMap?.get(normalizeLabel(item.alertType));
+                    if (!color) {
+                      return <span className={`mb-2 shrink-0 self-start ${badgeInfo}`}>{item.alertType}</span>;
+                    }
+                    return (
+                      <span
+                        className="mb-2 inline-flex shrink-0 items-center gap-1.5 self-start rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset"
+                        style={{ backgroundColor: `${color}1a`, color, borderColor: `${color}66` }}
+                      >
+                        <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+                        {item.alertType}
+                      </span>
+                    );
+                  })()}
                   <div className="min-w-0 space-y-1">
                     <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                       {item.vehicle}
@@ -136,10 +172,23 @@ export default function VideoEvidence({
                       {lang === 'th' ? 'ความเร็ว: ' : 'Speed: '}{item.speed}
                     </p>
                   </div>
+                  {(() => {
+                    const safeHref = safeVideoHref(item.url);
+                    if (!safeHref) {
+                      return (
+                        <span
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500"
+                          title="Video link is not a valid http(s) URL"
+                        >
+                          {lang === 'th' ? 'ลิงก์ไม่ถูกต้อง' : 'Invalid link'}
+                        </span>
+                      );
+                    }
+                    return (
                   <a
-                    href={item.url}
+                    href={safeHref}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noreferrer noopener"
                     className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-200/60 bg-red-50/80 px-3 py-1.5 text-xs font-semibold text-red-700 transition-all duration-200 hover:bg-red-100 hover:shadow-sm dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
                   >
                     <svg
@@ -163,6 +212,8 @@ export default function VideoEvidence({
                     </svg>
                     {lang === 'th' ? 'ดูวิดีโอ' : 'Watch video'}
                   </a>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

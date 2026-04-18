@@ -41,6 +41,8 @@ async function migrate() {
     await sql`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "alertTypes" JSONB`;
     await sql`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "remarks" JSONB`;
     await sql`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "showBothCompanyAndFleet" BOOLEAN DEFAULT false`;
+    await sql`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "alertRules" JSONB`;
+    await sql`ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "alertRules" JSONB`;
     console.log('Migration completed successfully.');
   } catch (err) {
     console.error('Migration failed:', err);

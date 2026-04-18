@@ -56,6 +56,7 @@ export const userOrganizations = pgTable(
 export const companies = pgTable('Company', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 128 }).notNull().unique(),
+  alertRules: jsonb('alertRules').$type<import('./dashboards/dashboardDataUtils').AlertRule[]>(),
 });
 
 export const organizations = pgTable(
@@ -88,6 +89,7 @@ export const dashboards = pgTable(
       restMinimumHours: number;
       workingHoursMax: number;
     }>(),
+    alertRules: jsonb('alertRules').$type<import('./dashboards/dashboardDataUtils').AlertRule[]>(),
     companyId: integer('companyId'),
     organizationId: integer('organizationId'),
   },

@@ -25,6 +25,9 @@ import {
   toMonthKey,
   toMonthLabel,
   withDerivedRemark,
+  applyAlertRules,
+  colorForRemark,
+  type AlertRule,
 } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import KpiCard from 'app/ui/KpiCard';
@@ -36,7 +39,7 @@ import DriverLeaderboard from 'app/ui/DriverLeaderboard';
 import ExportButton from 'app/ui/ExportButton';
 import { calendarDateToIsoLocal } from 'app/ui/exportCsvFormat';
 import TrendChart from 'app/ui/TrendChart';
-import { heading2, textSecondary, CHART_COLORS } from 'app/ui/design-tokens';
+import { heading2, textSecondary, CHART_COLORS, SAFETY_THRESHOLDS } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
 
 type DashboardProps = {
@@ -49,6 +52,7 @@ type DashboardProps = {
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
+  alertRules?: AlertRule[] | null;
 };
 
 const buildCounts = (rows: Record<string, unknown>[], labels: string[]) => {
@@ -73,6 +77,7 @@ export default function SummaryDashboard({
   lang = 'en',
   allowedAlertTypes: allowedAlertTypesProp,
   allowedRemarks: allowedRemarksProp,
+  alertRules: alertRulesProp,
 }: DashboardProps) {
   const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
     sheetId,
@@ -121,21 +126,25 @@ export default function SummaryDashboard({
     setFleetFilters([]);
   };
 
-  const allowedAlertTypes = useMemo(
-    () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : ALLOWED_ALERT_TYPES),
+  // null = no filter; only restrict when the admin explicitly configured an allow-list.
+  const allowedAlertTypes = useMemo<string[] | null>(
+    () => (allowedAlertTypesProp && allowedAlertTypesProp.length > 0 ? allowedAlertTypesProp : null),
     [allowedAlertTypesProp],
   );
-  const allowedRemarkTargets = useMemo(
-    () => (allowedRemarksProp && allowedRemarksProp.length > 0 ? allowedRemarksProp : ALLOWED_REMARK_TARGETS),
+  const allowedRemarkTargets = useMemo<string[] | null>(
+    () => (allowedRemarksProp && allowedRemarksProp.length > 0 ? allowedRemarksProp : null),
     [allowedRemarksProp],
   );
 
   const alertRows = useMemo(() => {
+    const rules = alertRulesProp ?? [];
     const mappedRows = rows.map((row) => {
       const alertType = toDisplayString(findValue(row, ['Alert Type']));
       const driver = toDisplayString(findValue(row, ['Driver Name']));
       const fleet = toDisplayString(findValue(row, ['Fleet']));
-      const remarks = withDerivedRemark(alertType, toDisplayString(findValue(row, ['Remarks'])));
+      const derived = withDerivedRemark(alertType, toDisplayString(findValue(row, ['Remarks'])));
+      const speed = Number(findValue(row, ['Speed', 'Max Speed']) ?? 0) || 0;
+      const remarks = applyAlertRules(alertType, derived, speed, rules);
       const vehicle = toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH']));
       const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
       const parsedDate = parseDate(dateValue);
@@ -146,7 +155,7 @@ export default function SummaryDashboard({
     const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks) && !isExcludedAlertRemark(row.remarks));
     if (!normalizedOrganizationName) return remarkRows;
     return remarkRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
-  }, [normalizedOrganizationName, rows]);
+  }, [alertRulesProp, normalizedOrganizationName, rows]);
 
   // Filter options
   const fleetOptions = useMemo(() => {
@@ -175,13 +184,13 @@ export default function SummaryDashboard({
 
   // Filtered data — filter by allowed alert types, remarks, and fleet
   const baseFilteredRows = useMemo(() => {
-    const nAllowed = allowedAlertTypes.map((a) => normalizeLabel(a));
-    const nAllowedRemarks = allowedRemarkTargets.map((r) => normalizeLabel(r));
+    const nAllowed = allowedAlertTypes?.map((a) => normalizeLabel(a)) ?? null;
+    const nAllowedRemarks = allowedRemarkTargets?.map((r) => normalizeLabel(r)) ?? null;
     const nFleet = fleetFilters.map((f) => normalizeLabel(f));
     return alertRows.filter((row) => {
       if (!row.alertType || row.alertType === '—') return false;
-      if (!nAllowed.includes(normalizeLabel(row.alertType))) return false;
-      if (nAllowedRemarks.length > 0) {
+      if (nAllowed && !nAllowed.includes(normalizeLabel(row.alertType))) return false;
+      if (nAllowedRemarks) {
         const nRemark = normalizeLabel(row.remarks);
         const matchesRemark = nAllowedRemarks.some((r) => remarkMatchesAllowedTarget(nRemark, r));
         if (!matchesRemark) return false;
@@ -279,24 +288,31 @@ export default function SummaryDashboard({
     });
   }, [baseFilteredRows, monthOptions]);
 
-  // Driver leaderboard
-  const driverLeaderboardData = useMemo(() => {
-    const driverAlerts = new Map<string, number>();
-    const driverDays = new Map<string, Set<string>>();
-    currentRows.forEach((r) => {
-      if (r.driver === '—') return;
-      driverAlerts.set(r.driver, (driverAlerts.get(r.driver) ?? 0) + 1);
-      if (r.parsedDate) {
-        const days = driverDays.get(r.driver) ?? new Set();
-        days.add(r.parsedDate.toISOString().slice(0, 10));
-        driverDays.set(r.driver, days);
-      }
-    });
-    return Array.from(driverAlerts.entries()).map(([name, count]) => ({
-      name,
-      alertCount: count,
-      score: computeDriverSafetyScore(count, Math.max(1, driverDays.get(name)?.size ?? 1)),
-    }));
+  // Leaderboard data: prefer driver-grouping; fall back to vehicle-grouping when
+  // the sheet has no driver names (common for camera-only feeds).
+  const { leaderboardData, leaderboardGrouping } = useMemo(() => {
+    const groupBy = (key: 'driver' | 'vehicle') => {
+      const counts = new Map<string, number>();
+      const days = new Map<string, Set<string>>();
+      currentRows.forEach((r) => {
+        const name = r[key];
+        if (name === '—') return;
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+        if (r.parsedDate) {
+          const d = days.get(name) ?? new Set();
+          d.add(r.parsedDate.toISOString().slice(0, 10));
+          days.set(name, d);
+        }
+      });
+      return Array.from(counts.entries()).map(([name, count]) => ({
+        name,
+        alertCount: count,
+        score: computeDriverSafetyScore(count, Math.max(1, days.get(name)?.size ?? 1)),
+      }));
+    };
+    const byDriver = groupBy('driver');
+    if (byDriver.length > 0) return { leaderboardData: byDriver, leaderboardGrouping: 'driver' as const };
+    return { leaderboardData: groupBy('vehicle'), leaderboardGrouping: 'vehicle' as const };
   }, [currentRows]);
 
   // Donut chart data — V2: alert type, vehicle, driver (replace fleet with driver)
@@ -304,31 +320,39 @@ export default function SummaryDashboard({
   const vehicleSummary = useMemo(() => buildCounts(currentRows, ['vehicle']), [currentRows]);
   const driverSummary = useMemo(() => buildCounts(currentRows, ['driver']), [currentRows]);
 
-  // Build a stable remark→color map from the donut data order so highlights match the donut
+  // Stable remark→color map: same label always gets the same color across every
+  // dashboard component (donut, chip, highlight) regardless of frequency order.
   const remarkColorMap = useMemo(() => {
     const map = new Map<string, string>();
-    remarkSummary.forEach((r, i) => {
-      map.set(normalizeLabel(r.label), CHART_COLORS[i % CHART_COLORS.length]);
+    remarkSummary.forEach((r) => {
+      map.set(normalizeLabel(r.label), colorForRemark(r.label));
     });
     return map;
   }, [remarkSummary]);
 
   // Highlights
+  // When no allow-list is configured, scaffold the highlight KPIs from the
+  // standard remark set so the KPI strip still renders something sensible.
+  const highlightLabels = useMemo(
+    () => allowedRemarkTargets ?? [...ALLOWED_REMARK_TARGETS],
+    [allowedRemarkTargets],
+  );
+
   const highlightItems = useMemo(() => {
     type HighlightItem = { label: string; field: 'remarks' | 'alertType'; current: number; previous: number };
-    const items: HighlightItem[] = allowedRemarkTargets.map((label) => ({
+    const items: HighlightItem[] = highlightLabels.map((label) => ({
       label,
       field: 'remarks' as const,
       current: countMatches(label, 'remarks', currentRows),
       previous: countMatches(label, 'remarks', previousRows),
     }));
     return items.filter((item) => item.current > 0);
-  }, [allowedRemarkTargets, countMatches, currentRows, previousRows]);
+  }, [highlightLabels, countMatches, currentRows, previousRows]);
 
   // Monthly comparisons
   const monthlyComparisons = useMemo(() => {
     const monthsAsc = [...monthOptions].sort((a, b) => a.key.localeCompare(b.key));
-    const targets = allowedRemarkTargets.map((l) => ({ label: l, field: 'remarks' as const }));
+    const targets = highlightLabels.map((l) => ({ label: l, field: 'remarks' as const }));
     return targets
       .map((item) => {
         const monthRows = monthsAsc.map((month) => {
@@ -341,7 +365,7 @@ export default function SummaryDashboard({
       })
       .filter((c) => c.total > 0)
       .map((c) => ({ label: c.label, color: c.color, rows: c.rows }));
-  }, [allowedRemarkTargets, baseFilteredRows, countMatches, monthOptions, remarkColorMap]);
+  }, [highlightLabels, baseFilteredRows, countMatches, monthOptions, remarkColorMap]);
 
   // Export data
   const exportData = useMemo(() => {
@@ -459,11 +483,13 @@ export default function SummaryDashboard({
             />
             <div
               className={`flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-4 ring-1 ring-inset ${
-                safetyScore >= 80
+                safetyScore >= SAFETY_THRESHOLDS.excellent
                   ? 'bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/50 dark:ring-emerald-800/40'
-                  : safetyScore >= 50
-                    ? 'bg-amber-50/80 ring-amber-200/60 dark:bg-amber-950/50 dark:ring-amber-800/40'
-                    : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40'
+                  : safetyScore >= SAFETY_THRESHOLDS.good
+                    ? 'bg-blue-50/80 ring-blue-200/60 dark:bg-blue-950/50 dark:ring-blue-800/40'
+                    : safetyScore >= SAFETY_THRESHOLDS.moderate
+                      ? 'bg-amber-50/80 ring-amber-200/60 dark:bg-amber-950/50 dark:ring-amber-800/40'
+                      : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40'
               }`}
             >
               <SafetyScore
@@ -514,7 +540,7 @@ export default function SummaryDashboard({
             <section className={`${dashboardSectionClass} lg:col-span-2`}>
               <h2 className={heading2}>{lang === 'th' ? 'สัดส่วนประเภท' : 'By alert type'}</h2>
               <div className="mt-4">
-                <DonutChart data={remarkSummary.map((r) => ({ label: r.label, value: r.total }))} centerLabel={lang === 'th' ? 'แจ้งเตือน' : 'alerts'} size={150} />
+                <DonutChart data={remarkSummary.map((r) => ({ label: r.label, value: r.total }))} centerLabel={lang === 'th' ? 'แจ้งเตือน' : 'alerts'} size={150} colorMap={remarkColorMap} />
               </div>
             </section>
           </div>
@@ -567,13 +593,31 @@ export default function SummaryDashboard({
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-300 to-transparent dark:via-zinc-700/50" />
           </div>
 
-          {/* ⑥ Driver Leaderboards */}
+          {/* ⑥ Leaderboards (drivers when available, else vehicles) */}
           <div className="grid gap-6 lg:grid-cols-2">
             <section className={dashboardSectionClass}>
-              <DriverLeaderboard drivers={driverLeaderboardData} title={lang === 'th' ? 'คนขับที่ปลอดภัยที่สุด' : 'Safest Drivers'} variant="safest" lang={lang} />
+              <DriverLeaderboard
+                drivers={leaderboardData}
+                title={
+                  leaderboardGrouping === 'driver'
+                    ? (lang === 'th' ? 'คนขับที่ปลอดภัยที่สุด' : 'Safest Drivers')
+                    : (lang === 'th' ? 'ยานพาหนะที่ปลอดภัยที่สุด' : 'Safest Vehicles')
+                }
+                variant="safest"
+                lang={lang}
+              />
             </section>
             <section className={dashboardSectionClass}>
-              <DriverLeaderboard drivers={driverLeaderboardData} title={lang === 'th' ? 'คนขับที่ต้องปรับปรุง' : 'Needs Improvement'} variant="riskiest" lang={lang} />
+              <DriverLeaderboard
+                drivers={leaderboardData}
+                title={
+                  leaderboardGrouping === 'driver'
+                    ? (lang === 'th' ? 'คนขับที่ต้องปรับปรุง' : 'Needs Improvement')
+                    : (lang === 'th' ? 'ยานพาหนะที่ต้องปรับปรุง' : 'Vehicles Needing Improvement')
+                }
+                variant="riskiest"
+                lang={lang}
+              />
             </section>
           </div>
 

@@ -1,11 +1,21 @@
 import Tooltip from './Tooltip';
+import { SAFETY_THRESHOLDS } from './design-tokens';
 
 type DriverEntry = { name: string; score: number; alertCount: number; trend?: number };
 type DriverLeaderboardProps = { drivers: DriverEntry[]; title?: string; variant?: 'safest' | 'riskiest'; lang?: 'en' | 'th' };
 
 export default function DriverLeaderboard({ drivers, title, variant = 'safest', lang = 'en' }: DriverLeaderboardProps) {
+  // Primary sort on safety score; break ties with alertCount so a floor-capped score
+  // (e.g. everyone hits 30) still produces a meaningful ordering — fewer alerts = safer.
   const sorted = [...drivers]
-    .sort((a, b) => (variant === 'safest' ? b.score - a.score : a.score - b.score))
+    .sort((a, b) => {
+      if (variant === 'safest') {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.alertCount - b.alertCount;
+      }
+      if (a.score !== b.score) return a.score - b.score;
+      return b.alertCount - a.alertCount;
+    })
     .slice(0, 5);
 
   // Medal background/text colors chosen for ≥4.5:1 contrast on both light and dark
@@ -28,16 +38,16 @@ export default function DriverLeaderboard({ drivers, title, variant = 'safest', 
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-emerald-600 dark:text-emerald-400';
-    if (score >= 70) return 'text-blue-600 dark:text-blue-400';
-    if (score >= 50) return 'text-amber-600 dark:text-amber-400';
+    if (score >= SAFETY_THRESHOLDS.excellent) return 'text-emerald-600 dark:text-emerald-400';
+    if (score >= SAFETY_THRESHOLDS.good) return 'text-blue-600 dark:text-blue-400';
+    if (score >= SAFETY_THRESHOLDS.moderate) return 'text-amber-600 dark:text-amber-400';
     return 'text-red-600 dark:text-red-400';
   };
 
   const getScoreLabel = (score: number) => {
-    if (score >= 90) return lang === 'th' ? 'ดีเยี่ยม' : 'excellent';
-    if (score >= 70) return lang === 'th' ? 'ดี' : 'good';
-    if (score >= 50) return lang === 'th' ? 'ปานกลาง' : 'moderate';
+    if (score >= SAFETY_THRESHOLDS.excellent) return lang === 'th' ? 'ดีเยี่ยม' : 'excellent';
+    if (score >= SAFETY_THRESHOLDS.good) return lang === 'th' ? 'ดี' : 'good';
+    if (score >= SAFETY_THRESHOLDS.moderate) return lang === 'th' ? 'ปานกลาง' : 'moderate';
     return lang === 'th' ? 'ต้องปรับปรุง' : 'poor';
   };
 

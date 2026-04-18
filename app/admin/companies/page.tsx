@@ -2,13 +2,26 @@ export const dynamic = 'force-dynamic';
 
 import { revalidatePath } from 'next/cache';
 import { createCompany, deleteCompany, getCompanies, updateCompany } from 'app/db';
-import { bulkCreateCompanies, bulkDeleteCompanies } from 'app/db-bulk';
+import { bulkCreateCompanies, bulkDeleteCompanies, bulkApplyCompanyAlertRules, bulkEditCompanyAlertRule, bulkRemoveCompanyAlertRule } from 'app/db-bulk';
 import AdminShell from '../AdminShell';
 import { requireAdmin } from '../admin-utils';
 import { getDashboardLang } from 'app/dashboard/i18n';
 import { getAdminCopy } from '../i18n-copy';
 import CompaniesClient from './CompaniesClient';
 import type { ActionState } from '../types';
+import type { AlertRule } from 'app/dashboards/dashboardDataUtils';
+
+function parseAlertRulesFromFormData(formData: FormData): AlertRule[] | null {
+  const raw = (formData.get('alertRulesJson') as string) ?? '';
+  if (!raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed as AlertRule[];
+  } catch {
+    return null;
+  }
+}
 
 export default async function AdminCompaniesPage() {
   await requireAdmin();
@@ -61,7 +74,8 @@ export default async function AdminCompaniesPage() {
       if (!name) {
         return { status: 'error', message: 'Enter a company name.' };
       }
-      await updateCompany(companyId, name);
+      const alertRules = parseAlertRulesFromFormData(formData);
+      await updateCompany(companyId, name, alertRules);
       revalidatePath('/admin/companies');
       revalidatePath('/admin/users');
       revalidatePath('/admin/dashboards');
@@ -88,6 +102,9 @@ export default async function AdminCompaniesPage() {
         manageCompanyAction={manageCompanyAction}
         bulkCreateAction={bulkCreateCompanies}
         bulkDeleteAction={bulkDeleteCompanies}
+        bulkApplyRulesAction={bulkApplyCompanyAlertRules}
+        bulkEditRuleAction={bulkEditCompanyAlertRule}
+        bulkRemoveRuleAction={bulkRemoveCompanyAlertRule}
       />
     </AdminShell>
   );

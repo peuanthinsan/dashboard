@@ -3,7 +3,7 @@ import type { ComponentProps } from 'react';
 import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from 'app/auth';
-import { getDashboardByPublicId, getOrganizationById, getUser } from 'app/db';
+import { getDashboardByPublicId, getOrganizationById, getUser, getCompanyById } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import DrivingDashboard from 'app/dashboards/DrivingDashboard';
 import OverSpeedDashboard from 'app/dashboards/OverSpeedDashboard';
@@ -54,13 +54,14 @@ type DashboardViewProps = ComponentProps<typeof SummaryDashboard>;
 type DashboardByTemplateProps = DashboardViewProps & {
   template: string | null;
   drivingThresholds?: DrivingThresholds;
+  isAdmin?: boolean;
 };
 
-function DashboardByTemplate({ template, drivingThresholds, ...props }: DashboardByTemplateProps) {
+function DashboardByTemplate({ template, drivingThresholds, isAdmin, ...props }: DashboardByTemplateProps) {
   const name = resolveTemplateName(template ?? 'Summary');
   switch (name) {
     case 'Detail':
-      return <DetailDashboard {...props} />;
+      return <DetailDashboard {...props} isAdmin={isAdmin} />;
     case 'Simple':
       return <SimpleDashboard {...props} />;
     case 'Driving':
@@ -78,11 +79,13 @@ async function DashboardContent({
   userCompanyIds,
   userOrganizationIds,
   lang,
+  isAdmin,
 }: {
   id: string;
   userCompanyIds: number[];
   userOrganizationIds: number[];
   lang: string;
+  isAdmin: boolean;
 }) {
   const dashboardResult = await getDashboardByPublicId(id);
   if (dashboardResult.length === 0) {
@@ -106,6 +109,19 @@ async function DashboardContent({
 
   const allowedAlertTypes = (dashboard as { alertTypes?: string[] | null }).alertTypes ?? null;
   const allowedRemarks = (dashboard as { remarks?: string[] | null }).remarks ?? null;
+  const dashboardAlertRules = (dashboard as { alertRules?: unknown }).alertRules as import('app/dashboards/dashboardDataUtils').AlertRule[] | null ?? null;
+
+  let companyAlertRules: import('app/dashboards/dashboardDataUtils').AlertRule[] | null = null;
+  if (dashboard.companyId) {
+    const companyResult = await getCompanyById(dashboard.companyId);
+    companyAlertRules = (companyResult[0] as { alertRules?: unknown })?.alertRules as import('app/dashboards/dashboardDataUtils').AlertRule[] | null ?? null;
+  }
+
+  // Dashboard rules first (higher specificity), company rules as fallback
+  const alertRules: import('app/dashboards/dashboardDataUtils').AlertRule[] | null =
+    (dashboardAlertRules?.length || companyAlertRules?.length)
+      ? [...(dashboardAlertRules ?? []), ...(companyAlertRules ?? [])]
+      : null;
   const drivingThresholds = normalizeDrivingThresholds(
     (dashboard as { drivingThresholds?: unknown }).drivingThresholds,
   );
@@ -122,7 +138,9 @@ async function DashboardContent({
       organizationName={organizationName}
       allowedAlertTypes={allowedAlertTypes}
       allowedRemarks={allowedRemarks}
+      alertRules={alertRules}
       drivingThresholds={drivingThresholds}
+      isAdmin={isAdmin}
     />
   );
 }
@@ -142,6 +160,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const userCompanyIds = user[0].companyIds ?? [];
   const userOrganizationIds = user[0].organizationIds ?? [];
+  const isAdmin = !!user[0].isAdmin;
 
   return (
     <Suspense
@@ -156,6 +175,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ id: 
         userCompanyIds={userCompanyIds}
         userOrganizationIds={userOrganizationIds}
         lang={lang}
+        isAdmin={isAdmin}
       />
     </Suspense>
   );

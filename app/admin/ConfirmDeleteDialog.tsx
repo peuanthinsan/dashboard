@@ -74,6 +74,9 @@ type ConfirmDeleteDialogProps = {
   cancelClassName?: string;
   confirmLabel?: string;
   triggerLabel?: string;
+  /** Name of the outer form's intent field; the confirm button dispatches a submit
+   * with this hidden input set to `intent=delete` so the parent server action sees it. */
+  formId?: string;
 };
 
 export default function ConfirmDeleteDialog({
@@ -84,13 +87,43 @@ export default function ConfirmDeleteDialog({
   cancelClassName,
   confirmLabel = 'Delete',
   triggerLabel = 'Delete',
+  formId,
 }: ConfirmDeleteDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dialogId = useId();
 
+  const handleConfirm = () => {
+    // Find the nearest <form> that contains this trigger button. Because the dialog
+    // is rendered in a fixed-position overlay (outside the form DOM tree), a plain
+    // `type="submit"` would either do nothing or submit the wrong form depending
+    // on React reconciliation. Instead we imperatively submit the form the trigger
+    // lives inside, injecting `intent=delete` first.
+    const trigger = document.getElementById(dialogId + '-trigger');
+    const form = formId
+      ? (document.getElementById(formId) as HTMLFormElement | null)
+      : (trigger?.closest('form') ?? null);
+    if (!form) {
+      setIsOpen(false);
+      return;
+    }
+    let intentInput = form.querySelector<HTMLInputElement>('input[name="intent"][data-confirm-dialog="1"]');
+    if (!intentInput) {
+      intentInput = document.createElement('input');
+      intentInput.type = 'hidden';
+      intentInput.name = 'intent';
+      intentInput.dataset.confirmDialog = '1';
+      form.appendChild(intentInput);
+    }
+    intentInput.value = 'delete';
+    setIsOpen(false);
+    // requestSubmit preserves validation and the submit event lifecycle (vs .submit()).
+    form.requestSubmit();
+  };
+
   return (
     <>
       <button
+        id={dialogId + '-trigger'}
         type="button"
         onClick={() => setIsOpen(true)}
         aria-haspopup="dialog"
@@ -118,12 +151,7 @@ export default function ConfirmDeleteDialog({
           >
             Cancel
           </button>
-          <button
-            type="submit"
-            name="intent"
-            value="delete"
-            className={confirmClassName}
-          >
+          <button type="button" onClick={handleConfirm} className={confirmClassName}>
             {confirmLabel}
           </button>
         </DialogContent>

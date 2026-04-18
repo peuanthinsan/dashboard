@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import EmptyState from 'app/ui/EmptyState';
 import { cardSection, heading2, textSecondary, badgeDefault } from 'app/ui/design-tokens';
+import { normalizeLabel } from './dashboardDataUtils';
 
 export interface TimelineEntry {
   timestamp: Date;
@@ -16,6 +17,8 @@ interface AlertTimelineProps {
   entries: TimelineEntry[];
   maxEntries?: number;
   lang?: 'en' | 'th';
+  /** Optional: alert-type → hex color map so chips match the donut colors. */
+  colorMap?: Map<string, string>;
 }
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
@@ -30,11 +33,17 @@ function formatShortDate(date: Date): string {
 
 function computeHighlights(entries: TimelineEntry[]): Set<number> {
   const highlighted = new Set<number>();
+  // Entries come in descending timestamp order (newest first). For each i, every
+  // subsequent j has timestamp <= entries[i], so diff grows monotonically and we
+  // can break early. Falls back to vehicle when driver is missing.
   for (let i = 0; i < entries.length; i++) {
+    const subjectI = entries[i].driver && entries[i].driver !== '—' ? entries[i].driver : entries[i].vehicle;
+    if (!subjectI || subjectI === '—') continue;
     for (let j = i + 1; j < entries.length; j++) {
-      const diff = Math.abs(entries[i].timestamp.getTime() - entries[j].timestamp.getTime());
+      const diff = entries[i].timestamp.getTime() - entries[j].timestamp.getTime();
       if (diff > TWO_HOURS_MS) break;
-      if (entries[i].driver === entries[j].driver) {
+      const subjectJ = entries[j].driver && entries[j].driver !== '—' ? entries[j].driver : entries[j].vehicle;
+      if (subjectI === subjectJ) {
         highlighted.add(i);
         highlighted.add(j);
       }
@@ -47,6 +56,7 @@ export default function AlertTimeline({
   entries,
   maxEntries = 30,
   lang = 'en',
+  colorMap,
 }: AlertTimelineProps) {
   const sorted = useMemo(
     () =>
@@ -123,7 +133,19 @@ export default function AlertTimeline({
               <span className="min-w-[6rem] text-zinc-600 dark:text-zinc-300">
                 {entry.driver}
               </span>
-              <span className={badgeDefault}>{entry.alertType}</span>
+              {(() => {
+                const color = colorMap?.get(normalizeLabel(entry.alertType));
+                if (!color) return <span className={badgeDefault}>{entry.alertType}</span>;
+                return (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset"
+                    style={{ backgroundColor: `${color}1a`, color, borderColor: `${color}66` }}
+                  >
+                    <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+                    {entry.alertType}
+                  </span>
+                );
+              })()}
               <span className="ml-auto flex items-center gap-1.5 tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
                 <span className="shrink-0 text-zinc-400 dark:text-zinc-500">
                   {lang === 'th' ? 'ความเร็ว:' : 'Speed:'}

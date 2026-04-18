@@ -27,11 +27,17 @@ import {
   btnSmall,
 } from 'app/ui/design-tokens';
 import type { ActionState, Company } from '../types';
-import type { bulkCreateCompanies, bulkDeleteCompanies } from 'app/db-bulk';
+import type { bulkCreateCompanies, bulkDeleteCompanies, bulkApplyCompanyAlertRules, bulkEditCompanyAlertRule, bulkRemoveCompanyAlertRule } from 'app/db-bulk';
+import AlertRulesEditor from '../AlertRulesEditor';
+import ExistingRulesTable from '../ExistingRulesTable';
+import ConfirmActionDialog from '../ConfirmActionDialog';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 type BulkCreateFn = typeof bulkCreateCompanies;
 type BulkDeleteFn = typeof bulkDeleteCompanies;
+type BulkApplyRulesFn = typeof bulkApplyCompanyAlertRules;
+type BulkEditRuleFn = typeof bulkEditCompanyAlertRule;
+type BulkRemoveRuleFn = typeof bulkRemoveCompanyAlertRule;
 
 type CompaniesClientProps = {
   companies: Company[];
@@ -39,6 +45,9 @@ type CompaniesClientProps = {
   manageCompanyAction: FormAction;
   bulkCreateAction: BulkCreateFn;
   bulkDeleteAction: BulkDeleteFn;
+  bulkApplyRulesAction: BulkApplyRulesFn;
+  bulkEditRuleAction: BulkEditRuleFn;
+  bulkRemoveRuleAction: BulkRemoveRuleFn;
 };
 
 function CompanyRow({
@@ -93,6 +102,11 @@ function CompanyRow({
             Company name
             <input name="companyName" defaultValue={company.name ?? ''} className={ADMIN_INPUT} />
           </label>
+          <div className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
+            Alert rules (company-wide)
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Apply to all dashboards in this company. Dashboard-level rules take precedence.</p>
+            <AlertRulesEditor initial={company.alertRules} />
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -119,6 +133,9 @@ export default function CompaniesClient({
   manageCompanyAction,
   bulkCreateAction,
   bulkDeleteAction,
+  bulkApplyRulesAction,
+  bulkEditRuleAction,
+  bulkRemoveRuleAction,
 }: CompaniesClientProps) {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -140,6 +157,10 @@ export default function CompaniesClient({
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkNames, setBulkNames] = useState('');
   const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
+  const [isBulkRulesOpen, setIsBulkRulesOpen] = useState(false);
+  const [bulkRulesMode, setBulkRulesMode] = useState<'append' | 'replace'>('append');
+  const [isBulkClearConfirmOpen, setIsBulkClearConfirmOpen] = useState(false);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [isPending, startTransition] = useTransition();
 
@@ -172,11 +193,54 @@ export default function CompaniesClient({
   }
 
   function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleteConfirmOpen(true);
+  }
+
+  function runBulkDelete() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     startTransition(async () => {
       await bulkDeleteAction(ids);
       setSelectedIds(new Set());
+      router.refresh();
+    });
+  }
+
+  function handleBulkApplyRules(formData: FormData) {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const raw = (formData.get('alertRulesJson') as string) ?? '[]';
+    let rules: import('app/dashboards/dashboardDataUtils').AlertRule[] = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) rules = parsed;
+    } catch {
+      setBulkStatus('Invalid rule data.');
+      return;
+    }
+    startTransition(async () => {
+      const result = await bulkApplyRulesAction(ids, rules, bulkRulesMode);
+      setBulkStatus(`Applied ${rules.length} rule(s) to ${result.updated} compan${result.updated === 1 ? 'y' : 'ies'} (${bulkRulesMode}).`);
+      setSelectedIds(new Set());
+      setIsBulkRulesOpen(false);
+      router.refresh();
+    });
+  }
+
+  function handleBulkClearRules() {
+    if (selectedIds.size === 0) return;
+    setIsBulkClearConfirmOpen(true);
+  }
+
+  function runBulkClearRules() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      const result = await bulkApplyRulesAction(ids, [], 'replace');
+      setBulkStatus(`Cleared alert rules on ${result.updated} compan${result.updated === 1 ? 'y' : 'ies'}.`);
+      setSelectedIds(new Set());
+      setIsBulkRulesOpen(false);
       router.refresh();
     });
   }
@@ -277,14 +341,24 @@ export default function CompaniesClient({
                 aria-label="Search companies"
               />
               {selectedIds.size > 0 && (
-                <button
-                  type="button"
-                  onClick={handleBulkDelete}
-                  disabled={isPending}
-                  className={`${btnDanger} ${btnSmall}`}
-                >
-                  {isPending ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkRulesOpen(true)}
+                    disabled={isPending}
+                    className={`${btnSmall} rounded border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200`}
+                  >
+                    Apply alert rules ({selectedIds.size})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    disabled={isPending}
+                    className={`${btnDanger} ${btnSmall}`}
+                  >
+                    {isPending ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
+                  </button>
+                </>
               )}
               <button
                 type="button"
@@ -357,6 +431,83 @@ export default function CompaniesClient({
           </div>
           <StatusMessage state={companyCreateState} />
         </form>
+      </AdminModal>
+
+      <ConfirmActionDialog
+        isOpen={isBulkClearConfirmOpen}
+        title="Clear all alert rules"
+        description={`Clear every alert rule from ${selectedIds.size} selected compan${selectedIds.size === 1 ? 'y' : 'ies'}? This cannot be undone.`}
+        confirmLabel="Clear rules"
+        destructive
+        onClose={() => setIsBulkClearConfirmOpen(false)}
+        onConfirm={runBulkClearRules}
+      />
+
+      <ConfirmActionDialog
+        isOpen={isBulkDeleteConfirmOpen}
+        title="Delete companies"
+        description={`Permanently delete ${selectedIds.size} selected compan${selectedIds.size === 1 ? 'y' : 'ies'}? Dashboards and organizations attached to them may break.`}
+        confirmLabel="Delete"
+        destructive
+        onClose={() => setIsBulkDeleteConfirmOpen(false)}
+        onConfirm={runBulkDelete}
+      />
+
+      <AdminModal
+        isOpen={isBulkRulesOpen}
+        onClose={() => setIsBulkRulesOpen(false)}
+        title="Alert rules — bulk manage"
+        description={`Review, edit, remove, or add rules across ${selectedIds.size} selected compan${selectedIds.size === 1 ? 'y' : 'ies'}. Rules cascade to every dashboard under those companies.`}
+      >
+        <div className="grid gap-5">
+          <section className="grid gap-2">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Existing rules across selection</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Every unique rule already applied on the selected companies. Edit or remove propagates to every company that has it.</p>
+            <ExistingRulesTable
+              owners={companies.filter((c) => selectedIds.has(c.id))}
+              ownerLabel="company"
+              editAction={bulkEditRuleAction}
+              removeAction={bulkRemoveRuleAction}
+              onChanged={() => router.refresh()}
+            />
+          </section>
+
+          <section className="grid gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Add new rules</h3>
+        <form action={(fd) => handleBulkApplyRules(fd)} className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <span className={ADMIN_LABEL}>Mode</span>
+            <label className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+              <input type="radio" name="mode" checked={bulkRulesMode === 'append'} onChange={() => setBulkRulesMode('append')} />
+              Append (keep existing)
+            </label>
+            <label className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+              <input type="radio" name="mode" checked={bulkRulesMode === 'replace'} onChange={() => setBulkRulesMode('replace')} />
+              Replace (overwrite existing)
+            </label>
+          </div>
+          <AlertRulesEditor />
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleBulkClearRules}
+              disabled={isPending}
+              className={`${btnDanger} ${btnSmall}`}
+              title="Wipe every alert rule from selected companies"
+            >
+              Clear all rules on selected
+            </button>
+            <button type="button" onClick={() => setIsBulkRulesOpen(false)} className={ADMIN_SAVE_BUTTON}>
+              Cancel
+            </button>
+            <button type="submit" disabled={isPending} className={ADMIN_PRIMARY_BUTTON}>
+              {isPending ? 'Applying…' : `Apply to ${selectedIds.size} company/companies`}
+            </button>
+          </div>
+          {bulkStatus && <p className="text-xs text-emerald-600 dark:text-emerald-400">{bulkStatus}</p>}
+        </form>
+          </section>
+        </div>
       </AdminModal>
     </AdminSection>
   );

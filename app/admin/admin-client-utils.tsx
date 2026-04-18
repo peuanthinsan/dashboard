@@ -26,11 +26,16 @@ export function StatusMessage({
 
 export function useRefreshOnSuccess(state: ActionState) {
   const router = useRouter();
+  // Only refresh once per idle→success transition. Without this guard the
+  // effect fires on every re-render where status stays 'success', hammering
+  // router.refresh and the server.
+  const lastStatus = useRef<ActionState['status']>('idle');
 
   useEffect(() => {
-    if (state.status === 'success') {
+    if (state.status === 'success' && lastStatus.current !== 'success') {
       router.refresh();
     }
+    lastStatus.current = state.status;
   }, [router, state.status]);
 }
 

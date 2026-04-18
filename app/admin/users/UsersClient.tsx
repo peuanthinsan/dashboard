@@ -10,6 +10,7 @@ import {
   useRefreshOnSuccess,
 } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
+import ConfirmActionDialog from '../ConfirmActionDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
 import {
   ADMIN_DELETE_BUTTON,
@@ -364,7 +365,14 @@ export default function UsersClient({
     });
   }
 
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+
   function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleteConfirmOpen(true);
+  }
+
+  function runBulkDelete() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     startTransition(async () => {
@@ -766,6 +774,15 @@ export default function UsersClient({
           <StatusMessage state={userCreateState} />
         </form>
       </AdminModal>
+      <ConfirmActionDialog
+        isOpen={isBulkDeleteConfirmOpen}
+        title="Delete users"
+        description={`Permanently delete ${selectedIds.size} selected user${selectedIds.size === 1 ? '' : 's'}? They will lose access immediately.`}
+        confirmLabel="Delete"
+        destructive
+        onClose={() => setIsBulkDeleteConfirmOpen(false)}
+        onConfirm={runBulkDelete}
+      />
     </AdminSection>
   );
 }

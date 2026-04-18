@@ -120,11 +120,11 @@ export const STANDARD_REMARK_TARGETS = [
   'Fatigue',
   'Yawning',
   'Distraction',
-  'Phone',
+  'Mobile Phone',
   'Eating/Drinking',
   'Smoking',
-  'Harsh Brake(HB)',
-  'Harsh Acceleration(HA)',
+  'Harsh Brake',
+  'Harsh Acceleration',
   'Overspeed',
 ] as const;
 
@@ -136,43 +136,229 @@ export const ALLOWED_REMARK_TARGETS = [...STANDARD_REMARK_TARGETS];
 export const remarkMatchesAllowedTarget = (normalizedRemark: string, normalizedTarget: string) =>
   normalizedRemark.includes(normalizedTarget) || normalizedTarget.includes(normalizedRemark);
 
-export const withDerivedRemark = (alertType: string, remarks: string) => {
-  const normalizedAlertType = normalizeLabel(alertType);
+/**
+ * Stable color assignment for canonical remark labels. The same label always
+ * gets the same chart color across every dashboard (donut, timeline chip,
+ * video chip, etc.) regardless of the data's frequency order.
+ *
+ * Labels not in this map fall through to a deterministic hash → palette index.
+ */
+const REMARK_COLOR_MAP: Record<string, string> = {
+  fatigue: '#8B5CF6', // violet
+  yawning: '#06B6D4', // cyan
+  distraction: '#EF4444', // red
+  'mobile phone': '#F59E0B', // amber
+  'eating/drinking': '#10B981', // emerald
+  smoking: '#6366F1', // indigo
+  'harsh brake': '#EC4899', // pink
+  'harsh acceleration': '#F97316', // orange
+  overspeed: '#3B82F6', // blue
+};
+
+const FALLBACK_PALETTE = [
+  '#14B8A6', '#EF4444', '#3B82F6', '#F59E0B', '#10B981',
+  '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#6366F1',
+];
+
+export function colorForRemark(label: string): string {
+  const key = normalizeLabel(label);
+  if (REMARK_COLOR_MAP[key]) return REMARK_COLOR_MAP[key];
+  // Substring match — handles "Mobile Phone-A2", "harsh brake (HB)", etc.
+  for (const [canonical, color] of Object.entries(REMARK_COLOR_MAP)) {
+    if (key.includes(canonical) || canonical.includes(key)) return color;
+  }
+  // Stable hash for unknown labels so they don't change between renders.
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  return FALLBACK_PALETTE[Math.abs(hash) % FALLBACK_PALETTE.length];
+}
+
+/**
+ * Passthrough normalizer — just trims the raw "Remarks" cell. All classification
+ * logic now lives in the AlertRule system (see `DEFAULT_ALERT_RULES` and
+ * `applyAlertRules`). Kept as a tiny helper so callers don't need to know about
+ * the '—' sentinel.
+ */
+export const withDerivedRemark = (_alertType: string, remarks: string) => {
   const rawTrimmed = remarks === '—' ? '' : remarks.trim();
-  const nRemarks = normalizeLabel(rawTrimmed);
-
-  const derivedRemarkByAlertType: Record<string, string> = {
-    [normalizeLabel('Yawning-A2')]: 'Yawning',
-    [normalizeLabel('OverSpeed')]: 'Overspeed',
-    [normalizeLabel('Harsh Acceleration')]: 'Harsh Acceleration(HA)',
-    [normalizeLabel('Harsh Brake')]: 'Harsh Brake(HB)',
-  };
-
-  const derivedRemark = derivedRemarkByAlertType[normalizedAlertType];
-  if (derivedRemark) {
-    return derivedRemark;
-  }
-
-  if (
-    normalizedAlertType === normalizeLabel('Eye Closing-A2') &&
-    nRemarks.includes('yawning')
-  ) {
-    return 'Yawning';
-  }
-
-  if (
-    normalizedAlertType === normalizeLabel('Eye Closing-A2') &&
-    nRemarks.includes('fatigue')
-  ) {
-    return 'Fatigue';
-  }
-
-  if (nRemarks.includes('mobile phone') || nRemarks === 'phone') {
-    return 'Phone';
-  }
-
   return rawTrimmed || remarks;
 };
+
+// ── Alert rules ──────────────────────────────────────────────────────────────
+
+/** A customer-defined rule that tweaks how alert types / remarks are classified. */
+export type AlertRule =
+  | {
+      id: string;
+      /** Rename: map a specific alert type from the sheet to a display remark label. */
+      type: 'remap_alert_type';
+      sourceAlertType: string;
+      targetRemark: string;
+    }
+  | {
+      id: string;
+      /** Conditional rename: if alert type matches AND raw remark contains substring, map to target. */
+      type: 'remap_alert_type_if_remark_contains';
+      sourceAlertType: string;
+      remarkContains: string;
+      targetRemark: string;
+    }
+  | {
+      id: string;
+      /** Normalize: rename one remark spelling/variation to a canonical label. */
+      type: 'remap_remark';
+      sourceRemark: string;
+      targetRemark: string;
+    }
+  | {
+      id: string;
+      /** Always exclude: permanently hide all events of a specific alert type. */
+      type: 'always_exclude';
+      alertType: string;
+    }
+  | {
+      id: string;
+      /** False alert by speed: hide events where remark matches AND speed is below threshold. */
+      type: 'false_alert_speed';
+      remark: string;
+      maxSpeed: number;
+    };
+
+/**
+ * System defaults: baked-in classification that used to live in `withDerivedRemark`.
+ * Prepended to every `applyAlertRules` invocation so the same transforms fire for
+ * every dashboard by default. Admins can override with their own rules (dashboard /
+ * company level) since user rules run after defaults and can remap the result.
+ */
+export const DEFAULT_ALERT_RULES: AlertRule[] = [
+  // Alert-type renames (unconditional)
+  { id: 'default-yawning-a2', type: 'remap_alert_type', sourceAlertType: 'Yawning-A2', targetRemark: 'Yawning' },
+  { id: 'default-overspeed', type: 'remap_alert_type', sourceAlertType: 'OverSpeed', targetRemark: 'Overspeed' },
+
+  // Conditional renames (alert type + raw remark contains)
+  { id: 'default-eye-closing-yawning', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'yawning', targetRemark: 'Yawning' },
+  { id: 'default-eye-closing-fatigue', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'fatigue', targetRemark: 'Fatigue' },
+  { id: 'default-eye-closing-distraction', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'distraction', targetRemark: 'Distraction' },
+
+  // Normalize remark spellings → canonical Songdee labels (STANDARD_REMARK_TARGETS)
+  { id: 'default-norm-fatigue', type: 'remap_remark', sourceRemark: 'fatigue', targetRemark: 'Fatigue' },
+  { id: 'default-norm-yawning', type: 'remap_remark', sourceRemark: 'yawning', targetRemark: 'Yawning' },
+  { id: 'default-norm-distraction', type: 'remap_remark', sourceRemark: 'distraction', targetRemark: 'Distraction' },
+  { id: 'default-norm-mobile-phone', type: 'remap_remark', sourceRemark: 'mobile phone', targetRemark: 'Mobile Phone' },
+  { id: 'default-norm-phone', type: 'remap_remark', sourceRemark: 'phone', targetRemark: 'Mobile Phone' },
+  { id: 'default-norm-eating', type: 'remap_remark', sourceRemark: 'eating', targetRemark: 'Eating/Drinking' },
+  { id: 'default-norm-drinking', type: 'remap_remark', sourceRemark: 'drinking', targetRemark: 'Eating/Drinking' },
+  { id: 'default-norm-smoking', type: 'remap_remark', sourceRemark: 'smoking', targetRemark: 'Smoking' },
+];
+
+/**
+ * Stable content signature for an alert rule — omits `id` so "the same logical rule"
+ * on different dashboards/companies compares equal. Used by bulk edit / remove
+ * operations that target rules by value rather than by their per-row UUID.
+ */
+export function alertRuleSignature(rule: AlertRule): string {
+  const norm = (s: string) => s.trim().toLowerCase();
+  switch (rule.type) {
+    case 'remap_alert_type':
+      return `remap_alert_type|${norm(rule.sourceAlertType)}|${norm(rule.targetRemark)}`;
+    case 'remap_alert_type_if_remark_contains':
+      return `remap_alert_type_if_remark_contains|${norm(rule.sourceAlertType)}|${norm(rule.remarkContains)}|${norm(rule.targetRemark)}`;
+    case 'remap_remark':
+      return `remap_remark|${norm(rule.sourceRemark)}|${norm(rule.targetRemark)}`;
+    case 'always_exclude':
+      return `always_exclude|${norm(rule.alertType)}`;
+    case 'false_alert_speed':
+      return `false_alert_speed|${norm(rule.remark)}|${rule.maxSpeed}`;
+  }
+}
+
+/**
+ * Apply alert rules on top of a raw remark. `DEFAULT_ALERT_RULES` run first so
+ * built-in Songdee classifications fire for every dashboard; user-supplied rules
+ * (dashboard + company) run after and can override the defaults.
+ *
+ * Rule order: remap_alert_type → remap_alert_type_if_remark_contains → remap_remark
+ * → always_exclude → false_alert_speed.
+ * Returns the final remark string (may be 'False alert' for exclusion rules).
+ */
+export function applyAlertRules(
+  alertType: string,
+  derivedRemark: string,
+  speed: number,
+  userRules: AlertRule[],
+): string {
+  // Snapshot the raw derived remark — `remap_alert_type_if_remark_contains`
+  // matches against the sheet cell, not the in-progress `remark`.
+  const rawRemarkNormalized = normalizeLabel(derivedRemark);
+  // User rules run FIRST in every phase so a user's `break` beats a default match.
+  // When a user classification rule fires for this alertType, `userSealed` is set
+  // so later phases don't let default rules overwrite the user's intent.
+  const rules = [...userRules, ...DEFAULT_ALERT_RULES];
+  const userRuleSet = new Set<AlertRule>(userRules);
+  let remark = derivedRemark;
+  let userSealedAlertType = false;
+
+  // 1. Rename alert type → remark label (unconditional)
+  for (const rule of rules) {
+    if (rule.type === 'remap_alert_type') {
+      if (normalizeLabel(alertType) === normalizeLabel(rule.sourceAlertType)) {
+        remark = rule.targetRemark;
+        if (userRuleSet.has(rule)) userSealedAlertType = true;
+        break;
+      }
+    }
+  }
+
+  // 2. Conditional rename: alert type matches + raw remark contains substring
+  // Skip default conditional rules if a user rule already claimed this alertType.
+  for (const rule of rules) {
+    if (rule.type === 'remap_alert_type_if_remark_contains') {
+      if (userSealedAlertType && !userRuleSet.has(rule)) continue;
+      if (
+        normalizeLabel(alertType) === normalizeLabel(rule.sourceAlertType) &&
+        rawRemarkNormalized.includes(normalizeLabel(rule.remarkContains))
+      ) {
+        remark = rule.targetRemark;
+        if (userRuleSet.has(rule)) userSealedAlertType = true;
+        break;
+      }
+    }
+  }
+
+  // 3. Normalize remark spelling variations
+  for (const rule of rules) {
+    if (rule.type === 'remap_remark') {
+      const nRemark = normalizeLabel(remark);
+      const nSource = normalizeLabel(rule.sourceRemark);
+      if (nRemark === nSource || nRemark.includes(nSource) || nSource.includes(nRemark)) {
+        remark = rule.targetRemark;
+        break;
+      }
+    }
+  }
+
+  // 4. Always exclude a specific alert type
+  for (const rule of rules) {
+    if (rule.type === 'always_exclude') {
+      if (normalizeLabel(alertType) === normalizeLabel(rule.alertType)) {
+        return 'False alert';
+      }
+    }
+  }
+
+  // 5. False alert by speed
+  for (const rule of rules) {
+    if (rule.type === 'false_alert_speed') {
+      const nRemark = normalizeLabel(remark);
+      const nTarget = normalizeLabel(rule.remark);
+      if ((nRemark.includes(nTarget) || nTarget.includes(nRemark)) && speed < rule.maxSpeed) {
+        return 'False alert';
+      }
+    }
+  }
+
+  return remark;
+}
 
 export function resolveTemplate(template: string): string {
   if (template === 'Video') return 'Detail';
