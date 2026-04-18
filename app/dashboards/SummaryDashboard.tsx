@@ -53,6 +53,7 @@ type DashboardProps = {
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
   alertRules?: AlertRule[] | null;
+  isAdmin?: boolean;
 };
 
 const buildCounts = (rows: Record<string, unknown>[], labels: string[]) => {
@@ -78,6 +79,7 @@ export default function SummaryDashboard({
   allowedAlertTypes: allowedAlertTypesProp,
   allowedRemarks: allowedRemarksProp,
   alertRules: alertRulesProp,
+  isAdmin = false,
 }: DashboardProps) {
   const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
     sheetId,
@@ -413,6 +415,8 @@ export default function SummaryDashboard({
       notes={dashboardNotes}
       isStale={lastUpdated ? nowTick - lastUpdated.getTime() > 5 * 60 * 1000 : false}
       activeFilterCount={monthFilters.length + dayFilters.length + fleetFilters.length}
+      dashboardId={dashboardId}
+      isAdmin={isAdmin}
       actions={
         <ExportButton
           data={exportData}

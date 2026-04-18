@@ -45,6 +45,7 @@ type DashboardProps = {
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
   alertRules?: AlertRule[] | null;
+  isAdmin?: boolean;
 };
 
 type SimpleFilterState = {
@@ -83,6 +84,7 @@ export default function SimpleDashboard({
   allowedAlertTypes: allowedAlertTypesProp,
   allowedRemarks: allowedRemarksProp,
   alertRules: alertRulesProp,
+  isAdmin = false,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
   const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
@@ -497,6 +499,8 @@ export default function SimpleDashboard({
       notes={dashboardNotes}
       isStale={!loading && !error && filteredAlerts.length === 0 && baseAlerts.length > 0}
       activeFilterCount={activeFilterCount}
+      dashboardId={dashboardId}
+      isAdmin={isAdmin}
       actions={
         <ExportButton
           data={exportData}

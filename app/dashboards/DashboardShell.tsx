@@ -25,6 +25,9 @@ type DashboardShellProps = {
   children: ReactNode;
   isStale?: boolean;
   activeFilterCount?: number;
+  /** When set, shows an admin "Edit" button linking to the admin dashboard page. */
+  dashboardId?: string | null;
+  isAdmin?: boolean;
 };
 
 export const dashboardSectionClass = cardSection;
@@ -39,6 +42,8 @@ export default function DashboardShell({
   children,
   isStale = false,
   activeFilterCount = 0,
+  dashboardId,
+  isAdmin = false,
 }: DashboardShellProps) {
   const copy = getDashboardCopy(lang);
 
@@ -102,6 +107,17 @@ export default function DashboardShell({
                   data-print-hide
                 >
                   {actions}
+                  {isAdmin && dashboardId ? (
+                    <Link
+                      href={`/admin/dashboards?highlight=${encodeURIComponent(dashboardId)}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      {lang === 'th' ? 'แก้ไข' : 'Edit'}
+                    </Link>
+                  ) : null}
                   <PrintButton label={lang === 'th' ? 'พิมพ์ / PDF' : 'Print / PDF'} />
                 </div>
               </div>

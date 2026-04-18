@@ -28,6 +28,7 @@ type DashboardProps = {
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
+  isAdmin?: boolean;
 };
 
 type VideoSample = {
@@ -42,12 +43,14 @@ type VideoSample = {
 };
 
 export default function VideoDashboard({
+  dashboardId,
   dashboardName,
   sheetId,
   sheetGid,
   dashboardNotes,
   organizationName,
   lang = 'en',
+  isAdmin = false,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
@@ -91,6 +94,8 @@ export default function VideoDashboard({
       lang={lang}
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
+      dashboardId={dashboardId}
+      isAdmin={isAdmin}
     >
       {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">

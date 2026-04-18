@@ -29,6 +29,7 @@ type DashboardProps = {
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
+  isAdmin?: boolean;
 };
 
 /** One row from the overspeed sheet */
@@ -86,6 +87,7 @@ export default function OverSpeedDashboard({
   dashboardNotes,
   organizationName,
   lang = 'en',
+  isAdmin = false,
 }: DashboardProps) {
   const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
     sheetId,
@@ -501,6 +503,8 @@ export default function OverSpeedDashboard({
       notes={dashboardNotes}
       isStale={lastUpdated ? nowTick - lastUpdated.getTime() > 5 * 60 * 1000 : false}
       activeFilterCount={activeFilterCount}
+      dashboardId={dashboardId}
+      isAdmin={isAdmin}
       actions={
         <ExportButton
           data={exportData}

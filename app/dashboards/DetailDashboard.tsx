@@ -808,6 +808,8 @@ export default function DetailDashboard({
       notes={dashboardNotes}
       isStale={isStale}
       activeFilterCount={activeFilterCount}
+      dashboardId={dashboardId}
+      isAdmin={isAdmin}
       actions={
         <ExportButton
           data={exportData}

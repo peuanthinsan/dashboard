@@ -39,6 +39,7 @@ type DashboardProps = {
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
   drivingThresholds?: DrivingThresholds | null;
+  isAdmin?: boolean;
 };
 
 type DrivingRow = {
@@ -101,6 +102,7 @@ export default function DrivingDashboard({
   organizationName,
   lang = 'en',
   drivingThresholds: drivingThresholdsProp,
+  isAdmin = false,
 }: DashboardProps) {
   const thresholds = useMemo(
     () => normalizeDrivingThresholds(drivingThresholdsProp),
@@ -650,6 +652,8 @@ export default function DrivingDashboard({
       notes={dashboardNotes}
       isStale={lastUpdated ? nowTick - lastUpdated.getTime() > 5 * 60 * 1000 : false}
       activeFilterCount={activeFilterCount}
+      dashboardId={dashboardId}
+      isAdmin={isAdmin}
       actions={
         <ExportButton
           data={exportData}

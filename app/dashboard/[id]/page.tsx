@@ -63,14 +63,14 @@ function DashboardByTemplate({ template, drivingThresholds, isAdmin, ...props }:
     case 'Detail':
       return <DetailDashboard {...props} isAdmin={isAdmin} />;
     case 'Simple':
-      return <SimpleDashboard {...props} />;
+      return <SimpleDashboard {...props} isAdmin={isAdmin} />;
     case 'Driving':
-      return <DrivingDashboard {...props} drivingThresholds={drivingThresholds} />;
+      return <DrivingDashboard {...props} drivingThresholds={drivingThresholds} isAdmin={isAdmin} />;
     case 'OverSpeed':
-      return <OverSpeedDashboard {...props} />;
+      return <OverSpeedDashboard {...props} isAdmin={isAdmin} />;
     case 'Summary':
     default:
-      return <SummaryDashboard {...props} />;
+      return <SummaryDashboard {...props} isAdmin={isAdmin} />;
   }
 }
 
