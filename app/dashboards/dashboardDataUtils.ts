@@ -231,14 +231,9 @@ export type AlertRule =
  * company level) since user rules run after defaults and can remap the result.
  */
 export const DEFAULT_ALERT_RULES: AlertRule[] = [
-  // Alert-type renames (unconditional). These fire even when the sheet's
-  // Remarks cell is blank, so every row gets a usable remark label.
+  // Alert-type renames (unconditional)
   { id: 'default-yawning-a2', type: 'remap_alert_type', sourceAlertType: 'Yawning-A2', targetRemark: 'Yawning' },
   { id: 'default-overspeed', type: 'remap_alert_type', sourceAlertType: 'OverSpeed', targetRemark: 'Overspeed' },
-  { id: 'default-distraction-a2', type: 'remap_alert_type', sourceAlertType: 'Distraction-A2', targetRemark: 'Distraction' },
-  { id: 'default-eye-closing-a2', type: 'remap_alert_type', sourceAlertType: 'Eye Closing-A2', targetRemark: 'Fatigue' },
-  { id: 'default-harsh-brake', type: 'remap_alert_type', sourceAlertType: 'Harsh Brake', targetRemark: 'Harsh Brake' },
-  { id: 'default-harsh-acceleration', type: 'remap_alert_type', sourceAlertType: 'Harsh Acceleration', targetRemark: 'Harsh Acceleration' },
 
   // Conditional renames (alert type + raw remark contains)
   { id: 'default-eye-closing-yawning', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'yawning', targetRemark: 'Yawning' },
