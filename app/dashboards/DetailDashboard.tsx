@@ -287,7 +287,7 @@ export default function DetailDashboard({
       if (!row.remarks || row.remarks === '—') return;
       const normalizedValue = normalizeLabel(row.remarks);
       normalizedTargets.forEach((target, index) => {
-        if (normalizedValue.includes(target)) {
+        if (remarkMatchesAllowedTarget(normalizedValue, target)) {
           matching.add(allowedRemarkTargets[index]);
         }
       });
@@ -433,7 +433,7 @@ export default function DetailDashboard({
       if (trendRemarkFilter !== 'all') {
         const normalizedRemark = normalizeLabel(row.remarks);
         const normalizedFilter = normalizeLabel(trendRemarkFilter);
-        if (!normalizedRemark.includes(normalizedFilter)) return;
+        if (!remarkMatchesAllowedTarget(normalizedRemark, normalizedFilter)) return;
       }
       const dayKey = toDayKey(row.parsedDate);
       const existing = counts.get(dayKey);
