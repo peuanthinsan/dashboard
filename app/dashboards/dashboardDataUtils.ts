@@ -237,14 +237,21 @@ export const DEFAULT_ALERT_RULES: AlertRule[] = [
   { id: 'default-yawning-a2', type: 'remap_alert_type', sourceAlertType: 'Yawning-A2', targetRemark: 'Yawning' },
   { id: 'default-overspeed', type: 'remap_alert_type', sourceAlertType: 'OverSpeed', targetRemark: 'Overspeed' },
   { id: 'default-distraction-a2', type: 'remap_alert_type', sourceAlertType: 'Distraction-A2', targetRemark: 'Distraction' },
-  { id: 'default-eye-closing-a2', type: 'remap_alert_type', sourceAlertType: 'Eye Closing-A2', targetRemark: 'Fatigue' },
   { id: 'default-harsh-brake', type: 'remap_alert_type', sourceAlertType: 'Harsh Brake', targetRemark: 'Harsh Brake' },
   { id: 'default-harsh-acceleration', type: 'remap_alert_type', sourceAlertType: 'Harsh Acceleration', targetRemark: 'Harsh Acceleration' },
 
-  // Conditional renames (alert type + raw remark contains)
-  { id: 'default-eye-closing-yawning', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'yawning', targetRemark: 'Yawning' },
+  // Conditional renames for Eye Closing-A2 (alert type + raw remark contains).
+  // No unconditional default — MDVR hardware fires Eye Closing-A2 for many root
+  // causes (phone, eating, smoking, …) that reviewers annotate in Remarks.
+  // Blank/unrecognized Remarks rows drop out of categorized views intentionally.
   { id: 'default-eye-closing-fatigue', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'fatigue', targetRemark: 'Fatigue' },
+  { id: 'default-eye-closing-yawning', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'yawning', targetRemark: 'Yawning' },
   { id: 'default-eye-closing-distraction', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'distraction', targetRemark: 'Distraction' },
+  { id: 'default-eye-closing-mobile-phone', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'mobile phone', targetRemark: 'Mobile Phone' },
+  { id: 'default-eye-closing-phone', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'phone', targetRemark: 'Mobile Phone' },
+  { id: 'default-eye-closing-eating', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'eating', targetRemark: 'Eating/Drinking' },
+  { id: 'default-eye-closing-drinking', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'drinking', targetRemark: 'Eating/Drinking' },
+  { id: 'default-eye-closing-smoking', type: 'remap_alert_type_if_remark_contains', sourceAlertType: 'Eye Closing-A2', remarkContains: 'smoking', targetRemark: 'Smoking' },
 
   // Normalize remark spellings → canonical Songdee labels (STANDARD_REMARK_TARGETS)
   { id: 'default-norm-fatigue', type: 'remap_remark', sourceRemark: 'fatigue', targetRemark: 'Fatigue' },
