@@ -6,6 +6,7 @@ import { auth } from 'app/auth';
 import { getDashboardByPublicId, getOrganizationById, getUser, getCompanyById } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import DrivingDashboard from 'app/dashboards/DrivingDashboard';
+import DynamicTripDashboard from 'app/dashboards/DynamicTripDashboard';
 import OverSpeedDashboard from 'app/dashboards/OverSpeedDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
@@ -68,6 +69,8 @@ function DashboardByTemplate({ template, drivingThresholds, isAdmin, ...props }:
       return <DrivingDashboard {...props} drivingThresholds={drivingThresholds} isAdmin={isAdmin} />;
     case 'OverSpeed':
       return <OverSpeedDashboard {...props} isAdmin={isAdmin} />;
+    case 'DynamicTrip':
+      return <DynamicTripDashboard {...props} isAdmin={isAdmin} />;
     case 'Summary':
     default:
       return <SummaryDashboard {...props} isAdmin={isAdmin} />;

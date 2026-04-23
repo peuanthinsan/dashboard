@@ -49,7 +49,7 @@ import type {
   bulkRemoveDashboardAlertRule,
 } from 'app/db-bulk';
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Video', 'Driving', 'OverSpeed'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'DynamicTrip'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
 

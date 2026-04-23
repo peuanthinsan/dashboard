@@ -42,7 +42,7 @@ type AlertFilterCopy = {
   mergeHint: string;
 };
 
-const QUICK_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
+const QUICK_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed', 'DynamicTrip'] as const;
 
 const TEMPLATE_HINTS: Record<(typeof QUICK_TEMPLATES)[number], string> = {
   Summary: 'KPIs & overview',
@@ -50,6 +50,7 @@ const TEMPLATE_HINTS: Record<(typeof QUICK_TEMPLATES)[number], string> = {
   Detail: 'Alerts, filters, tables',
   Driving: 'Driver hours & safety',
   OverSpeed: 'Speed violations & trends',
+  DynamicTrip: 'Per-trip summary table',
 };
 
 const STEPS = [

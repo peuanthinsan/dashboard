@@ -96,14 +96,12 @@ describe('dashboardDataUtils', () => {
   });
 
   describe('resolveTemplate', () => {
-    it('resolves Video to Detail', () => {
-      expect(resolveTemplate('Video')).toBe('Detail');
-    });
     it('passes through other templates', () => {
       expect(resolveTemplate('Summary')).toBe('Summary');
       expect(resolveTemplate('Detail')).toBe('Detail');
       expect(resolveTemplate('Simple')).toBe('Simple');
       expect(resolveTemplate('Driving')).toBe('Driving');
+      expect(resolveTemplate('DynamicTrip')).toBe('DynamicTrip');
     });
   });
 

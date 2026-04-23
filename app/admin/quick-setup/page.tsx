@@ -25,7 +25,7 @@ import { getAdminCopy } from '../i18n-copy';
 import QuickSetupClient from './QuickSetupClient';
 import type { ActionState } from '../types';
 
-const TEMPLATE_ORDER = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
+const TEMPLATE_ORDER = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed', 'DynamicTrip'] as const;
 const ALLOWED_TEMPLATES = new Set<string>(TEMPLATE_ORDER);
 
 type QuickSetupState = ActionState & {

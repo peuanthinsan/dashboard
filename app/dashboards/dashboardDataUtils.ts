@@ -374,8 +374,8 @@ export function applyAlertRules(
 }
 
 export function resolveTemplate(template: string): string {
-  if (template === 'Video') return 'Detail';
   if (template === 'OverSpeed') return 'OverSpeed';
+  if (template === 'DynamicTrip') return 'DynamicTrip';
   return template;
 }
 
