@@ -17,6 +17,7 @@ import {
   STANDARD_REMARK_TARGETS,
   toDayKey,
   toMonthKey,
+  previousMonthKey,
   withDerivedRemark,
   applyAlertRules,
   type AlertRule,
@@ -99,7 +100,7 @@ export default function SimpleDashboard({
   const [filters, setFilters] = useState<SimpleFilterState>(defaultFilters);
   const storageKey = useMemo(() => `${dashboardId}-v2`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
-  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
+  const defaultMonthKey = useMemo(() => previousMonthKey(), []);
 
   // ── Load persisted filters ──────────────────────────────────────────────
   useEffect(() => {
@@ -202,12 +203,12 @@ export default function SimpleDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (monthOptions.includes(currentMonthKey)) {
-        setFilters((f) => ({ ...f, month: currentMonthKey, dayFilters: [] }));
+      if (monthOptions.includes(defaultMonthKey)) {
+        setFilters((f) => ({ ...f, month: defaultMonthKey, dayFilters: [] }));
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [currentMonthKey, filters.month, monthOptions]);
+  }, [defaultMonthKey, filters.month, monthOptions]);
 
   // ── Month-filtered alerts ───────────────────────────────────────────────
   const monthFilteredAlerts = useMemo(() => {

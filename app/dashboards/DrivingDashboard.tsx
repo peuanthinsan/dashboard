@@ -5,7 +5,7 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { computeComplianceScore, findValue, normalizeLabel, parseDate, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
+import { computeComplianceScore, findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import KpiCard from 'app/ui/KpiCard';
@@ -129,7 +129,7 @@ export default function DrivingDashboard({
   const normalizedOrganizationName = useMemo(() => (organizationName ? normalizeLabel(organizationName) : null), [organizationName]);
   const storageKey = useMemo(() => `${dashboardId}-driving`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
-  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
+  const defaultMonthKey = useMemo(() => previousMonthKey(), []);
 
   // ── Load persisted filters ──────────────────────────────────────────────
   useEffect(() => {
@@ -246,13 +246,13 @@ export default function DrivingDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (allMonthsFromData.includes(currentMonthKey)) {
-        setSelectedMonth(currentMonthKey);
+      if (allMonthsFromData.includes(defaultMonthKey)) {
+        setSelectedMonth(defaultMonthKey);
         setDayFilters([]);
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [allMonthsFromData, currentMonthKey, selectedMonth]);
+  }, [allMonthsFromData, defaultMonthKey, selectedMonth]);
 
   const aggregates = useMemo<DriverAggregate[]>(() => {
     const totals = new Map<string, { driver: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; monthlyMap: Map<string, number> }>();

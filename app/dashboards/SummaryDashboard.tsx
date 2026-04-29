@@ -24,6 +24,7 @@ import {
   toDisplayString,
   toMonthKey,
   toMonthLabel,
+  previousMonthKey,
   withDerivedRemark,
   applyAlertRules,
   colorForRemark,
@@ -95,7 +96,7 @@ export default function SummaryDashboard({
     [organizationName],
   );
 
-  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
+  const defaultMonthKey = useMemo(() => previousMonthKey(), []);
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [dayFilters, setDayFilters] = useState<string[]>([]);
   const [fleetFilters, setFleetFilters] = useState<string[]>([]);
@@ -179,10 +180,10 @@ export default function SummaryDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (monthOptions.some((o) => o.key === currentMonthKey)) setMonthFilters([currentMonthKey]);
+      if (monthOptions.some((o) => o.key === defaultMonthKey)) setMonthFilters([defaultMonthKey]);
     });
     return () => cancelAnimationFrame(frame);
-  }, [currentMonthKey, monthFilters, monthOptions]);
+  }, [defaultMonthKey, monthFilters, monthOptions]);
 
   // Filtered data — filter by allowed alert types, remarks, and fleet
   const baseFilteredRows = useMemo(() => {
@@ -218,7 +219,7 @@ export default function SummaryDashboard({
     return rows;
   }, [baseFilteredRows, dayFilters, monthFilters]);
 
-  const previousMonthKey = useMemo(() => {
+  const priorMonthKey = useMemo(() => {
     if (!activeMonthKey) return null;
     const [y, m] = activeMonthKey.split('-').map(Number);
     if (!y || !m) return null;
@@ -226,9 +227,9 @@ export default function SummaryDashboard({
   }, [activeMonthKey]);
 
   const previousRows = useMemo(() => {
-    if (!previousMonthKey) return [];
-    return baseFilteredRows.filter((row) => row.monthKey === previousMonthKey);
-  }, [baseFilteredRows, previousMonthKey]);
+    if (!priorMonthKey) return [];
+    return baseFilteredRows.filter((row) => row.monthKey === priorMonthKey);
+  }, [baseFilteredRows, priorMonthKey]);
 
   const countMatches = useCallback(
     (targetLabel: string, field: 'remarks' | 'alertType', dataset: typeof currentRows) => {

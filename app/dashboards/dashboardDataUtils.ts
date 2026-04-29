@@ -96,6 +96,9 @@ export const parseDate = (value: unknown) => {
 export const toMonthKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
+export const previousMonthKey = (now: Date = new Date()) =>
+  toMonthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+
 export const toMonthLabel = (date: Date) =>
   date.toLocaleString('default', {
     month: 'long',

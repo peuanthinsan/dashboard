@@ -23,6 +23,7 @@ import {
   toDisplayString,
   toMonthKey,
   toMonthLabel,
+  previousMonthKey,
   withDerivedRemark,
   applyAlertRules,
   colorForRemark,
@@ -154,7 +155,7 @@ export default function DetailDashboard({
     () => (organizationName ? normalizeLabel(organizationName) : null),
     [organizationName],
   );
-  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
+  const defaultMonthKey = useMemo(() => previousMonthKey(), []);
   const [filters, setFilters] = useState<DetailFilterState>({
     monthFilters: [],
     dayFilters: [],
@@ -332,12 +333,12 @@ export default function DetailDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (monthOptions.some((option) => option.key === currentMonthKey)) {
-        setFilters((f) => ({ ...f, monthFilters: [currentMonthKey] }));
+      if (monthOptions.some((option) => option.key === defaultMonthKey)) {
+        setFilters((f) => ({ ...f, monthFilters: [defaultMonthKey] }));
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [currentMonthKey, monthFilters, monthOptions]);
+  }, [defaultMonthKey, monthFilters, monthOptions]);
 
   const baseFilteredRows = useMemo(() => {
     const normalizedAllowedAlertTypes = allowedAlertTypes?.map((alert) => normalizeLabel(alert)) ?? null;

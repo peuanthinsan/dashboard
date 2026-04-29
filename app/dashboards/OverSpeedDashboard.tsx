@@ -5,7 +5,7 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { findValue, normalizeLabel, parseDate, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
+import { findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import ExportButton from 'app/ui/ExportButton';
 import EmptyState from 'app/ui/EmptyState';
@@ -111,7 +111,7 @@ export default function OverSpeedDashboard({
   );
   const storageKey = useMemo(() => `${dashboardId}-overspeed`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
-  const currentMonthKey = useMemo(() => toMonthKey(new Date()), []);
+  const defaultMonthKey = useMemo(() => previousMonthKey(), []);
 
   // ── Persist / restore filters ──
   useEffect(() => {
@@ -226,10 +226,10 @@ export default function OverSpeedDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (monthOptions.some((o) => o.key === currentMonthKey)) setMonthFilters([currentMonthKey]);
+      if (monthOptions.some((o) => o.key === defaultMonthKey)) setMonthFilters([defaultMonthKey]);
     });
     return () => cancelAnimationFrame(frame);
-  }, [currentMonthKey, monthFilters, monthOptions]);
+  }, [defaultMonthKey, monthFilters, monthOptions]);
 
   // ── Apply filters ──
   const filteredRows = useMemo(() => {
