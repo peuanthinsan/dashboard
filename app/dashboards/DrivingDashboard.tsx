@@ -178,6 +178,8 @@ export default function DrivingDashboard({
       'Working Time',
       'Work Time',
       'Total Working',
+      'WorkHrs duration',
+      'WorkHrs',
     ])),
     fleet: toDisplayString(findValue(row, ['Fleet'])),
   })).filter((row) => {
