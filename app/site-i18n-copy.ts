@@ -9,7 +9,7 @@ export const siteCopy = {
     copyrightRegister: '© 2026 SongdeeGPS. All rights reserved.',
     login: {
       taglineLead: 'ส่งดีจีพีเอส',
-      taglineAccent: 'Save drive. Save live.',
+      taglineAccent: 'Safe Drive, Save Life',
       bullets: [
         { icon: '📍' as const, text: 'Real-time GPS fleet tracking' },
         { icon: '🛡️' as const, text: 'AI-powered driver safety alerts' },
