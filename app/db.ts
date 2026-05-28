@@ -18,7 +18,7 @@ import { decryptLineTokenColumn } from './lib/lineTokenCrypto';
 
 const dbUrl = process.env.POSTGRES_URL || 'postgresql://localhost:5432/placeholder?sslmode=require';
 const client = postgres(dbUrl);
-const db = drizzle(client);
+export const db = drizzle(client);
 
 const userSelect = {
   id: users.id,
