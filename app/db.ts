@@ -11,7 +11,10 @@ import {
   companies,
   organizations,
   dashboards,
+  lineChannels,
+  drivingWarnings,
 } from './db-schema';
+import { decryptLineTokenColumn } from './lib/lineTokenCrypto';
 
 const dbUrl = process.env.POSTGRES_URL || 'postgresql://localhost:5432/placeholder?sslmode=require';
 const client = postgres(dbUrl);
@@ -836,4 +839,113 @@ async function getUserAssignmentsByUserIds(userIds: number[]) {
       },
     ]),
   );
+}
+
+export async function getLineChannelById(id: number) {
+  const rows = await db
+    .select({
+      id: lineChannels.id,
+      organizationId: lineChannels.organizationId,
+      name: lineChannels.name,
+      groupId: lineChannels.groupId,
+      tokenPlaintext: decryptLineTokenColumn('accessToken'),
+    })
+    .from(lineChannels)
+    .where(eq(lineChannels.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function listLineChannelsByOrganization(organizationId: number) {
+  return db
+    .select({
+      id: lineChannels.id,
+      organizationId: lineChannels.organizationId,
+      name: lineChannels.name,
+      groupId: lineChannels.groupId,
+    })
+    .from(lineChannels)
+    .where(eq(lineChannels.organizationId, organizationId))
+    .orderBy(lineChannels.name);
+}
+
+export async function insertPendingDrivingWarning(args: {
+  dashboardId: number;
+  violationKey: string;
+  driverName: string;
+  vehicleNo: string;
+  eventAt: Date;
+  metric: 'drive_hrs' | 'rest_hrs';
+  threshold: number;
+  valueHours: number;
+  distanceKm: number | null;
+  loginAt: Date | null;
+  logoutAt: Date | null;
+  loginLocation: string | null;
+  logoutLocation: string | null;
+  lineChannelId: number;
+  sentByUserId: number;
+  operatorNote: string | null;
+}) {
+  // Upsert: on conflict, reset to pending so a previously-failed warning can be retried.
+  const result = await db.execute(sql`
+    INSERT INTO "DrivingWarning"(
+      "dashboardId", "violationKey", "driverName", "vehicleNo", "eventAt",
+      metric, threshold, "valueHours", "distanceKm",
+      "loginAt", "logoutAt", "loginLocation", "logoutLocation",
+      "lineChannelId", "sentByUserId", "lineStatus", "operatorNote"
+    ) VALUES (
+      ${args.dashboardId}, ${args.violationKey}, ${args.driverName}, ${args.vehicleNo}, ${args.eventAt},
+      ${args.metric}, ${args.threshold}, ${args.valueHours}, ${args.distanceKm},
+      ${args.loginAt}, ${args.logoutAt}, ${args.loginLocation}, ${args.logoutLocation},
+      ${args.lineChannelId}, ${args.sentByUserId}, 'pending', ${args.operatorNote}
+    )
+    ON CONFLICT ("dashboardId", "violationKey") DO UPDATE
+      SET "lineStatus" = 'pending', "errorMessage" = NULL, "lineChannelId" = EXCLUDED."lineChannelId",
+          "sentByUserId" = EXCLUDED."sentByUserId", "operatorNote" = EXCLUDED."operatorNote"
+    RETURNING id, "lineStatus", "sentAt"
+  `);
+  const rows = (result as unknown as { rows?: Array<{ id: number; lineStatus: string; sentAt: Date | null }> }).rows
+    ?? (result as unknown as Array<{ id: number; lineStatus: string; sentAt: Date | null }>);
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  return row as { id: number; lineStatus: string; sentAt: Date | null };
+}
+
+export async function markWarningSent(args: { id: number; messageId: string | null }) {
+  await db.execute(sql`
+    UPDATE "DrivingWarning"
+    SET "lineStatus" = 'sent', "sentAt" = NOW(), "lineMessageId" = ${args.messageId}, "errorMessage" = NULL
+    WHERE id = ${args.id}
+  `);
+}
+
+export async function markWarningFailed(args: { id: number; errorMessage: string }) {
+  await db.execute(sql`
+    UPDATE "DrivingWarning"
+    SET "lineStatus" = 'failed', "errorMessage" = ${args.errorMessage}
+    WHERE id = ${args.id}
+  `);
+}
+
+export async function getWarningsForDashboard(args: {
+  dashboardId: number;
+  windowStart: Date | null;
+  windowEnd: Date | null;
+}) {
+  // Range filters omitted in v2 — fetch all 'sent' warnings for a dashboard.
+  return db
+    .select({
+      id: drivingWarnings.id,
+      violationKey: drivingWarnings.violationKey,
+      sentAt: drivingWarnings.sentAt,
+      lineChannelId: drivingWarnings.lineChannelId,
+      channelName: lineChannels.name,
+    })
+    .from(drivingWarnings)
+    .leftJoin(lineChannels, eq(drivingWarnings.lineChannelId, lineChannels.id))
+    .where(and(
+      eq(drivingWarnings.dashboardId, args.dashboardId),
+      eq(drivingWarnings.lineStatus, 'sent'),
+    ))
+    .orderBy(drivingWarnings.sentAt);
 }
