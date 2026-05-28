@@ -491,3 +491,25 @@ export function computeViolationKey(args: ComputeViolationKeyArgs): string {
       : ['rest_hrs', args.driver, args.vehicle, args.eventAtIso, String(args.threshold)].join('|');
   return createHash('sha1').update(payload).digest('hex');
 }
+
+export type ViolationRow = {
+  driver: string;
+  vehicle: string;
+  vehicleCount: number;
+  shiftCount: number;
+  dayKey: string;
+  dateLabel: string;
+  eventAt: Date;
+  driveHours: number;
+  restHours: number;
+  distanceKm: number;
+  loginAt: Date | null;
+  logoutAt: Date | null;
+  loginLocation: string;
+  logoutLocation: string;
+  metric: ViolationMetric;
+  threshold: number;
+  thresholdLabel: string;
+  violationKey: string;
+  warning: { sentAt: Date; channelName: string } | null;
+};
