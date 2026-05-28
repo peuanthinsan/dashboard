@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export type TrendDatum = {
   key: string;
   date: Date;
@@ -475,3 +477,17 @@ export const buildExportRows = (rows: Record<string, unknown>[], columns: string
     return out;
   });
 };
+
+export type ViolationMetric = 'drive_hrs' | 'rest_hrs';
+
+export type ComputeViolationKeyArgs =
+  | { metric: 'drive_hrs'; driver: string; dayKey: string; threshold: number }
+  | { metric: 'rest_hrs'; driver: string; vehicle: string; eventAtIso: string; threshold: number };
+
+export function computeViolationKey(args: ComputeViolationKeyArgs): string {
+  const payload =
+    args.metric === 'drive_hrs'
+      ? ['drive_hrs', args.driver, args.dayKey, String(args.threshold)].join('|')
+      : ['rest_hrs', args.driver, args.vehicle, args.eventAtIso, String(args.threshold)].join('|');
+  return createHash('sha1').update(payload).digest('hex');
+}
