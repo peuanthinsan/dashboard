@@ -7,8 +7,9 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { computeComplianceScore, findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
+import { findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
+import { computeDrivingScore } from './drivingScoring';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import KpiCard from 'app/ui/KpiCard';
 import ScoreBlock from 'app/ui/ScoreBlock';
@@ -503,27 +504,24 @@ export default function DrivingDashboard({
   const workingHrViolations = useMemo(() => violations.filter((v) => v.type === 'working_hr'), [violations]);
 
   // --- Driving safety score (cached for main dashboard listing) ---
-  const complianceScore = useMemo(
-    () =>
-      computeComplianceScore(
-        cntDrvViolations.length + restHrViolations.length + workingHrViolations.length,
-        Math.max(1, filteredRows.length),
-      ),
-    [cntDrvViolations.length, restHrViolations.length, workingHrViolations.length, filteredRows.length],
+  const drivingScore = useMemo(
+    () => computeDrivingScore(filteredRows, thresholds),
+    [filteredRows, thresholds],
   );
 
   useEffect(() => {
     if (loading) return;
-    const violationCount =
-      cntDrvViolations.length + restHrViolations.length + workingHrViolations.length;
-    saveDashboardScore(dashboardId, complianceScore, violationCount);
+    saveDashboardScore(
+      dashboardId,
+      drivingScore.score,
+      drivingScore.perMetric.drive + drivingScore.perMetric.rest,
+    );
   }, [
     dashboardId,
     loading,
-    complianceScore,
-    cntDrvViolations.length,
-    restHrViolations.length,
-    workingHrViolations.length,
+    drivingScore.score,
+    drivingScore.perMetric.drive,
+    drivingScore.perMetric.rest,
   ]);
 
   // --- Per-driver sorted by cnt drv hours (for requested bar+line chart) ---
@@ -821,12 +819,14 @@ export default function DrivingDashboard({
 
       {/* Driving safety score — prominent block */}
       <ScoreBlock
-        score={complianceScore}
-        label={lang === 'th' ? 'คะแนนความปลอดภัยการขับขี่' : 'Driving safety score'}
+        score={drivingScore.score}
+        label={lang === 'th'
+          ? `คะแนนความปลอดภัยการขับขี่ · เกรด ${drivingScore.grade}`
+          : `Driving safety score · Grade ${drivingScore.grade}`}
         tooltip={lang === 'th'
-          ? `คะแนน (0–100): คำนวณจากการฝ่าฝืนต่อทริป — ขับต่อเนื่องเกิน ${driveMaxHours} ชม. พักต่ำกว่า ${restMinHours} ชม. ชม.ทำงานเกิน ${workingMaxHours} ชม. (ตามที่ตั้งในแอดมิน)`
-          : `Score (0–100): Violations per trip vs your admin thresholds — cnt drv > ${driveMaxHours}h, rest < ${restMinHours}h, working > ${workingMaxHours}h.`}
-        detail={`${cntDrvViolations.length + restHrViolations.length + workingHrViolations.length} ${lang === 'th' ? 'การฝ่าฝืน' : 'violations'} · ${filteredRows.length} ${lang === 'th' ? 'ทริป' : 'trips'}`}
+          ? `คะแนน (0–100): คำนวณจากเมทริกซ์ความรุนแรงต่อ (คนขับ, วัน) — ขับต่อเนื่องเกิน ${driveMaxHours} ชม. พักต่ำกว่า ${restMinHours} ชม.`
+          : `Score (0–100): Severity matrix per (driver, day) — cnt drv > ${driveMaxHours}h, rest < ${restMinHours}h.`}
+        detail={`${drivingScore.totalDays} ${lang === 'th' ? 'วัน-คนขับ' : 'driver-days'} · ${drivingScore.perMetric.drive + drivingScore.perMetric.rest} ${lang === 'th' ? 'การฝ่าฝืน' : 'severity pts'}`}
       />
 
       {/* Safety KPIs */}
