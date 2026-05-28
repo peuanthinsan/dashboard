@@ -32,6 +32,7 @@ import { normalizeDrivingThresholds, thresholdEntryValue, type DrivingThresholds
 import { deriveSubPages, subPageBySlug } from './drivingSubPages';
 import ThresholdSubPage from './ThresholdSubPage';
 import { buildDriveHoursViolations, buildRestHoursViolations } from './violationBuilders';
+import SendWarningButton from './SendWarningButton';
 
 type DashboardProps = {
   dashboardId: string;
@@ -115,8 +116,8 @@ export default function DrivingDashboard({
   organizationName,
   lang = 'en',
   drivingThresholds: drivingThresholdsProp,
-  lineChannels: _lineChannels = [],
-  defaultLineChannelId: _defaultLineChannelId = null,
+  lineChannels = [],
+  defaultLineChannelId = null,
   warnings = [],
   isAdmin = false,
 }: DashboardProps) {
@@ -1208,6 +1209,15 @@ export default function DrivingDashboard({
           thresholdLabel={activeSubPage.label}
           violations={driveHrsViolations}
           lang={lang}
+          renderWarnAction={(row) => (
+            <SendWarningButton
+              row={row}
+              dashboardPublicId={dashboardId}
+              channels={lineChannels ?? []}
+              defaultChannelId={defaultLineChannelId ?? null}
+              lang={lang}
+            />
+          )}
         />
       )}
       {activeSubPage.kind === 'rest_hrs' && (
@@ -1217,6 +1227,15 @@ export default function DrivingDashboard({
           thresholdLabel={activeSubPage.label}
           violations={restHrsViolations}
           lang={lang}
+          renderWarnAction={(row) => (
+            <SendWarningButton
+              row={row}
+              dashboardPublicId={dashboardId}
+              channels={lineChannels ?? []}
+              defaultChannelId={defaultLineChannelId ?? null}
+              lang={lang}
+            />
+          )}
         />
       )}
     </DashboardShell>
