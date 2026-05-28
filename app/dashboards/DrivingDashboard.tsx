@@ -9,7 +9,11 @@ import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
-import { computeDrivingScore } from './drivingScoring';
+import {
+  computeDrivingScore,
+  METRIC_WEIGHTS,
+  SEVERITY_PENALTY_PER_DAY_MULTIPLIER,
+} from './drivingScoring';
 import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import KpiCard from 'app/ui/KpiCard';
 import ScoreBlock from 'app/ui/ScoreBlock';
@@ -819,17 +823,44 @@ export default function DrivingDashboard({
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-400/50 to-transparent dark:via-red-600/30" />
       </div>
 
-      {/* Driving safety score — prominent block */}
-      <ScoreBlock
-        score={drivingScore.score}
-        label={lang === 'th'
-          ? `คะแนนความปลอดภัยการขับขี่ · เกรด ${drivingScore.grade}`
-          : `Driving safety score · Grade ${drivingScore.grade}`}
-        tooltip={lang === 'th'
-          ? `คะแนน (0–100): คำนวณจากเมทริกซ์ความรุนแรงต่อ (คนขับ, วัน) — ขับต่อเนื่องเกิน ${driveMaxHours} ชม. พักต่ำกว่า ${restMinHours} ชม.`
-          : `Score (0–100): Severity matrix per (driver, day) — cnt drv > ${driveMaxHours}h, rest < ${restMinHours}h.`}
-        detail={`${drivingScore.totalDays} ${lang === 'th' ? 'วัน-คนขับ' : 'driver-days'} · ${drivingScore.perMetric.drive + drivingScore.perMetric.rest} ${lang === 'th' ? 'การฝ่าฝืน' : 'severity pts'}`}
-      />
+      <div className="grid gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-2">
+          <ScoreBlock
+            score={drivingScore.score}
+            label={lang === 'th'
+              ? `คะแนนความปลอดภัยการขับขี่ · เกรด ${drivingScore.grade}`
+              : `Driving safety score · Grade ${drivingScore.grade}`}
+            detail={`${drivingScore.totalDays} ${lang === 'th' ? 'วัน-คนขับ' : 'driver-days'} · ${drivingScore.perMetric.drive + drivingScore.perMetric.rest} ${lang === 'th' ? 'severity points' : 'severity points'}`}
+          />
+        </div>
+        <section className={`lg:col-span-3 ${dashboardSectionClass}`}>
+          <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            {lang === 'th' ? 'วิธีคำนวณคะแนน' : 'How score is calculated'}
+          </h3>
+          <p className={`mt-1 text-xs ${textSecondary}`}>
+            {lang === 'th'
+              ? `เริ่มที่ 100 คะแนน แล้วหักตามความรุนแรงเฉลี่ยต่อวันของคนขับ (driver-day)`
+              : 'Starts at 100, then subtracts penalties from average severity per driver-day.'}
+          </p>
+          <div className="mt-2 grid gap-2 text-xs text-zinc-600 dark:text-zinc-300 sm:grid-cols-2">
+            <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/70">
+              {lang === 'th'
+                ? `Drive Hours: ต่ำกว่า/เท่ากับ threshold = 0, เกินบางช่วง = 1, เกิน threshold สูงสุด = 3 (น้ำหนัก ${METRIC_WEIGHTS.driveHours})`
+                : `Drive Hours: <= threshold = 0, between thresholds = 1, above highest threshold = 3 (weight ${METRIC_WEIGHTS.driveHours})`}
+            </div>
+            <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/70">
+              {lang === 'th'
+                ? `Rest Hours: สูงกว่า/เท่ากับ threshold = 0, ต่ำกว่าบางช่วง = 1, ต่ำกว่า threshold ต่ำสุด = 3 (น้ำหนัก ${METRIC_WEIGHTS.restHours})`
+                : `Rest Hours: >= threshold = 0, between thresholds = 1, below lowest threshold = 3 (weight ${METRIC_WEIGHTS.restHours})`}
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            {lang === 'th'
+              ? `สูตร: Score = 100 - (average weighted severity × ${SEVERITY_PENALTY_PER_DAY_MULTIPLIER}) จากนั้น clamp 0–100`
+              : `Formula: Score = 100 - (average weighted severity × ${SEVERITY_PENALTY_PER_DAY_MULTIPLIER}), then clamped to 0–100.`}
+          </p>
+        </section>
+      </div>
 
       {/* Safety KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
