@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
@@ -27,6 +29,7 @@ import {
   heading2, textSecondary, CHART_COLORS,
 } from 'app/ui/design-tokens';
 import { normalizeDrivingThresholds, thresholdEntryValue, type DrivingThresholds } from './drivingThresholds';
+import { deriveSubPages, subPageBySlug } from './drivingSubPages';
 
 type DashboardProps = {
   dashboardId: string;
@@ -112,6 +115,21 @@ export default function DrivingDashboard({
   const thresholds = useMemo(
     () => normalizeDrivingThresholds(drivingThresholdsProp),
     [drivingThresholdsProp],
+  );
+  const subPages = useMemo(() => deriveSubPages(thresholds, lang), [thresholds, lang]);
+  const searchParams = useSearchParams();
+  const activeSubPage = useMemo(
+    () => subPageBySlug(subPages, searchParams.get('tab')),
+    [subPages, searchParams],
+  );
+  const pathname = usePathname();
+  const tabHref = useCallback(
+    (slug: string) => {
+      const usp = new URLSearchParams(searchParams.toString());
+      usp.set('tab', slug);
+      return `${pathname}?${usp.toString()}`;
+    },
+    [pathname, searchParams],
   );
   const driveMaxHours = thresholds.driveHours[0]
     ? thresholdEntryValue(thresholds.driveHours[0]) : Infinity;
@@ -692,6 +710,27 @@ export default function DrivingDashboard({
       }
     >
 
+      <nav className="mb-6 -mt-2 flex gap-2 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800">
+        {subPages.map((p) => (
+          <Link
+            key={p.slug}
+            href={tabHref(p.slug)}
+            replace
+            className={[
+              'shrink-0 border-b-2 px-3 py-2 text-sm font-medium',
+              p.slug === activeSubPage.slug
+                ? 'border-red-500 text-red-600 dark:text-red-400'
+                : 'border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100',
+            ].join(' ')}
+          >
+            {p.label}
+          </Link>
+        ))}
+      </nav>
+
+      {activeSubPage.kind === 'overview' && (
+        <>
+
       {/* Filters */}
       <FilterBar>
         <InlineMonthPicker
@@ -1125,6 +1164,15 @@ export default function DrivingDashboard({
               ariaLabel={lang === 'th' ? 'ตารางสถิติยานพาหนะ' : 'Vehicle statistics table'}
             />
           </div>
+        </section>
+      )}
+        </>
+      )}
+
+      {activeSubPage.kind !== 'overview' && (
+        <section className={dashboardSectionClass}>
+          <h2 className={heading2}>{activeSubPage.label}</h2>
+          <p className={textSecondary}>Coming in Task 14 — ThresholdSubPage will render here.</p>
         </section>
       )}
     </DashboardShell>
