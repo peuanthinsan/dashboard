@@ -30,6 +30,8 @@ import {
 } from 'app/ui/design-tokens';
 import { normalizeDrivingThresholds, thresholdEntryValue, type DrivingThresholds } from './drivingThresholds';
 import { deriveSubPages, subPageBySlug } from './drivingSubPages';
+import ThresholdSubPage from './ThresholdSubPage';
+import { buildDriveHoursViolations, buildRestHoursViolations } from './violationBuilders';
 
 type DashboardProps = {
   dashboardId: string;
@@ -42,6 +44,9 @@ type DashboardProps = {
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
   drivingThresholds?: DrivingThresholds | null;
+  lineChannels?: { id: number; name: string }[];
+  defaultLineChannelId?: number | null;
+  warnings?: Array<{ violationKey: string; sentAt: Date; channelName: string }>;
   isAdmin?: boolean;
 };
 
@@ -110,6 +115,9 @@ export default function DrivingDashboard({
   organizationName,
   lang = 'en',
   drivingThresholds: drivingThresholdsProp,
+  lineChannels: _lineChannels = [],
+  defaultLineChannelId: _defaultLineChannelId = null,
+  warnings = [],
   isAdmin = false,
 }: DashboardProps) {
   const thresholds = useMemo(
@@ -242,6 +250,30 @@ export default function DrivingDashboard({
       return true;
     });
   }, [drivingRows, driverFilters, vehicleFilters, selectedMonth, dayFilters]);
+
+  const warningsMap = useMemo(() => {
+    const m = new Map<string, { sentAt: Date; channelName: string }>();
+    for (const w of warnings ?? []) m.set(w.violationKey, { sentAt: w.sentAt, channelName: w.channelName });
+    return m;
+  }, [warnings]);
+
+  const driveHrsViolations = useMemo(() => {
+    if (activeSubPage.kind !== 'drive_hrs') return [];
+    return buildDriveHoursViolations(
+      filteredRows,
+      { threshold: activeSubPage.threshold, label: activeSubPage.label },
+      warningsMap,
+    );
+  }, [activeSubPage, filteredRows, warningsMap]);
+
+  const restHrsViolations = useMemo(() => {
+    if (activeSubPage.kind !== 'rest_hrs') return [];
+    return buildRestHoursViolations(
+      filteredRows,
+      { threshold: activeSubPage.threshold, label: activeSubPage.label },
+      warningsMap,
+    );
+  }, [activeSubPage, filteredRows, warningsMap]);
 
   // Active filter count for DashboardShell badge
   const activeFilterCount = useMemo(
@@ -1169,11 +1201,23 @@ export default function DrivingDashboard({
         </>
       )}
 
-      {activeSubPage.kind !== 'overview' && (
-        <section className={dashboardSectionClass}>
-          <h2 className={heading2}>{activeSubPage.label}</h2>
-          <p className={textSecondary}>Coming in Task 14 — ThresholdSubPage will render here.</p>
-        </section>
+      {activeSubPage.kind === 'drive_hrs' && (
+        <ThresholdSubPage
+          metric="drive_hrs"
+          threshold={activeSubPage.threshold}
+          thresholdLabel={activeSubPage.label}
+          violations={driveHrsViolations}
+          lang={lang}
+        />
+      )}
+      {activeSubPage.kind === 'rest_hrs' && (
+        <ThresholdSubPage
+          metric="rest_hrs"
+          threshold={activeSubPage.threshold}
+          thresholdLabel={activeSubPage.label}
+          violations={restHrsViolations}
+          lang={lang}
+        />
       )}
     </DashboardShell>
   );
