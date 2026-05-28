@@ -15,19 +15,25 @@ function sortAsc<T>(entries: T[], value: (t: T) => number): T[] {
   return [...entries].sort((a, b) => value(a) - value(b));
 }
 
-export function deriveSubPages(t: DrivingThresholds, lang: DashboardLang): SubPage[] {
+export function deriveSubPages(
+  t: DrivingThresholds,
+  lang: DashboardLang,
+  copy?: { tabOverview: string; tabDriveHrsPrefix: string; tabRestHrsPrefix: string },
+): SubPage[] {
   const overview: SubPage = {
     kind: 'overview',
     slug: 'overview',
-    label: lang === 'th' ? 'ภาพรวม' : 'Overview',
+    label: copy?.tabOverview ?? (lang === 'th' ? 'ภาพรวม' : 'Overview'),
   };
+  const drivePrefix = copy?.tabDriveHrsPrefix ?? (lang === 'th' ? 'ขับรถ/วัน' : 'Drive Hr/day');
+  const restPrefix = copy?.tabRestHrsPrefix ?? (lang === 'th' ? 'พัก' : 'Rest Hr');
   const drive = sortAsc<DrivingThresholdEntry>(t.driveHours, thresholdEntryValue).map((e) => {
     const v = thresholdEntryValue(e);
     return {
       kind: 'drive_hrs' as const,
       slug: `drive-hrs-${v}` as const,
       threshold: v,
-      label: thresholdEntryLabel(e, `${lang === 'th' ? 'ขับรถ/วัน' : 'Drive Hr/day'} > ${v} h`),
+      label: thresholdEntryLabel(e, `${drivePrefix} > ${v} h`),
     };
   });
   const rest = sortAsc<DrivingThresholdEntry>(t.restHours, thresholdEntryValue).map((e) => {
@@ -36,7 +42,7 @@ export function deriveSubPages(t: DrivingThresholds, lang: DashboardLang): SubPa
       kind: 'rest_hrs' as const,
       slug: `rest-hrs-${v}` as const,
       threshold: v,
-      label: thresholdEntryLabel(e, `${lang === 'th' ? 'พัก' : 'Rest Hr'} < ${v} h`),
+      label: thresholdEntryLabel(e, `${restPrefix} < ${v} h`),
     };
   });
   return [overview, ...drive, ...rest];

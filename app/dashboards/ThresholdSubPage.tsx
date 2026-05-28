@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import KpiCard from 'app/ui/KpiCard';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import TrendChart, { type MultiTrendDatum } from 'app/ui/TrendChart';
-import { type DashboardLang } from 'app/dashboard/i18n-copy';
+import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import { dashboardSectionClass } from './DashboardShell';
 import { heading2, textSecondary } from 'app/ui/design-tokens';
 import type { ViolationRow } from './dashboardDataUtils';
@@ -39,6 +39,7 @@ export default function ThresholdSubPage({
   lang,
   renderWarnAction,
 }: Props) {
+  const copy = getDashboardCopy(lang).drivingV2;
   const uniqueDrivers = useMemo(
     () => new Set(violations.map((v) => v.driver)).size,
     [violations],
@@ -71,28 +72,28 @@ export default function ThresholdSubPage({
   const columns = useMemo<Column<ViolationRow>[]>(() => {
     if (metric === 'drive_hrs') {
       return [
-        { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
-        { key: 'dateLabel', label: lang === 'th' ? 'วันที่' : 'Day', sortable: true },
+        { key: 'driver', label: copy.tableHeaderDriver, sortable: true, stickyLeft: true },
+        { key: 'dateLabel', label: copy.tableHeaderDay, sortable: true },
         {
           key: 'vehicle',
-          label: lang === 'th' ? 'รถ' : 'Vehicle',
+          label: copy.tableHeaderVehicle,
           sortable: true,
           render: (v, row) => row.vehicleCount > 1
             ? <span title={`${row.vehicleCount} vehicles`}>*</span>
             : String(v ?? '—'),
         },
-        { key: 'shiftCount', label: lang === 'th' ? 'กะ' : 'Shifts', sortable: true },
-        { key: 'loginAt', label: lang === 'th' ? 'เริ่ม' : 'First Login', render: (v) => formatClock(v as Date | null) },
-        { key: 'logoutAt', label: lang === 'th' ? 'จบ' : 'Last Logout', render: (v) => formatClock(v as Date | null) },
-        { key: 'loginLocation', label: lang === 'th' ? 'สถานที่เริ่ม' : 'Login Loc' },
-        { key: 'logoutLocation', label: lang === 'th' ? 'สถานที่จบ' : 'Logout Loc' },
-        { key: 'driveHours', label: lang === 'th' ? 'ขับรวม' : 'Total Drive Hrs', sortable: true, render: (v) => formatHours(Number(v)) },
-        { key: 'distanceKm', label: lang === 'th' ? 'ระยะทาง' : 'Distance', sortable: true, render: (v) => formatDistance(Number(v)) },
+        { key: 'shiftCount', label: copy.tableHeaderShifts, sortable: true },
+        { key: 'loginAt', label: copy.tableHeaderFirstLogin, render: (v) => formatClock(v as Date | null) },
+        { key: 'logoutAt', label: copy.tableHeaderLastLogout, render: (v) => formatClock(v as Date | null) },
+        { key: 'loginLocation', label: copy.tableHeaderLoginLoc },
+        { key: 'logoutLocation', label: copy.tableHeaderLogoutLoc },
+        { key: 'driveHours', label: copy.tableHeaderTotalDriveHrs, sortable: true, render: (v) => formatHours(Number(v)) },
+        { key: 'distanceKm', label: copy.tableHeaderDistance, sortable: true, render: (v) => formatDistance(Number(v)) },
         {
           key: 'warning',
-          label: lang === 'th' ? 'สถานะ' : 'Status',
+          label: copy.tableHeaderStatus,
           render: (_, row) => row.warning
-            ? <span className="text-emerald-600">Warned ✓ · {row.warning.channelName}</span>
+            ? <span className="text-emerald-600">{copy.warnSent} · {row.warning.channelName}</span>
             : <span className={textSecondary}>—</span>,
         },
         {
@@ -103,20 +104,20 @@ export default function ThresholdSubPage({
       ];
     }
     return [
-      { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
-      { key: 'vehicle', label: lang === 'th' ? 'รถ' : 'Vehicle', sortable: true },
-      { key: 'dateLabel', label: lang === 'th' ? 'วันที่' : 'Date', sortable: true },
-      { key: 'loginAt', label: lang === 'th' ? 'เริ่ม' : 'Login', render: (v) => formatClock(v as Date | null) },
-      { key: 'logoutAt', label: lang === 'th' ? 'จบ' : 'Logout', render: (v) => formatClock(v as Date | null) },
-      { key: 'loginLocation', label: lang === 'th' ? 'สถานที่เริ่ม' : 'Login Loc' },
-      { key: 'logoutLocation', label: lang === 'th' ? 'สถานที่จบ' : 'Logout Loc' },
-      { key: 'restHours', label: lang === 'th' ? 'พัก' : 'Rest Hrs', sortable: true, render: (v) => formatHours(Number(v)) },
-      { key: 'distanceKm', label: lang === 'th' ? 'ระยะทาง' : 'Distance', sortable: true, render: (v) => formatDistance(Number(v)) },
+      { key: 'driver', label: copy.tableHeaderDriver, sortable: true, stickyLeft: true },
+      { key: 'vehicle', label: copy.tableHeaderVehicle, sortable: true },
+      { key: 'dateLabel', label: copy.tableHeaderDay, sortable: true },
+      { key: 'loginAt', label: copy.tableHeaderLogin, render: (v) => formatClock(v as Date | null) },
+      { key: 'logoutAt', label: copy.tableHeaderLogout, render: (v) => formatClock(v as Date | null) },
+      { key: 'loginLocation', label: copy.tableHeaderLoginLoc },
+      { key: 'logoutLocation', label: copy.tableHeaderLogoutLoc },
+      { key: 'restHours', label: copy.tableHeaderRestHrs, sortable: true, render: (v) => formatHours(Number(v)) },
+      { key: 'distanceKm', label: copy.tableHeaderDistance, sortable: true, render: (v) => formatDistance(Number(v)) },
       {
         key: 'warning',
-        label: lang === 'th' ? 'สถานะ' : 'Status',
+        label: copy.tableHeaderStatus,
         render: (_, row) => row.warning
-          ? <span className="text-emerald-600">Warned ✓ · {row.warning.channelName}</span>
+          ? <span className="text-emerald-600">{copy.warnSent} · {row.warning.channelName}</span>
           : <span className={textSecondary}>—</span>,
       },
       {
@@ -125,24 +126,24 @@ export default function ThresholdSubPage({
         render: (_, row) => renderWarnAction ? renderWarnAction(row) : null,
       },
     ];
-  }, [metric, lang, renderWarnAction]);
+  }, [metric, copy, renderWarnAction]);
 
   return (
     <section className={dashboardSectionClass}>
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className={heading2}>{thresholdLabel}</h2>
-        <span className={`text-sm ${textSecondary}`}>{violations.length} {lang === 'th' ? 'รายการ' : 'rows'}</span>
+        <span className={`text-sm ${textSecondary}`}>{violations.length} {copy.rowCountLabel}</span>
       </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         <KpiCard
           accentColor={ACCENT_VIOLATION}
-          label={lang === 'th' ? 'คนขับที่ฝ่าฝืน' : 'Violating drivers'}
+          label={copy.kpiViolatingDrivers}
           value={String(uniqueDrivers)}
         />
         <KpiCard
           accentColor={ACCENT_WARNED}
-          label={lang === 'th' ? 'คนขับที่ได้รับการแจ้ง' : 'Drivers warned'}
+          label={copy.kpiWarnedDrivers}
           value={String(warnedDrivers)}
         />
       </div>

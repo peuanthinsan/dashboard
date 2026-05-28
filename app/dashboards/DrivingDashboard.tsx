@@ -10,7 +10,7 @@ import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import { findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
 import { computeDrivingScore } from './drivingScoring';
-import { type DashboardLang } from 'app/dashboard/i18n-copy';
+import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import KpiCard from 'app/ui/KpiCard';
 import ScoreBlock from 'app/ui/ScoreBlock';
 import ExportButton from 'app/ui/ExportButton';
@@ -126,7 +126,11 @@ export default function DrivingDashboard({
     () => normalizeDrivingThresholds(drivingThresholdsProp),
     [drivingThresholdsProp],
   );
-  const subPages = useMemo(() => deriveSubPages(thresholds, lang), [thresholds, lang]);
+  const copy = useMemo(() => getDashboardCopy(lang), [lang]);
+  const subPages = useMemo(
+    () => deriveSubPages(thresholds, lang, copy.drivingV2),
+    [thresholds, lang, copy],
+  );
   const searchParams = useSearchParams();
   const activeSubPage = useMemo(
     () => subPageBySlug(subPages, searchParams.get('tab')),

@@ -3,7 +3,7 @@
 import { useActionState, useState, useEffect } from 'react';
 import { btnPrimary, btnSecondary, btnSmall } from 'app/ui/design-tokens';
 import { sendDrivingWarning, type SendDrivingWarningState } from './drivingWarnings';
-import { type DashboardLang } from 'app/dashboard/i18n-copy';
+import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import type { ViolationRow } from './dashboardDataUtils';
 
 type LineChannelOption = { id: number; name: string };
@@ -25,6 +25,7 @@ export default function SendWarningButton({
   defaultChannelId,
   lang,
 }: Props) {
+  const copy = getDashboardCopy(lang).drivingV2;
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(sendDrivingWarning, INITIAL);
   const [note, setNote] = useState('');
@@ -50,9 +51,9 @@ export default function SendWarningButton({
         type="button"
         disabled
         className={`${btnSecondary} ${btnSmall} opacity-50`}
-        title={lang === 'th' ? 'ยังไม่ได้ตั้งค่า LINE สำหรับฟลีตนี้' : 'LINE not configured for this fleet'}
+        title={copy.popoverErrorNoChannels}
       >
-        {lang === 'th' ? 'แจ้งเตือน' : 'Warn'}
+        {copy.warnButton}
       </button>
     );
   }
@@ -95,14 +96,14 @@ export default function SendWarningButton({
   return (
     <div className="relative inline-block">
       <button type="button" className={`${btnPrimary} ${btnSmall}`} onClick={() => setOpen((v) => !v)}>
-        {lang === 'th' ? 'แจ้งเตือน' : 'Warn'}
+        {copy.warnButton}
       </button>
       {open && (
         <div className="absolute right-0 z-30 mt-2 w-80 rounded-lg border border-zinc-200 bg-white p-3 shadow-card dark:border-zinc-700 dark:bg-zinc-900">
           <form action={formAction}>
             <input type="hidden" name="payload" value={JSON.stringify(payload)} />
             <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              {lang === 'th' ? 'ช่อง' : 'Channel'}
+              {copy.popoverChannel}
               <select
                 value={channelId ?? ''}
                 onChange={(e) => setChannelId(Number(e.target.value))}
@@ -114,7 +115,7 @@ export default function SendWarningButton({
               </select>
             </label>
             <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              {lang === 'th' ? 'หมายเหตุ (ไม่บังคับ)' : 'Note (optional)'}
+              {copy.popoverNote}
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
@@ -128,10 +129,10 @@ export default function SendWarningButton({
             )}
             <div className="mt-3 flex justify-end gap-2">
               <button type="button" className={`${btnSecondary} ${btnSmall}`} onClick={() => setOpen(false)}>
-                {lang === 'th' ? 'ยกเลิก' : 'Cancel'}
+                {copy.popoverCancel}
               </button>
               <button type="submit" disabled={pending || !channelId} className={`${btnPrimary} ${btnSmall}`}>
-                {pending ? (lang === 'th' ? 'กำลังส่ง…' : 'Sending…') : (lang === 'th' ? 'ส่ง' : 'Send')}
+                {pending ? copy.popoverSending : copy.popoverSend}
               </button>
             </div>
           </form>
