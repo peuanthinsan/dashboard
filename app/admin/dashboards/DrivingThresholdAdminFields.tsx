@@ -1,4 +1,4 @@
-import { normalizeDrivingThresholds } from 'app/dashboards/drivingThresholds';
+import { normalizeDrivingThresholds, thresholdEntryValue } from 'app/dashboards/drivingThresholds';
 import { ADMIN_INPUT, ADMIN_LABEL, ADMIN_TEXT_MUTED } from '../admin-ui';
 
 export function DrivingThresholdAdminFields({
@@ -7,45 +7,36 @@ export function DrivingThresholdAdminFields({
   initial?: unknown;
 }) {
   const t = normalizeDrivingThresholds(initial);
+  const driveDefault = t.driveHours[0] ? thresholdEntryValue(t.driveHours[0]) : 10;
+  const restDefault = t.restHours[0] ? thresholdEntryValue(t.restHours[0]) : 10;
+
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-      <p className={`${ADMIN_LABEL} mb-1`}>Driving template — violation thresholds (hours)</p>
+      <p className={`${ADMIN_LABEL} mb-1`}>Driving template — thresholds (transitional UI, replaced in Task 23)</p>
       <p className={`mb-3 text-xs ${ADMIN_TEXT_MUTED}`}>
-        Used when the template is Driving. Continuous driving counts as a violation above the first value; rest when below the
-        second (only if rest hours are recorded on the row); working hours when above the third (only if working hours are
-        recorded). Match your sheet columns (e.g. Cnt Drv Hr, Rest, Working Hr).
+        Drive Hours threshold uses per-day totals; Rest Hours uses per-shift gaps. Work Hours dropped.
       </p>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <input type="hidden" name="drivingThresholdsJson" defaultValue={JSON.stringify(t)} />
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
-          Cnt drv &gt; (hours)
+          Drive Hrs/day &gt; (hours)
           <input
-            name="drivingContinuousMax"
+            name="_drivingDriveMax"
             type="number"
-            step="0.1"
-            min="0.1"
-            defaultValue={t.continuousDrivingMaxHours}
+            step="0.5"
+            min="0.5"
+            defaultValue={driveDefault}
             className={ADMIN_INPUT}
           />
         </label>
         <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
-          Rest &lt; (hours)
+          Rest Hrs &lt; (hours)
           <input
-            name="drivingRestMin"
+            name="_drivingRestMin"
             type="number"
-            step="0.1"
-            min="0.1"
-            defaultValue={t.restMinimumHours}
-            className={ADMIN_INPUT}
-          />
-        </label>
-        <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
-          Working hrs &gt; (hours)
-          <input
-            name="drivingWorkingMax"
-            type="number"
-            step="0.1"
-            min="0.1"
-            defaultValue={t.workingHoursMax}
+            step="0.5"
+            min="0.5"
+            defaultValue={restDefault}
             className={ADMIN_INPUT}
           />
         </label>

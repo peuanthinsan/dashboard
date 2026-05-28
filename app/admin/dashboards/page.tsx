@@ -78,6 +78,14 @@ export default async function AdminDashboardsPage() {
     const remarks = Array.isArray(remarksRaw)
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
+    const _drive = Number(formData.get('_drivingDriveMax'));
+    const _rest = Number(formData.get('_drivingRestMin'));
+    if (!formData.get('drivingThresholdsJson') && (_drive > 0 || _rest > 0)) {
+      formData.set('drivingThresholdsJson', JSON.stringify({
+        driveHours: _drive > 0 ? [_drive] : [],
+        restHours: _rest > 0 ? [_rest] : [],
+      }));
+    }
     const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
     const alertRules = parseAlertRulesFromFormData(formData);
     try {
@@ -92,7 +100,11 @@ export default async function AdminDashboardsPage() {
         notes,
         alertTypes: alertTypes.length > 0 ? alertTypes : null,
         remarks: remarks.length > 0 ? remarks : null,
-        drivingThresholds,
+        drivingThresholds: drivingThresholds as unknown as {
+          continuousDrivingMaxHours: number;
+          restMinimumHours: number;
+          workingHoursMax: number;
+        },
         alertRules,
       });
       revalidatePath('/admin/dashboards');
@@ -147,6 +159,14 @@ export default async function AdminDashboardsPage() {
     const remarks = Array.isArray(remarksRaw)
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
+    const _drive = Number(formData.get('_drivingDriveMax'));
+    const _rest = Number(formData.get('_drivingRestMin'));
+    if (!formData.get('drivingThresholdsJson') && (_drive > 0 || _rest > 0)) {
+      formData.set('drivingThresholdsJson', JSON.stringify({
+        driveHours: _drive > 0 ? [_drive] : [],
+        restHours: _rest > 0 ? [_rest] : [],
+      }));
+    }
     const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
     const alertRules = parseAlertRulesFromFormData(formData);
     try {
@@ -162,7 +182,11 @@ export default async function AdminDashboardsPage() {
         notes,
         alertTypes: alertTypes.length > 0 ? alertTypes : null,
         remarks: remarks.length > 0 ? remarks : null,
-        drivingThresholds,
+        drivingThresholds: drivingThresholds as unknown as {
+          continuousDrivingMaxHours: number;
+          restMinimumHours: number;
+          workingHoursMax: number;
+        },
         alertRules,
       });
       revalidatePath('/admin/dashboards');

@@ -26,7 +26,7 @@ import AlertHeatmap from 'app/ui/AlertHeatmap';
 import {
   heading2, textSecondary, CHART_COLORS,
 } from 'app/ui/design-tokens';
-import { normalizeDrivingThresholds, type DrivingThresholds } from './drivingThresholds';
+import { normalizeDrivingThresholds, thresholdEntryValue, type DrivingThresholds } from './drivingThresholds';
 
 type DashboardProps = {
   dashboardId: string;
@@ -106,12 +106,13 @@ export default function DrivingDashboard({
 }: DashboardProps) {
   const thresholds = useMemo(
     () => normalizeDrivingThresholds(drivingThresholdsProp),
-    [
-      drivingThresholdsProp?.continuousDrivingMaxHours,
-      drivingThresholdsProp?.restMinimumHours,
-      drivingThresholdsProp?.workingHoursMax,
-    ],
+    [drivingThresholdsProp],
   );
+  const driveMaxHours = thresholds.driveHours[0]
+    ? thresholdEntryValue(thresholds.driveHours[0]) : Infinity;
+  const restMinHours = thresholds.restHours[0]
+    ? thresholdEntryValue(thresholds.restHours[0]) : 0;
+  const workingMaxHours = Infinity;
   const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
@@ -394,10 +395,9 @@ export default function DrivingDashboard({
   };
   const violations = useMemo<ViolationRow[]>(() => {
     const result: ViolationRow[] = [];
-    const { continuousDrivingMaxHours, restMinimumHours, workingHoursMax } = thresholds;
     filteredRows.forEach((row) => {
       const dateStr = row.date ? row.date.toLocaleDateString('en-GB') : '—';
-      if (row.cntDrvDurationHours > continuousDrivingMaxHours) {
+      if (row.cntDrvDurationHours > driveMaxHours) {
         result.push({
           driver: row.driver,
           vehicle: row.vehicle,
@@ -408,7 +408,7 @@ export default function DrivingDashboard({
           type: 'cnt_drv',
         });
       }
-      if (row.restHours > 0 && row.restHours < restMinimumHours) {
+      if (row.restHours > 0 && row.restHours < restMinHours) {
         result.push({
           driver: row.driver,
           vehicle: row.vehicle,
@@ -419,7 +419,7 @@ export default function DrivingDashboard({
           type: 'rest_hr',
         });
       }
-      if (row.workingHours > 0 && row.workingHours > workingHoursMax) {
+      if (row.workingHours > 0 && row.workingHours > workingMaxHours) {
         result.push({
           driver: row.driver,
           vehicle: row.vehicle,
@@ -436,7 +436,7 @@ export default function DrivingDashboard({
       if (a.type !== b.type) return typeOrder[a.type] - typeOrder[b.type];
       return a.driver.localeCompare(b.driver);
     });
-  }, [filteredRows, thresholds]);
+  }, [filteredRows, driveMaxHours, restMinHours, workingMaxHours]);
 
   const cntDrvViolations = useMemo(() => violations.filter((v) => v.type === 'cnt_drv'), [violations]);
   const restHrViolations = useMemo(() => violations.filter((v) => v.type === 'rest_hr'), [violations]);
@@ -497,9 +497,9 @@ export default function DrivingDashboard({
   }, [aggregates, lang]);
 
   const violationTableColumns = useMemo<Column<ViolationRow>[]>(() => {
-    const maxCnt = thresholds.continuousDrivingMaxHours;
-    const minRest = thresholds.restMinimumHours;
-    const maxWork = thresholds.workingHoursMax;
+    const maxCnt = driveMaxHours;
+    const minRest = restMinHours;
+    const maxWork = workingMaxHours;
     return [
       { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
       { key: 'vehicle', label: lang === 'th' ? 'ยานพาหนะ' : 'Vehicle', sortable: true },
@@ -566,7 +566,7 @@ export default function DrivingDashboard({
         },
       },
     ];
-  }, [lang, thresholds]);
+  }, [lang, driveMaxHours, restMinHours, workingMaxHours]);
 
   // --- Vehicle table columns ---
   const vehicleTableColumns = useMemo<Column<VehicleAggregate>[]>(() => [
@@ -743,8 +743,8 @@ export default function DrivingDashboard({
         score={complianceScore}
         label={lang === 'th' ? 'คะแนนความปลอดภัยการขับขี่' : 'Driving safety score'}
         tooltip={lang === 'th'
-          ? `คะแนน (0–100): คำนวณจากการฝ่าฝืนต่อทริป — ขับต่อเนื่องเกิน ${thresholds.continuousDrivingMaxHours} ชม. พักต่ำกว่า ${thresholds.restMinimumHours} ชม. ชม.ทำงานเกิน ${thresholds.workingHoursMax} ชม. (ตามที่ตั้งในแอดมิน)`
-          : `Score (0–100): Violations per trip vs your admin thresholds — cnt drv > ${thresholds.continuousDrivingMaxHours}h, rest < ${thresholds.restMinimumHours}h, working > ${thresholds.workingHoursMax}h.`}
+          ? `คะแนน (0–100): คำนวณจากการฝ่าฝืนต่อทริป — ขับต่อเนื่องเกิน ${driveMaxHours} ชม. พักต่ำกว่า ${restMinHours} ชม. ชม.ทำงานเกิน ${workingMaxHours} ชม. (ตามที่ตั้งในแอดมิน)`
+          : `Score (0–100): Violations per trip vs your admin thresholds — cnt drv > ${driveMaxHours}h, rest < ${restMinHours}h, working > ${workingMaxHours}h.`}
         detail={`${cntDrvViolations.length + restHrViolations.length + workingHrViolations.length} ${lang === 'th' ? 'การฝ่าฝืน' : 'violations'} · ${filteredRows.length} ${lang === 'th' ? 'ทริป' : 'trips'}`}
       />
 
@@ -770,17 +770,17 @@ export default function DrivingDashboard({
           accentColor="#B91C1C"
         />
         <KpiCard
-          label={lang === 'th' ? `ขับต่อเนื่อง > ${thresholds.continuousDrivingMaxHours} ชม.` : `Cnt Drv > ${thresholds.continuousDrivingMaxHours} hrs`}
+          label={lang === 'th' ? `ขับต่อเนื่อง > ${driveMaxHours} ชม.` : `Cnt Drv > ${driveMaxHours} hrs`}
           value={cntDrvViolations.length}
           accentColor={cntDrvViolations.length > 0 ? '#ef4444' : '#10b981'}
         />
         <KpiCard
-          label={lang === 'th' ? `พักผ่อน < ${thresholds.restMinimumHours} ชม.` : `Rest < ${thresholds.restMinimumHours} hrs`}
+          label={lang === 'th' ? `พักผ่อน < ${restMinHours} ชม.` : `Rest < ${restMinHours} hrs`}
           value={restHrViolations.length}
           accentColor={restHrViolations.length > 0 ? '#f59e0b' : '#10b981'}
         />
         <KpiCard
-          label={lang === 'th' ? `ชม.ทำงาน > ${thresholds.workingHoursMax} ชม.` : `Working > ${thresholds.workingHoursMax} hrs`}
+          label={lang === 'th' ? `ชม.ทำงาน > ${workingMaxHours} ชม.` : `Working > ${workingMaxHours} hrs`}
           value={workingHrViolations.length}
           accentColor={workingHrViolations.length > 0 ? '#8b5cf6' : '#10b981'}
         />
@@ -861,8 +861,8 @@ export default function DrivingDashboard({
             <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-red-100 px-2 text-xs font-bold tabular-nums text-red-700 dark:bg-red-900 dark:text-red-300">{cntDrvViolations.length}</span>
             <h2 className={`min-w-0 ${heading2}`}>
               {lang === 'th'
-                ? `ขับต่อเนื่อง > ${thresholds.continuousDrivingMaxHours} ชม.`
-                : `Cnt Drv > ${thresholds.continuousDrivingMaxHours} hrs`}
+                ? `ขับต่อเนื่อง > ${driveMaxHours} ชม.`
+                : `Cnt Drv > ${driveMaxHours} hrs`}
             </h2>
           </div>
           <div className="mt-4">
@@ -878,8 +878,8 @@ export default function DrivingDashboard({
                 pageSize={8}
                 ariaLabel={
                   lang === 'th'
-                    ? `รายงานขับต่อเนื่องเกิน ${thresholds.continuousDrivingMaxHours} ชม.`
-                    : `Continuous driving over ${thresholds.continuousDrivingMaxHours} hours report`
+                    ? `รายงานขับต่อเนื่องเกิน ${driveMaxHours} ชม.`
+                    : `Continuous driving over ${driveMaxHours} hours report`
                 }
               />
             )}
@@ -891,8 +891,8 @@ export default function DrivingDashboard({
             <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-amber-100 px-2 text-xs font-bold tabular-nums text-amber-700 dark:bg-amber-900 dark:text-amber-300">{restHrViolations.length}</span>
             <h2 className={`min-w-0 ${heading2}`}>
               {lang === 'th'
-                ? `พักผ่อน < ${thresholds.restMinimumHours} ชม.`
-                : `Rest < ${thresholds.restMinimumHours} hrs`}
+                ? `พักผ่อน < ${restMinHours} ชม.`
+                : `Rest < ${restMinHours} hrs`}
             </h2>
           </div>
           <div className="mt-4">
@@ -908,8 +908,8 @@ export default function DrivingDashboard({
                 pageSize={8}
                 ariaLabel={
                   lang === 'th'
-                    ? `รายงานพักผ่อนน้อยกว่า ${thresholds.restMinimumHours} ชม.`
-                    : `Rest hours under ${thresholds.restMinimumHours} hours report`
+                    ? `รายงานพักผ่อนน้อยกว่า ${restMinHours} ชม.`
+                    : `Rest hours under ${restMinHours} hours report`
                 }
               />
             )}
@@ -921,8 +921,8 @@ export default function DrivingDashboard({
             <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-violet-100 px-2 text-xs font-bold tabular-nums text-violet-700 dark:bg-violet-900 dark:text-violet-300">{workingHrViolations.length}</span>
             <h2 className={`min-w-0 ${heading2}`}>
               {lang === 'th'
-                ? `ชม.ทำงาน > ${thresholds.workingHoursMax} ชม.`
-                : `Working > ${thresholds.workingHoursMax} hrs`}
+                ? `ชม.ทำงาน > ${workingMaxHours} ชม.`
+                : `Working > ${workingMaxHours} hrs`}
             </h2>
           </div>
           <div className="mt-4">
@@ -938,8 +938,8 @@ export default function DrivingDashboard({
                 pageSize={8}
                 ariaLabel={
                   lang === 'th'
-                    ? `รายงานชั่วโมงทำงานเกิน ${thresholds.workingHoursMax} ชม.`
-                    : `Working hours over ${thresholds.workingHoursMax} hours report`
+                    ? `รายงานชั่วโมงทำงานเกิน ${workingMaxHours} ชม.`
+                    : `Working hours over ${workingMaxHours} hours report`
                 }
               />
             )}
