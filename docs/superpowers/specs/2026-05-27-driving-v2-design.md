@@ -21,8 +21,20 @@ Evolve the existing `Driving` dashboard template into a multi-threshold complian
 
 The Overview tab preserves today's `DrivingDashboard` body so existing dashboards see no regression on landing.
 
+### 1.1 Metric scope
+
+Two metrics in v2 (Work Hours is intentionally excluded — see §2):
+
+| Metric | Aggregation | Comparison | Violation row identity |
+|---|---|---|---|
+| **Drive Hours** | sum of `DriveHrs` per `(driver, calendar day)` | daily total `>` threshold | one row per `(driver, day)` |
+| **Rest Hours** | per-shift `RestHrs` (no aggregation) | shift `RestHrs > 0` AND `< threshold` | one row per shift |
+
+Drive Hours is **per-day**: even if a driver has three shifts in one day, the dashboard shows one row summing `DriveHrs` across those three shifts. Rest Hours stays **per-shift** because rest is the gap to the next shift — aggregating it would lose meaning.
+
 ## 2. Non-goals
 
+- **Work Hours metric (`WorkHrs`) is not surfaced in v2** — no WorkHrs sub-pages, no WorkHrs threshold config, no WorkHrs violations or warnings. The column may still be ingested into `DrivingRow` for the Overview tab's existing KPI ("Total Working Hours" stays for backward compatibility), but no thresholding happens on it.
 - A standalone "DrivingV2" template (we extend `Driving` in place).
 - Per-driver LINE direct messaging (group send only in v2).
 - Editing thresholds from the customer-facing dashboard (admin-only).
@@ -102,7 +114,7 @@ CREATE TABLE "DrivingWarning" (
   "driverName"     varchar(128) NOT NULL,
   "vehicleNo"      varchar(64)  NOT NULL,
   "eventAt"        timestamptz  NOT NULL,
-  metric           varchar(16)  NOT NULL CHECK (metric IN ('drive_hrs','work_hrs','rest_hrs')),
+  metric           varchar(16)  NOT NULL CHECK (metric IN ('drive_hrs','rest_hrs')),
   threshold        numeric      NOT NULL,
   "valueHours"     numeric      NOT NULL,
   "distanceKm"     numeric      NULL,
@@ -137,23 +149,25 @@ export type DrivingThresholdEntry =
   | { value: number; label?: string };
 
 export type DrivingThresholds = {
-  driveHours: DrivingThresholdEntry[]; // > h
-  workHours: DrivingThresholdEntry[];  // > h
-  restHours: DrivingThresholdEntry[];  // < h
+  driveHours: DrivingThresholdEntry[]; // > h, applied to per-day SUM(DriveHrs)
+  restHours:  DrivingThresholdEntry[]; // < h, applied per-shift
 };
 
 export const DEFAULT_DRIVING_THRESHOLDS: DrivingThresholds = {
-  driveHours: [4],
-  workHours: [8],
+  driveHours: [10],
   restHours: [10],
 };
 
 export function normalizeDrivingThresholds(raw: unknown): DrivingThresholds;
-// - Accepts legacy scalar shape { continuousDrivingMaxHours, workingHoursMax, restMinimumHours }
-//   and widens it to single-element arrays.
+// - Accepts legacy scalar shape { continuousDrivingMaxHours, workingHoursMax, restMinimumHours }:
+//     continuousDrivingMaxHours → driveHours: [{ value, label: 'Cnt Drv > {value} h' }]
+//     restMinimumHours          → restHours: [{ value }]
+//     workingHoursMax           → IGNORED (Work Hours dropped in v2; see §2)
 // - Accepts already-widened shape and validates each entry is a positive number
 //   (or { value: positive number, label?: string }).
 // - Rejects/coerces invalid entries to defaults.
+// - Silently drops any `workHours` key from the input for forward compatibility with
+//   data already written under the older v2 draft.
 
 export function parseDrivingThresholdsFromFormData(fd: FormData): DrivingThresholds;
 // Reads hidden field 'drivingThresholdsJson' (admin chip-input serializes to JSON).
@@ -165,35 +179,40 @@ export function thresholdEntryLabel(e: DrivingThresholdEntry, fallback: string):
 
 `app/db-schema.ts` `dashboards.drivingThresholds` type annotation widens to `DrivingThresholds`.
 
-`app/dashboards/dashboardDataUtils.ts` adds a violation row type:
+`app/dashboards/dashboardDataUtils.ts` adds a violation row type. A single shape covers both metrics — fields that don't apply to a per-day Drive Hours row are nullable.
 
 ```ts
-export type ViolationMetric = 'drive_hrs' | 'work_hrs' | 'rest_hrs';
+export type ViolationMetric = 'drive_hrs' | 'rest_hrs';
 
 export type ViolationRow = {
   driver: string;
-  vehicle: string;
-  date: string;               // formatted GB date
-  eventAt: Date;
-  driveHours: number;
-  workingHours: number;
-  restHours: number;
-  distanceKm: number;
-  loginAt: Date | null;
-  logoutAt: Date | null;
-  loginLocation: string;
-  logoutLocation: string;
+  vehicle: string;                  // for drive_hrs: '*' if multiple vehicles in the day, else the single vehicle
+  vehicleCount: number;             // for drive_hrs: number of distinct vehicles in the day; for rest_hrs: always 1
+  shiftCount: number;               // for drive_hrs: number of shifts aggregated; for rest_hrs: 1
+  dayKey: string;                   // YYYY-MM-DD; identity for drive_hrs, derived from shift for rest_hrs
+  dateLabel: string;                // formatted GB date
+  eventAt: Date;                    // for drive_hrs: dayKey at 00:00 local; for rest_hrs: shift's Login Time
+  driveHours: number;               // for drive_hrs: SUM across the day; for rest_hrs: that shift's DriveHrs
+  restHours: number;                // 0 for drive_hrs rows; the shift's RestHrs for rest_hrs rows
+  distanceKm: number;               // SUM across the day for drive_hrs; that shift's Distance for rest_hrs
+  loginAt: Date | null;             // earliest Login Time of the day (drive_hrs) or the shift's Login (rest_hrs)
+  logoutAt: Date | null;            // latest Logout Time of the day (drive_hrs) or the shift's Logout (rest_hrs)
+  loginLocation: string;            // earliest-shift's loginLocation (drive_hrs) or shift's (rest_hrs)
+  logoutLocation: string;           // latest-shift's logoutLocation (drive_hrs) or shift's (rest_hrs)
   metric: ViolationMetric;
   threshold: number;
   thresholdLabel: string;
-  violationKey: string;       // sha1 of `${driver}|${vehicle}|${eventAtIso}|${metric}|${threshold}`
+  violationKey: string;             // see computeViolationKey
   warning: { sentAt: Date; channelName: string } | null;
 };
 
-export function computeViolationKey(args: {
-  driver: string; vehicle: string; eventAtIso: string;
-  metric: ViolationMetric; threshold: number;
-}): string;
+export function computeViolationKey(args:
+  | { metric: 'drive_hrs'; driver: string; dayKey: string; threshold: number }
+  | { metric: 'rest_hrs';  driver: string; vehicle: string; eventAtIso: string; threshold: number }
+): string;
+// drive_hrs key:  sha1('drive_hrs' | driver | dayKey | threshold)
+//   (vehicle excluded so multi-vehicle days don't double-create the same violation)
+// rest_hrs key:   sha1('rest_hrs'  | driver | vehicle | eventAtIso | threshold)
 ```
 
 ## 5. Routing and sub-page derivation
@@ -206,7 +225,6 @@ Single route per dashboard: `/dashboard/{publicId}?tab={slug}`. No new Next.js r
 type SubPage =
   | { kind: 'overview'; slug: 'overview'; label: string }
   | { kind: 'drive_hrs'; slug: `drive-hrs-${number}`; threshold: number; label: string }
-  | { kind: 'work_hrs';  slug: `work-hrs-${number}`;  threshold: number; label: string }
   | { kind: 'rest_hrs';  slug: `rest-hrs-${number}`;  threshold: number; label: string };
 
 function deriveSubPages(t: DrivingThresholds, lang: DashboardLang): SubPage[] {
@@ -217,10 +235,16 @@ function deriveSubPages(t: DrivingThresholds, lang: DashboardLang): SubPage[] {
     slug: `drive-hrs-${thresholdEntryValue(e)}` as const,
     threshold: thresholdEntryValue(e),
     label: thresholdEntryLabel(e,
-      `${lang === 'th' ? 'ขับรถ' : 'Drive Hr'} > ${thresholdEntryValue(e)} h`),
+      `${lang === 'th' ? 'ขับรถ/วัน' : 'Drive Hr/day'} > ${thresholdEntryValue(e)} h`),
   }));
-  // … same for work_hrs and rest_hrs (rest uses < instead of >) …
-  return [overview, ...drive, ...work, ...rest];
+  const rest = sortAsc(t.restHours).map((e) => ({
+    kind: 'rest_hrs' as const,
+    slug: `rest-hrs-${thresholdEntryValue(e)}` as const,
+    threshold: thresholdEntryValue(e),
+    label: thresholdEntryLabel(e,
+      `${lang === 'th' ? 'พัก' : 'Rest Hr'} < ${thresholdEntryValue(e)} h`),
+  }));
+  return [overview, ...drive, ...rest];
 }
 ```
 
@@ -245,7 +269,7 @@ type DrivingRow = {
   loginLocation: string;      // Login Location
   logoutLocation: string;     // Logout Location
   driveHours: number;         // DriveHrs (or DriveHrs duration)
-  workingHours: number;       // WorkHrs
+  workingHours: number;       // WorkHrs (ingested for Overview KPI only; not thresholded in v2)
   restHours: number;          // RestHrs
   distanceKm: number;         // Distance
   status: string;             // Status ('COMPLETED' | ...)
@@ -253,19 +277,33 @@ type DrivingRow = {
 };
 ```
 
-### 6.2 Per-sub-page row-level filters
+### 6.2 Per-sub-page filtering and aggregation
 
-| sub-page | filter |
-|---|---|
-| `drive_hrs` (threshold T) | `status === 'COMPLETED'` AND `driveHours > T` AND `loginAt != null` AND `fleet matches dashboard org` |
-| `work_hrs`  (threshold T) | `status === 'COMPLETED'` AND `workingHours > T` |
-| `rest_hrs`  (threshold T) | `status === 'COMPLETED'` AND `restHours > 0` AND `restHours < T` |
+**Drive Hours sub-page (threshold T) — per-day aggregation:**
 
-Date / driver / vehicle filters from the shared `FilterBar` apply on top of these.
+1. Take all `DrivingRow` where `status === 'COMPLETED'` AND `loginAt != null` AND fleet matches dashboard org.
+2. Bucket by `(driver, dayKey)` where `dayKey = toDayKey(loginAt)` (the existing `toDayKey` helper in `dashboardDataUtils`).
+3. For each bucket compute:
+    - `sumDriveHours = Σ shift.driveHours`
+    - `sumDistance = Σ shift.distanceKm`
+    - `loginAt = min(shifts.loginAt)`
+    - `logoutAt = max(shifts.logoutAt)`
+    - `loginLocation = shift with min loginAt → loginLocation`
+    - `logoutLocation = shift with max logoutAt → logoutLocation`
+    - `vehicleCount = |distinct shift.vehicle|`
+    - `vehicle = vehicleCount === 1 ? that vehicle : '*'` (UI shows "3 vehicles" tooltip)
+    - `shiftCount = shifts.length`
+4. Emit one `ViolationRow` (metric `'drive_hrs'`) per bucket where `sumDriveHours > T`.
+
+**Rest Hours sub-page (threshold T) — per-shift:**
+
+For each `DrivingRow` where `status === 'COMPLETED'` AND `restHours > 0` AND `restHours < T` AND fleet matches dashboard org, emit one `ViolationRow` (metric `'rest_hrs'`) mirroring the shift's fields (`shiftCount=1`, `vehicleCount=1`, `dayKey = toDayKey(loginAt)`).
+
+Date / driver / vehicle filters from the shared `FilterBar` apply **before** the bucketing step for Drive Hours (so filtering by vehicle still works even though Drive Hours emits at the day level — a row is included if any of its shifts pass the vehicle filter). Date filter applies to `loginAt` for both metrics.
 
 ### 6.3 Why one gid is enough
 
-ThongTrans's `ContDrv>4` and `Workhour>8` tabs share the same schema and (during inspection) the same rows. Both tabs expose `WorkHrs`, `DriveHrs`, `RestHrs`, `Status`, `Distance`, `Login Time`, `Logout Time`. So one tab suffices for all three sub-page metrics. The dashboard admin picks one raw-shift tab as the source via the existing `sheetGid` field. No new gid columns required.
+ThongTrans's `ContDrv>4` and `Workhour>8` tabs share the same schema and (during inspection) the same rows. Both tabs expose `WorkHrs`, `DriveHrs`, `RestHrs`, `Status`, `Distance`, `Login Time`, `Logout Time`. So one tab suffices for both Drive Hours and Rest Hours sub-pages. The dashboard admin picks one raw-shift tab as the source via the existing `sheetGid` field. No new gid columns required.
 
 `RESTHOURFINAL` is explicitly out of scope per §2 (Rest Hours reads from the raw shift tab).
 
@@ -282,7 +320,7 @@ This decision is grounded in the reference customer's sheet, which exposes only 
 A horizontal tab strip sits below the existing header, sticky on scroll:
 
 ```
-[ Overview ] [ Drive Hr > 4 h ] [ Drive Hr > 10 h ] [ Work Hr > 8 h ] [ Rest Hr < 10 h ]
+[ Overview ] [ Drive Hr/day > 4 h ] [ Drive Hr/day > 10 h ] [ Rest Hr < 10 h ]
 ```
 
 Each tab is a `next/link` `<Link replace>` with `href={?tab=<slug>}` that preserves all other query params via `useSearchParams()`. `replace` (not `push`) avoids polluting the browser history with every tab click. Active tab gets the existing red accent.
@@ -331,12 +369,20 @@ Layout:
    - **Green** — unique drivers with at least one warned row in the current filter (`new Set(violations.filter(v => v.warning).map(v => v.driver)).size`). Tooltip lists the channels used.
 3. **Dual-axis line chart** using `<TrendChart mode="dual-axis">`:
    - X-axis: day or month based on date span (auto: monthly if > 60 days, daily otherwise).
-   - Series 1 (left axis, bar): sum of the metric's hours across violating rows that day/month.
-   - Series 2 (right axis, line): sum of distance (km) across the same rows.
+   - Series 1 (left axis, bar): for Drive Hours, sum of violating-day totals (already daily); for Rest Hours, sum of the shifts' `RestHrs` violating on that day.
+   - Series 2 (right axis, line): sum of distance (km) across the violating rows in that day/month bucket.
 4. **Violations table** using `<DataTable>` with `pageSize={15}`:
-   - Columns (sortable): No., Driver, Vehicle, Login (clock-in), Logout (clock-out), Login Loc, Logout Loc, Continuous Drive Start, Duration (h), Distance (km), Status, [Send warning].
-   - `Status` cell: `Warned ✓ {channelName} · {time}` if `row.warning`, else `—`.
-   - Action cell: `<SendWarningButton row={row} … />` — disabled if `!canWarn` with tooltip "LINE not configured for this fleet".
+
+   For **Drive Hours sub-pages** (one row per `(driver, day)`):
+   - Columns (sortable): No., Driver, Day (`DD/MM/YYYY`), Vehicle (`*` + tooltip "3 vehicles" when `vehicleCount > 1`), Shifts (`shiftCount`), First Login (clock-in), Last Logout (clock-out), Login Loc, Logout Loc, Total Drive Hrs, Total Distance (km), Status, [Send warning].
+   - Sort default: Total Drive Hrs DESC.
+
+   For **Rest Hours sub-pages** (one row per shift):
+   - Columns (sortable): No., Driver, Vehicle, Date, Login (clock-in), Logout (clock-out), Login Loc, Logout Loc, Rest Hrs, Distance (km), Status, [Send warning].
+   - Sort default: Rest Hrs ASC (worst rest first).
+
+   `Status` cell: `Warned ✓ {channelName} · {time}` if `row.warning`, else `—`.
+   Action cell: `<SendWarningButton row={row} … />` — disabled if `!canWarn` with tooltip "LINE not configured for this fleet".
 
 ### 7.4 Send-warning popover
 
@@ -356,7 +402,8 @@ On send failure, the popover stays open showing the error and "Retry" / "Cancel"
 
 ```ts
 drivingV2: {
-  tabOverview, tabDriveHrs, tabWorkHrs, tabRestHrs,
+  tabOverview, tabDriveHrs, tabRestHrs,
+  // Drive Hours sub-page labels include the "/day" suffix to make per-day aggregation explicit.
   kpiViolatingDrivers, kpiWarnedDrivers,
   tableLoginAt, tableLogoutAt, tableLoginLoc, tableLogoutLoc,
   tableContDrvStart, tableDuration, tableDistance,
@@ -384,19 +431,36 @@ import { z } from 'zod';
 const Input = z.object({
   dashboardPublicId: z.string().uuid(),
   lineChannelId: z.number().int().positive(),
-  violation: z.object({
-    driver: z.string().min(1).max(128),
-    vehicle: z.string().min(1).max(64),
-    eventAt: z.string().datetime(),
-    metric: z.enum(['drive_hrs', 'work_hrs', 'rest_hrs']),
-    threshold: z.number().positive().max(24),
-    valueHours: z.number().min(0).max(48),
-    distanceKm: z.number().min(0).max(10_000).nullable(),
-    loginAt: z.string().datetime().nullable(),
-    logoutAt: z.string().datetime().nullable(),
-    loginLocation: z.string().max(256).nullable(),
-    logoutLocation: z.string().max(256).nullable(),
-  }),
+  violation: z.discriminatedUnion('metric', [
+    z.object({
+      metric: z.literal('drive_hrs'),
+      driver: z.string().min(1).max(128),
+      dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      vehicleSummary: z.string().min(1).max(64),    // '*' or single vehicle id
+      vehicleCount: z.number().int().min(1),
+      shiftCount: z.number().int().min(1),
+      threshold: z.number().positive().max(24),
+      valueHours: z.number().min(0).max(48),         // daily total can plausibly reach ~24
+      distanceKm: z.number().min(0).max(10_000).nullable(),
+      firstLoginAt: z.string().datetime().nullable(),
+      lastLogoutAt: z.string().datetime().nullable(),
+      firstLoginLocation: z.string().max(256).nullable(),
+      lastLogoutLocation: z.string().max(256).nullable(),
+    }),
+    z.object({
+      metric: z.literal('rest_hrs'),
+      driver: z.string().min(1).max(128),
+      vehicle: z.string().min(1).max(64),
+      eventAt: z.string().datetime(),
+      threshold: z.number().positive().max(24),
+      valueHours: z.number().min(0).max(48),
+      distanceKm: z.number().min(0).max(10_000).nullable(),
+      loginAt: z.string().datetime().nullable(),
+      logoutAt: z.string().datetime().nullable(),
+      loginLocation: z.string().max(256).nullable(),
+      logoutLocation: z.string().max(256).nullable(),
+    }),
+  ]),
   operatorNote: z.string().max(500).optional(),
 });
 
@@ -413,13 +477,45 @@ export async function sendDrivingWarning(
 
 ### 8.2 Message template
 
-Thai default (matches the existing dashboards' default `lang === 'th'`):
+Two templates: one for per-day Drive Hours violations, one for per-shift Rest Hours violations.
+
+**Drive Hours (per-day) — Thai default:**
 
 ```
-⚠ การฝ่าฝืน {metricLabel}
+⚠ ขับรถเกิน {threshold} ชม./วัน
+คนขับ: {driver}
+วันที่: {dayKey}
+รวมชั่วโมงขับ: {valueHours} ชม. (เกิน {threshold} ชม.)
+จำนวนกะ: {shiftCount}  ·  รถ: {vehicleSummary}
+เริ่มกะแรก: {firstLoginAt} ({firstLoginLocation})
+จบกะสุดท้าย: {lastLogoutAt} ({lastLogoutLocation})
+ระยะทางรวม: {distanceKm} กม.
+[ หมายเหตุ: {operatorNote} ]
+— แดชบอร์ด {dashboardName}
+```
+
+**Drive Hours (per-day) — English fallback:**
+
+```
+⚠ Drive Hours > {threshold} h/day
+Driver: {driver}
+Date: {dayKey}
+Total drive hours: {valueHours} h (over {threshold} h)
+Shifts: {shiftCount}  ·  Vehicle: {vehicleSummary}
+First shift start: {firstLoginAt} ({firstLoginLocation})
+Last shift end:    {lastLogoutAt} ({lastLogoutLocation})
+Total distance: {distanceKm} km
+[ Note: {operatorNote} ]
+— Dashboard {dashboardName}
+```
+
+**Rest Hours (per-shift) — Thai default:**
+
+```
+⚠ พักน้อยกว่า {threshold} ชม.
 คนขับ: {driver}
 รถ: {vehicle}
-ค่าที่วัดได้: {valueHours} ชม. ({comparator} {threshold} ชม.)
+ชั่วโมงพัก: {valueHours} ชม. (ต่ำกว่า {threshold} ชม.)
 เริ่มกะ: {loginAt} ({loginLocation})
 จบกะ: {logoutAt} ({logoutLocation})
 ระยะทาง: {distanceKm} กม.
@@ -427,13 +523,13 @@ Thai default (matches the existing dashboards' default `lang === 'th'`):
 — แดชบอร์ด {dashboardName}
 ```
 
-English fallback (when dashboard `lang === 'en'`):
+**Rest Hours (per-shift) — English fallback:**
 
 ```
-⚠ {metricLabel} violation
+⚠ Rest Hours < {threshold} h
 Driver: {driver}
 Vehicle: {vehicle}
-Measured: {valueHours} h ({comparator} {threshold} h)
+Rest hours: {valueHours} h (under {threshold} h)
 Shift start: {loginAt} ({loginLocation})
 Shift end:   {logoutAt} ({logoutLocation})
 Distance: {distanceKm} km
@@ -441,16 +537,18 @@ Distance: {distanceKm} km
 — Dashboard {dashboardName}
 ```
 
+`vehicleSummary` rendering: a single vehicle id when `vehicleCount === 1`, otherwise `"{vehicleCount} vehicles"` (en) / `"{vehicleCount} คัน"` (th).
+
 ### 8.3 Flow (numbered for the executor)
 
 1. `auth()` → if no session, return `{ status: 'error', code: 'unauth', message: 'Sign in required.' }`.
 2. Parse `formData` against `Input`; on failure return `code: 'invalid-input'`.
 3. Look up the dashboard by `publicId`. If the user is not admin and `dashboard.companyId` is not in `user.companyIds` (or `organizationId` not in `user.organizationIds` when set), return `code: 'forbidden'`.
 4. Look up `lineChannelId`. If `LineChannel.organizationId !== dashboard.organizationId`, return `code: 'channel-mismatch'`.
-5. Compute `violationKey = computeViolationKey(violation)`.
-6. `INSERT INTO "DrivingWarning"(…, lineStatus='pending', sentByUserId=user.id) ON CONFLICT ("dashboardId", "violationKey") DO NOTHING RETURNING id`. If no `id` returned, the warning already exists — fetch the existing row's `sentAt` and `lineChannelId`, return `code: 'already-sent'` with success-shaped payload so the UI still shows the green badge.
+5. Compute `violationKey = computeViolationKey(violation)`. For `drive_hrs`, vehicle is not part of the key (one (driver, day) is one violation regardless of vehicle count). For `rest_hrs`, vehicle and eventAt ISO are part of the key.
+6. `INSERT INTO "DrivingWarning"(…, lineStatus='pending', sentByUserId=user.id) ON CONFLICT ("dashboardId", "violationKey") DO NOTHING RETURNING id`. If no `id` returned, the warning already exists — fetch the existing row's `sentAt` and `lineChannelId`, return `code: 'already-sent'` with success-shaped payload so the UI still shows the green badge. For `drive_hrs`, `eventAt` is stored as `dayKey || 'T00:00:00Z'` so the unique key + sort ordering are stable.
 7. Decrypt the channel's token: `SELECT pgp_sym_decrypt("accessToken"::bytea, $LINE_TOKEN_ENC_KEY) AS token, "groupId" FROM "LineChannel" WHERE id=$1`.
-8. Build the message body per §8.2.
+8. Build the message body per §8.2, picking the metric-specific template (`drive_hrs` template uses `firstLoginAt`/`lastLogoutAt`/`vehicleSummary`; `rest_hrs` template uses single-shift fields).
 9. `fetch('https://api.line.me/v2/bot/message/push', { method: 'POST', signal: AbortSignal.timeout(5000), headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ to: groupId, messages: [{ type: 'text', text: body }] }) })`.
 10. On `response.ok`: `UPDATE "DrivingWarning" SET "lineStatus"='sent', "sentAt"=now(), "lineMessageId"=$messageId WHERE id=$insertId` and return success.
 11. On non-2xx or timeout: `UPDATE … SET "lineStatus"='failed', "errorMessage"=$short`; return `code: 'line-api'` or `code: 'timeout'` with the short message. UI lets operator retry — retrying reuses the same `violationKey`, which triggers the `already-sent` path on row 6, so we additionally `UPDATE … SET "lineStatus"='pending'` before retrying. The cleanest implementation is to always do `INSERT … ON CONFLICT … DO UPDATE SET "lineStatus"='pending', "errorMessage"=NULL` in step 6, which makes retry idempotent.
@@ -484,7 +582,7 @@ Called server-side in `app/dashboard/[id]/page.tsx` after the dashboard is resol
 
 ### 9.1 `DrivingThresholdAdminFields` — chip-input editor
 
-Replaces today's three number inputs. One row per metric (Drive Hours, Work Hours, Rest Hours). Each row:
+Replaces today's three number inputs. One row per metric (Drive Hours, Rest Hours — Work Hours intentionally removed per §2). Each row:
 
 - Chip list (each chip = `{ value, label? }`, "✕" to remove).
 - "Add" button opens a tiny popover: numeric input (0.5 step, min 0.5, max 24) + optional label input (max 32 chars).
@@ -526,37 +624,54 @@ In `DashboardsClient` (and `addDashboardAction` / `manageDashboardAction` server
 `app/dashboards/drivingScoring.ts` exports:
 
 ```ts
-export const METRIC_WEIGHTS = { driveHours: 1.2, workHours: 1.0, restHours: 1.5 } as const;
-export const SEVERITY_PENALTY_PER_SHIFT_MULTIPLIER = 25;
+export const METRIC_WEIGHTS = { driveHours: 1.2, restHours: 1.5 } as const;
+export const SEVERITY_PENALTY_PER_DAY_MULTIPLIER = 25;
 
 export type DrivingGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
-export function severityForRow(
-  row: DrivingRow,
+export type DriverDay = {
+  driver: string;
+  dayKey: string;
+  totalDriveHours: number;   // sum across the day
+  shifts: DrivingRow[];      // the day's shifts (for rest evaluation)
+};
+
+export function bucketByDriverDay(rows: DrivingRow[]): DriverDay[];
+// Bucket COMPLETED shifts by (driver, dayKey).
+
+export function severityForDriverDay(
+  day: DriverDay,
   thresholds: DrivingThresholds,
-): { drive: 0|1|3; work: 0|1|3; rest: 0|1|3 };
-// drive: 0 if driveHours ≤ lowest threshold; 3 if > highest; 1 otherwise.
-// work : same banding for workingHours.
-// rest : 0 if restHours ≥ highest (rest higher = better); 3 if < lowest; 1 otherwise.
+): { drive: 0|1|3; rest: 0|1|3 };
+// drive: 0 if totalDriveHours ≤ lowest driveHours threshold;
+//        3 if > highest;
+//        1 otherwise.
+// rest:  evaluate each shift in the day; take the WORST severity in the day:
+//        0 if min(restHours where >0) ≥ highest rest threshold (best rest);
+//        3 if min(restHours where >0) < lowest threshold;
+//        1 otherwise. (Shifts with restHours == 0 are ignored — last shift of day has no next-shift gap.)
 
 export function computeDrivingScore(
-  rows: DrivingRow[],   // already COMPLETED only
+  rows: DrivingRow[],         // already COMPLETED only
   thresholds: DrivingThresholds,
-): { score: number; grade: DrivingGrade; perMetric: { drive: number; work: number; rest: number } };
+): { score: number; grade: DrivingGrade; perMetric: { drive: number; rest: number }; totalDays: number };
 
 export function gradeFromScore(score: number): DrivingGrade;
 // 90–100 A, 80–89 B, 65–79 C, 40–64 D, 0–39 F.
 ```
 
-Formula:
+Formula (day-based, since Drive Hours violations are per-day):
 
 ```
-totalRows       = rows.length || 1
-weightedPenalty = Σ_rows (severityScore.drive*1.2 + severityScore.work*1.0 + severityScore.rest*1.5)
-perShift        = weightedPenalty / totalRows
-score           = round(clamp(100 - perShift * 25, 0, 100))
+days            = bucketByDriverDay(rows)
+totalDays       = days.length || 1
+weightedPenalty = Σ_days (severity.drive * 1.2 + severity.rest * 1.5)
+perDay          = weightedPenalty / totalDays
+score           = round(clamp(100 - perDay * 25, 0, 100))
 grade           = gradeFromScore(score)
 ```
+
+This replaces the earlier per-row penalty. Scoring by `(driver, day)` aligns with how Drive Hours are now thresholded — a fleet with no driver having a violating day scores 100; a fleet where every driver-day critically violates both metrics scores `clamp(100 - (3*1.2 + 3*1.5)*25, 0, 100) = 0`.
 
 `computeComplianceScore` (existing) stays for non-Driving dashboards. `DrivingDashboard` calls `computeDrivingScore` instead and writes the result to the existing `saveDashboardScore` cache so the dashboard card displays it.
 
@@ -605,24 +720,27 @@ docs/superpowers/plans/2026-05-27-driving-v2.md          [to be created by writi
 
 ## 12. Acceptance criteria
 
-1. Admin can create a `Driving` dashboard with `driveHours: [4, 10]`, `workHours: [8]`, `restHours: [10]`. After save, the dashboard page renders five tabs: Overview · Drive Hr > 4 h · Drive Hr > 10 h · Work Hr > 8 h · Rest Hr < 10 h.
-2. Legacy dashboards with the old scalar `drivingThresholds` shape render with one tab per metric and one threshold each (no regression).
-3. Each threshold sub-page shows orange + green KPI cards, a dual-axis chart, and a violations table with clock-in/out columns.
-4. Clicking "Send warning" with no LineChannel configured for the fleet shows a disabled button with tooltip; clicking with channels available opens a popover with channel dropdown, message preview, and optional note.
-5. Sending posts a real LINE Messaging API push to the chosen group; the row status flips to "Warned ✓ · {channelName}".
-6. Sending twice on the same row is a no-op (unique idx + ON CONFLICT); UI shows "Already sent".
-7. Token rotation / wrong group / network timeout each surface a distinct user-facing error and persist `lineStatus='failed'` for audit. Retry works without producing duplicate rows.
-8. `/admin/line-channels` allows admin to CRUD channels per fleet, with the access token write-only and stored encrypted in DB.
-9. Bulk-editing dashboards sharing template `Driving` and the same fleet supports setting thresholds + LINE channel at once.
-10. `DashboardCard` for a Driving dashboard displays both score and letter grade (e.g. `92 · A`).
-11. All new strings exist in both `en` and `th`.
-12. Existing Vitest suite passes; new tests cover: `normalizeDrivingThresholds` legacy migration, `computeViolationKey` stability, `severityForRow` banding, `computeDrivingScore` formula, `sendDrivingWarning` happy path + each error code (mocking the LINE fetch).
+1. Admin can create a `Driving` dashboard with `driveHours: [4, 10]`, `restHours: [10]`. After save, the dashboard page renders four tabs: Overview · Drive Hr/day > 4 h · Drive Hr/day > 10 h · Rest Hr < 10 h.
+2. Legacy dashboards with the old scalar `drivingThresholds` shape render with one Drive Hr/day tab and one Rest Hr tab (Work Hours is silently dropped — no tab, no warning). Old scalar `workingHoursMax` is ignored as documented in §4.2.
+3. A driver with three completed shifts on the same day appears as **ONE** row on the Drive Hours sub-page, with `Total Drive Hrs = Σ shift.DriveHrs`, vehicle column showing "*" + tooltip "3 vehicles" if applicable, and first-login / last-logout times.
+4. Each threshold sub-page shows orange + green KPI cards, a dual-axis chart, and a violations table with clock-in/out columns. Drive Hours tables sort by Total Drive Hrs DESC; Rest Hours tables sort by Rest Hrs ASC.
+5. Clicking "Send warning" with no LineChannel configured for the fleet shows a disabled button with tooltip; clicking with channels available opens a popover with channel dropdown, message preview (per-day template for Drive Hours, per-shift template for Rest Hours), and optional note.
+6. Sending posts a real LINE Messaging API push to the chosen group; the row status flips to "Warned ✓ · {channelName}".
+7. Sending twice on the same (driver, day) Drive Hours row is a no-op (unique idx + ON CONFLICT); UI shows "Already sent". Same for a Rest Hours shift row.
+8. Token rotation / wrong group / network timeout each surface a distinct user-facing error and persist `lineStatus='failed'` for audit. Retry works without producing duplicate rows.
+9. `/admin/line-channels` allows admin to CRUD channels per fleet, with the access token write-only and stored encrypted in DB.
+10. Bulk-editing dashboards sharing template `Driving` and the same fleet supports setting thresholds + LINE channel at once.
+11. `DashboardCard` for a Driving dashboard displays both score and letter grade (e.g. `92 · A`).
+12. All new strings exist in both `en` and `th`.
+13. Existing Vitest suite passes; new tests cover: `normalizeDrivingThresholds` legacy migration (incl. `workingHoursMax` being ignored), `computeViolationKey` stability (incl. day-key key for drive_hrs ignoring vehicle), `bucketByDriverDay` correctness on multi-shift days, `severityForDriverDay` banding, `computeDrivingScore` formula, `sendDrivingWarning` happy path + each error code (mocking the LINE fetch) for both metric variants.
 
 ## 13. Out-of-scope / follow-ups
 
+- **Work Hours thresholding** (dropped in v2; total work hours still shown on Overview).
 - Per-driver direct-message LINE (would require driver→LINE userId table; needs onboarding workflow).
 - Reading `RESTHOURFINAL`-style precomputed sheets (would need a per-dashboard "Rest Hours source gid" field and a second parser).
 - A dedicated "DrivingV2" template entry — we extend `Driving` in place.
+- Per-day aggregation of Rest Hours (kept per-shift in v2 since rest is the inter-shift gap, not a daily total).
 - Scoring matrix tuning UI for admins (constants are code-level for v2; flip to JSONB if requested).
 - LINE Flex Messages (text-only in v2 keeps the parser simple).
 - Mobile push notifications.
