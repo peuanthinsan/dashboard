@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import KpiCard from 'app/ui/KpiCard';
 import { DataTable, type Column } from 'app/ui/DataTable';
+import TrendChart, { type MultiTrendDatum } from 'app/ui/TrendChart';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import { dashboardSectionClass } from './DashboardShell';
 import { heading2, textSecondary } from 'app/ui/design-tokens';
@@ -46,6 +47,26 @@ export default function ThresholdSubPage({
     () => new Set(violations.filter((v) => v.warning).map((v) => v.driver)).size,
     [violations],
   );
+
+  const chartData = useMemo<MultiTrendDatum[]>(() => {
+    const map = new Map<string, { duration: number; distance: number }>();
+    for (const v of violations) {
+      const key = v.dayKey;
+      const c = map.get(key) ?? { duration: 0, distance: 0 };
+      c.duration += metric === 'drive_hrs' ? v.driveHours : v.restHours;
+      c.distance += v.distanceKm;
+      map.set(key, c);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, c]) => ({
+        label: key.slice(5).replace('-', '/'),
+        values: {
+          [lang === 'th' ? 'ชั่วโมง' : 'Hours']: Math.round(c.duration * 10) / 10,
+          [lang === 'th' ? 'กม.' : 'KM']: Math.round(c.distance),
+        },
+      }));
+  }, [violations, metric, lang]);
 
   const columns = useMemo<Column<ViolationRow>[]>(() => {
     if (metric === 'drive_hrs') {
@@ -125,6 +146,12 @@ export default function ThresholdSubPage({
           value={String(warnedDrivers)}
         />
       </div>
+
+      {chartData.length > 0 && (
+        <div className="mb-6">
+          <TrendChart data={chartData} mode="dual-axis" height={280} ariaLabel={thresholdLabel} />
+        </div>
+      )}
 
       <DataTable
         columns={columns}
