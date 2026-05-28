@@ -3,10 +3,13 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   serial,
   text,
+  timestamp,
+  uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
 
@@ -92,9 +95,61 @@ export const dashboards = pgTable(
     alertRules: jsonb('alertRules').$type<import('./dashboards/dashboardDataUtils').AlertRule[]>(),
     companyId: integer('companyId'),
     organizationId: integer('organizationId'),
+    lineChannelId: integer('lineChannelId'),
   },
   (table) => ({
     companyIdIdx: index('Dashboard_companyId_idx').on(table.companyId),
     organizationIdIdx: index('Dashboard_organizationId_idx').on(table.organizationId),
+    lineChannelIdIdx: index('Dashboard_lineChannelId_idx').on(table.lineChannelId),
   })
+);
+
+export const lineChannels = pgTable(
+  'LineChannel',
+  {
+    id: serial('id').primaryKey(),
+    organizationId: integer('organizationId').notNull(),
+    name: varchar('name', { length: 64 }).notNull(),
+    accessToken: text('accessToken').notNull(),
+    groupId: varchar('groupId', { length: 64 }).notNull(),
+    createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    organizationIdIdx: index('LineChannel_organizationId_idx').on(table.organizationId),
+  }),
+);
+
+export const drivingWarnings = pgTable(
+  'DrivingWarning',
+  {
+    id: serial('id').primaryKey(),
+    dashboardId: integer('dashboardId').notNull(),
+    violationKey: varchar('violationKey', { length: 64 }).notNull(),
+    driverName: varchar('driverName', { length: 128 }).notNull(),
+    vehicleNo: varchar('vehicleNo', { length: 64 }).notNull(),
+    eventAt: timestamp('eventAt', { withTimezone: true }).notNull(),
+    metric: varchar('metric', { length: 16 }).notNull(),
+    threshold: numeric('threshold').notNull(),
+    valueHours: numeric('valueHours').notNull(),
+    distanceKm: numeric('distanceKm'),
+    loginAt: timestamp('loginAt', { withTimezone: true }),
+    logoutAt: timestamp('logoutAt', { withTimezone: true }),
+    loginLocation: varchar('loginLocation', { length: 256 }),
+    logoutLocation: varchar('logoutLocation', { length: 256 }),
+    lineChannelId: integer('lineChannelId'),
+    sentByUserId: integer('sentByUserId').notNull(),
+    sentAt: timestamp('sentAt', { withTimezone: true }),
+    lineMessageId: varchar('lineMessageId', { length: 64 }),
+    lineStatus: varchar('lineStatus', { length: 16 }).notNull(),
+    errorMessage: text('errorMessage'),
+    operatorNote: varchar('operatorNote', { length: 500 }),
+    createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    dashboardViolationKeyUnique: uniqueIndex('DrivingWarning_dashboard_key_unique')
+      .on(table.dashboardId, table.violationKey),
+    dashboardSentAtIdx: index('DrivingWarning_dashboard_sentAt_idx')
+      .on(table.dashboardId, table.sentAt),
+  }),
 );

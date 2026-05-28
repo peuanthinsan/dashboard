@@ -10,6 +10,7 @@ import {
   getDashboardScore,
   type CachedScore,
 } from 'app/dashboards/scoreCache';
+import { gradeFromScore } from 'app/dashboards/drivingScoring';
 import ScoreBlock from 'app/ui/ScoreBlock';
 
 type DashboardCardProps = {
@@ -135,7 +136,11 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
           <div className="mt-4">
             <ScoreBlock
               score={cachedScore.score}
-              label={lang === 'th' ? 'คะแนน' : 'score'}
+              label={
+                template === 'Driving'
+                  ? `${lang === 'th' ? 'คะแนน' : 'score'} · ${lang === 'th' ? 'เกรด' : 'Grade'} ${gradeFromScore(cachedScore.score)}`
+                  : (lang === 'th' ? 'คะแนน' : 'score')
+              }
               tooltip={template === 'Driving'
                 ? (lang === 'th'
                   ? 'คะแนนความปลอดภัยการขับขี่ (0–100): ยิ่งสูงยิ่งมีการฝ่าฝืนน้อย'

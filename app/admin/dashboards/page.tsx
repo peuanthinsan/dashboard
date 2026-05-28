@@ -7,6 +7,7 @@ import {
   getCompanies,
   getDashboards,
   getOrganizations,
+  listLineChannels,
   updateDashboard,
 } from 'app/db';
 import {
@@ -44,10 +45,11 @@ export default async function AdminDashboardsPage() {
   const lang = await getDashboardLang();
   const copy = getAdminCopy(lang);
 
-  const [dashboards, companies, organizations] = await Promise.all([
+  const [dashboards, companies, organizations, lineChannels] = await Promise.all([
     getDashboards(),
     getCompanies(),
     getOrganizations(),
+    listLineChannels(),
   ]);
 
   async function addDashboardAction(
@@ -80,6 +82,10 @@ export default async function AdminDashboardsPage() {
       : [];
     const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
     const alertRules = parseAlertRulesFromFormData(formData);
+    const lineChannelIdRaw = formData.get('lineChannelId');
+    const lineChannelId = lineChannelIdRaw && String(lineChannelIdRaw).length > 0
+      ? Number(lineChannelIdRaw)
+      : null;
     try {
       await createDashboard({
         name,
@@ -92,8 +98,13 @@ export default async function AdminDashboardsPage() {
         notes,
         alertTypes: alertTypes.length > 0 ? alertTypes : null,
         remarks: remarks.length > 0 ? remarks : null,
-        drivingThresholds,
+        drivingThresholds: drivingThresholds as unknown as {
+          continuousDrivingMaxHours: number;
+          restMinimumHours: number;
+          workingHoursMax: number;
+        },
         alertRules,
+        lineChannelId,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard created.' };
@@ -149,6 +160,10 @@ export default async function AdminDashboardsPage() {
       : [];
     const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
     const alertRules = parseAlertRulesFromFormData(formData);
+    const lineChannelIdRaw = formData.get('lineChannelId');
+    const lineChannelId = lineChannelIdRaw && String(lineChannelIdRaw).length > 0
+      ? Number(lineChannelIdRaw)
+      : null;
     try {
       await updateDashboard({
         id: dashboardId,
@@ -162,8 +177,13 @@ export default async function AdminDashboardsPage() {
         notes,
         alertTypes: alertTypes.length > 0 ? alertTypes : null,
         remarks: remarks.length > 0 ? remarks : null,
-        drivingThresholds,
+        drivingThresholds: drivingThresholds as unknown as {
+          continuousDrivingMaxHours: number;
+          restMinimumHours: number;
+          workingHoursMax: number;
+        },
         alertRules,
+        lineChannelId,
       });
       revalidatePath('/admin/dashboards');
       return { status: 'success', message: 'Dashboard updated.' };
@@ -187,6 +207,7 @@ export default async function AdminDashboardsPage() {
         dashboards={dashboards}
         companies={companies}
         organizations={organizations}
+        lineChannels={lineChannels}
         addDashboardAction={addDashboardAction}
         manageDashboardAction={manageDashboardAction}
         bulkCreateAction={bulkCreateDashboards}

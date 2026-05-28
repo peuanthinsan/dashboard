@@ -3,7 +3,14 @@ import type { ComponentProps } from 'react';
 import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from 'app/auth';
-import { getDashboardByPublicId, getOrganizationById, getUser, getCompanyById } from 'app/db';
+import {
+  getDashboardByPublicId,
+  getOrganizationById,
+  getUser,
+  getCompanyById,
+  listLineChannelsByOrganization,
+  getWarningsForDashboard,
+} from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import DrivingDashboard from 'app/dashboards/DrivingDashboard';
 import DynamicTripDashboard from 'app/dashboards/DynamicTripDashboard';
@@ -56,9 +63,20 @@ type DashboardByTemplateProps = DashboardViewProps & {
   template: string | null;
   drivingThresholds?: DrivingThresholds;
   isAdmin?: boolean;
+  lineChannels?: { id: number; name: string }[];
+  defaultLineChannelId?: number | null;
+  warnings?: Array<{ violationKey: string; sentAt: Date; channelName: string }>;
 };
 
-function DashboardByTemplate({ template, drivingThresholds, isAdmin, ...props }: DashboardByTemplateProps) {
+function DashboardByTemplate({
+  template,
+  drivingThresholds,
+  isAdmin,
+  lineChannels,
+  defaultLineChannelId,
+  warnings,
+  ...props
+}: DashboardByTemplateProps) {
   const name = resolveTemplateName(template ?? 'Summary');
   switch (name) {
     case 'Detail':
@@ -66,7 +84,16 @@ function DashboardByTemplate({ template, drivingThresholds, isAdmin, ...props }:
     case 'Simple':
       return <SimpleDashboard {...props} isAdmin={isAdmin} />;
     case 'Driving':
-      return <DrivingDashboard {...props} drivingThresholds={drivingThresholds} isAdmin={isAdmin} />;
+      return (
+        <DrivingDashboard
+          {...props}
+          drivingThresholds={drivingThresholds}
+          isAdmin={isAdmin}
+          lineChannels={lineChannels}
+          defaultLineChannelId={defaultLineChannelId}
+          warnings={warnings}
+        />
+      );
     case 'OverSpeed':
       return <OverSpeedDashboard {...props} isAdmin={isAdmin} />;
     case 'DynamicTrip':
@@ -129,6 +156,15 @@ async function DashboardContent({
     (dashboard as { drivingThresholds?: unknown }).drivingThresholds,
   );
 
+  const lineChannels = dashboard.organizationId
+    ? await listLineChannelsByOrganization(dashboard.organizationId)
+    : [];
+  const warnings = await getWarningsForDashboard({
+    dashboardId: dashboard.id,
+    windowStart: null,
+    windowEnd: null,
+  });
+
   return (
     <DashboardByTemplate
       template={dashboard.template ?? null}
@@ -144,6 +180,13 @@ async function DashboardContent({
       alertRules={alertRules}
       drivingThresholds={drivingThresholds}
       isAdmin={isAdmin}
+      lineChannels={lineChannels.map((c) => ({ id: c.id, name: c.name }))}
+      defaultLineChannelId={dashboard.lineChannelId ?? null}
+      warnings={warnings.map((w) => ({
+        violationKey: w.violationKey,
+        sentAt: w.sentAt!,
+        channelName: w.channelName ?? '—',
+      }))}
     />
   );
 }

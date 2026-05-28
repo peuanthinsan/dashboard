@@ -49,6 +49,7 @@ import type {
   bulkRemoveDashboardAlertRule,
 } from 'app/db-bulk';
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
+import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
 const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'DynamicTrip'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
@@ -229,6 +230,7 @@ type DashboardsClientProps = {
   dashboards: Dashboard[];
   companies: Company[];
   organizations: Organization[];
+  lineChannels: Array<{ id: number; name: string; organizationId: number }>;
   addDashboardAction: FormAction;
   manageDashboardAction: FormAction;
   bulkCreateAction: BulkCreateFn;
@@ -244,6 +246,7 @@ function DashboardRow({
   dashboard,
   companies,
   organizations,
+  lineChannels,
   action,
   companyName,
   organizationName,
@@ -253,6 +256,7 @@ function DashboardRow({
   dashboard: Dashboard;
   companies: Company[];
   organizations: Organization[];
+  lineChannels: Array<{ id: number; name: string; organizationId: number }>;
   action: FormAction;
   companyName: string;
   organizationName: string;
@@ -407,6 +411,23 @@ function DashboardRow({
             initialRemarks={dashboard.remarks ?? []}
           />
           <DrivingThresholdAdminFields initial={dashboard.drivingThresholds} />
+          <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+            Default LINE channel
+            <select
+              name="lineChannelId"
+              defaultValue={dashboard.lineChannelId ?? ''}
+              className={ADMIN_SELECT}
+            >
+              <option value="">— None —</option>
+              {lineChannels
+                .filter((c) => c.organizationId === dashboard.organizationId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          </label>
           <AlertRulesEditor initial={dashboard.alertRules} />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
@@ -432,6 +453,7 @@ export default function DashboardsClient({
   dashboards,
   companies,
   organizations,
+  lineChannels,
   addDashboardAction,
   manageDashboardAction,
   bulkCreateAction,
@@ -496,10 +518,12 @@ export default function DashboardsClient({
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createSheetUrl, setCreateSheetUrl] = useState('');
+  const [createOrganizationId, setCreateOrganizationId] = useState('');
   useRefreshOnSuccess(dashboardCreateState);
   const closeCreateDashboardModal = useCallback(() => {
     setIsCreateOpen(false);
     setCreateSheetUrl('');
+    setCreateOrganizationId('');
   }, []);
   useDeferredCloseOnSuccess(dashboardCreateState.status === 'success', closeCreateDashboardModal);
 
@@ -537,6 +561,28 @@ export default function DashboardsClient({
   const [bulkFieldsError, setBulkFieldsError] = useState<string | null>(null);
   const [bulkFieldsSelectedAlertTypes, setBulkFieldsSelectedAlertTypes] = useState<Set<string>>(new Set());
   const [bulkFieldsSelectedRemarks, setBulkFieldsSelectedRemarks] = useState<Set<string>>(new Set());
+  const [bulkFieldsApplyThresholds, setBulkFieldsApplyThresholds] = useState(false);
+  const [bulkFieldsApplyLineChannel, setBulkFieldsApplyLineChannel] = useState(false);
+
+  const bulkSelectedDashboards = useMemo(
+    () => dashboards.filter((d) => selectedIds.has(d.id)),
+    [dashboards, selectedIds],
+  );
+  const bulkAllAreDriving =
+    bulkSelectedDashboards.length > 0 &&
+    bulkSelectedDashboards.every((d) => d.template === 'Driving');
+  const bulkSharedOrgId =
+    bulkSelectedDashboards.length > 0 &&
+    bulkSelectedDashboards.every((d) => d.organizationId === bulkSelectedDashboards[0].organizationId)
+      ? bulkSelectedDashboards[0].organizationId
+      : null;
+  const bulkSharedOrgChannels = useMemo(
+    () =>
+      bulkSharedOrgId != null
+        ? lineChannels.filter((c) => c.organizationId === bulkSharedOrgId)
+        : [],
+    [lineChannels, bulkSharedOrgId],
+  );
 
   function handleCheck(id: number, checked: boolean) {
     setSelectedIds((prev) => {
@@ -768,13 +814,28 @@ export default function DashboardsClient({
     });
   }
 
-  function handleBulkFieldsApply() {
+  function handleBulkFieldsApply(formData: FormData) {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     const alertTypes = bulkFieldsSelectedAlertTypes.size > 0 ? Array.from(bulkFieldsSelectedAlertTypes) : null;
     const remarks = bulkFieldsSelectedRemarks.size > 0 ? Array.from(bulkFieldsSelectedRemarks) : null;
+
+    const payload: Parameters<typeof bulkUpdateFieldsAction>[1] = { alertTypes, remarks };
+    const labels: string[] = ['alert types & remarks'];
+
+    if (bulkAllAreDriving && bulkFieldsApplyThresholds) {
+      payload.drivingThresholds = parseDrivingThresholdsFromFormData(formData);
+      labels.push('driving thresholds');
+    }
+    if (bulkAllAreDriving && bulkSharedOrgId != null && bulkFieldsApplyLineChannel) {
+      const raw = formData.get('lineChannelId');
+      const rawStr = typeof raw === 'string' ? raw : '';
+      payload.lineChannelId = rawStr.length > 0 ? Number(rawStr) : null;
+      labels.push('LINE channel');
+    }
+
     startTransition(async () => {
-      await bulkUpdateFieldsAction(ids, { alertTypes, remarks });
+      await bulkUpdateFieldsAction(ids, payload);
       setSelectedIds(new Set());
       setIsBulkFieldsOpen(false);
       setBulkFieldsLoaded(false);
@@ -783,7 +844,9 @@ export default function DashboardsClient({
       setBulkFieldsSelectedAlertTypes(new Set());
       setBulkFieldsSelectedRemarks(new Set());
       setBulkFieldsSheetUrl('');
-      setBulkStatus(`Updated alert types & remarks for ${ids.length} dashboard(s).`);
+      setBulkFieldsApplyThresholds(false);
+      setBulkFieldsApplyLineChannel(false);
+      setBulkStatus(`Updated ${labels.join(', ')} for ${ids.length} dashboard(s).`);
       router.refresh();
     });
   }
@@ -798,6 +861,8 @@ export default function DashboardsClient({
     setBulkFieldsSelectedAlertTypes(new Set());
     setBulkFieldsSelectedRemarks(new Set());
     setBulkFieldsError(null);
+    setBulkFieldsApplyThresholds(false);
+    setBulkFieldsApplyLineChannel(false);
     setIsBulkFieldsOpen(true);
   }
 
@@ -966,7 +1031,7 @@ export default function DashboardsClient({
         title="Set alert types & remarks"
         description={`Apply alert types and remarks to ${selectedIds.size} selected dashboard(s).`}
       >
-        <div className="grid gap-4">
+        <form action={(fd) => handleBulkFieldsApply(fd)} className="grid gap-4">
           <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
             Sheet link (to load options)
             <input
@@ -1030,20 +1095,77 @@ export default function DashboardsClient({
               </p>
             </>
           )}
+
+          {bulkAllAreDriving && (
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={bulkFieldsApplyThresholds}
+                  onChange={(e) => setBulkFieldsApplyThresholds(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                />
+                Apply driving thresholds to selected
+              </label>
+              {bulkFieldsApplyThresholds ? (
+                <DrivingThresholdAdminFields initial={undefined} />
+              ) : (
+                <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>
+                  When checked, the thresholds below replace each dashboard&apos;s drivingThresholds column.
+                </p>
+              )}
+            </div>
+          )}
+
+          {bulkAllAreDriving && bulkSharedOrgId != null && (
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={bulkFieldsApplyLineChannel}
+                  onChange={(e) => setBulkFieldsApplyLineChannel(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                />
+                Apply default LINE channel to selected
+              </label>
+              {bulkFieldsApplyLineChannel ? (
+                <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+                  Default LINE channel
+                  <select name="lineChannelId" defaultValue="" className={ADMIN_SELECT}>
+                    <option value="">— None —</option>
+                    {bulkSharedOrgChannels.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {bulkSharedOrgChannels.length === 0 && (
+                    <span className={`text-xs ${ADMIN_TEXT_MUTED}`}>
+                      No LINE channels exist for this fleet — applying will clear the channel on selected dashboards.
+                    </span>
+                  )}
+                </label>
+              ) : (
+                <p className={`text-xs ${ADMIN_TEXT_MUTED}`}>
+                  When checked, the selected channel replaces each dashboard&apos;s lineChannelId column.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setIsBulkFieldsOpen(false)} className={ADMIN_SAVE_BUTTON}>
               Cancel
             </button>
             <button
-              type="button"
-              onClick={handleBulkFieldsApply}
+              type="submit"
               disabled={isPending}
               className={ADMIN_PRIMARY_BUTTON}
             >
               {isPending ? 'Applying…' : `Apply to ${selectedIds.size} dashboard(s)`}
             </button>
           </div>
-        </div>
+        </form>
       </AdminModal>
 
       <div className="grid gap-6">
@@ -1223,6 +1345,7 @@ export default function DashboardsClient({
                       dashboard={dashboard}
                       companies={companies}
                       organizations={organizations}
+                      lineChannels={lineChannels}
                       action={manageDashboardAction}
                       companyName={
                         dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'
@@ -1492,6 +1615,8 @@ export default function DashboardsClient({
               <label className={ADMIN_LABEL}>Fleet (optional)</label>
               <select
                 name="organizationId"
+                value={createOrganizationId}
+                onChange={(e) => setCreateOrganizationId(e.target.value)}
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
@@ -1533,6 +1658,25 @@ export default function DashboardsClient({
             </div>
             <div className="sm:col-span-2">
               <DrivingThresholdAdminFields />
+            </div>
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+                Default LINE channel
+                <select name="lineChannelId" defaultValue="" className={ADMIN_SELECT}>
+                  <option value="">— None —</option>
+                  {lineChannels
+                    .filter((c) =>
+                      createOrganizationId
+                        ? c.organizationId === Number(createOrganizationId)
+                        : false,
+                    )
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">

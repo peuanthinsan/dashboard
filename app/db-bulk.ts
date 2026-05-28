@@ -18,6 +18,7 @@ import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
+import { normalizeDrivingThresholds } from './dashboards/drivingThresholds';
 
 const dbUrl = process.env.POSTGRES_URL || 'postgresql://localhost:5432/placeholder?sslmode=require';
 const client = postgres(dbUrl);
@@ -98,13 +99,20 @@ const dashboards = pgTable(
     notes: text('notes'),
     alertTypes: jsonb('alertTypes').$type<string[]>(),
     remarks: jsonb('remarks').$type<string[]>(),
+    drivingThresholds: jsonb('drivingThresholds').$type<{
+      continuousDrivingMaxHours: number;
+      restMinimumHours: number;
+      workingHoursMax: number;
+    }>(),
     alertRules: jsonb('alertRules').$type<import('./dashboards/dashboardDataUtils').AlertRule[]>(),
     companyId: integer('companyId'),
     organizationId: integer('organizationId'),
+    lineChannelId: integer('lineChannelId'),
   },
   (table) => ({
     companyIdIdx: index('Dashboard_companyId_idx').on(table.companyId),
     organizationIdIdx: index('Dashboard_organizationId_idx').on(table.organizationId),
+    lineChannelIdIdx: index('Dashboard_lineChannelId_idx').on(table.lineChannelId),
   }),
 );
 
@@ -333,19 +341,47 @@ export async function bulkDeleteDashboards(ids: number[]) {
   revalidatePath('/admin');
 }
 
+type LegacyDrivingThresholdsShape = {
+  continuousDrivingMaxHours: number;
+  restMinimumHours: number;
+  workingHoursMax: number;
+};
+
 export async function bulkUpdateDashboardFields(
   ids: number[],
-  { alertTypes, remarks }: { alertTypes: string[] | null; remarks: string[] | null }
+  payload: {
+    alertTypes?: string[] | null;
+    remarks?: string[] | null;
+    /** Pass any DrivingThresholds-like shape; normalized server-side. Omit to leave column untouched. */
+    drivingThresholds?: unknown;
+    /** number = assign, null = clear, undefined = leave untouched. */
+    lineChannelId?: number | null;
+  }
 ) {
   await requireAdmin();
   if (ids.length === 0) return;
-  await db
-    .update(dashboards)
-    .set({
-      alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
-      remarks: remarks && remarks.length > 0 ? remarks : null,
-    })
-    .where(inArray(dashboards.id, ids));
+
+  const setData: Partial<typeof dashboards.$inferInsert> = {};
+  if (payload.alertTypes !== undefined) {
+    setData.alertTypes = payload.alertTypes && payload.alertTypes.length > 0 ? payload.alertTypes : null;
+  }
+  if (payload.remarks !== undefined) {
+    setData.remarks = payload.remarks && payload.remarks.length > 0 ? payload.remarks : null;
+  }
+  if (payload.drivingThresholds !== undefined) {
+    // jsonb column; the runtime shape is the new {driveHours, restHours} form. The schema's
+    // declared `$type` still reflects the legacy shape so we cast through unknown.
+    setData.drivingThresholds = normalizeDrivingThresholds(
+      payload.drivingThresholds,
+    ) as unknown as LegacyDrivingThresholdsShape;
+  }
+  if (payload.lineChannelId !== undefined) {
+    setData.lineChannelId = payload.lineChannelId;
+  }
+
+  if (Object.keys(setData).length === 0) return;
+
+  await db.update(dashboards).set(setData).where(inArray(dashboards.id, ids));
   revalidatePath('/admin');
 }
 
