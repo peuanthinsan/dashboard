@@ -47,10 +47,15 @@ type DrivingRow = {
   driver: string;
   vehicle: string;
   date: Date | null;
-  distanceKm: number;
-  cntDrvDurationHours: number;
-  restHours: number;
+  loginAt: Date | null;
+  logoutAt: Date | null;
+  loginLocation: string;
+  logoutLocation: string;
+  driveHours: number;
   workingHours: number;
+  restHours: number;
+  distanceKm: number;
+  status: string;
   fleet?: string;
 };
 type DriverAggregate = {
@@ -165,23 +170,22 @@ export default function DrivingDashboard({
     sourceRow: row,
     driver: toDisplayString(findValue(row, ['Driver Name'])),
     vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
-    date: parseDate(findValue(row, ['DateTime', 'Start Time', 'Date', 'Alert Date Time'])),
-    distanceKm: parseNumber(findValue(row, ['Distance'])),
-    cntDrvDurationHours: parseDurationHours(findValue(row, ['Cnt Drv Hr', 'Cnt Drv duration', 'DriveHrs duration'])),
-    restHours: parseDurationHours(findValue(row, ['Rest Time', 'Rest Hr', 'RestHr', 'Rest Hour', 'Rest Hours', 'Rest duration', 'RestHrs duration'])),
-    workingHours: parseDurationHours(findValue(row, [
-      'Working Hr',
-      'Working Hour',
-      'Working Hours',
-      'Work Hr',
-      'Work Hour',
-      'Work Hours',
-      'Working Time',
-      'Work Time',
-      'Total Working',
-      'WorkHrs duration',
-      'WorkHrs',
+    date: parseDate(findValue(row, ['DateTime', 'Login Time', 'Date', 'Start Time'])),
+    loginAt: parseDate(findValue(row, ['Login Time', 'Start Time', 'Login DateTime'])),
+    logoutAt: parseDate(findValue(row, ['Logout Time', 'End Time', 'Logout DateTime'])),
+    loginLocation: toDisplayString(findValue(row, ['Login Location'])),
+    logoutLocation: toDisplayString(findValue(row, ['Logout Location'])),
+    driveHours: parseDurationHours(findValue(row, ['DriveHrs', 'DriveHrs duration', 'Cnt Drv Hr', 'Cnt Drv duration'])),
+    restHours: parseDurationHours(findValue(row, [
+      'Rest Time', 'Rest Hr', 'RestHr', 'Rest Hour', 'Rest Hours', 'Rest duration', 'RestHrs', 'RestHrs duration',
     ])),
+    workingHours: parseDurationHours(findValue(row, [
+      'Working Hr', 'Working Hour', 'Working Hours',
+      'Work Hr', 'Work Hour', 'Work Hours', 'Working Time', 'Work Time', 'Total Working',
+      'WorkHrs', 'WorkHrs duration',
+    ])),
+    distanceKm: parseNumber(findValue(row, ['Distance', 'Distance KM', 'Distance(KM)'])),
+    status: toDisplayString(findValue(row, ['Status'])).toUpperCase(),
     fleet: toDisplayString(findValue(row, ['Fleet'])),
   })).filter((row) => {
     if (!normalizedOrganizationName) return true;
@@ -191,10 +195,15 @@ export default function DrivingDashboard({
     driver: row.driver,
     vehicle: row.vehicle,
     date: row.date,
-    distanceKm: row.distanceKm,
-    cntDrvDurationHours: row.cntDrvDurationHours,
+    loginAt: row.loginAt,
+    logoutAt: row.logoutAt,
+    loginLocation: row.loginLocation,
+    logoutLocation: row.logoutLocation,
+    driveHours: row.driveHours,
     restHours: row.restHours,
     workingHours: row.workingHours,
+    distanceKm: row.distanceKm,
+    status: row.status,
   })), [rows, normalizedOrganizationName]);
 
   const driverOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.driver).filter((n) => n !== '—'))).sort(), [drivingRows]);
@@ -263,7 +272,7 @@ export default function DrivingDashboard({
       const c = totals.get(row.driver) ?? { driver: row.driver, tripCount: 0, totalDistanceKm: 0, totalCntDrvDurationHours: 0, monthlyMap: new Map() };
       c.tripCount += 1;
       c.totalDistanceKm += row.distanceKm;
-      c.totalCntDrvDurationHours += row.cntDrvDurationHours;
+      c.totalCntDrvDurationHours += row.driveHours;
       if (row.date) {
         const mk = getMonthKey(row.date);
         c.monthlyMap.set(mk, (c.monthlyMap.get(mk) ?? 0) + row.distanceKm);
@@ -296,15 +305,15 @@ export default function DrivingDashboard({
       tripsSecond: second.length,
       distFirst: first.reduce((s, r) => s + r.distanceKm, 0),
       distSecond: second.reduce((s, r) => s + r.distanceKm, 0),
-      durFirst: first.reduce((s, r) => s + r.cntDrvDurationHours, 0),
-      durSecond: second.reduce((s, r) => s + r.cntDrvDurationHours, 0),
+      durFirst: first.reduce((s, r) => s + r.driveHours, 0),
+      durSecond: second.reduce((s, r) => s + r.driveHours, 0),
     };
   }, [filteredRows]);
 
   const kpis = useMemo(() => {
     const totalTrips = filteredRows.length;
     const totalDistanceKm = filteredRows.reduce((s, r) => s + r.distanceKm, 0);
-    const totalCntDrvDurationHours = filteredRows.reduce((s, r) => s + r.cntDrvDurationHours, 0);
+    const totalCntDrvDurationHours = filteredRows.reduce((s, r) => s + r.driveHours, 0);
     const totalRestHours = filteredRows.reduce((s, r) => s + r.restHours, 0);
     return {
       totalTrips,
@@ -323,7 +332,7 @@ export default function DrivingDashboard({
       if (!row.date) return;
       const mk = getMonthKey(row.date);
       const c = map.get(mk) ?? { monthKey: mk, monthLabel: getMonthLabel(mk), totalDistanceKm: 0, totalCntDrvDurationHours: 0, tripCount: 0 };
-      c.totalDistanceKm += row.distanceKm; c.totalCntDrvDurationHours += row.cntDrvDurationHours; c.tripCount += 1;
+      c.totalDistanceKm += row.distanceKm; c.totalCntDrvDurationHours += row.driveHours; c.tripCount += 1;
       map.set(mk, c);
     });
     return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
@@ -344,7 +353,7 @@ export default function DrivingDashboard({
       const c = map.get(row.vehicle) ?? { vehicle: row.vehicle, tripCount: 0, totalDistanceKm: 0, totalCntDrvDurationHours: 0, drivers: new Set<string>() };
       c.tripCount += 1;
       c.totalDistanceKm += row.distanceKm;
-      c.totalCntDrvDurationHours += row.cntDrvDurationHours;
+      c.totalCntDrvDurationHours += row.driveHours;
       if (row.driver !== '—') c.drivers.add(row.driver);
       map.set(row.vehicle, c);
     });
@@ -397,12 +406,12 @@ export default function DrivingDashboard({
     const result: ViolationRow[] = [];
     filteredRows.forEach((row) => {
       const dateStr = row.date ? row.date.toLocaleDateString('en-GB') : '—';
-      if (row.cntDrvDurationHours > driveMaxHours) {
+      if (row.driveHours > driveMaxHours) {
         result.push({
           driver: row.driver,
           vehicle: row.vehicle,
           date: dateStr,
-          cntDrvHours: row.cntDrvDurationHours,
+          cntDrvHours: row.driveHours,
           restHours: row.restHours,
           workingHours: row.workingHours,
           type: 'cnt_drv',
@@ -413,7 +422,7 @@ export default function DrivingDashboard({
           driver: row.driver,
           vehicle: row.vehicle,
           date: dateStr,
-          cntDrvHours: row.cntDrvDurationHours,
+          cntDrvHours: row.driveHours,
           restHours: row.restHours,
           workingHours: row.workingHours,
           type: 'rest_hr',
@@ -424,7 +433,7 @@ export default function DrivingDashboard({
           driver: row.driver,
           vehicle: row.vehicle,
           date: dateStr,
-          cntDrvHours: row.cntDrvDurationHours,
+          cntDrvHours: row.driveHours,
           restHours: row.restHours,
           workingHours: row.workingHours,
           type: 'working_hr',
@@ -479,7 +488,7 @@ export default function DrivingDashboard({
       if (row.driver === '—') return;
       const c = map.get(row.driver) ?? { driver: row.driver, totalRestHours: 0, totalCntDrvHours: 0, tripCount: 0 };
       c.totalRestHours += row.restHours;
-      c.totalCntDrvHours += row.cntDrvDurationHours;
+      c.totalCntDrvHours += row.driveHours;
       c.tripCount += 1;
       map.set(row.driver, c);
     });
