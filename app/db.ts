@@ -515,6 +515,7 @@ export async function createDashboard({
   remarks,
   drivingThresholds,
   alertRules,
+  lineChannelId,
 }: {
   name: string;
   companyId: number;
@@ -532,6 +533,7 @@ export async function createDashboard({
     workingHoursMax: number;
   } | null;
   alertRules?: import('./dashboards/dashboardDataUtils').AlertRule[] | null;
+  lineChannelId?: number | null;
 }) {
   await assertOrganizationBelongsToCompany(companyId, organizationId);
   const [result] = await db.insert(dashboards).values({
@@ -547,6 +549,7 @@ export async function createDashboard({
     remarks: remarks && remarks.length > 0 ? remarks : null,
     drivingThresholds: drivingThresholds ?? null,
     alertRules: alertRules && alertRules.length > 0 ? alertRules : null,
+    lineChannelId: lineChannelId ?? null,
     publicId: randomUUID(),
   }).returning({ id: dashboards.id });
   return result;
@@ -566,6 +569,7 @@ export async function updateDashboard({
   remarks,
   drivingThresholds,
   alertRules,
+  lineChannelId,
 }: {
   id: number;
   name: string;
@@ -584,6 +588,7 @@ export async function updateDashboard({
     workingHoursMax: number;
   } | null;
   alertRules?: import('./dashboards/dashboardDataUtils').AlertRule[] | null;
+  lineChannelId?: number | null;
 }) {
   await assertOrganizationBelongsToCompany(companyId, organizationId);
   return await db
@@ -601,6 +606,7 @@ export async function updateDashboard({
       remarks: remarks && remarks.length > 0 ? remarks : null,
       drivingThresholds: drivingThresholds ?? null,
       alertRules: alertRules && alertRules.length > 0 ? alertRules : null,
+      lineChannelId: lineChannelId ?? null,
     })
     .where(eq(dashboards.id, id));
 }
@@ -868,6 +874,17 @@ export async function listLineChannelsByOrganization(organizationId: number) {
     .where(eq(lineChannels.organizationId, organizationId))
     .orderBy(lineChannels.name);
 }
+
+export const listLineChannels = cache(async () => {
+  return db
+    .select({
+      id: lineChannels.id,
+      name: lineChannels.name,
+      organizationId: lineChannels.organizationId,
+    })
+    .from(lineChannels)
+    .orderBy(lineChannels.name);
+});
 
 export async function insertPendingDrivingWarning(args: {
   dashboardId: number;

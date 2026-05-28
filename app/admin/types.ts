@@ -43,4 +43,5 @@ export type Dashboard = {
   alertRules?: import('app/dashboards/dashboardDataUtils').AlertRule[] | null;
   companyId: number | null;
   organizationId: number | null;
+  lineChannelId?: number | null;
 };

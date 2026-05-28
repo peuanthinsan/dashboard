@@ -229,6 +229,7 @@ type DashboardsClientProps = {
   dashboards: Dashboard[];
   companies: Company[];
   organizations: Organization[];
+  lineChannels: Array<{ id: number; name: string; organizationId: number }>;
   addDashboardAction: FormAction;
   manageDashboardAction: FormAction;
   bulkCreateAction: BulkCreateFn;
@@ -244,6 +245,7 @@ function DashboardRow({
   dashboard,
   companies,
   organizations,
+  lineChannels,
   action,
   companyName,
   organizationName,
@@ -253,6 +255,7 @@ function DashboardRow({
   dashboard: Dashboard;
   companies: Company[];
   organizations: Organization[];
+  lineChannels: Array<{ id: number; name: string; organizationId: number }>;
   action: FormAction;
   companyName: string;
   organizationName: string;
@@ -407,6 +410,23 @@ function DashboardRow({
             initialRemarks={dashboard.remarks ?? []}
           />
           <DrivingThresholdAdminFields initial={dashboard.drivingThresholds} />
+          <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+            Default LINE channel
+            <select
+              name="lineChannelId"
+              defaultValue={dashboard.lineChannelId ?? ''}
+              className={ADMIN_SELECT}
+            >
+              <option value="">— None —</option>
+              {lineChannels
+                .filter((c) => c.organizationId === dashboard.organizationId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          </label>
           <AlertRulesEditor initial={dashboard.alertRules} />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
@@ -432,6 +452,7 @@ export default function DashboardsClient({
   dashboards,
   companies,
   organizations,
+  lineChannels,
   addDashboardAction,
   manageDashboardAction,
   bulkCreateAction,
@@ -496,10 +517,12 @@ export default function DashboardsClient({
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createSheetUrl, setCreateSheetUrl] = useState('');
+  const [createOrganizationId, setCreateOrganizationId] = useState('');
   useRefreshOnSuccess(dashboardCreateState);
   const closeCreateDashboardModal = useCallback(() => {
     setIsCreateOpen(false);
     setCreateSheetUrl('');
+    setCreateOrganizationId('');
   }, []);
   useDeferredCloseOnSuccess(dashboardCreateState.status === 'success', closeCreateDashboardModal);
 
@@ -1223,6 +1246,7 @@ export default function DashboardsClient({
                       dashboard={dashboard}
                       companies={companies}
                       organizations={organizations}
+                      lineChannels={lineChannels}
                       action={manageDashboardAction}
                       companyName={
                         dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'
@@ -1492,6 +1516,8 @@ export default function DashboardsClient({
               <label className={ADMIN_LABEL}>Fleet (optional)</label>
               <select
                 name="organizationId"
+                value={createOrganizationId}
+                onChange={(e) => setCreateOrganizationId(e.target.value)}
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
@@ -1533,6 +1559,25 @@ export default function DashboardsClient({
             </div>
             <div className="sm:col-span-2">
               <DrivingThresholdAdminFields />
+            </div>
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+                Default LINE channel
+                <select name="lineChannelId" defaultValue="" className={ADMIN_SELECT}>
+                  <option value="">— None —</option>
+                  {lineChannels
+                    .filter((c) =>
+                      createOrganizationId
+                        ? c.organizationId === Number(createOrganizationId)
+                        : false,
+                    )
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
