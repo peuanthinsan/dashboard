@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
@@ -137,6 +137,7 @@ export default function DrivingDashboard({
     [thresholds, lang, copy],
   );
   const searchParams = useSearchParams();
+  const router = useRouter();
   const activeSubPage = useMemo(
     () => subPageBySlug(subPages, searchParams.get('tab')),
     [subPages, searchParams],
@@ -149,6 +150,17 @@ export default function DrivingDashboard({
       return `${pathname}?${usp.toString()}`;
     },
     [pathname, searchParams],
+  );
+  const jumpToFirstThresholdTab = useCallback(
+    (nextThresholds: DrivingThresholds) => {
+      const nextPages = deriveSubPages(nextThresholds, lang, copy.drivingV2);
+      const target = nextPages.find((p) => p.kind !== 'overview');
+      if (!target) return;
+      const usp = new URLSearchParams(searchParams.toString());
+      usp.set('tab', target.slug);
+      router.replace(`${pathname}?${usp.toString()}`);
+    },
+    [copy.drivingV2, lang, pathname, router, searchParams],
   );
   const driveMaxHours = thresholds.driveHours[0]
     ? thresholdEntryValue(thresholds.driveHours[0]) : Infinity;
@@ -721,7 +733,10 @@ export default function DrivingDashboard({
               dashboardPublicId={dashboardId}
               initialThresholds={thresholds}
               lang={lang}
-              onSaved={setThresholds}
+              onSaved={(next) => {
+                setThresholds(next);
+                jumpToFirstThresholdTab(next);
+              }}
             />
           ) : null}
         </>
