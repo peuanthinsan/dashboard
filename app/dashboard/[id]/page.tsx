@@ -63,6 +63,7 @@ type DashboardByTemplateProps = DashboardViewProps & {
   template: string | null;
   drivingThresholds?: DrivingThresholds;
   isAdmin?: boolean;
+  dashboardRowId?: number;
   lineChannels?: { id: number; name: string }[];
   defaultLineChannelId?: number | null;
   warnings?: Array<{ violationKey: string; sentAt: Date; channelName: string }>;
@@ -72,6 +73,7 @@ function DashboardByTemplate({
   template,
   drivingThresholds,
   isAdmin,
+  dashboardRowId,
   lineChannels,
   defaultLineChannelId,
   warnings,
@@ -89,6 +91,7 @@ function DashboardByTemplate({
           {...props}
           drivingThresholds={drivingThresholds}
           isAdmin={isAdmin}
+          dashboardRowId={dashboardRowId}
           lineChannels={lineChannels}
           defaultLineChannelId={defaultLineChannelId}
           warnings={warnings}
@@ -180,6 +183,7 @@ async function DashboardContent({
       alertRules={alertRules}
       drivingThresholds={drivingThresholds}
       isAdmin={isAdmin}
+      dashboardRowId={dashboard.id}
       lineChannels={lineChannels.map((c) => ({ id: c.id, name: c.name }))}
       defaultLineChannelId={dashboard.lineChannelId ?? null}
       warnings={warnings.map((w) => ({

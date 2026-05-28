@@ -15,6 +15,7 @@ import {
   drivingWarnings,
 } from './db-schema';
 import { decryptLineTokenColumn } from './lib/lineTokenCrypto';
+import type { DrivingThresholds } from './dashboards/drivingThresholds';
 
 const dbUrl = process.env.POSTGRES_URL || 'postgresql://localhost:5432/placeholder?sslmode=require';
 const client = postgres(dbUrl);
@@ -613,6 +614,22 @@ export async function updateDashboard({
 
 export async function deleteDashboard(id: number) {
   return await db.delete(dashboards).where(eq(dashboards.id, id));
+}
+
+export async function updateDashboardDrivingThresholds(
+  id: number,
+  thresholds: DrivingThresholds,
+) {
+  return await db
+    .update(dashboards)
+    .set({
+      drivingThresholds: thresholds as unknown as {
+        continuousDrivingMaxHours: number;
+        restMinimumHours: number;
+        workingHoursMax: number;
+      },
+    })
+    .where(eq(dashboards.id, id));
 }
 
 export async function updateUserProfile({

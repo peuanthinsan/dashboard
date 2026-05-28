@@ -34,6 +34,7 @@ import { deriveSubPages, subPageBySlug } from './drivingSubPages';
 import ThresholdSubPage from './ThresholdSubPage';
 import { buildDriveHoursViolations, buildRestHoursViolations } from './violationBuilders';
 import SendWarningButton from './SendWarningButton';
+import DrivingThresholdInlineEditor from './DrivingThresholdInlineEditor';
 
 type DashboardProps = {
   dashboardId: string;
@@ -50,6 +51,7 @@ type DashboardProps = {
   defaultLineChannelId?: number | null;
   warnings?: Array<{ violationKey: string; sentAt: Date; channelName: string }>;
   isAdmin?: boolean;
+  dashboardRowId?: number;
 };
 
 type DrivingRow = {
@@ -121,11 +123,14 @@ export default function DrivingDashboard({
   defaultLineChannelId = null,
   warnings = [],
   isAdmin = false,
+  dashboardRowId,
 }: DashboardProps) {
-  const thresholds = useMemo(
-    () => normalizeDrivingThresholds(drivingThresholdsProp),
-    [drivingThresholdsProp],
+  const [thresholds, setThresholds] = useState<DrivingThresholds>(() =>
+    normalizeDrivingThresholds(drivingThresholdsProp),
   );
+  useEffect(() => {
+    setThresholds(normalizeDrivingThresholds(drivingThresholdsProp));
+  }, [drivingThresholdsProp]);
   const copy = useMemo(() => getDashboardCopy(lang), [lang]);
   const subPages = useMemo(
     () => deriveSubPages(thresholds, lang, copy.drivingV2),
@@ -149,7 +154,6 @@ export default function DrivingDashboard({
     ? thresholdEntryValue(thresholds.driveHours[0]) : Infinity;
   const restMinHours = thresholds.restHours[0]
     ? thresholdEntryValue(thresholds.restHours[0]) : 0;
-  const workingMaxHours = Infinity;
   const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
@@ -455,8 +459,7 @@ export default function DrivingDashboard({
     date: string;
     cntDrvHours: number;
     restHours: number;
-    workingHours: number;
-    type: 'cnt_drv' | 'rest_hr' | 'working_hr';
+    type: 'cnt_drv' | 'rest_hr';
   };
   const violations = useMemo<ViolationRow[]>(() => {
     const result: ViolationRow[] = [];
@@ -469,7 +472,6 @@ export default function DrivingDashboard({
           date: dateStr,
           cntDrvHours: row.driveHours,
           restHours: row.restHours,
-          workingHours: row.workingHours,
           type: 'cnt_drv',
         });
       }
@@ -480,32 +482,19 @@ export default function DrivingDashboard({
           date: dateStr,
           cntDrvHours: row.driveHours,
           restHours: row.restHours,
-          workingHours: row.workingHours,
           type: 'rest_hr',
         });
       }
-      if (row.workingHours > 0 && row.workingHours > workingMaxHours) {
-        result.push({
-          driver: row.driver,
-          vehicle: row.vehicle,
-          date: dateStr,
-          cntDrvHours: row.driveHours,
-          restHours: row.restHours,
-          workingHours: row.workingHours,
-          type: 'working_hr',
-        });
-      }
     });
-    const typeOrder = { cnt_drv: 0, rest_hr: 1, working_hr: 2 } as const;
+    const typeOrder = { cnt_drv: 0, rest_hr: 1 } as const;
     return result.sort((a, b) => {
       if (a.type !== b.type) return typeOrder[a.type] - typeOrder[b.type];
       return a.driver.localeCompare(b.driver);
     });
-  }, [filteredRows, driveMaxHours, restMinHours, workingMaxHours]);
+  }, [filteredRows, driveMaxHours, restMinHours]);
 
   const cntDrvViolations = useMemo(() => violations.filter((v) => v.type === 'cnt_drv'), [violations]);
   const restHrViolations = useMemo(() => violations.filter((v) => v.type === 'rest_hr'), [violations]);
-  const workingHrViolations = useMemo(() => violations.filter((v) => v.type === 'working_hr'), [violations]);
 
   // --- Driving safety score (cached for main dashboard listing) ---
   const drivingScore = useMemo(
@@ -561,7 +550,6 @@ export default function DrivingDashboard({
   const violationTableColumns = useMemo<Column<ViolationRow>[]>(() => {
     const maxCnt = driveMaxHours;
     const minRest = restMinHours;
-    const maxWork = workingMaxHours;
     return [
       { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
       { key: 'vehicle', label: lang === 'th' ? 'ยานพาหนะ' : 'Vehicle', sortable: true },
@@ -590,18 +578,6 @@ export default function DrivingDashboard({
         },
       },
       {
-        key: 'workingHours',
-        label: lang === 'th' ? 'ชม.ทำงาน' : 'Working Hr',
-        sortable: true,
-        render: (v) => {
-          const hours = Number(v);
-          if (hours === 0) return <span className="text-zinc-400">—</span>;
-          return (
-            <span className={hours > maxWork ? 'font-semibold text-red-600 dark:text-red-400' : ''}>{formatHours(hours)}</span>
-          );
-        },
-      },
-      {
         key: 'type',
         label: lang === 'th' ? 'ประเภท' : 'Violation',
         sortable: true,
@@ -620,15 +596,11 @@ export default function DrivingDashboard({
               </span>
             );
           }
-          return (
-            <span className="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-              Work &gt; {maxWork}h
-            </span>
-          );
+          return null;
         },
       },
     ];
-  }, [lang, driveMaxHours, restMinHours, workingMaxHours]);
+  }, [lang, driveMaxHours, restMinHours]);
 
   // --- Vehicle table columns ---
   const vehicleTableColumns = useMemo<Column<VehicleAggregate>[]>(() => [
@@ -719,29 +691,40 @@ export default function DrivingDashboard({
       dashboardId={dashboardId}
       isAdmin={isAdmin}
       actions={
-        <ExportButton
-          data={exportData}
-          fullSheetExport={{ rows, filteredRows: filteredRows.map((r) => r.sourceRow), columns: sheetColumns }}
-          dashboardName={dashboardName}
-          dateRange={dateRange}
-          filename={`${dashboardName}-driving`}
-          settingsStorageKey={`driving-${dashboardId}`}
-          lang={lang}
-          fullSheetHint={
-            lang === 'th'
-              ? 'ใช้ตัวกรองเดียวกับตารางนี้ แต่ส่งออกแถวดิบจากชีตหนึ่งแถวต่อทริป/เหตุการณ์ ไม่ใช่หนึ่งแถวต่อแถวสรุปคนขับ — รวมทุกคอลัมน์ในชีต'
-              : 'Same filters as this table, but exports raw spreadsheet rows (one row per trip/event), not one row per aggregated driver summary. Includes every sheet column.'
-          }
-          columns={[
-            { key: 'Driver', label: lang === 'th' ? 'คนขับ' : 'Driver' },
-            { key: 'Trips', label: lang === 'th' ? 'ทริป' : 'Trips' },
-            { key: 'Duration (h)', label: lang === 'th' ? 'ระยะเวลา (ชม.)' : 'Duration (h)' },
-            { key: 'Distance (km)', label: lang === 'th' ? 'ระยะทาง (กม.)' : 'Distance (km)' },
-            { key: 'Avg Distance/Trip (km)', label: lang === 'th' ? 'เฉลี่ยระยะทาง/ทริป (กม.)' : 'Avg distance/trip (km)' },
-            { key: 'Avg Duration/Trip (h)', label: lang === 'th' ? 'เฉลี่ยเวลา/ทริป (ชม.)' : 'Avg duration/trip (h)' },
-          ]}
-          label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
-        />
+        <>
+          <ExportButton
+            data={exportData}
+            fullSheetExport={{ rows, filteredRows: filteredRows.map((r) => r.sourceRow), columns: sheetColumns }}
+            dashboardName={dashboardName}
+            dateRange={dateRange}
+            filename={`${dashboardName}-driving`}
+            settingsStorageKey={`driving-${dashboardId}`}
+            lang={lang}
+            fullSheetHint={
+              lang === 'th'
+                ? 'ใช้ตัวกรองเดียวกับตารางนี้ แต่ส่งออกแถวดิบจากชีตหนึ่งแถวต่อทริป/เหตุการณ์ ไม่ใช่หนึ่งแถวต่อแถวสรุปคนขับ — รวมทุกคอลัมน์ในชีต'
+                : 'Same filters as this table, but exports raw spreadsheet rows (one row per trip/event), not one row per aggregated driver summary. Includes every sheet column.'
+            }
+            columns={[
+              { key: 'Driver', label: lang === 'th' ? 'คนขับ' : 'Driver' },
+              { key: 'Trips', label: lang === 'th' ? 'ทริป' : 'Trips' },
+              { key: 'Duration (h)', label: lang === 'th' ? 'ระยะเวลา (ชม.)' : 'Duration (h)' },
+              { key: 'Distance (km)', label: lang === 'th' ? 'ระยะทาง (กม.)' : 'Distance (km)' },
+              { key: 'Avg Distance/Trip (km)', label: lang === 'th' ? 'เฉลี่ยระยะทาง/ทริป (กม.)' : 'Avg distance/trip (km)' },
+              { key: 'Avg Duration/Trip (h)', label: lang === 'th' ? 'เฉลี่ยเวลา/ทริป (ชม.)' : 'Avg duration/trip (h)' },
+            ]}
+            label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
+          />
+          {isAdmin && dashboardRowId ? (
+            <DrivingThresholdInlineEditor
+              dashboardRowId={dashboardRowId}
+              dashboardPublicId={dashboardId}
+              initialThresholds={thresholds}
+              lang={lang}
+              onSaved={setThresholds}
+            />
+          ) : null}
+        </>
       }
     >
 
@@ -863,11 +846,6 @@ export default function DrivingDashboard({
           label={lang === 'th' ? `พักผ่อน < ${restMinHours} ชม.` : `Rest < ${restMinHours} hrs`}
           value={restHrViolations.length}
           accentColor={restHrViolations.length > 0 ? '#f59e0b' : '#10b981'}
-        />
-        <KpiCard
-          label={lang === 'th' ? `ชม.ทำงาน > ${workingMaxHours} ชม.` : `Working > ${workingMaxHours} hrs`}
-          value={workingHrViolations.length}
-          accentColor={workingHrViolations.length > 0 ? '#8b5cf6' : '#10b981'}
         />
       </div>
 
@@ -1001,35 +979,6 @@ export default function DrivingDashboard({
           </div>
         </section>
 
-        <section className={`min-w-0 ${dashboardSectionClass}`}>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-violet-100 px-2 text-xs font-bold tabular-nums text-violet-700 dark:bg-violet-900 dark:text-violet-300">{workingHrViolations.length}</span>
-            <h2 className={`min-w-0 ${heading2}`}>
-              {lang === 'th'
-                ? `ชม.ทำงาน > ${workingMaxHours} ชม.`
-                : `Working > ${workingMaxHours} hrs`}
-            </h2>
-          </div>
-          <div className="mt-4">
-            {workingHrViolations.length === 0 ? (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
-                {lang === 'th' ? 'ไม่พบการฝ่าฝืน' : 'No violations found'}
-              </div>
-            ) : (
-              <DataTable
-                columns={violationTableColumns.filter((c) => c.key !== 'type')}
-                data={workingHrViolations}
-                defaultSort={{ key: 'workingHours', direction: 'desc' }}
-                pageSize={8}
-                ariaLabel={
-                  lang === 'th'
-                    ? `รายงานชั่วโมงทำงานเกิน ${workingMaxHours} ชม.`
-                    : `Working hours over ${workingMaxHours} hours report`
-                }
-              />
-            )}
-          </div>
-        </section>
       </div>
 
       {/* ═══════════════ FLEET OVERVIEW ═══════════════ */}
