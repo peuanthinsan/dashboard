@@ -42,6 +42,7 @@ export default function AdminNav({ lang }: { lang: DashboardLang }) {
     { href: '/admin/companies', label: copy.companies, hint: copy.manageProfiles },
     { href: '/admin/organizations', label: copy.fleets, hint: copy.manageGroups },
     { href: '/admin/dashboards', label: copy.dashboardsNav, hint: copy.templatesAndLinks },
+    { href: '/admin/line-channels', label: 'LINE channels', hint: 'LINE channels' },
     { href: '/admin/users', label: copy.users, hint: copy.accessAndRoles },
   ];
 
