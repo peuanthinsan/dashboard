@@ -99,7 +99,10 @@ describe('saveCsvExportPrefs', () => {
         throw e;
       },
       removeItem: () => {},
-    } as Storage;
+      length: 0,
+      clear: () => {},
+      key: () => null,
+    } satisfies Storage;
     const r = saveCsvExportPrefs(quotaStorage, 'k', {
       timeFormat: 'as_is',
       dataSource: 'dashboard',

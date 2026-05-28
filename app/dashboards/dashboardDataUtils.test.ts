@@ -114,18 +114,21 @@ describe('dashboardDataUtils', () => {
     });
   });
 
+  // withDerivedRemark is a passthrough trimmer since alert/remark classification
+  // moved into DEFAULT_ALERT_RULES + applyAlertRules. These tests document the
+  // current contract: trim, treat '—' as empty for fallback purposes, and never
+  // mutate semantic content. Classification behavior is covered by AlertRules.
   describe('withDerivedRemark', () => {
-    it('maps hardware alerts to canonical labels', () => {
-      expect(withDerivedRemark('OverSpeed', '—')).toBe('Overspeed');
-      expect(withDerivedRemark('Harsh Brake', '')).toBe('Harsh Brake(HB)');
-      expect(withDerivedRemark('Harsh Acceleration', '')).toBe('Harsh Acceleration(HA)');
+    it('returns the dash sentinel as-is when remarks is the dash', () => {
+      expect(withDerivedRemark('OverSpeed', '—')).toBe('—');
+      expect(withDerivedRemark('Harsh Brake', '')).toBe('');
+      expect(withDerivedRemark('Harsh Acceleration', '')).toBe('');
     });
-    it('maps eye closing rows from remark text', () => {
+    it('returns trimmed remarks verbatim — no canonicalization here', () => {
       expect(withDerivedRemark('Eye Closing-A2', 'Yawning')).toBe('Yawning');
-      expect(withDerivedRemark('Eye Closing-A2', 'Driver fatigue')).toBe('Fatigue');
-    });
-    it('normalizes mobile phone to Phone', () => {
-      expect(withDerivedRemark('Distraction-A2', 'Mobile Phone')).toBe('Phone');
+      expect(withDerivedRemark('Eye Closing-A2', 'Driver fatigue')).toBe('Driver fatigue');
+      expect(withDerivedRemark('Distraction-A2', 'Mobile Phone')).toBe('Mobile Phone');
+      expect(withDerivedRemark('Distraction-A2', '  spaced  ')).toBe('spaced');
     });
   });
 });
