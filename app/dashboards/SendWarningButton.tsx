@@ -65,17 +65,15 @@ export default function SendWarningButton({
       ? {
           metric: 'drive_hrs' as const,
           driver: row.driver,
-          dayKey: row.dayKey,
-          vehicleSummary: row.vehicle,
-          vehicleCount: row.vehicleCount,
-          shiftCount: row.shiftCount,
+          vehicle: row.vehicle,
+          eventAt: row.eventAt.toISOString(),
           threshold: row.threshold,
           valueHours: row.driveHours,
           distanceKm: row.distanceKm,
-          firstLoginAt: row.loginAt?.toISOString() ?? null,
-          lastLogoutAt: row.logoutAt?.toISOString() ?? null,
-          firstLoginLocation: row.loginLocation,
-          lastLogoutLocation: row.logoutLocation,
+          loginAt: row.loginAt?.toISOString() ?? null,
+          logoutAt: row.logoutAt?.toISOString() ?? null,
+          loginLocation: row.loginLocation,
+          logoutLocation: row.logoutLocation,
         }
       : row.metric === 'cnt_drv_hrs'
         ? {

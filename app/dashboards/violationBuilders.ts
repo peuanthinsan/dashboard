@@ -1,4 +1,3 @@
-import { bucketByDriverDay } from './driverDayBucketing';
 import { computeViolationKey, type ViolationRow } from './dashboardDataUtils';
 import type { DrivingCntDrvRow } from './drivingSheetRows';
 
@@ -34,32 +33,34 @@ export function buildDriveHoursViolations(
   spec: ThresholdSpec,
   warnings: WarningMap,
 ): ViolationRow[] {
-  const days = bucketByDriverDay(shifts);
   const out: ViolationRow[] = [];
-  for (const day of days) {
-    if (day.totalDriveHours <= spec.threshold) continue;
+  for (const s of shifts) {
+    if (s.status !== 'COMPLETED') continue;
+    if (!s.loginAt) continue;
+    if (s.driveHours <= spec.threshold) continue;
+    const eventAtIso = s.loginAt.toISOString();
     const violationKey = computeViolationKey({
       metric: 'drive_hrs',
-      driver: day.driver,
-      dayKey: day.dayKey,
+      driver: s.driver,
+      vehicle: s.vehicle,
+      eventAtIso,
       threshold: spec.threshold,
     });
-    const eventAt = new Date(`${day.dayKey}T00:00:00.000Z`);
     out.push({
-      driver: day.driver,
-      vehicle: day.vehicleCount === 1 ? day.vehicleSummary : '*',
-      vehicleCount: day.vehicleCount,
-      shiftCount: day.shifts.length,
-      dayKey: day.dayKey,
-      dateLabel: formatDateLabel(day.firstLoginAt ?? eventAt),
-      eventAt,
-      driveHours: day.totalDriveHours,
+      driver: s.driver,
+      vehicle: s.vehicle,
+      vehicleCount: 1,
+      shiftCount: 1,
+      dayKey: s.loginAt.toISOString().slice(0, 10),
+      dateLabel: formatDateLabel(s.loginAt),
+      eventAt: s.loginAt,
+      driveHours: s.driveHours,
       restHours: 0,
-      distanceKm: day.totalDistanceKm,
-      loginAt: day.firstLoginAt,
-      logoutAt: day.lastLogoutAt,
-      loginLocation: day.firstLoginLocation,
-      logoutLocation: day.lastLogoutLocation,
+      distanceKm: s.distanceKm,
+      loginAt: s.loginAt,
+      logoutAt: s.logoutAt,
+      loginLocation: s.loginLocation,
+      logoutLocation: s.logoutLocation,
       metric: 'drive_hrs',
       threshold: spec.threshold,
       thresholdLabel: spec.label,

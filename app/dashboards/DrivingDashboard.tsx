@@ -7,7 +7,7 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
+import { findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
 import {
   computeDrivingScore,
@@ -22,7 +22,6 @@ import EmptyState from 'app/ui/EmptyState';
 import TrendChart from 'app/ui/TrendChart';
 import HorizontalBarChart from 'app/ui/HorizontalBarChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
-import Sparkline from 'app/ui/Sparkline';
 import TrendIndicator from 'app/ui/TrendIndicator';
 import InlineMonthPicker from 'app/ui/InlineMonthPicker';
 import InlineDayPicker from 'app/ui/InlineDayPicker';
@@ -49,6 +48,13 @@ import {
 } from './drivingSheetRows';
 import SendWarningButton from './SendWarningButton';
 import DrivingThresholdInlineEditor from './DrivingThresholdInlineEditor';
+import { formatDurationDisplay, hoursToHms } from './drivingDurationFormat';
+import {
+  buildTripExportRows,
+  buildTripTableColumns,
+  buildTripTableRows,
+  type SheetTripRow,
+} from './drivingTripTable';
 
 type DashboardProps = {
   dashboardId: string;
@@ -87,7 +93,7 @@ const parseNumber = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const formatHours = (hours: number) => `${hours.toFixed(2)} h`;
+const formatHours = (hours: number) => hoursToHms(hours);
 const formatDistance = (km: number) => `${km.toFixed(1)} km`;
 const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 const getMonthLabel = (key: string) => {
@@ -259,19 +265,6 @@ export default function DrivingDashboard({
     () => applyRowFilters(shiftRows),
     [applyRowFilters, shiftRows],
   );
-  const filteredShiftRowsForDriveAggregation = useMemo(
-    () => shiftRows.filter((row) => {
-      if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
-      if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
-      if (selectedMonth) {
-        const loginMonth = row.loginAt ? toMonthKey(row.loginAt) : null;
-        const logoutMonth = row.logoutAt ? toMonthKey(row.logoutAt) : null;
-        if (loginMonth !== selectedMonth && logoutMonth !== selectedMonth) return false;
-      }
-      return true;
-    }),
-    [shiftRows, driverFilters, vehicleFilters, selectedMonth],
-  );
   const filteredCntDrvRows = useMemo(
     () => applyRowFilters(cntDrvRows),
     [applyRowFilters, cntDrvRows],
@@ -299,13 +292,13 @@ export default function DrivingDashboard({
   const driveHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'drive_hrs') return [];
     const violations = buildDriveHoursViolations(
-      filteredShiftRowsForDriveAggregation,
+      filteredShiftRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
     );
     if (dayFilters.length === 0) return violations;
     return violations.filter((v) => dayFilters.includes(v.dayKey));
-  }, [activeSubPage, filteredShiftRowsForDriveAggregation, warningsMap, dayFilters]);
+  }, [activeSubPage, filteredShiftRows, warningsMap, dayFilters]);
 
   const restHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'rest_hrs') return [];
@@ -650,7 +643,9 @@ export default function DrivingDashboard({
         render: (v) => {
           const hours = Number(v);
           return (
-            <span className={hours > maxCnt ? 'font-semibold text-red-600 dark:text-red-400' : ''}>{formatHours(hours)}</span>
+            <span className={hours > maxCnt ? 'font-semibold text-red-600 dark:text-red-400' : 'tabular-nums'}>
+              {formatDurationDisplay(null, hours)}
+            </span>
           );
         },
       },
@@ -662,7 +657,9 @@ export default function DrivingDashboard({
           const hours = Number(v);
           if (hours === 0) return <span className="text-zinc-400">—</span>;
           return (
-            <span className={hours < minRest ? 'font-semibold text-red-600 dark:text-red-400' : ''}>{formatHours(hours)}</span>
+            <span className={hours < minRest ? 'font-semibold text-red-600 dark:text-red-400' : 'tabular-nums'}>
+              {formatDurationDisplay(null, hours)}
+            </span>
           );
         },
       },
@@ -691,62 +688,30 @@ export default function DrivingDashboard({
     ];
   }, [lang, cntDrvMaxHours, restMinHours]);
 
-  // --- Vehicle table columns ---
-  const vehicleTableColumns = useMemo<Column<VehicleAggregate>[]>(() => [
-    { key: 'vehicle', label: lang === 'th' ? 'ยานพาหนะ' : 'Vehicle', sortable: true, stickyLeft: true },
-    { key: 'tripCount', label: lang === 'th' ? 'ทริป' : 'Trips', sortable: true },
-    { key: 'totalDistanceKm', label: lang === 'th' ? 'ระยะทาง' : 'Distance', sortable: true, render: (v) => formatDistance(Number(v)) },
-    { key: 'totalCntDrvDurationHours', label: lang === 'th' ? 'ระยะเวลา' : 'Duration', sortable: true, render: (v) => formatHours(Number(v)) },
-    { key: 'driverCount', label: lang === 'th' ? 'คนขับ' : 'Drivers', sortable: true },
-  ], [lang]);
+  const exportData = useMemo(
+    () => buildTripExportRows(
+      filteredShiftRows.map((r) => r.sourceRow),
+      sheetColumns,
+    ),
+    [filteredShiftRows, sheetColumns],
+  );
 
-  const exportData = useMemo(() => aggregates.map((r) => ({
-    Driver: r.driver,
-    Trips: r.tripCount,
-    'Duration (h)': r.totalCntDrvDurationHours.toFixed(2),
-    'Distance (km)': r.totalDistanceKm.toFixed(1),
-    'Avg Distance/Trip (km)': r.avgDistancePerTrip.toFixed(1),
-    'Avg Duration/Trip (h)': r.avgDurationPerTrip.toFixed(2),
-  })), [aggregates]);
+  const tripTableData = useMemo(
+    () => buildTripTableRows(filteredShiftRows.map((r) => r.sourceRow)),
+    [filteredShiftRows],
+  );
 
-  // DataTable columns
-  const tableColumns = useMemo<Column<DriverAggregate>[]>(() => [
-    { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
-    { key: 'tripCount', label: lang === 'th' ? 'ทริป' : 'Trips', sortable: true },
-    {
-      key: 'totalDistanceKm',
-      label: lang === 'th' ? 'ระยะทาง' : 'Distance',
-      sortable: true,
-      render: (v) => formatDistance(Number(v)),
-    },
-    {
-      key: 'totalCntDrvDurationHours',
-      label: lang === 'th' ? 'ระยะเวลา' : 'Duration',
-      sortable: true,
-      render: (v) => formatHours(Number(v)),
-    },
-    {
-      key: 'avgDistancePerTrip',
-      label: lang === 'th' ? 'เฉลี่ยระยะทาง/ทริป' : 'Avg Dist/Trip',
-      sortable: true,
-      render: (v) => formatDistance(Number(v)),
-    },
-    {
-      key: 'avgDurationPerTrip',
-      label: lang === 'th' ? 'เฉลี่ยเวลา/ทริป' : 'Avg Dur/Trip',
-      sortable: true,
-      render: (v) => formatHours(Number(v)),
-    },
-    {
-      key: 'monthlyDistances',
-      label: lang === 'th' ? 'แนวโน้มรายเดือน' : 'Monthly Trend',
-      sortable: false,
-      render: (v) => {
-        const data = v as number[];
-        return <Sparkline data={data} width={80} height={24} />;
-      },
-    },
-  ], [lang]);
+  const tripTableColumns = useMemo(
+    () => buildTripTableColumns(sheetColumns),
+    [sheetColumns],
+  );
+
+  const tripTableDefaultSortKey = useMemo(() => {
+    const loginCol = sheetColumns.find((c) =>
+      ['login time', 'start time', 'datetime'].includes(c.label.trim().toLowerCase()),
+    );
+    return loginCol?.fieldKey ?? sheetColumns[0]?.fieldKey ?? '_id';
+  }, [sheetColumns]);
 
   if (loading) {
     return (
@@ -800,17 +765,10 @@ export default function DrivingDashboard({
             lang={lang}
             fullSheetHint={
               lang === 'th'
-                ? 'ใช้ตัวกรองเดียวกับตารางนี้ แต่ส่งออกแถวดิบจากชีตหนึ่งแถวต่อทริป/เหตุการณ์ ไม่ใช่หนึ่งแถวต่อแถวสรุปคนขับ — รวมทุกคอลัมน์ในชีต'
-                : 'Same filters as this table, but exports raw spreadsheet rows (one row per trip/event), not one row per aggregated driver summary. Includes every sheet column.'
+                ? 'ใช้ตัวกรองเดียวกับตารางนี้ แต่ส่งออกทุกคอลัมน์จากชีตดิบ (รวมคอลัมน์ที่ซ่อนในตาราง)'
+                : 'Same filters as this table, but exports every raw spreadsheet column (including columns hidden in the table).'
             }
-            columns={[
-              { key: 'Driver', label: lang === 'th' ? 'คนขับ' : 'Driver' },
-              { key: 'Trips', label: lang === 'th' ? 'ทริป' : 'Trips' },
-              { key: 'Duration (h)', label: lang === 'th' ? 'ระยะเวลา (ชม.)' : 'Duration (h)' },
-              { key: 'Distance (km)', label: lang === 'th' ? 'ระยะทาง (กม.)' : 'Distance (km)' },
-              { key: 'Avg Distance/Trip (km)', label: lang === 'th' ? 'เฉลี่ยระยะทาง/ทริป (กม.)' : 'Avg distance/trip (km)' },
-              { key: 'Avg Duration/Trip (h)', label: lang === 'th' ? 'เฉลี่ยเวลา/ทริป (ชม.)' : 'Avg duration/trip (h)' },
-            ]}
+            columns={sheetColumns.map((col) => ({ key: col.label, label: col.label }))}
             label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
           />
           {isAdmin && dashboardRowId ? (
@@ -1187,35 +1145,24 @@ export default function DrivingDashboard({
         </section>
       </div>
 
-      {/* Driver Statistics Table */}
+      {/* Trip data table — one row per trip, spreadsheet columns */}
       <section className={dashboardSectionClass}>
-        <h2 className={heading2}>{lang === 'th' ? 'ตารางสถิติคนขับ' : 'Driver statistics'}</h2>
+        <h2 className={heading2}>{lang === 'th' ? 'ข้อมูลทริป' : 'Trip data'}</h2>
+        <p className={`mt-1 ${textSecondary}`}>
+          {lang === 'th'
+            ? 'หนึ่งแถวต่อทริป — ชื่อคอลัมน์ตรงกับชีต ชั่วโมงแสดงเป็น ชม:นาที:วินาที'
+            : 'One row per trip — column names match the spreadsheet; hours shown as H:MM:SS.'}
+        </p>
         <div className="mt-4">
-          <DataTable
-            columns={tableColumns}
-            data={aggregates}
-            defaultSort={{ key: 'totalCntDrvDurationHours', direction: 'desc' }}
+          <DataTable<SheetTripRow>
+            columns={tripTableColumns}
+            data={tripTableData}
+            defaultSort={{ key: tripTableDefaultSortKey, direction: 'desc' }}
             pageSize={15}
-            ariaLabel={lang === 'th' ? 'ตารางสถิติคนขับ' : 'Driver statistics table'}
+            ariaLabel={lang === 'th' ? 'ตารางข้อมูลทริป' : 'Trip data table'}
           />
         </div>
       </section>
-
-      {/* Vehicle Statistics Table */}
-      {vehicleAggregates.length > 0 && (
-        <section className={dashboardSectionClass}>
-          <h2 className={heading2}>{lang === 'th' ? 'ตารางสถิติยานพาหนะ' : 'Vehicle statistics'}</h2>
-          <div className="mt-4">
-            <DataTable
-              columns={vehicleTableColumns}
-              data={vehicleAggregates}
-              defaultSort={{ key: 'totalDistanceKm', direction: 'desc' }}
-              pageSize={15}
-              ariaLabel={lang === 'th' ? 'ตารางสถิติยานพาหนะ' : 'Vehicle statistics table'}
-            />
-          </div>
-        </section>
-      )}
         </>
       )}
 

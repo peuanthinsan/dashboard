@@ -8,6 +8,7 @@ import { getDashboardCopy, type DashboardLang } from 'app/dashboard/i18n-copy';
 import { dashboardSectionClass } from './DashboardShell';
 import { heading2, textSecondary } from 'app/ui/design-tokens';
 import type { ViolationRow } from './dashboardDataUtils';
+import { formatDurationDisplay } from './drivingDurationFormat';
 
 type Props = {
   metric: 'drive_hrs' | 'rest_hrs' | 'cnt_drv_hrs';
@@ -18,18 +19,15 @@ type Props = {
   renderWarnAction?: (row: ViolationRow) => React.ReactNode;
 };
 
-// KpiCard uses CSS color strings via the `accentColor` prop. These match the
-// v1 dashboard's existing palette (amber for violations, emerald for the
-// healthy/warned state).
 const ACCENT_VIOLATION = '#f59e0b';
 const ACCENT_WARNED = '#10b981';
 
-const formatHours = (n: number) => `${n.toFixed(2)} h`;
-const formatDistance = (n: number) => `${n.toFixed(1)} km`;
 const formatClock = (d: Date | null) =>
   d
     ? `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
     : '—';
+
+const formatDistance = (n: number) => `${n.toFixed(1)} km`;
 
 export default function ThresholdSubPage({
   metric,
@@ -70,53 +68,49 @@ export default function ThresholdSubPage({
   }, [violations, metric, lang]);
 
   const columns = useMemo<Column<ViolationRow>[]>(() => {
-    if (metric === 'drive_hrs') {
-      return [
-        { key: 'driver', label: copy.tableHeaderDriver, sortable: true, stickyLeft: true },
-        { key: 'dateLabel', label: copy.tableHeaderDay, sortable: true },
-        {
-          key: 'vehicle',
-          label: copy.tableHeaderVehicle,
-          sortable: true,
-          render: (v, row) => row.vehicleCount > 1
-            ? <span title={`${row.vehicleCount} vehicles`}>*</span>
-            : String(v ?? '—'),
-        },
-        { key: 'shiftCount', label: copy.tableHeaderShifts, sortable: true },
-        { key: 'loginAt', label: copy.tableHeaderFirstLogin, render: (v) => formatClock(v as Date | null) },
-        { key: 'logoutAt', label: copy.tableHeaderLastLogout, render: (v) => formatClock(v as Date | null) },
-        { key: 'loginLocation', label: copy.tableHeaderLoginLoc },
-        { key: 'logoutLocation', label: copy.tableHeaderLogoutLoc },
-        { key: 'driveHours', label: copy.tableHeaderTotalDriveHrs, sortable: true, render: (v) => formatHours(Number(v)) },
-        { key: 'distanceKm', label: copy.tableHeaderDistance, sortable: true, render: (v) => formatDistance(Number(v)) },
-        {
-          key: 'warning',
-          label: copy.tableHeaderStatus,
-          render: (_, row) => row.warning
-            ? <span className="text-emerald-600">{copy.warnSent} · {row.warning.channelName}</span>
-            : <span className={textSecondary}>—</span>,
-        },
-        {
-          key: 'violationKey',
-          label: '',
-          render: (_, row) => renderWarnAction ? renderWarnAction(row) : null,
-        },
-      ];
-    }
+    const useCntDrvLabels = metric === 'cnt_drv_hrs';
     const hoursKey = metric === 'rest_hrs' ? 'restHours' : 'driveHours';
     const hoursLabel = metric === 'rest_hrs'
-      ? copy.tableHeaderRestHrs
-      : (lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr');
+      ? copy.sheetRestTime
+      : metric === 'drive_hrs'
+        ? copy.sheetDriveHrs
+        : copy.sheetCntDrvHr;
+
     return [
-      { key: 'driver', label: copy.tableHeaderDriver, sortable: true, stickyLeft: true },
-      { key: 'vehicle', label: copy.tableHeaderVehicle, sortable: true },
-      { key: 'dateLabel', label: copy.tableHeaderDay, sortable: true },
-      { key: 'loginAt', label: copy.tableHeaderLogin, render: (v) => formatClock(v as Date | null) },
-      { key: 'logoutAt', label: copy.tableHeaderLogout, render: (v) => formatClock(v as Date | null) },
-      { key: 'loginLocation', label: copy.tableHeaderLoginLoc },
-      { key: 'logoutLocation', label: copy.tableHeaderLogoutLoc },
-      { key: hoursKey, label: hoursLabel, sortable: true, render: (v) => formatHours(Number(v)) },
-      { key: 'distanceKm', label: copy.tableHeaderDistance, sortable: true, render: (v) => formatDistance(Number(v)) },
+      { key: 'driver', label: copy.sheetDriverName, sortable: true, stickyLeft: true },
+      { key: 'vehicle', label: copy.sheetVehicleNo, sortable: true },
+      {
+        key: 'loginAt',
+        label: useCntDrvLabels ? copy.sheetStartTime : copy.sheetLoginTime,
+        render: (v) => formatClock(v as Date | null),
+      },
+      {
+        key: 'logoutAt',
+        label: useCntDrvLabels ? copy.sheetEndTime : copy.sheetLogoutTime,
+        render: (v) => formatClock(v as Date | null),
+      },
+      {
+        key: 'loginLocation',
+        label: useCntDrvLabels ? copy.sheetStartLocation : copy.sheetLoginLocation,
+      },
+      {
+        key: 'logoutLocation',
+        label: useCntDrvLabels ? copy.sheetEndLocation : copy.sheetLogoutLocation,
+      },
+      {
+        key: hoursKey,
+        label: hoursLabel,
+        sortable: true,
+        render: (v) => (
+          <span className="tabular-nums">{formatDurationDisplay(null, Number(v))}</span>
+        ),
+      },
+      {
+        key: 'distanceKm',
+        label: copy.sheetDistance,
+        sortable: true,
+        render: (v) => formatDistance(Number(v)),
+      },
       {
         key: 'warning',
         label: copy.tableHeaderStatus,
@@ -130,7 +124,7 @@ export default function ThresholdSubPage({
         render: (_, row) => renderWarnAction ? renderWarnAction(row) : null,
       },
     ];
-  }, [metric, copy, lang, renderWarnAction]);
+  }, [metric, copy, renderWarnAction]);
 
   return (
     <section className={dashboardSectionClass}>
@@ -162,9 +156,9 @@ export default function ThresholdSubPage({
         columns={columns}
         data={violations}
         pageSize={15}
-        defaultSort={metric === 'drive_hrs' || metric === 'cnt_drv_hrs'
-          ? { key: 'driveHours', direction: 'desc' }
-          : { key: 'restHours', direction: 'asc' }}
+        defaultSort={metric === 'rest_hrs'
+          ? { key: 'restHours', direction: 'asc' }
+          : { key: 'driveHours', direction: 'desc' }}
         ariaLabel={thresholdLabel}
       />
     </section>

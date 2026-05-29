@@ -492,16 +492,16 @@ export const buildExportRows = (rows: Record<string, unknown>[], columns: string
 
 export type ViolationMetric = 'drive_hrs' | 'rest_hrs' | 'cnt_drv_hrs';
 
-export type ComputeViolationKeyArgs =
-  | { metric: 'drive_hrs'; driver: string; dayKey: string; threshold: number }
-  | { metric: 'rest_hrs'; driver: string; vehicle: string; eventAtIso: string; threshold: number }
-  | { metric: 'cnt_drv_hrs'; driver: string; vehicle: string; eventAtIso: string; threshold: number };
+export type ComputeViolationKeyArgs = {
+  metric: ViolationMetric;
+  driver: string;
+  vehicle: string;
+  eventAtIso: string;
+  threshold: number;
+};
 
 export function computeViolationKey(args: ComputeViolationKeyArgs): string {
-  const payload =
-    args.metric === 'drive_hrs'
-      ? ['drive_hrs', args.driver, args.dayKey, String(args.threshold)].join('|')
-      : [args.metric, args.driver, args.vehicle, args.eventAtIso, String(args.threshold)].join('|');
+  const payload = [args.metric, args.driver, args.vehicle, args.eventAtIso, String(args.threshold)].join('|');
   return createHash('sha1').update(payload).digest('hex');
 }
 

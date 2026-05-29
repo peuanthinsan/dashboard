@@ -39,17 +39,19 @@ describe('computeViolationKey', () => {
     expect(computeViolationKey({ ...base, threshold: 9 })).not.toEqual(k0);
   });
 
-  it('drive_hrs key uses driver + dayKey + threshold (NOT vehicle, NOT eventAt)', () => {
+  it('drive_hrs key uses driver + vehicle + eventAt + threshold', () => {
     const a = computeViolationKey({
       metric: 'drive_hrs',
       driver: 'Alice',
-      dayKey: '2026-05-01',
+      vehicle: 'V1',
+      eventAtIso: '2026-05-01T04:14:00.000Z',
       threshold: 10,
     });
     const b = computeViolationKey({
       metric: 'drive_hrs',
       driver: 'Alice',
-      dayKey: '2026-05-01',
+      vehicle: 'V1',
+      eventAtIso: '2026-05-01T04:14:00.000Z',
       threshold: 10,
     });
     expect(a).toEqual(b);
@@ -60,7 +62,8 @@ describe('computeViolationKey', () => {
     const drive = computeViolationKey({
       metric: 'drive_hrs',
       driver: 'Alice',
-      dayKey: '2026-05-01',
+      vehicle: '72-1281',
+      eventAtIso: '2026-05-01T04:14:00.000Z',
       threshold: 10,
     });
     const rest = computeViolationKey({

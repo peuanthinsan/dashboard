@@ -26,17 +26,15 @@ import { computeViolationKey } from './dashboardDataUtils';
 const ViolationDriveHrs = z.object({
   metric: z.literal('drive_hrs'),
   driver: z.string().min(1).max(128),
-  dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  vehicleSummary: z.string().min(1).max(64),
-  vehicleCount: z.number().int().min(1),
-  shiftCount: z.number().int().min(1),
+  vehicle: z.string().min(1).max(64),
+  eventAt: z.string().datetime(),
   threshold: z.number().positive().max(24),
   valueHours: z.number().min(0).max(48),
   distanceKm: z.number().min(0).max(10_000).nullable(),
-  firstLoginAt: z.string().datetime().nullable(),
-  lastLogoutAt: z.string().datetime().nullable(),
-  firstLoginLocation: z.string().max(256).nullable(),
-  lastLogoutLocation: z.string().max(256).nullable(),
+  loginAt: z.string().datetime().nullable(),
+  logoutAt: z.string().datetime().nullable(),
+  loginLocation: z.string().max(256).nullable(),
+  logoutLocation: z.string().max(256).nullable(),
 });
 
 const ViolationRestHrs = z.object({
@@ -143,18 +141,16 @@ export async function sendDrivingWarning(
   }
 
   const v = parsed.violation;
-  const violationKey = v.metric === 'drive_hrs'
-    ? computeViolationKey({ metric: 'drive_hrs', driver: v.driver, dayKey: v.dayKey, threshold: v.threshold })
-    : computeViolationKey({
-        metric: v.metric,
-        driver: v.driver,
-        vehicle: v.vehicle,
-        eventAtIso: v.eventAt,
-        threshold: v.threshold,
-      });
+  const violationKey = computeViolationKey({
+    metric: v.metric,
+    driver: v.driver,
+    vehicle: v.vehicle,
+    eventAtIso: v.eventAt,
+    threshold: v.threshold,
+  });
 
-  const eventAt = v.metric === 'drive_hrs' ? new Date(`${v.dayKey}T00:00:00.000Z`) : new Date(v.eventAt);
-  const vehicleNo = v.metric === 'drive_hrs' ? v.vehicleSummary : v.vehicle;
+  const eventAt = new Date(v.eventAt);
+  const vehicleNo = v.vehicle;
 
   const inserted = await insertPendingDrivingWarning({
     dashboardId: dashboard.id,
@@ -166,14 +162,10 @@ export async function sendDrivingWarning(
     threshold: v.threshold,
     valueHours: v.valueHours,
     distanceKm: v.distanceKm ?? null,
-    loginAt: v.metric === 'drive_hrs'
-      ? (v.firstLoginAt ? new Date(v.firstLoginAt) : null)
-      : ('loginAt' in v && v.loginAt ? new Date(v.loginAt) : null),
-    logoutAt: v.metric === 'drive_hrs'
-      ? (v.lastLogoutAt ? new Date(v.lastLogoutAt) : null)
-      : ('logoutAt' in v && v.logoutAt ? new Date(v.logoutAt) : null),
-    loginLocation: v.metric === 'drive_hrs' ? v.firstLoginLocation : v.loginLocation,
-    logoutLocation: v.metric === 'drive_hrs' ? v.lastLogoutLocation : v.logoutLocation,
+    loginAt: v.loginAt ? new Date(v.loginAt) : null,
+    logoutAt: v.logoutAt ? new Date(v.logoutAt) : null,
+    loginLocation: v.loginLocation,
+    logoutLocation: v.logoutLocation,
     lineChannelId: channel.id,
     sentByUserId: user.id,
     operatorNote: parsed.operatorNote ?? null,
