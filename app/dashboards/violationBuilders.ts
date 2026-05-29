@@ -1,4 +1,4 @@
-import { computeViolationKey, type ViolationRow } from './dashboardDataUtils';
+import { computeViolationKey, type ViolationMetric, type ViolationRow } from './dashboardDataUtils';
 import type { DrivingCntDrvRow } from './drivingSheetRows';
 
 type ShiftRow = {
@@ -119,6 +119,7 @@ export function buildCntDrvHoursViolations(
   segments: DrivingCntDrvRow[],
   spec: ThresholdSpec,
   warnings: WarningMap,
+  metric: ViolationMetric = 'cnt_drv_hrs',
 ): ViolationRow[] {
   const out: ViolationRow[] = [];
   for (const s of segments) {
@@ -126,7 +127,7 @@ export function buildCntDrvHoursViolations(
     if (s.cntDrvHours <= spec.threshold) continue;
     const eventAtIso = s.loginAt.toISOString();
     const violationKey = computeViolationKey({
-      metric: 'cnt_drv_hrs',
+      metric,
       driver: s.driver,
       vehicle: s.vehicle,
       eventAtIso,
@@ -147,7 +148,7 @@ export function buildCntDrvHoursViolations(
       logoutAt: s.logoutAt,
       loginLocation: s.loginLocation,
       logoutLocation: s.logoutLocation,
-      metric: 'cnt_drv_hrs',
+      metric,
       threshold: spec.threshold,
       thresholdLabel: spec.label,
       violationKey,

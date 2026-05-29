@@ -17,6 +17,10 @@ export type DrivingShiftRow = {
   fleet?: string;
 };
 
+export function isCompletedShift(row: Pick<DrivingShiftRow, 'status'>): boolean {
+  return row.status === 'COMPLETED';
+}
+
 export type DrivingCntDrvRow = {
   sourceRow: Record<string, unknown>;
   driver: string;

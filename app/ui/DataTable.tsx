@@ -12,6 +12,8 @@ export interface Column<T> {
   key: string;
   label: string;
   sortable?: boolean;
+  /** Row field used for sorting when different from `key` (e.g. numeric sort keys). */
+  sortKey?: string;
   render?: (value: unknown, row: T) => React.ReactNode;
   stickyLeft?: boolean;
 }
@@ -35,12 +37,15 @@ interface SortState {
 function getSortedData<T>(
   data: T[],
   sort: SortState,
+  columns: Column<T>[],
 ): T[] {
   if (!sort.key || sort.direction === null) return data;
 
+  const sortField = columns.find((c) => c.key === sort.key)?.sortKey ?? sort.key;
+
   return [...data].sort((a, b) => {
-    const aVal = (a as Record<string, unknown>)[sort.key];
-    const bVal = (b as Record<string, unknown>)[sort.key];
+    const aVal = (a as Record<string, unknown>)[sortField];
+    const bVal = (b as Record<string, unknown>)[sortField];
 
     if (aVal == null && bVal == null) return 0;
     if (aVal == null) return 1;
@@ -97,7 +102,7 @@ export function DataTable<T extends object>({
     [handleSort],
   );
 
-  const sortedData = getSortedData(data, sort);
+  const sortedData = getSortedData(data, sort, columns);
   const totalPages = pageSize ? Math.max(1, Math.ceil(sortedData.length / pageSize)) : 1;
   const clampedPage = Math.min(page, totalPages - 1);
   const pagedData = pageSize ? sortedData.slice(clampedPage * pageSize, (clampedPage + 1) * pageSize) : sortedData;
