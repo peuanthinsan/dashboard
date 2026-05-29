@@ -30,14 +30,13 @@ import FilterBar from 'app/ui/FilterBar';
 import DonutChart from 'app/ui/DonutChart';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
 import {
-  heading2, textSecondary, CHART_COLORS,
+  heading2, textSecondary, CHART_COLORS, inputBase, selectBase,
 } from 'app/ui/design-tokens';
 import { normalizeDrivingThresholds, thresholdEntryValue, type DrivingThresholds } from './drivingThresholds';
 import { deriveSubPages, subPageBySlug } from './drivingSubPages';
 import ThresholdSubPage from './ThresholdSubPage';
 import {
   buildCntDrvHoursViolations,
-  buildDriveHoursViolations,
   buildRestHoursViolations,
 } from './violationBuilders';
 import {
@@ -54,8 +53,17 @@ import {
   buildTripExportRows,
   buildTripTableColumns,
   buildTripTableRows,
+  filterTripSourceRows,
   type SheetTripRow,
 } from './drivingTripTable';
+
+const TRIP_TABLE_PAGE_SIZE_OPTIONS: Array<{ value: number | 'all'; label: string }> = [
+  { value: 15, label: '15' },
+  { value: 25, label: '25' },
+  { value: 50, label: '50' },
+  { value: 100, label: '100' },
+  { value: 'all', label: 'All' },
+];
 
 type DashboardProps = {
   dashboardId: string;
@@ -201,6 +209,8 @@ export default function DrivingDashboard({
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [dayFilters, setDayFilters] = useState<string[]>([]);
+  const [tripSearch, setTripSearch] = useState('');
+  const [tripPageSize, setTripPageSize] = useState<number | 'all'>(25);
 
   const normalizedOrganizationName = useMemo(() => (organizationName ? normalizeLabel(organizationName) : null), [organizationName]);
   const storageKey = useMemo(() => `${dashboardId}-driving`, [dashboardId]);
@@ -214,6 +224,8 @@ export default function DrivingDashboard({
       dayFilters?: string[];
       driverFilters?: string[];
       vehicleFilters?: string[];
+      tripSearch?: string;
+      tripPageSize?: number | 'all';
     }>(storageKey);
     if (!stored) return;
     didSetDefaultMonth.current = true;
@@ -222,6 +234,10 @@ export default function DrivingDashboard({
       if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
+      if (typeof stored.tripSearch === 'string') setTripSearch(stored.tripSearch);
+      if (stored.tripPageSize === 'all' || typeof stored.tripPageSize === 'number') {
+        setTripPageSize(stored.tripPageSize);
+      }
     });
     return () => cancelAnimationFrame(frame);
   }, [storageKey]);
@@ -233,8 +249,10 @@ export default function DrivingDashboard({
       dayFilters,
       driverFilters,
       vehicleFilters,
+      tripSearch,
+      tripPageSize,
     });
-  }, [storageKey, selectedMonth, dayFilters, driverFilters, vehicleFilters]);
+  }, [storageKey, selectedMonth, dayFilters, driverFilters, vehicleFilters, tripSearch, tripPageSize]);
 
   const shiftRows = useMemo(
     () => mapShiftSheetRows(rows, normalizedOrganizationName),
@@ -296,14 +314,16 @@ export default function DrivingDashboard({
 
   const driveHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'drive_hrs') return [];
-    const violations = buildDriveHoursViolations(
-      filteredShiftRows,
+    if (!hasCntDrvSheet) return [];
+    const violations = buildCntDrvHoursViolations(
+      filteredCntDrvRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
+      'drive_hrs',
     );
     if (dayFilters.length === 0) return violations;
     return violations.filter((v) => dayFilters.includes(v.dayKey));
-  }, [activeSubPage, filteredShiftRows, warningsMap, dayFilters]);
+  }, [activeSubPage, filteredCntDrvRows, hasCntDrvSheet, warningsMap, dayFilters]);
 
   const restHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'rest_hrs') return [];
@@ -325,8 +345,14 @@ export default function DrivingDashboard({
 
   // Active filter count for DashboardShell badge
   const activeFilterCount = useMemo(
-    () => [driverFilters.length > 0, vehicleFilters.length > 0, selectedMonth, dayFilters.length > 0].filter(Boolean).length,
-    [driverFilters, vehicleFilters, selectedMonth, dayFilters],
+    () => [
+      driverFilters.length > 0,
+      vehicleFilters.length > 0,
+      selectedMonth,
+      dayFilters.length > 0,
+      tripSearch.trim().length > 0,
+    ].filter(Boolean).length,
+    [dayFilters.length, driverFilters.length, selectedMonth, tripSearch, vehicleFilters.length],
   );
 
   // Date range string for ExportButton
@@ -693,30 +719,60 @@ export default function DrivingDashboard({
     ];
   }, [lang, cntDrvMaxHours, restMinHours]);
 
+  const tripTableColumnMeta = useMemo(
+    () => (hasCntDrvSheet ? cntDrvSheetColumns : sheetColumns),
+    [cntDrvSheetColumns, hasCntDrvSheet, sheetColumns],
+  );
+
+  const tripTableSourceRows = useMemo(
+    () => (hasCntDrvSheet
+      ? filteredCntDrvRows.map((r) => r.sourceRow)
+      : completedShiftRows.map((r) => r.sourceRow)),
+    [completedShiftRows, filteredCntDrvRows, hasCntDrvSheet],
+  );
+
+  const filteredTripSourceRows = useMemo(
+    () => filterTripSourceRows(tripTableSourceRows, tripSearch, tripTableColumnMeta),
+    [tripTableColumnMeta, tripSearch, tripTableSourceRows],
+  );
+
+  const fullSheetExportFilteredRows = useMemo(
+    () => [
+      ...filterTripSourceRows(
+        completedShiftRows.map((r) => r.sourceRow),
+        tripSearch,
+        sheetColumns,
+      ),
+      ...filterTripSourceRows(
+        filteredCntDrvRows.map((r) => r.sourceRow),
+        tripSearch,
+        cntDrvSheetColumns,
+      ),
+    ],
+    [completedShiftRows, cntDrvSheetColumns, filteredCntDrvRows, tripSearch, sheetColumns],
+  );
+
   const exportData = useMemo(
-    () => buildTripExportRows(
-      completedShiftRows.map((r) => r.sourceRow),
-      sheetColumns,
-    ),
-    [completedShiftRows, sheetColumns],
+    () => buildTripExportRows(filteredTripSourceRows, tripTableColumnMeta),
+    [filteredTripSourceRows, tripTableColumnMeta],
   );
 
   const tripTableData = useMemo(
-    () => buildTripTableRows(completedShiftRows.map((r) => r.sourceRow)),
-    [completedShiftRows],
+    () => buildTripTableRows(filteredTripSourceRows, tripTableColumnMeta),
+    [filteredTripSourceRows, tripTableColumnMeta],
   );
 
   const tripTableColumns = useMemo(
-    () => buildTripTableColumns(sheetColumns),
-    [sheetColumns],
+    () => buildTripTableColumns(tripTableColumnMeta),
+    [tripTableColumnMeta],
   );
 
   const tripTableDefaultSortKey = useMemo(() => {
-    const loginCol = sheetColumns.find((c) =>
+    const loginCol = tripTableColumnMeta.find((c) =>
       ['login time', 'start time', 'datetime'].includes(c.label.trim().toLowerCase()),
     );
-    return loginCol?.fieldKey ?? sheetColumns[0]?.fieldKey ?? '_id';
-  }, [sheetColumns]);
+    return loginCol?.fieldKey ?? tripTableColumnMeta[0]?.fieldKey ?? '_id';
+  }, [tripTableColumnMeta]);
 
   if (loading) {
     return (
@@ -755,10 +811,7 @@ export default function DrivingDashboard({
             data={exportData}
             fullSheetExport={{
               rows,
-              filteredRows: [
-                ...completedShiftRows.map((r) => r.sourceRow),
-                ...filteredCntDrvRows.map((r) => r.sourceRow),
-              ],
+              filteredRows: fullSheetExportFilteredRows,
               columns: [...sheetColumns, ...cntDrvSheetColumns.filter(
                 (c) => !sheetColumns.some((s) => s.fieldKey === c.fieldKey),
               )],
@@ -773,7 +826,7 @@ export default function DrivingDashboard({
                 ? 'ใช้ตัวกรองเดียวกับตารางนี้ แต่ส่งออกทุกคอลัมน์จากชีตดิบ (รวมคอลัมน์ที่ซ่อนในตาราง)'
                 : 'Same filters as this table, but exports every raw spreadsheet column (including columns hidden in the table).'
             }
-            columns={sheetColumns.map((col) => ({ key: col.label, label: col.label }))}
+            columns={tripTableColumnMeta.map((col) => ({ key: col.label, label: col.label }))}
             label={lang === 'th' ? 'ส่งออก CSV' : 'Export CSV'}
           />
           {isAdmin && dashboardRowId ? (
@@ -1152,20 +1205,144 @@ export default function DrivingDashboard({
 
       {/* Trip data table — one row per trip, spreadsheet columns */}
       <section className={dashboardSectionClass}>
-        <h2 className={heading2}>{lang === 'th' ? 'ข้อมูลทริป' : 'Trip data'}</h2>
-        <p className={`mt-1 ${textSecondary}`}>
-          {lang === 'th'
-            ? 'หนึ่งแถวต่อทริปที่สถานะ Completed — ชื่อคอลัมน์ตรงกับชีต ชั่วโมงแสดงเป็น ชม:นาที:วินาที'
-            : 'One row per completed trip — column names match the spreadsheet; hours shown as H:MM:SS.'}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h2 className={heading2}>{lang === 'th' ? 'ข้อมูลทริป' : 'Trip data'}</h2>
+            <p className={`mt-1 ${textSecondary}`}>
+              {lang === 'th'
+                ? `${tripTableData.length} แถว · คลิกหัวคอลัมน์เพื่อเรียงลำดับ`
+                : `${tripTableData.length} rows · click column headers to sort`}
+            </p>
+          </div>
+          <label className="flex shrink-0 items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+            <span>{lang === 'th' ? 'แสดง' : 'Show'}</span>
+            <select
+              value={String(tripPageSize)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setTripPageSize(raw === 'all' ? 'all' : Number(raw));
+              }}
+              className={`${selectBase} w-auto py-1.5 text-sm`}
+              aria-label={lang === 'th' ? 'จำนวนรายการต่อหน้า' : 'Rows per page'}
+            >
+              {TRIP_TABLE_PAGE_SIZE_OPTIONS.map((s) => (
+                <option key={String(s.value)} value={String(s.value)}>
+                  {s.value === 'all' ? (lang === 'th' ? 'ทั้งหมด' : 'All') : s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <p className={`mt-2 ${textSecondary}`}>
+          {hasCntDrvSheet
+            ? (lang === 'th'
+              ? 'หนึ่งแถวต่อช่วงขับต่อเนื่อง — ใช้คอลัมน์ Cnt Drv Hr จากชีต ชั่วโมงแสดงเป็น ชม:นาที:วินาที'
+              : 'One row per continuous drive segment — uses the Cnt Drv Hr column from the spreadsheet; hours shown as H:MM:SS.')
+            : (lang === 'th'
+              ? 'หนึ่งแถวต่อทริปที่สถานะ Completed — ชื่อคอลัมน์ตรงกับชีต ชั่วโมงแสดงเป็น ชม:นาที:วินาที'
+              : 'One row per completed trip — column names match the spreadsheet; hours shown as H:MM:SS.')}
         </p>
-        <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-zinc-200/80 dark:border-zinc-800">
-          <DataTable<SheetTripRow>
-            columns={tripTableColumns}
-            data={tripTableData}
-            defaultSort={{ key: tripTableDefaultSortKey, direction: 'desc' }}
-            pageSize={15}
-            ariaLabel={lang === 'th' ? 'ตารางข้อมูลทริป' : 'Trip data table'}
+
+        <FilterBar className="mt-4">
+          <InlineMonthPicker
+            value={selectedMonth}
+            onChange={(v) => {
+              setSelectedMonth(v as string);
+              setDayFilters([]);
+            }}
+            lang={lang}
           />
+          {selectedMonth && (
+            <InlineDayPicker
+              monthKey={selectedMonth}
+              value={dayFilters}
+              onChange={(v) => setDayFilters(v as string[])}
+              multi
+              lang={lang}
+            />
+          )}
+          <MultiSelect
+            label={lang === 'th' ? 'คนขับ' : 'drivers'}
+            options={driverOptions}
+            selected={driverFilters}
+            onChange={setDriverFilters}
+            lang={lang}
+          />
+          <MultiSelect
+            label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'}
+            options={vehicleOptions}
+            selected={vehicleFilters}
+            onChange={setVehicleFilters}
+            lang={lang}
+          />
+          {(selectedMonth || dayFilters.length > 0 || driverFilters.length > 0 || vehicleFilters.length > 0) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMonth('');
+                setDayFilters([]);
+                setDriverFilters([]);
+                setVehicleFilters([]);
+              }}
+              className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            >
+              {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
+            </button>
+          )}
+        </FilterBar>
+
+        <div className="mt-3">
+          <label className="block">
+            <span className="sr-only">{lang === 'th' ? 'ค้นหาในตารางทริป' : 'Search trip table'}</span>
+            <div className="relative">
+              <svg
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="search"
+                value={tripSearch}
+                onChange={(e) => setTripSearch(e.target.value)}
+                placeholder={
+                  lang === 'th'
+                    ? 'ค้นหาคนขับ, เลขรถ, สถานที่, เวลา...'
+                    : 'Search driver, vehicle, location, time…'
+                }
+                className={`${inputBase} pl-9`}
+              />
+            </div>
+          </label>
+          {tripSearch.trim() ? (
+            <button
+              type="button"
+              onClick={() => setTripSearch('')}
+              className="mt-2 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            >
+              {lang === 'th' ? 'ล้างการค้นหา' : 'Clear search'}
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-zinc-200/80 dark:border-zinc-800">
+          {tripTableData.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              {lang === 'th' ? 'ไม่พบแถวที่ตรงกับตัวกรอง' : 'No rows match the current filters'}
+            </div>
+          ) : (
+            <DataTable<SheetTripRow>
+              columns={tripTableColumns}
+              data={tripTableData}
+              defaultSort={{ key: tripTableDefaultSortKey, direction: 'desc' }}
+              pageSize={tripPageSize === 'all' ? undefined : tripPageSize}
+              ariaLabel={lang === 'th' ? 'ตารางข้อมูลทริป' : 'Trip data table'}
+            />
+          )}
         </div>
       </section>
         </>

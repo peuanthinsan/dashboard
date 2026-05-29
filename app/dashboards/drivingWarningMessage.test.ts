@@ -21,12 +21,12 @@ describe('Drive Hours message templates', () => {
     dashboardName: 'ThongTrans / Bangkok',
   };
 
-  it('Thai includes header, DriveHrs, and dashboard name', () => {
+  it('Thai includes header, Cnt Drv Hr, and dashboard name', () => {
     const out = buildDriveHoursMessageThai(args);
-    expect(out).toContain('⚠ ขับรถเกิน 10:00:00 ต่อทริป');
+    expect(out).toContain('⚠ ขับต่อเนื่องเกิน 10:00:00');
     expect(out).toContain('คนขับ: Annual Natsamrong');
     expect(out).toContain('รถ: 72-1281(DMS)');
-    expect(out).toContain('DriveHrs:');
+    expect(out).toContain('Cnt Drv Hr:');
     expect(out).toContain('Distance: 142.6 กม.');
     expect(out).toContain('หมายเหตุ: please follow up');
     expect(out).toContain('— แดชบอร์ด ThongTrans / Bangkok');
@@ -34,7 +34,7 @@ describe('Drive Hours message templates', () => {
 
   it('English mirror of the Thai template', () => {
     const out = buildDriveHoursMessageEnglish(args);
-    expect(out).toContain('DriveHrs > 10:00:00 per trip');
+    expect(out).toContain('Cnt Drv Hr > 10:00:00');
     expect(out).toContain('Driver: Annual Natsamrong');
     expect(out).toContain('Vehicle: 72-1281(DMS)');
     expect(out).toContain('Note: please follow up');

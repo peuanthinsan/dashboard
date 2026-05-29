@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildCntDrvHoursViolations,
   buildDriveHoursViolations,
   buildRestHoursViolations,
 } from './violationBuilders';
@@ -24,6 +25,38 @@ function shift(o: {
     status: o.status ?? 'COMPLETED',
   };
 }
+
+describe('buildCntDrvHoursViolations', () => {
+  function segment(o: {
+    driver: string; loginAt: string; logoutAt: string; cntDrvHours: number;
+    vehicle?: string; distanceKm?: number;
+  }) {
+    return {
+      sourceRow: {},
+      driver: o.driver,
+      vehicle: o.vehicle ?? 'V1',
+      date: new Date(o.loginAt),
+      loginAt: new Date(o.loginAt),
+      logoutAt: new Date(o.logoutAt),
+      loginLocation: 'Start',
+      logoutLocation: 'End',
+      cntDrvHours: o.cntDrvHours,
+      distanceKm: o.distanceKm ?? 10,
+    };
+  }
+
+  it('supports drive_hrs metric for continuous-drive segments', () => {
+    const rows = buildCntDrvHoursViolations(
+      [segment({ driver: 'Alice', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T10:00:00Z', cntDrvHours: 11 })],
+      { threshold: 10, label: 'Drive Hr/day > 10 h' },
+      new Map(),
+      'drive_hrs',
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].metric).toBe('drive_hrs');
+    expect(rows[0].driveHours).toBe(11);
+  });
+});
 
 describe('buildDriveHoursViolations', () => {
   it('emits one row per trip where driveHours > threshold', () => {
