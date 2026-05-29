@@ -84,4 +84,51 @@ describe('bucketByDriverDay', () => {
     const out: DriverDay[] = bucketByDriverDay(shifts);
     expect(out).toHaveLength(0);
   });
+
+  it('splits drive hours across calendar days when a shift crosses midnight', () => {
+    const out = bucketByDriverDay([
+      row({
+        driver: 'Alice',
+        loginAt: '2026-05-01T22:00:00Z',
+        logoutAt: '2026-05-02T06:00:00Z',
+        driveHours: 8,
+        distanceKm: 800,
+      }),
+    ]).sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+
+    expect(out).toHaveLength(2);
+    expect(out[0].dayKey).toBe('2026-05-01');
+    expect(out[0].totalDriveHours).toBe(2);
+    expect(out[0].totalDistanceKm).toBe(200);
+    expect(out[0].shifts).toHaveLength(1);
+
+    expect(out[1].dayKey).toBe('2026-05-02');
+    expect(out[1].totalDriveHours).toBe(6);
+    expect(out[1].totalDistanceKm).toBe(600);
+    expect(out[1].shifts).toHaveLength(0);
+    expect(out[1].vehicleCount).toBe(1);
+  });
+
+  it('counts the shift only on the login day when split across midnight', () => {
+    const out = bucketByDriverDay([
+      row({
+        driver: 'Alice',
+        loginAt: '2026-05-01T22:00:00Z',
+        logoutAt: '2026-05-02T06:00:00Z',
+        driveHours: 8,
+      }),
+      row({
+        driver: 'Alice',
+        loginAt: '2026-05-02T08:00:00Z',
+        logoutAt: '2026-05-02T12:00:00Z',
+        driveHours: 4,
+      }),
+    ]).sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+
+    const may1 = out.find((d) => d.dayKey === '2026-05-01');
+    const may2 = out.find((d) => d.dayKey === '2026-05-02');
+    expect(may1?.shifts).toHaveLength(1);
+    expect(may2?.shifts).toHaveLength(1);
+    expect(may2?.totalDriveHours).toBe(10);
+  });
 });

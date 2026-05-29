@@ -47,7 +47,7 @@ export function buildDriveHoursViolations(
     const eventAt = new Date(`${day.dayKey}T00:00:00.000Z`);
     out.push({
       driver: day.driver,
-      vehicle: day.vehicleCount === 1 ? day.shifts[0].vehicle : '*',
+      vehicle: day.vehicleCount === 1 ? day.vehicleSummary : '*',
       vehicleCount: day.vehicleCount,
       shiftCount: day.shifts.length,
       dayKey: day.dayKey,

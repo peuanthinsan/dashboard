@@ -62,6 +62,26 @@ describe('buildDriveHoursViolations', () => {
     expect(rows[0].vehicle).toBe('*');
   });
 
+  it('attributes post-midnight drive hours to the logout day after an overnight shift', () => {
+    const rows = buildDriveHoursViolations(
+      [
+        shift({
+          driver: 'Alice',
+          loginAt: '2026-05-01T22:00:00Z',
+          logoutAt: '2026-05-02T06:00:00Z',
+          driveHours: 8,
+        }),
+      ],
+      { threshold: 5, label: 'Drive Hr/day > 5 h' },
+      new Map(),
+    ).sort((a, b) => a.dayKey.localeCompare(b.dayKey));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].dayKey).toBe('2026-05-02');
+    expect(rows[0].driveHours).toBe(6);
+    expect(rows[0].shiftCount).toBe(0);
+  });
+
   it('attaches an existing warning if violationKey matches', () => {
     const map = new Map([
       ['placeholder', { sentAt: new Date('2026-05-01T12:00:00Z'), channelName: 'Bangkok Ops' }],

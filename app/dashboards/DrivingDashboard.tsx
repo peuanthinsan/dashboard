@@ -259,6 +259,19 @@ export default function DrivingDashboard({
     () => applyRowFilters(shiftRows),
     [applyRowFilters, shiftRows],
   );
+  const filteredShiftRowsForDriveAggregation = useMemo(
+    () => shiftRows.filter((row) => {
+      if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
+      if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
+      if (selectedMonth) {
+        const loginMonth = row.loginAt ? toMonthKey(row.loginAt) : null;
+        const logoutMonth = row.logoutAt ? toMonthKey(row.logoutAt) : null;
+        if (loginMonth !== selectedMonth && logoutMonth !== selectedMonth) return false;
+      }
+      return true;
+    }),
+    [shiftRows, driverFilters, vehicleFilters, selectedMonth],
+  );
   const filteredCntDrvRows = useMemo(
     () => applyRowFilters(cntDrvRows),
     [applyRowFilters, cntDrvRows],
@@ -285,12 +298,14 @@ export default function DrivingDashboard({
 
   const driveHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'drive_hrs') return [];
-    return buildDriveHoursViolations(
-      filteredShiftRows,
+    const violations = buildDriveHoursViolations(
+      filteredShiftRowsForDriveAggregation,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
     );
-  }, [activeSubPage, filteredShiftRows, warningsMap]);
+    if (dayFilters.length === 0) return violations;
+    return violations.filter((v) => dayFilters.includes(v.dayKey));
+  }, [activeSubPage, filteredShiftRowsForDriveAggregation, warningsMap, dayFilters]);
 
   const restHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'rest_hrs') return [];
