@@ -16,6 +16,8 @@ export interface Column<T> {
   sortKey?: string;
   render?: (value: unknown, row: T) => React.ReactNode;
   stickyLeft?: boolean;
+  /** Allow cell text to wrap (e.g. long location names). */
+  wrap?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -195,7 +197,9 @@ export function DataTable<T extends object>({
                     key={col.key}
                     className={[
                       tableCell,
-                      'whitespace-nowrap',
+                      col.wrap
+                        ? 'max-w-[11rem] whitespace-normal align-top'
+                        : 'whitespace-nowrap',
                       col.stickyLeft
                         ? 'sticky left-0 z-10 border-r border-zinc-200/80 bg-white/95 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)] backdrop-blur-sm dark:border-zinc-700/80 dark:bg-zinc-900/95 dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.35)]'
                         : '',

@@ -29,6 +29,18 @@ const formatClock = (d: Date | null) =>
 
 const formatDistance = (n: number) => `${n.toFixed(1)} km`;
 
+const renderLocation = (value: unknown) => {
+  const text = String(value ?? '').trim();
+  if (!text || text === '—') {
+    return <span className="text-zinc-300">—</span>;
+  }
+  return (
+    <span className="line-clamp-3 text-xs leading-snug text-zinc-700 dark:text-zinc-300" title={text}>
+      {text}
+    </span>
+  );
+};
+
 export default function ThresholdSubPage({
   metric,
   threshold: _threshold,
@@ -72,9 +84,7 @@ export default function ThresholdSubPage({
     const hoursKey = metric === 'rest_hrs' ? 'restHours' : 'driveHours';
     const hoursLabel = metric === 'rest_hrs'
       ? copy.sheetRestTime
-      : metric === 'drive_hrs'
-        ? copy.sheetDriveHrs
-        : copy.sheetCntDrvHr;
+      : copy.sheetCntDrvHr;
 
     return [
       { key: 'driver', label: copy.sheetDriverName, sortable: true, stickyLeft: true },
@@ -92,10 +102,14 @@ export default function ThresholdSubPage({
       {
         key: 'loginLocation',
         label: useCntDrvLabels ? copy.sheetStartLocation : copy.sheetLoginLocation,
+        wrap: true,
+        render: renderLocation,
       },
       {
         key: 'logoutLocation',
         label: useCntDrvLabels ? copy.sheetEndLocation : copy.sheetLogoutLocation,
+        wrap: true,
+        render: renderLocation,
       },
       {
         key: hoursKey,

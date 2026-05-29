@@ -10,6 +10,23 @@ export function tripTableSortFieldKey(fieldKey: string): string {
   return `_sort_${fieldKey}`;
 }
 
+export function isLocationColumnLabel(label: string): boolean {
+  const normalized = normalizeLabel(label);
+  return normalized.includes('location') || normalized.includes('address') || normalized.includes('landmark');
+}
+
+function renderLocationCell(value: unknown) {
+  const text = toDisplayString(value).trim();
+  if (!text || text === '—') {
+    return <span className="text-zinc-300">—</span>;
+  }
+  return (
+    <span className="line-clamp-3 text-xs leading-snug text-zinc-700 dark:text-zinc-300" title={text}>
+      {text}
+    </span>
+  );
+}
+
 export function tripRowSortValue(label: string, value: unknown): string | number {
   if (value == null || value === '') return '';
   if (isDurationColumnLabel(label)) {
@@ -31,12 +48,16 @@ export function buildTripTableColumns(columns: GoogleSheetColumn[]): Column<Shee
     label: col.label,
     sortable: true,
     stickyLeft: index === 0,
+    wrap: isLocationColumnLabel(col.label),
     render: (value) => {
       if (value == null || value === '') {
         return <span className="text-zinc-300">—</span>;
       }
       if (isDurationColumnLabel(col.label)) {
         return <span className="tabular-nums">{formatDurationDisplay(value)}</span>;
+      }
+      if (isLocationColumnLabel(col.label)) {
+        return renderLocationCell(value);
       }
       return <span>{toDisplayString(value)}</span>;
     },
