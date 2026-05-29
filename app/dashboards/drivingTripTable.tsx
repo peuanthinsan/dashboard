@@ -3,6 +3,10 @@ import type { Column } from 'app/ui/DataTable';
 import { normalizeLabel, parseDate, toDisplayString } from './dashboardDataUtils';
 import { formatDurationDisplay, isDurationColumnLabel } from './drivingDurationFormat';
 import { parseDurationHours } from './drivingSheetRows';
+import {
+  DRIVING_LOCATION_COLUMN_MAX_WIDTH_CLASS,
+  DRIVING_LOCATION_TEXT_CLASS,
+} from './drivingLocationDisplay';
 
 export type SheetTripRow = Record<string, unknown> & { _id: number };
 
@@ -21,10 +25,7 @@ function renderLocationCell(value: unknown) {
     return <span className="text-zinc-300">—</span>;
   }
   return (
-    <span
-      className="line-clamp-3 break-words text-xs leading-snug text-zinc-700 dark:text-zinc-300"
-      title={text}
-    >
+    <span className={DRIVING_LOCATION_TEXT_CLASS} title={text}>
       {text}
     </span>
   );
@@ -52,6 +53,9 @@ export function buildTripTableColumns(columns: GoogleSheetColumn[]): Column<Shee
     sortable: true,
     stickyLeft: index === 0,
     wrap: isLocationColumnLabel(col.label),
+    wrapClassName: isLocationColumnLabel(col.label)
+      ? DRIVING_LOCATION_COLUMN_MAX_WIDTH_CLASS
+      : undefined,
     render: (value) => {
       if (value == null || value === '') {
         return <span className="text-zinc-300">—</span>;

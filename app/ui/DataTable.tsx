@@ -18,6 +18,8 @@ export interface Column<T> {
   stickyLeft?: boolean;
   /** Allow cell text to wrap (e.g. long location names). */
   wrap?: boolean;
+  /** Extra cell classes when `wrap` is true (e.g. max-width for location columns). */
+  wrapClassName?: string;
 }
 
 interface DataTableProps<T> {
@@ -198,7 +200,7 @@ export function DataTable<T extends object>({
                     className={[
                       tableCell,
                       col.wrap
-                        ? 'whitespace-normal align-top'
+                        ? [col.wrapClassName, 'whitespace-normal align-top'].filter(Boolean).join(' ')
                         : 'whitespace-nowrap',
                       col.stickyLeft
                         ? 'sticky left-0 z-10 border-r border-zinc-200/80 bg-white/95 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)] backdrop-blur-sm dark:border-zinc-700/80 dark:bg-zinc-900/95 dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.35)]'

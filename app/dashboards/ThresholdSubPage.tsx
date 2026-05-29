@@ -9,6 +9,10 @@ import { dashboardSectionClass } from './DashboardShell';
 import { heading2, textSecondary } from 'app/ui/design-tokens';
 import type { ViolationRow } from './dashboardDataUtils';
 import { formatDurationDisplay } from './drivingDurationFormat';
+import {
+  DRIVING_LOCATION_COLUMN_MAX_WIDTH_CLASS,
+  DRIVING_LOCATION_TEXT_CLASS,
+} from './drivingLocationDisplay';
 
 type Props = {
   metric: 'drive_hrs' | 'rest_hrs' | 'cnt_drv_hrs';
@@ -35,10 +39,7 @@ const renderLocation = (value: unknown) => {
     return <span className="text-zinc-300">—</span>;
   }
   return (
-    <span
-      className="line-clamp-3 break-words text-xs leading-snug text-zinc-700 dark:text-zinc-300"
-      title={text}
-    >
+    <span className={DRIVING_LOCATION_TEXT_CLASS} title={text}>
       {text}
     </span>
   );
@@ -106,12 +107,14 @@ export default function ThresholdSubPage({
         key: 'loginLocation',
         label: useCntDrvLabels ? copy.sheetStartLocation : copy.sheetLoginLocation,
         wrap: true,
+        wrapClassName: DRIVING_LOCATION_COLUMN_MAX_WIDTH_CLASS,
         render: renderLocation,
       },
       {
         key: 'logoutLocation',
         label: useCntDrvLabels ? copy.sheetEndLocation : copy.sheetLogoutLocation,
         wrap: true,
+        wrapClassName: DRIVING_LOCATION_COLUMN_MAX_WIDTH_CLASS,
         render: renderLocation,
       },
       {
