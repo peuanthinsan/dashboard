@@ -10,7 +10,7 @@ import { heading2, textSecondary } from 'app/ui/design-tokens';
 import type { ViolationRow } from './dashboardDataUtils';
 
 type Props = {
-  metric: 'drive_hrs' | 'rest_hrs';
+  metric: 'drive_hrs' | 'rest_hrs' | 'cnt_drv_hrs';
   threshold: number;
   thresholdLabel: string;
   violations: ViolationRow[];
@@ -54,7 +54,7 @@ export default function ThresholdSubPage({
     for (const v of violations) {
       const key = v.dayKey;
       const c = map.get(key) ?? { duration: 0, distance: 0 };
-      c.duration += metric === 'drive_hrs' ? v.driveHours : v.restHours;
+      c.duration += metric === 'rest_hrs' ? v.restHours : v.driveHours;
       c.distance += v.distanceKm;
       map.set(key, c);
     }
@@ -103,6 +103,10 @@ export default function ThresholdSubPage({
         },
       ];
     }
+    const hoursKey = metric === 'rest_hrs' ? 'restHours' : 'driveHours';
+    const hoursLabel = metric === 'rest_hrs'
+      ? copy.tableHeaderRestHrs
+      : (lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr');
     return [
       { key: 'driver', label: copy.tableHeaderDriver, sortable: true, stickyLeft: true },
       { key: 'vehicle', label: copy.tableHeaderVehicle, sortable: true },
@@ -111,7 +115,7 @@ export default function ThresholdSubPage({
       { key: 'logoutAt', label: copy.tableHeaderLogout, render: (v) => formatClock(v as Date | null) },
       { key: 'loginLocation', label: copy.tableHeaderLoginLoc },
       { key: 'logoutLocation', label: copy.tableHeaderLogoutLoc },
-      { key: 'restHours', label: copy.tableHeaderRestHrs, sortable: true, render: (v) => formatHours(Number(v)) },
+      { key: hoursKey, label: hoursLabel, sortable: true, render: (v) => formatHours(Number(v)) },
       { key: 'distanceKm', label: copy.tableHeaderDistance, sortable: true, render: (v) => formatDistance(Number(v)) },
       {
         key: 'warning',
@@ -126,7 +130,7 @@ export default function ThresholdSubPage({
         render: (_, row) => renderWarnAction ? renderWarnAction(row) : null,
       },
     ];
-  }, [metric, copy, renderWarnAction]);
+  }, [metric, copy, lang, renderWarnAction]);
 
   return (
     <section className={dashboardSectionClass}>
@@ -158,7 +162,7 @@ export default function ThresholdSubPage({
         columns={columns}
         data={violations}
         pageSize={15}
-        defaultSort={metric === 'drive_hrs'
+        defaultSort={metric === 'drive_hrs' || metric === 'cnt_drv_hrs'
           ? { key: 'driveHours', direction: 'desc' }
           : { key: 'restHours', direction: 'asc' }}
         ariaLabel={thresholdLabel}

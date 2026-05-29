@@ -8,7 +8,7 @@ import {
 
 describe('normalizeDrivingThresholds', () => {
   it('returns defaults for null/undefined/non-object input', () => {
-    expect(normalizeDrivingThresholds(null)).toEqual(DEFAULT_DRIVING_THRESHOLDS);
+    expect(normalizeDrivingThresholds(null)).toEqual({ ...DEFAULT_DRIVING_THRESHOLDS });
     expect(normalizeDrivingThresholds(undefined)).toEqual(DEFAULT_DRIVING_THRESHOLDS);
     expect(normalizeDrivingThresholds(42)).toEqual(DEFAULT_DRIVING_THRESHOLDS);
     expect(normalizeDrivingThresholds('string')).toEqual(DEFAULT_DRIVING_THRESHOLDS);
@@ -21,22 +21,25 @@ describe('normalizeDrivingThresholds', () => {
       restMinimumHours: 9,
     };
     const out = normalizeDrivingThresholds(legacy);
-    expect(out.driveHours).toEqual([{ value: 4, label: 'Cnt Drv > 4 h' }]);
+    expect(out.cntDrvHours).toEqual([{ value: 4, label: 'Cnt Drv > 4 h' }]);
+    expect(out.driveHours).toEqual([10]);
     expect(out.restHours).toEqual([9]);
     expect('workHours' in out).toBe(false);
   });
 
   it('accepts already-widened shape with numeric entries', () => {
-    const widened = { driveHours: [4, 10], restHours: [10] };
+    const widened = { driveHours: [4, 10], restHours: [10], cntDrvHours: [4] };
     expect(normalizeDrivingThresholds(widened)).toEqual({
       driveHours: [4, 10],
       restHours: [10],
+      cntDrvHours: [4],
     });
   });
 
   it('accepts entries with explicit { value, label }', () => {
     const widened = {
-      driveHours: [{ value: 4, label: 'Cnt Drv > 4 h' }, { value: 10 }],
+      driveHours: [{ value: 10 }],
+      cntDrvHours: [{ value: 4, label: 'Cnt Drv > 4 h' }],
       restHours: [{ value: 10 }],
     };
     expect(normalizeDrivingThresholds(widened)).toEqual(widened);
@@ -48,6 +51,7 @@ describe('normalizeDrivingThresholds', () => {
     expect('workHours' in out).toBe(false);
     expect(out.driveHours).toEqual([4]);
     expect(out.restHours).toEqual([10]);
+    expect(out.cntDrvHours).toEqual([4]);
   });
 
   it('coerces invalid entries (non-positive, non-numeric, label too long)', () => {

@@ -31,6 +31,8 @@ export type Dashboard = {
   sheetUrl: string | null;
   sheetId?: string | null;
   sheetGid?: string | null;
+  sheetUrlCntDrv?: string | null;
+  sheetGidCntDrv?: string | null;
   template: string | null;
   notes: string | null;
   alertTypes?: string[] | null;

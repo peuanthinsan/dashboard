@@ -18,6 +18,8 @@ import {
   buildDriveHoursMessageEnglish,
   buildRestHoursMessageThai,
   buildRestHoursMessageEnglish,
+  buildCntDrvHoursMessageThai,
+  buildCntDrvHoursMessageEnglish,
 } from './drivingWarningMessage';
 import { computeViolationKey } from './dashboardDataUtils';
 
@@ -51,13 +53,27 @@ const ViolationRestHrs = z.object({
   logoutLocation: z.string().max(256).nullable(),
 });
 
+const ViolationCntDrvHrs = z.object({
+  metric: z.literal('cnt_drv_hrs'),
+  driver: z.string().min(1).max(128),
+  vehicle: z.string().min(1).max(64),
+  eventAt: z.string().datetime(),
+  threshold: z.number().positive().max(24),
+  valueHours: z.number().min(0).max(48),
+  distanceKm: z.number().min(0).max(10_000).nullable(),
+  loginAt: z.string().datetime().nullable(),
+  logoutAt: z.string().datetime().nullable(),
+  loginLocation: z.string().max(256).nullable(),
+  logoutLocation: z.string().max(256).nullable(),
+});
+
 const Input = z.object({
   // Use guid() (Zod v4) for the UUID-shape check. Strict uuid() rejects fixtures
   // like `1111…1111` because their variant/version nibbles don't match RFC 4122;
   // dashboard publicIds come from `randomUUID()` so the shape check is sufficient.
   dashboardPublicId: z.string().guid(),
   lineChannelId: z.number().int().positive(),
-  violation: z.discriminatedUnion('metric', [ViolationDriveHrs, ViolationRestHrs]),
+  violation: z.discriminatedUnion('metric', [ViolationDriveHrs, ViolationRestHrs, ViolationCntDrvHrs]),
   operatorNote: z.string().max(500).optional(),
 });
 
@@ -129,7 +145,13 @@ export async function sendDrivingWarning(
   const v = parsed.violation;
   const violationKey = v.metric === 'drive_hrs'
     ? computeViolationKey({ metric: 'drive_hrs', driver: v.driver, dayKey: v.dayKey, threshold: v.threshold })
-    : computeViolationKey({ metric: 'rest_hrs', driver: v.driver, vehicle: v.vehicle, eventAtIso: v.eventAt, threshold: v.threshold });
+    : computeViolationKey({
+        metric: v.metric,
+        driver: v.driver,
+        vehicle: v.vehicle,
+        eventAtIso: v.eventAt,
+        threshold: v.threshold,
+      });
 
   const eventAt = v.metric === 'drive_hrs' ? new Date(`${v.dayKey}T00:00:00.000Z`) : new Date(v.eventAt);
   const vehicleNo = v.metric === 'drive_hrs' ? v.vehicleSummary : v.vehicle;
@@ -146,10 +168,10 @@ export async function sendDrivingWarning(
     distanceKm: v.distanceKm ?? null,
     loginAt: v.metric === 'drive_hrs'
       ? (v.firstLoginAt ? new Date(v.firstLoginAt) : null)
-      : (v.loginAt ? new Date(v.loginAt) : null),
+      : ('loginAt' in v && v.loginAt ? new Date(v.loginAt) : null),
     logoutAt: v.metric === 'drive_hrs'
       ? (v.lastLogoutAt ? new Date(v.lastLogoutAt) : null)
-      : (v.logoutAt ? new Date(v.logoutAt) : null),
+      : ('logoutAt' in v && v.logoutAt ? new Date(v.logoutAt) : null),
     loginLocation: v.metric === 'drive_hrs' ? v.firstLoginLocation : v.loginLocation,
     logoutLocation: v.metric === 'drive_hrs' ? v.lastLogoutLocation : v.logoutLocation,
     lineChannelId: channel.id,
@@ -163,9 +185,13 @@ export async function sendDrivingWarning(
     ? (lang === 'th'
         ? buildDriveHoursMessageThai({ ...v, distanceKm: v.distanceKm, operatorNote: parsed.operatorNote, dashboardName })
         : buildDriveHoursMessageEnglish({ ...v, distanceKm: v.distanceKm, operatorNote: parsed.operatorNote, dashboardName }))
-    : (lang === 'th'
-        ? buildRestHoursMessageThai({ ...v, distanceKm: v.distanceKm, operatorNote: parsed.operatorNote, dashboardName })
-        : buildRestHoursMessageEnglish({ ...v, distanceKm: v.distanceKm, operatorNote: parsed.operatorNote, dashboardName }));
+    : v.metric === 'rest_hrs'
+      ? (lang === 'th'
+          ? buildRestHoursMessageThai({ ...v, distanceKm: v.distanceKm, operatorNote: parsed.operatorNote, dashboardName })
+          : buildRestHoursMessageEnglish({ ...v, distanceKm: v.distanceKm, operatorNote: parsed.operatorNote, dashboardName }))
+      : (lang === 'th'
+          ? buildCntDrvHoursMessageThai({ ...v, distanceKm: v.distanceKm, operatorNote: parsed.operatorNote, dashboardName })
+          : buildCntDrvHoursMessageEnglish({ ...v, distanceKm: v.distanceKm, operatorNote: parsed.operatorNote, dashboardName }));
 
   const lineResult = await sendLinePushMessage({
     accessToken: channel.tokenPlaintext as unknown as string,

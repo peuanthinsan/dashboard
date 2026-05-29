@@ -147,10 +147,10 @@ export default function DrivingThresholdInlineEditor({
         <div className="mt-2 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
           <p className="mb-2 text-xs text-zinc-500">
             {lang === 'th'
-              ? 'Drive Hours ต่อวัน (>), Rest Hours ต่อกะ (<)'
-              : 'Drive Hours per day (>), Rest Hours per shift (<)'}
+              ? 'Drive Hours ต่อวัน (>), Rest Hours ต่อกะ (<), ขับต่อเนื่อง (>)'
+              : 'Drive Hours per day (>), Rest Hours per shift (<), Cnt Drv (>))'}
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
               {lang === 'th' ? 'Drive Hours/วัน' : 'Drive Hours/day'}
               <div className="mt-1">
@@ -168,6 +168,16 @@ export default function DrivingThresholdInlineEditor({
                   comparator="<"
                   entries={thresholds.restHours}
                   onChange={(next) => setThresholds((t) => ({ ...t, restHours: next }))}
+                />
+              </div>
+            </label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              {lang === 'th' ? 'ขับต่อเนื่อง' : 'Cnt Drv'}
+              <div className="mt-1">
+                <Chips
+                  comparator=">"
+                  entries={thresholds.cntDrvHours}
+                  onChange={(next) => setThresholds((t) => ({ ...t, cntDrvHours: next }))}
                 />
               </div>
             </label>

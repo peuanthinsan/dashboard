@@ -77,19 +77,33 @@ export default function SendWarningButton({
           firstLoginLocation: row.loginLocation,
           lastLogoutLocation: row.logoutLocation,
         }
-      : {
-          metric: 'rest_hrs' as const,
-          driver: row.driver,
-          vehicle: row.vehicle,
-          eventAt: row.eventAt.toISOString(),
-          threshold: row.threshold,
-          valueHours: row.restHours,
-          distanceKm: row.distanceKm,
-          loginAt: row.loginAt?.toISOString() ?? null,
-          logoutAt: row.logoutAt?.toISOString() ?? null,
-          loginLocation: row.loginLocation,
-          logoutLocation: row.logoutLocation,
-        },
+      : row.metric === 'cnt_drv_hrs'
+        ? {
+            metric: 'cnt_drv_hrs' as const,
+            driver: row.driver,
+            vehicle: row.vehicle,
+            eventAt: row.eventAt.toISOString(),
+            threshold: row.threshold,
+            valueHours: row.driveHours,
+            distanceKm: row.distanceKm,
+            loginAt: row.loginAt?.toISOString() ?? null,
+            logoutAt: row.logoutAt?.toISOString() ?? null,
+            loginLocation: row.loginLocation,
+            logoutLocation: row.logoutLocation,
+          }
+        : {
+            metric: 'rest_hrs' as const,
+            driver: row.driver,
+            vehicle: row.vehicle,
+            eventAt: row.eventAt.toISOString(),
+            threshold: row.threshold,
+            valueHours: row.restHours,
+            distanceKm: row.distanceKm,
+            loginAt: row.loginAt?.toISOString() ?? null,
+            logoutAt: row.logoutAt?.toISOString() ?? null,
+            loginLocation: row.loginLocation,
+            logoutLocation: row.logoutLocation,
+          },
     operatorNote: note || undefined,
   };
 

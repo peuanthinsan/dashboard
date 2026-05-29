@@ -75,11 +75,11 @@ export function DrivingThresholdAdminFields({
     <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
       <p className={`${ADMIN_LABEL} mb-1`}>Driving thresholds</p>
       <p className={`mb-3 text-xs ${ADMIN_TEXT_MUTED}`}>
-        Drive Hours uses per-day totals. Rest Hours uses per-shift gaps. Work Hours is not surfaced in v2.
+        Drive Hours and Rest Hours use the shift/work sheet tab. Continuous drive (Cnt Drv) uses the separate Cnt Drv sheet tab configured above.
         Each threshold renders one sub-page. Max 5 per metric.
       </p>
       <input type="hidden" name="drivingThresholdsJson" value={json} />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
           Drive Hours / day (&gt; threshold)
           <Chips comparator=">" entries={thresholds.driveHours} onChange={(next) => setThresholds((t) => ({ ...t, driveHours: next }))} />
@@ -87,6 +87,10 @@ export function DrivingThresholdAdminFields({
         <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
           Rest Hours per shift (&lt; threshold)
           <Chips comparator="<" entries={thresholds.restHours} onChange={(next) => setThresholds((t) => ({ ...t, restHours: next }))} />
+        </label>
+        <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
+          Cnt Drv / segment (&gt; threshold)
+          <Chips comparator=">" entries={thresholds.cntDrvHours} onChange={(next) => setThresholds((t) => ({ ...t, cntDrvHours: next }))} />
         </label>
       </div>
     </div>

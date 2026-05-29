@@ -9,7 +9,8 @@ import {
 export type SubPage =
   | { kind: 'overview'; slug: 'overview'; label: string }
   | { kind: 'drive_hrs'; slug: `drive-hrs-${number}`; threshold: number; label: string }
-  | { kind: 'rest_hrs'; slug: `rest-hrs-${number}`; threshold: number; label: string };
+  | { kind: 'rest_hrs'; slug: `rest-hrs-${number}`; threshold: number; label: string }
+  | { kind: 'cnt_drv_hrs'; slug: `cnt-drv-hrs-${number}`; threshold: number; label: string };
 
 function sortAsc<T>(entries: T[], value: (t: T) => number): T[] {
   return [...entries].sort((a, b) => value(a) - value(b));
@@ -27,6 +28,7 @@ export function deriveSubPages(
   };
   const drivePrefix = copy?.tabDriveHrsPrefix ?? (lang === 'th' ? 'ขับรถ/วัน' : 'Drive Hr/day');
   const restPrefix = copy?.tabRestHrsPrefix ?? (lang === 'th' ? 'พัก' : 'Rest Hr');
+  const cntDrvPrefix = lang === 'th' ? 'ขับต่อเนื่อง' : 'Cnt Drv';
   const drive = sortAsc<DrivingThresholdEntry>(t.driveHours, thresholdEntryValue).map((e) => {
     const v = thresholdEntryValue(e);
     return {
@@ -45,7 +47,16 @@ export function deriveSubPages(
       label: thresholdEntryLabel(e, `${restPrefix} < ${v} h`),
     };
   });
-  return [overview, ...drive, ...rest];
+  const cntDrv = sortAsc<DrivingThresholdEntry>(t.cntDrvHours, thresholdEntryValue).map((e) => {
+    const v = thresholdEntryValue(e);
+    return {
+      kind: 'cnt_drv_hrs' as const,
+      slug: `cnt-drv-hrs-${v}` as const,
+      threshold: v,
+      label: thresholdEntryLabel(e, `${cntDrvPrefix} > ${v} h`),
+    };
+  });
+  return [overview, ...drive, ...rest, ...cntDrv];
 }
 
 export function subPageBySlug(pages: SubPage[], slug: string | null): SubPage {

@@ -36,7 +36,17 @@ import {
 import { normalizeDrivingThresholds, thresholdEntryValue, type DrivingThresholds } from './drivingThresholds';
 import { deriveSubPages, subPageBySlug } from './drivingSubPages';
 import ThresholdSubPage from './ThresholdSubPage';
-import { buildDriveHoursViolations, buildRestHoursViolations } from './violationBuilders';
+import {
+  buildCntDrvHoursViolations,
+  buildDriveHoursViolations,
+  buildRestHoursViolations,
+} from './violationBuilders';
+import {
+  mapCntDrvSheetRows,
+  mapShiftSheetRows,
+  type DrivingCntDrvRow,
+  type DrivingShiftRow,
+} from './drivingSheetRows';
 import SendWarningButton from './SendWarningButton';
 import DrivingThresholdInlineEditor from './DrivingThresholdInlineEditor';
 
@@ -45,6 +55,7 @@ type DashboardProps = {
   dashboardName: string;
   sheetId: string;
   sheetGid: string;
+  sheetGidCntDrv?: string | null;
   dashboardNotes?: string | null;
   organizationName?: string | null;
   lang?: DashboardLang;
@@ -58,22 +69,6 @@ type DashboardProps = {
   dashboardRowId?: number;
 };
 
-type DrivingRow = {
-  sourceRow: Record<string, unknown>;
-  driver: string;
-  vehicle: string;
-  date: Date | null;
-  loginAt: Date | null;
-  logoutAt: Date | null;
-  loginLocation: string;
-  logoutLocation: string;
-  driveHours: number;
-  workingHours: number;
-  restHours: number;
-  distanceKm: number;
-  status: string;
-  fleet?: string;
-};
 type DriverAggregate = {
   driver: string;
   tripCount: number;
@@ -92,19 +87,6 @@ const parseNumber = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const parseDurationHours = (value: unknown) => {
-  if (value == null || value === '') return 0;
-  const raw = String(value).trim();
-  if (!raw) return 0;
-  if (raw.includes(':')) {
-    const parts = raw.split(':').map((part) => Number(part));
-    if (parts.some((part) => Number.isNaN(part))) return 0;
-    if (parts.length === 3) return parts[0] + parts[1] / 60 + parts[2] / 3600;
-    if (parts.length === 2) return parts[0] + parts[1] / 60;
-  }
-  return parseNumber(raw);
-};
-
 const formatHours = (hours: number) => `${hours.toFixed(2)} h`;
 const formatDistance = (km: number) => `${km.toFixed(1)} km`;
 const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -119,6 +101,7 @@ export default function DrivingDashboard({
   dashboardName,
   sheetId,
   sheetGid,
+  sheetGidCntDrv = null,
   dashboardNotes,
   organizationName,
   lang = 'en',
@@ -166,14 +149,42 @@ export default function DrivingDashboard({
     },
     [copy.drivingV2, lang, pathname, router, searchParams],
   );
-  const driveMaxHours = thresholds.driveHours[0]
-    ? thresholdEntryValue(thresholds.driveHours[0]) : Infinity;
   const restMinHours = thresholds.restHours[0]
     ? thresholdEntryValue(thresholds.restHours[0]) : 0;
-  const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
+  const cntDrvMaxHours = thresholds.cntDrvHours[0]
+    ? thresholdEntryValue(thresholds.cntDrvHours[0]) : Infinity;
+  const hasCntDrvSheet = Boolean(sheetGidCntDrv);
+  const shiftSheet = useGoogleSheet({ sheetId, gid: sheetGid });
+  const cntDrvSheet = useGoogleSheet({
     sheetId,
-    gid: sheetGid,
+    gid: sheetGidCntDrv ?? '0',
+    enabled: hasCntDrvSheet,
   });
+  const {
+    rows,
+    columns: sheetColumns,
+    loading: shiftLoading,
+    error: shiftError,
+    lastUpdated: shiftLastUpdated,
+    refresh: refreshShift,
+  } = shiftSheet;
+  const {
+    rows: cntDrvRawRows,
+    columns: cntDrvSheetColumns,
+    loading: cntDrvLoading,
+    error: cntDrvError,
+    lastUpdated: cntDrvLastUpdated,
+    refresh: refreshCntDrv,
+  } = cntDrvSheet;
+  const loading = shiftLoading || (hasCntDrvSheet && cntDrvLoading);
+  const error = shiftError ?? (hasCntDrvSheet ? cntDrvError : null);
+  const lastUpdated = [shiftLastUpdated, cntDrvLastUpdated]
+    .filter((v): v is Date => v instanceof Date)
+    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  const refresh = useCallback(() => {
+    refreshShift();
+    if (hasCntDrvSheet) refreshCntDrv();
+  }, [hasCntDrvSheet, refreshCntDrv, refreshShift]);
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
@@ -218,64 +229,53 @@ export default function DrivingDashboard({
     });
   }, [storageKey, selectedMonth, dayFilters, driverFilters, vehicleFilters]);
 
-  const drivingRows = useMemo<DrivingRow[]>(() => rows.map((row) => ({
-    sourceRow: row,
-    driver: toDisplayString(findValue(row, ['Driver Name'])),
-    vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
-    date: parseDate(findValue(row, ['DateTime', 'Login Time', 'Date', 'Start Time'])),
-    loginAt: parseDate(findValue(row, ['Login Time', 'Start Time', 'Login DateTime'])),
-    logoutAt: parseDate(findValue(row, ['Logout Time', 'End Time', 'Logout DateTime'])),
-    loginLocation: toDisplayString(findValue(row, ['Login Location'])),
-    logoutLocation: toDisplayString(findValue(row, ['Logout Location'])),
-    driveHours: parseDurationHours(findValue(row, ['DriveHrs', 'DriveHrs duration', 'Cnt Drv Hr', 'Cnt Drv duration'])),
-    restHours: parseDurationHours(findValue(row, [
-      'Rest Time', 'Rest Hr', 'RestHr', 'Rest Hour', 'Rest Hours', 'Rest duration', 'RestHrs', 'RestHrs duration',
-    ])),
-    workingHours: parseDurationHours(findValue(row, [
-      'Working Hr', 'Working Hour', 'Working Hours',
-      'Work Hr', 'Work Hour', 'Work Hours', 'Working Time', 'Work Time', 'Total Working',
-      'WorkHrs', 'WorkHrs duration',
-    ])),
-    distanceKm: parseNumber(findValue(row, ['Distance', 'Distance KM', 'Distance(KM)'])),
-    status: toDisplayString(findValue(row, ['Status'])).toUpperCase(),
-    fleet: toDisplayString(findValue(row, ['Fleet'])),
-  })).filter((row) => {
-    if (!normalizedOrganizationName) return true;
-    return normalizeLabel(row.fleet ?? '') === normalizedOrganizationName;
-  }).map((row) => ({
-    sourceRow: row.sourceRow,
-    driver: row.driver,
-    vehicle: row.vehicle,
-    date: row.date,
-    loginAt: row.loginAt,
-    logoutAt: row.logoutAt,
-    loginLocation: row.loginLocation,
-    logoutLocation: row.logoutLocation,
-    driveHours: row.driveHours,
-    restHours: row.restHours,
-    workingHours: row.workingHours,
-    distanceKm: row.distanceKm,
-    status: row.status,
-  })), [rows, normalizedOrganizationName]);
+  const shiftRows = useMemo(
+    () => mapShiftSheetRows(rows, normalizedOrganizationName),
+    [rows, normalizedOrganizationName],
+  );
+  const cntDrvRows = useMemo(
+    () => (hasCntDrvSheet ? mapCntDrvSheetRows(cntDrvRawRows, normalizedOrganizationName) : []),
+    [cntDrvRawRows, hasCntDrvSheet, normalizedOrganizationName],
+  );
 
-  const driverOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.driver).filter((n) => n !== '—'))).sort(), [drivingRows]);
-  const vehicleOptions = useMemo(() => Array.from(new Set(drivingRows.map((r) => r.vehicle).filter((n) => n !== '—'))).sort(), [drivingRows]);
+  const applyRowFilters = useCallback(
+    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[]) =>
+      source.filter((row) => {
+        if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
+        if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
+        if (selectedMonth) {
+          if (!row.date) return false;
+          if (getMonthKey(row.date) !== selectedMonth) return false;
+        }
+        if (dayFilters.length > 0 && row.date && !dayFilters.includes(toDayKey(row.date))) {
+          return false;
+        }
+        return true;
+      }),
+    [dayFilters, driverFilters, selectedMonth, vehicleFilters],
+  );
 
-  const filteredRows = useMemo(() => {
-    return drivingRows.filter((row) => {
-      if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
-      if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
-      if (selectedMonth) {
-        if (!row.date) return false;
-        const rowMonth = getMonthKey(row.date);
-        if (rowMonth !== selectedMonth) return false;
-      }
-      if (dayFilters.length > 0 && row.date) {
-        if (!dayFilters.includes(toDayKey(row.date))) return false;
-      }
-      return true;
-    });
-  }, [drivingRows, driverFilters, vehicleFilters, selectedMonth, dayFilters]);
+  const filteredShiftRows = useMemo(
+    () => applyRowFilters(shiftRows),
+    [applyRowFilters, shiftRows],
+  );
+  const filteredCntDrvRows = useMemo(
+    () => applyRowFilters(cntDrvRows),
+    [applyRowFilters, cntDrvRows],
+  );
+
+  const driverOptions = useMemo(() => {
+    const names = new Set<string>();
+    shiftRows.forEach((r) => { if (r.driver !== '—') names.add(r.driver); });
+    cntDrvRows.forEach((r) => { if (r.driver !== '—') names.add(r.driver); });
+    return Array.from(names).sort();
+  }, [cntDrvRows, shiftRows]);
+  const vehicleOptions = useMemo(() => {
+    const ids = new Set<string>();
+    shiftRows.forEach((r) => { if (r.vehicle !== '—') ids.add(r.vehicle); });
+    cntDrvRows.forEach((r) => { if (r.vehicle !== '—') ids.add(r.vehicle); });
+    return Array.from(ids).sort();
+  }, [cntDrvRows, shiftRows]);
 
   const warningsMap = useMemo(() => {
     const m = new Map<string, { sentAt: Date; channelName: string }>();
@@ -286,20 +286,29 @@ export default function DrivingDashboard({
   const driveHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'drive_hrs') return [];
     return buildDriveHoursViolations(
-      filteredRows,
+      filteredShiftRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
     );
-  }, [activeSubPage, filteredRows, warningsMap]);
+  }, [activeSubPage, filteredShiftRows, warningsMap]);
 
   const restHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'rest_hrs') return [];
     return buildRestHoursViolations(
-      filteredRows,
+      filteredShiftRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
     );
-  }, [activeSubPage, filteredRows, warningsMap]);
+  }, [activeSubPage, filteredShiftRows, warningsMap]);
+
+  const cntDrvHrsViolations = useMemo(() => {
+    if (activeSubPage.kind !== 'cnt_drv_hrs') return [];
+    return buildCntDrvHoursViolations(
+      filteredCntDrvRows,
+      { threshold: activeSubPage.threshold, label: activeSubPage.label },
+      warningsMap,
+    );
+  }, [activeSubPage, filteredCntDrvRows, warningsMap]);
 
   // Active filter count for DashboardShell badge
   const activeFilterCount = useMemo(
@@ -313,16 +322,18 @@ export default function DrivingDashboard({
   // All months in filtered data (sorted)
   const allMonthKeys = useMemo(() => {
     const keys = new Set<string>();
-    filteredRows.forEach((row) => { if (row.date) keys.add(getMonthKey(row.date)); });
+    filteredShiftRows.forEach((row) => { if (row.date) keys.add(getMonthKey(row.date)); });
+    filteredCntDrvRows.forEach((row) => { if (row.date) keys.add(getMonthKey(row.date)); });
     return Array.from(keys).sort();
-  }, [filteredRows]);
+  }, [filteredCntDrvRows, filteredShiftRows]);
 
   // All months in raw data (for default month when no filter)
   const allMonthsFromData = useMemo(() => {
     const keys = new Set<string>();
-    drivingRows.forEach((row) => { if (row.date) keys.add(getMonthKey(row.date)); });
+    shiftRows.forEach((row) => { if (row.date) keys.add(getMonthKey(row.date)); });
+    cntDrvRows.forEach((row) => { if (row.date) keys.add(getMonthKey(row.date)); });
     return Array.from(keys).sort();
-  }, [drivingRows]);
+  }, [cntDrvRows, shiftRows]);
 
   // ── Default to current month when no stored filters ──────────────────────
   useEffect(() => {
@@ -344,7 +355,7 @@ export default function DrivingDashboard({
 
   const aggregates = useMemo<DriverAggregate[]>(() => {
     const totals = new Map<string, { driver: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; monthlyMap: Map<string, number> }>();
-    filteredRows.forEach((row) => {
+    filteredShiftRows.forEach((row) => {
       const c = totals.get(row.driver) ?? { driver: row.driver, tripCount: 0, totalDistanceKm: 0, totalCntDrvDurationHours: 0, monthlyMap: new Map() };
       c.tripCount += 1;
       c.totalDistanceKm += row.distanceKm;
@@ -367,11 +378,11 @@ export default function DrivingDashboard({
         monthlyDistances: allMonthKeys.map((mk) => c.monthlyMap.get(mk) ?? 0),
       }))
       .sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
-  }, [filteredRows, allMonthKeys]);
+  }, [allMonthKeys, filteredShiftRows]);
 
   // KPI trend: split filteredRows by date into first/second half
   const kpiTrend = useMemo(() => {
-    const dated = filteredRows.filter((r) => r.date).sort((a, b) => a.date!.getTime() - b.date!.getTime());
+    const dated = filteredShiftRows.filter((r) => r.date).sort((a, b) => a.date!.getTime() - b.date!.getTime());
     if (dated.length < 4) return null;
     const half = Math.floor(dated.length / 2);
     const first = dated.slice(0, half);
@@ -384,47 +395,61 @@ export default function DrivingDashboard({
       durFirst: first.reduce((s, r) => s + r.driveHours, 0),
       durSecond: second.reduce((s, r) => s + r.driveHours, 0),
     };
-  }, [filteredRows]);
+  }, [filteredShiftRows]);
 
   const kpis = useMemo(() => {
-    const totalTrips = filteredRows.length;
-    const totalDistanceKm = filteredRows.reduce((s, r) => s + r.distanceKm, 0);
-    const totalCntDrvDurationHours = filteredRows.reduce((s, r) => s + r.driveHours, 0);
-    const totalRestHours = filteredRows.reduce((s, r) => s + r.restHours, 0);
+    const totalTrips = filteredShiftRows.length;
+    const totalDistanceKm = filteredShiftRows.reduce((s, r) => s + r.distanceKm, 0);
+    const totalDriveHours = filteredShiftRows.reduce((s, r) => s + r.driveHours, 0);
+    const totalCntDrvDurationHours = filteredCntDrvRows.reduce((s, r) => s + r.cntDrvHours, 0);
+    const totalRestHours = filteredShiftRows.reduce((s, r) => s + r.restHours, 0);
+    const cntDrvTrips = filteredCntDrvRows.length;
     return {
       totalTrips,
       totalDistanceKm,
+      totalDriveHours,
       totalCntDrvDurationHours,
       totalRestHours,
       avgDistancePerTrip: totalTrips > 0 ? totalDistanceKm / totalTrips : 0,
-      avgCntDrvPerTrip: totalTrips > 0 ? totalCntDrvDurationHours / totalTrips : 0,
+      avgCntDrvPerTrip: cntDrvTrips > 0 ? totalCntDrvDurationHours / cntDrvTrips : 0,
       avgRestPerTrip: totalTrips > 0 ? totalRestHours / totalTrips : 0,
     };
-  }, [filteredRows]);
+  }, [filteredCntDrvRows, filteredShiftRows]);
 
   const monthlyTrend = useMemo<MonthlyTrendPoint[]>(() => {
     const map = new Map<string, MonthlyTrendPoint>();
-    filteredRows.forEach((row) => {
+    filteredShiftRows.forEach((row) => {
       if (!row.date) return;
       const mk = getMonthKey(row.date);
       const c = map.get(mk) ?? { monthKey: mk, monthLabel: getMonthLabel(mk), totalDistanceKm: 0, totalCntDrvDurationHours: 0, tripCount: 0 };
-      c.totalDistanceKm += row.distanceKm; c.totalCntDrvDurationHours += row.driveHours; c.tripCount += 1;
+      c.totalDistanceKm += row.distanceKm;
+      c.totalCntDrvDurationHours += row.driveHours;
+      c.tripCount += 1;
       map.set(mk, c);
     });
     return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
-  }, [filteredRows]);
+  }, [filteredShiftRows]);
 
   // --- Fleet counts ---
-  const fleetCounts = useMemo(() => ({
-    uniqueDrivers: new Set(filteredRows.map((r) => r.driver).filter((d) => d !== '—')).size,
-    uniqueVehicles: new Set(filteredRows.map((r) => r.vehicle).filter((v) => v !== '—')).size,
-  }), [filteredRows]);
+  const fleetCounts = useMemo(() => {
+    const drivers = new Set<string>();
+    const vehicles = new Set<string>();
+    filteredShiftRows.forEach((r) => {
+      if (r.driver !== '—') drivers.add(r.driver);
+      if (r.vehicle !== '—') vehicles.add(r.vehicle);
+    });
+    filteredCntDrvRows.forEach((r) => {
+      if (r.driver !== '—') drivers.add(r.driver);
+      if (r.vehicle !== '—') vehicles.add(r.vehicle);
+    });
+    return { uniqueDrivers: drivers.size, uniqueVehicles: vehicles.size };
+  }, [filteredCntDrvRows, filteredShiftRows]);
 
   // --- Vehicle aggregates ---
   type VehicleAggregate = { vehicle: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; driverCount: number };
   const vehicleAggregates = useMemo<VehicleAggregate[]>(() => {
     const map = new Map<string, { vehicle: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; drivers: Set<string> }>();
-    filteredRows.forEach((row) => {
+    filteredShiftRows.forEach((row) => {
       if (row.vehicle === '—') return;
       const c = map.get(row.vehicle) ?? { vehicle: row.vehicle, tripCount: 0, totalDistanceKm: 0, totalCntDrvDurationHours: 0, drivers: new Set<string>() };
       c.tripCount += 1;
@@ -436,7 +461,7 @@ export default function DrivingDashboard({
     return Array.from(map.values())
       .map((c) => ({ vehicle: c.vehicle, tripCount: c.tripCount, totalDistanceKm: c.totalDistanceKm, totalCntDrvDurationHours: c.totalCntDrvDurationHours, driverCount: c.drivers.size }))
       .sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
-  }, [filteredRows]);
+  }, [filteredShiftRows]);
 
   // --- Donut chart data ---
   const tripsByDriverDonut = useMemo(() => {
@@ -458,15 +483,30 @@ export default function DrivingDashboard({
   }, [vehicleAggregates, lang]);
 
   // --- Heatmap dates (trip timestamps) ---
-  const heatmapDates = useMemo(() => filteredRows.filter((r) => r.date).map((r) => r.date!), [filteredRows]);
+  const heatmapDates = useMemo(
+    () => filteredShiftRows.filter((r) => r.date).map((r) => r.date!),
+    [filteredShiftRows],
+  );
+
+  const cntDrvByDriver = useMemo(() => {
+    const map = new Map<string, { driver: string; totalCntDrvHours: number; tripCount: number }>();
+    filteredCntDrvRows.forEach((row) => {
+      if (row.driver === '—') return;
+      const c = map.get(row.driver) ?? { driver: row.driver, totalCntDrvHours: 0, tripCount: 0 };
+      c.totalCntDrvHours += row.cntDrvHours;
+      c.tripCount += 1;
+      map.set(row.driver, c);
+    });
+    return Array.from(map.values());
+  }, [filteredCntDrvRows]);
 
   // --- Top 5 drivers by total driving hours (for heatmap companion) ---
   const topDriversByHours = useMemo(() => {
-    return [...aggregates]
-      .sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours)
+    return [...cntDrvByDriver]
+      .sort((a, b) => b.totalCntDrvHours - a.totalCntDrvHours)
       .slice(0, 5)
-      .map((a) => ({ label: a.driver, value: Math.round(a.totalCntDrvDurationHours * 10) / 10 }));
-  }, [aggregates]);
+      .map((a) => ({ label: a.driver, value: Math.round(a.totalCntDrvHours * 10) / 10 }));
+  }, [cntDrvByDriver]);
 
   // --- Violation reports ---
   type ViolationRow = {
@@ -479,18 +519,21 @@ export default function DrivingDashboard({
   };
   const violations = useMemo<ViolationRow[]>(() => {
     const result: ViolationRow[] = [];
-    filteredRows.forEach((row) => {
+    filteredCntDrvRows.forEach((row) => {
       const dateStr = row.date ? row.date.toLocaleDateString('en-GB') : '—';
-      if (row.driveHours > driveMaxHours) {
+      if (row.cntDrvHours > cntDrvMaxHours) {
         result.push({
           driver: row.driver,
           vehicle: row.vehicle,
           date: dateStr,
-          cntDrvHours: row.driveHours,
-          restHours: row.restHours,
+          cntDrvHours: row.cntDrvHours,
+          restHours: 0,
           type: 'cnt_drv',
         });
       }
+    });
+    filteredShiftRows.forEach((row) => {
+      const dateStr = row.date ? row.date.toLocaleDateString('en-GB') : '—';
       if (row.restHours > 0 && row.restHours < restMinHours) {
         result.push({
           driver: row.driver,
@@ -507,15 +550,15 @@ export default function DrivingDashboard({
       if (a.type !== b.type) return typeOrder[a.type] - typeOrder[b.type];
       return a.driver.localeCompare(b.driver);
     });
-  }, [filteredRows, driveMaxHours, restMinHours]);
+  }, [filteredCntDrvRows, filteredShiftRows, cntDrvMaxHours, restMinHours]);
 
   const cntDrvViolations = useMemo(() => violations.filter((v) => v.type === 'cnt_drv'), [violations]);
   const restHrViolations = useMemo(() => violations.filter((v) => v.type === 'rest_hr'), [violations]);
 
   // --- Driving safety score (cached for main dashboard listing) ---
   const drivingScore = useMemo(
-    () => computeDrivingScore(filteredRows, thresholds),
-    [filteredRows, thresholds],
+    () => computeDrivingScore(filteredShiftRows, thresholds),
+    [filteredShiftRows, thresholds],
   );
 
   useEffect(() => {
@@ -534,24 +577,39 @@ export default function DrivingDashboard({
   ]);
 
   // --- Per-driver sorted by cnt drv hours (for requested bar+line chart) ---
-  const driversByCntDrv = useMemo(() =>
-    [...aggregates].sort((a, b) => b.totalCntDrvDurationHours - a.totalCntDrvDurationHours).slice(0, 10),
-    [aggregates],
+  const driversByCntDrv = useMemo(
+    () => [...cntDrvByDriver]
+      .sort((a, b) => b.totalCntDrvHours - a.totalCntDrvHours)
+      .slice(0, 10)
+      .map((d) => ({
+        driver: d.driver,
+        tripCount: d.tripCount,
+        totalDistanceKm: 0,
+        totalCntDrvDurationHours: d.totalCntDrvHours,
+        avgDistancePerTrip: 0,
+        avgDurationPerTrip: d.tripCount > 0 ? d.totalCntDrvHours / d.tripCount : 0,
+        monthlyDistances: [] as number[],
+      })),
+    [cntDrvByDriver],
   );
 
   // --- Per-driver rest hours vs cnt drv hours ---
   const restVsCntDrvByDriver = useMemo(() => {
     const map = new Map<string, { driver: string; totalRestHours: number; totalCntDrvHours: number; tripCount: number }>();
-    filteredRows.forEach((row) => {
+    filteredShiftRows.forEach((row) => {
       if (row.driver === '—') return;
       const c = map.get(row.driver) ?? { driver: row.driver, totalRestHours: 0, totalCntDrvHours: 0, tripCount: 0 };
       c.totalRestHours += row.restHours;
-      c.totalCntDrvHours += row.driveHours;
       c.tripCount += 1;
       map.set(row.driver, c);
     });
+    cntDrvByDriver.forEach((row) => {
+      const c = map.get(row.driver) ?? { driver: row.driver, totalRestHours: 0, totalCntDrvHours: 0, tripCount: 0 };
+      c.totalCntDrvHours = row.totalCntDrvHours;
+      map.set(row.driver, c);
+    });
     return Array.from(map.values()).sort((a, b) => b.totalCntDrvHours - a.totalCntDrvHours).slice(0, 10);
-  }, [filteredRows]);
+  }, [cntDrvByDriver, filteredShiftRows]);
 
   // --- Driving hours donut chart ---
   const drvHoursDonut = useMemo(() => {
@@ -564,7 +622,7 @@ export default function DrivingDashboard({
   }, [aggregates, lang]);
 
   const violationTableColumns = useMemo<Column<ViolationRow>[]>(() => {
-    const maxCnt = driveMaxHours;
+    const maxCnt = cntDrvMaxHours;
     const minRest = restMinHours;
     return [
       { key: 'driver', label: lang === 'th' ? 'คนขับ' : 'Driver', sortable: true, stickyLeft: true },
@@ -616,7 +674,7 @@ export default function DrivingDashboard({
         },
       },
     ];
-  }, [lang, driveMaxHours, restMinHours]);
+  }, [lang, cntDrvMaxHours, restMinHours]);
 
   // --- Vehicle table columns ---
   const vehicleTableColumns = useMemo<Column<VehicleAggregate>[]>(() => [
@@ -710,7 +768,16 @@ export default function DrivingDashboard({
         <>
           <ExportButton
             data={exportData}
-            fullSheetExport={{ rows, filteredRows: filteredRows.map((r) => r.sourceRow), columns: sheetColumns }}
+            fullSheetExport={{
+              rows,
+              filteredRows: [
+                ...filteredShiftRows.map((r) => r.sourceRow),
+                ...filteredCntDrvRows.map((r) => r.sourceRow),
+              ],
+              columns: [...sheetColumns, ...cntDrvSheetColumns.filter(
+                (c) => !sheetColumns.some((s) => s.fieldKey === c.fieldKey),
+              )],
+            }}
             dashboardName={dashboardName}
             dateRange={dateRange}
             filename={`${dashboardName}-driving`}
@@ -884,7 +951,7 @@ export default function DrivingDashboard({
           accentColor="#B91C1C"
         />
         <KpiCard
-          label={lang === 'th' ? `ขับต่อเนื่อง > ${driveMaxHours} ชม.` : `Cnt Drv > ${driveMaxHours} hrs`}
+          label={lang === 'th' ? `ขับต่อเนื่อง > ${cntDrvMaxHours} ชม.` : `Cnt Drv > ${cntDrvMaxHours} hrs`}
           value={cntDrvViolations.length}
           accentColor={cntDrvViolations.length > 0 ? '#ef4444' : '#10b981'}
         />
@@ -1161,6 +1228,24 @@ export default function DrivingDashboard({
           threshold={activeSubPage.threshold}
           thresholdLabel={activeSubPage.label}
           violations={restHrsViolations}
+          lang={lang}
+          renderWarnAction={(row) => (
+            <SendWarningButton
+              row={row}
+              dashboardPublicId={dashboardId}
+              channels={lineChannels ?? []}
+              defaultChannelId={defaultLineChannelId ?? null}
+              lang={lang}
+            />
+          )}
+        />
+      )}
+      {activeSubPage.kind === 'cnt_drv_hrs' && (
+        <ThresholdSubPage
+          metric="cnt_drv_hrs"
+          threshold={activeSubPage.threshold}
+          thresholdLabel={activeSubPage.label}
+          violations={cntDrvHrsViolations}
           lang={lang}
           renderWarnAction={(row) => (
             <SendWarningButton

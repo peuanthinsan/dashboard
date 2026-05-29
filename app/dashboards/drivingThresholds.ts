@@ -7,11 +7,13 @@ export type DrivingThresholdEntry =
 export type DrivingThresholds = {
   driveHours: DrivingThresholdEntry[];
   restHours: DrivingThresholdEntry[];
+  cntDrvHours: DrivingThresholdEntry[];
 };
 
 export const DEFAULT_DRIVING_THRESHOLDS: DrivingThresholds = {
   driveHours: [10],
   restHours: [10],
+  cntDrvHours: [4],
 };
 
 const MAX_ENTRIES_PER_METRIC = 5;
@@ -47,6 +49,25 @@ const ThresholdArraySchema = z
       .slice(0, MAX_ENTRIES_PER_METRIC),
   );
 
+function isCntDrvLabel(entry: DrivingThresholdEntry): boolean {
+  if (typeof entry === 'number') return false;
+  const label = entry.label?.toLowerCase() ?? '';
+  return label.includes('cnt drv') || label.includes('continuous');
+}
+
+function partitionDriveEntries(entries: DrivingThresholdEntry[]): {
+  driveHours: DrivingThresholdEntry[];
+  cntDrvHours: DrivingThresholdEntry[];
+} {
+  const driveHours: DrivingThresholdEntry[] = [];
+  const cntDrvHours: DrivingThresholdEntry[] = [];
+  for (const entry of entries) {
+    if (isCntDrvLabel(entry)) cntDrvHours.push(entry);
+    else driveHours.push(entry);
+  }
+  return { driveHours, cntDrvHours };
+}
+
 export function normalizeDrivingThresholds(raw: unknown): DrivingThresholds {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_DRIVING_THRESHOLDS };
   const obj = raw as Record<string, unknown>;
@@ -54,22 +75,34 @@ export function normalizeDrivingThresholds(raw: unknown): DrivingThresholds {
   if ('continuousDrivingMaxHours' in obj || 'restMinimumHours' in obj || 'workingHoursMax' in obj) {
     const cntDrv = Number(obj.continuousDrivingMaxHours);
     const rest = Number(obj.restMinimumHours);
-    const driveHours: DrivingThresholdEntry[] = Number.isFinite(cntDrv) && cntDrv > 0
+    const cntDrvHours: DrivingThresholdEntry[] = Number.isFinite(cntDrv) && cntDrv > 0
       ? [{ value: cntDrv, label: `Cnt Drv > ${cntDrv} h` }]
-      : [...DEFAULT_DRIVING_THRESHOLDS.driveHours];
+      : [...DEFAULT_DRIVING_THRESHOLDS.cntDrvHours];
     const restHours: DrivingThresholdEntry[] = Number.isFinite(rest) && rest > 0
       ? [rest]
       : [...DEFAULT_DRIVING_THRESHOLDS.restHours];
-    return { driveHours, restHours };
+    return {
+      driveHours: [...DEFAULT_DRIVING_THRESHOLDS.driveHours],
+      restHours,
+      cntDrvHours,
+    };
   }
 
   const driveHoursRaw = Array.isArray(obj.driveHours) ? obj.driveHours : [];
   const restHoursRaw = Array.isArray(obj.restHours) ? obj.restHours : [];
-  const driveHours = ThresholdArraySchema.parse(driveHoursRaw);
+  const cntDrvHoursRaw = Array.isArray(obj.cntDrvHours) ? obj.cntDrvHours : [];
+
+  const partitioned = partitionDriveEntries(ThresholdArraySchema.parse(driveHoursRaw));
+  const driveHours = partitioned.driveHours;
+  const cntDrvFromDrive = partitioned.cntDrvHours;
   const restHours = ThresholdArraySchema.parse(restHoursRaw);
+  const cntDrvHoursExplicit = ThresholdArraySchema.parse(cntDrvHoursRaw);
+  const cntDrvHours = [...cntDrvFromDrive, ...cntDrvHoursExplicit];
+
   return {
     driveHours: driveHours.length > 0 ? driveHours : [...DEFAULT_DRIVING_THRESHOLDS.driveHours],
     restHours: restHours.length > 0 ? restHours : [...DEFAULT_DRIVING_THRESHOLDS.restHours],
+    cntDrvHours: cntDrvHours.length > 0 ? cntDrvHours : [...DEFAULT_DRIVING_THRESHOLDS.cntDrvHours],
   };
 }
 

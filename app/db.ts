@@ -511,6 +511,8 @@ export async function createDashboard({
   sheetId,
   sheetGid,
   sheetUrl,
+  sheetGidCntDrv,
+  sheetUrlCntDrv,
   notes,
   alertTypes,
   remarks,
@@ -525,6 +527,8 @@ export async function createDashboard({
   sheetId: string;
   sheetGid: string;
   sheetUrl: string;
+  sheetGidCntDrv?: string | null;
+  sheetUrlCntDrv?: string | null;
   notes?: string | null;
   alertTypes?: string[] | null;
   remarks?: string[] | null;
@@ -545,6 +549,8 @@ export async function createDashboard({
     sheetId,
     sheetGid,
     sheetUrl,
+    sheetGidCntDrv: sheetGidCntDrv ?? null,
+    sheetUrlCntDrv: sheetUrlCntDrv ?? null,
     notes: notes ?? null,
     alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
     remarks: remarks && remarks.length > 0 ? remarks : null,
@@ -565,6 +571,8 @@ export async function updateDashboard({
   sheetId,
   sheetGid,
   sheetUrl,
+  sheetGidCntDrv,
+  sheetUrlCntDrv,
   notes,
   alertTypes,
   remarks,
@@ -580,6 +588,8 @@ export async function updateDashboard({
   sheetId: string;
   sheetGid: string;
   sheetUrl: string;
+  sheetGidCntDrv?: string | null;
+  sheetUrlCntDrv?: string | null;
   notes?: string | null;
   alertTypes?: string[] | null;
   remarks?: string[] | null;
@@ -602,6 +612,8 @@ export async function updateDashboard({
       sheetId,
       sheetGid,
       sheetUrl,
+      sheetGidCntDrv: sheetGidCntDrv ?? null,
+      sheetUrlCntDrv: sheetUrlCntDrv ?? null,
       notes: notes ?? null,
       alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
       remarks: remarks && remarks.length > 0 ? remarks : null,
@@ -909,7 +921,7 @@ export async function insertPendingDrivingWarning(args: {
   driverName: string;
   vehicleNo: string;
   eventAt: Date;
-  metric: 'drive_hrs' | 'rest_hrs';
+  metric: 'drive_hrs' | 'rest_hrs' | 'cnt_drv_hrs';
   threshold: number;
   valueHours: number;
   distanceKm: number | null;

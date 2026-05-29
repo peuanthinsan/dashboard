@@ -24,7 +24,7 @@ function day(o: { driver: string; dayKey: string; totalDriveHours: number; shift
 }
 
 describe('severityForDriverDay', () => {
-  const thresholds = { driveHours: [4, 10], restHours: [6, 10] };
+  const thresholds = { driveHours: [4, 10], restHours: [6, 10], cntDrvHours: [4] };
 
   it('drive: 0 when total ≤ lowest threshold', () => {
     expect(severityForDriverDay(day({ driver: 'A', dayKey: '2026-05-01', totalDriveHours: 3.5, shifts: [{ restHours: 12 }] }), thresholds).drive).toBe(0);
@@ -58,7 +58,7 @@ describe('computeDrivingScore', () => {
       loginLocation: '', logoutLocation: '',
       driveHours: 3, workingHours: 0, restHours: 12, distanceKm: 0, status: 'COMPLETED' as const,
     }];
-    const out = computeDrivingScore(rows, { driveHours: [4], restHours: [10] });
+    const out = computeDrivingScore(rows, { driveHours: [4], restHours: [10], cntDrvHours: [4] });
     expect(out.score).toBe(100);
     expect(out.grade).toBe('A');
   });
@@ -70,7 +70,7 @@ describe('computeDrivingScore', () => {
       loginLocation: '', logoutLocation: '',
       driveHours: 12, workingHours: 0, restHours: 1, distanceKm: 0, status: 'COMPLETED' as const,
     }];
-    const out = computeDrivingScore(rows, { driveHours: [4, 10], restHours: [6, 10] });
+    const out = computeDrivingScore(rows, { driveHours: [4, 10], restHours: [6, 10], cntDrvHours: [4] });
     expect(out.score).toBeLessThanOrEqual(0);
     expect(out.grade).toBe('F');
   });

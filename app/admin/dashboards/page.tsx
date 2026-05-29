@@ -72,6 +72,20 @@ export default async function AdminDashboardsPage() {
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
+    const sheetUrlCntDrvRaw = (formData.get('sheetUrlCntDrv') as string)?.trim() ?? '';
+    let sheetGidCntDrv: string | null = null;
+    let sheetUrlCntDrv: string | null = null;
+    if (template === 'Driving' && sheetUrlCntDrvRaw) {
+      const cntParsed = parseSheetLink(sheetUrlCntDrvRaw);
+      if (!cntParsed.sheetId) {
+        return { status: 'error', message: 'Enter a valid continuous-drive sheet link.' };
+      }
+      if (cntParsed.sheetId !== sheetId) {
+        return { status: 'error', message: 'Both sheet links must be from the same spreadsheet.' };
+      }
+      sheetGidCntDrv = cntParsed.sheetGid;
+      sheetUrlCntDrv = sheetUrlCntDrvRaw;
+    }
     const alertTypesRaw = formData.getAll('alertTypes');
     const alertTypes = Array.isArray(alertTypesRaw)
       ? alertTypesRaw.map((v) => String(v).trim()).filter(Boolean)
@@ -93,6 +107,8 @@ export default async function AdminDashboardsPage() {
         sheetUrl,
         sheetId,
         sheetGid,
+        sheetGidCntDrv,
+        sheetUrlCntDrv,
         companyId,
         organizationId: organizationValue ? Number(organizationValue) : null,
         notes,
@@ -150,6 +166,20 @@ export default async function AdminDashboardsPage() {
     if (!sheetId) {
       return { status: 'error', message: 'Enter a valid Google Sheet link.' };
     }
+    const sheetUrlCntDrvRaw = (formData.get('sheetUrlCntDrv') as string)?.trim() ?? '';
+    let sheetGidCntDrv: string | null = null;
+    let sheetUrlCntDrv: string | null = null;
+    if (template === 'Driving' && sheetUrlCntDrvRaw) {
+      const cntParsed = parseSheetLink(sheetUrlCntDrvRaw);
+      if (!cntParsed.sheetId) {
+        return { status: 'error', message: 'Enter a valid continuous-drive sheet link.' };
+      }
+      if (cntParsed.sheetId !== sheetId) {
+        return { status: 'error', message: 'Both sheet links must be from the same spreadsheet.' };
+      }
+      sheetGidCntDrv = cntParsed.sheetGid;
+      sheetUrlCntDrv = sheetUrlCntDrvRaw;
+    }
     const alertTypesRaw = formData.getAll('alertTypes');
     const alertTypes = Array.isArray(alertTypesRaw)
       ? alertTypesRaw.map((v) => String(v).trim()).filter(Boolean)
@@ -172,6 +202,8 @@ export default async function AdminDashboardsPage() {
         sheetUrl,
         sheetId,
         sheetGid,
+        sheetGidCntDrv,
+        sheetUrlCntDrv,
         companyId,
         organizationId: organizationValue ? Number(organizationValue) : null,
         notes,

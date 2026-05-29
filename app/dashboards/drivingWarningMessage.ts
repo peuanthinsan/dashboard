@@ -113,3 +113,51 @@ export function buildRestHoursMessageEnglish(args: RestHoursArgs): string {
   lines.push(`— Dashboard ${args.dashboardName}`);
   return lines.join('\n');
 }
+
+type CntDrvHoursArgs = {
+  driver: string;
+  vehicle: string;
+  threshold: number;
+  valueHours: number;
+  loginAt: string | null;
+  logoutAt: string | null;
+  loginLocation: string | null;
+  logoutLocation: string | null;
+  distanceKm: number | null;
+  operatorNote?: string;
+  dashboardName: string;
+};
+
+export function buildCntDrvHoursMessageThai(args: CntDrvHoursArgs): string {
+  const lines = [
+    `⚠ ขับต่อเนื่องเกิน ${args.threshold} ชม.`,
+    `คนขับ: ${args.driver}`,
+    `รถ: ${args.vehicle}`,
+    `ชั่วโมงขับต่อเนื่อง: ${fmtNum(args.valueHours)} ชม. (เกิน ${args.threshold} ชม.)`,
+    `เริ่ม: ${fmtDt(args.loginAt)} (${args.loginLocation ?? '—'})`,
+    `จบ: ${fmtDt(args.logoutAt)} (${args.logoutLocation ?? '—'})`,
+    `ระยะทาง: ${fmtNum(args.distanceKm)} กม.`,
+  ];
+  if (args.operatorNote && args.operatorNote.trim()) {
+    lines.push(`หมายเหตุ: ${args.operatorNote.trim()}`);
+  }
+  lines.push(`— แดชบอร์ด ${args.dashboardName}`);
+  return lines.join('\n');
+}
+
+export function buildCntDrvHoursMessageEnglish(args: CntDrvHoursArgs): string {
+  const lines = [
+    `⚠ Continuous drive > ${args.threshold} h`,
+    `Driver: ${args.driver}`,
+    `Vehicle: ${args.vehicle}`,
+    `Continuous drive hours: ${fmtNum(args.valueHours)} h (over ${args.threshold} h)`,
+    `Start: ${fmtDt(args.loginAt)} (${args.loginLocation ?? '—'})`,
+    `End:   ${fmtDt(args.logoutAt)} (${args.logoutLocation ?? '—'})`,
+    `Distance: ${fmtNum(args.distanceKm)} km`,
+  ];
+  if (args.operatorNote && args.operatorNote.trim()) {
+    lines.push(`Note: ${args.operatorNote.trim()}`);
+  }
+  lines.push(`— Dashboard ${args.dashboardName}`);
+  return lines.join('\n');
+}

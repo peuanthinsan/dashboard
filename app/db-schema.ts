@@ -84,6 +84,8 @@ export const dashboards = pgTable(
     sheetId: varchar('sheetId', { length: 128 }).notNull(),
     sheetGid: varchar('sheetGid', { length: 24 }).notNull(),
     sheetUrl: varchar('sheetUrl', { length: 512 }).notNull(),
+    sheetGidCntDrv: varchar('sheetGidCntDrv', { length: 24 }),
+    sheetUrlCntDrv: varchar('sheetUrlCntDrv', { length: 512 }),
     notes: text('notes'),
     alertTypes: jsonb('alertTypes').$type<string[]>(),
     remarks: jsonb('remarks').$type<string[]>(),

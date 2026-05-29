@@ -17,6 +17,7 @@ import DynamicTripDashboard from 'app/dashboards/DynamicTripDashboard';
 import OverSpeedDashboard from 'app/dashboards/OverSpeedDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
+import BigthUnitStatusDashboard from 'app/dashboards/BigthUnitStatusDashboard';
 import LoadingState from 'app/dashboards/LoadingState';
 import { resolveTemplate as resolveTemplateName } from 'app/dashboards/dashboardDataUtils';
 import { normalizeDrivingThresholds, type DrivingThresholds } from 'app/dashboards/drivingThresholds';
@@ -57,7 +58,9 @@ export async function generateMetadata({
   };
 }
 
-type DashboardViewProps = ComponentProps<typeof SummaryDashboard>;
+type DashboardViewProps = ComponentProps<typeof SummaryDashboard> & {
+  sheetGidCntDrv?: string | null;
+};
 
 type DashboardByTemplateProps = DashboardViewProps & {
   template: string | null;
@@ -101,6 +104,8 @@ function DashboardByTemplate({
       return <OverSpeedDashboard {...props} isAdmin={isAdmin} />;
     case 'DynamicTrip':
       return <DynamicTripDashboard {...props} isAdmin={isAdmin} />;
+    case 'BIGTHUnitStatus':
+      return <BigthUnitStatusDashboard {...props} isAdmin={isAdmin} />;
     case 'Summary':
     default:
       return <SummaryDashboard {...props} isAdmin={isAdmin} />;
@@ -176,6 +181,7 @@ async function DashboardContent({
       dashboardName={dashboard.name ?? 'Company dashboard'}
       sheetId={dashboard.sheetId ?? ''}
       sheetGid={dashboard.sheetGid ?? '0'}
+      sheetGidCntDrv={dashboard.sheetGidCntDrv ?? null}
       dashboardNotes={dashboard.notes ?? null}
       organizationName={organizationName}
       allowedAlertTypes={allowedAlertTypes}

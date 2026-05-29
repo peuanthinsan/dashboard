@@ -49,8 +49,9 @@ import type {
   bulkRemoveDashboardAlertRule,
 } from 'app/db-bulk';
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
+import { DrivingSheetLinkFields } from './DrivingSheetLinkFields';
 import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'DynamicTrip'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'DynamicTrip', 'BIGTHUnitStatus'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
 
@@ -265,6 +266,7 @@ function DashboardRow({
 }) {
   const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
+  const [editTemplate, setEditTemplate] = useState(dashboard.template ?? 'Summary');
   useRefreshOnSuccess(state);
   useDeferredCloseOnSuccess(state.status === 'success', () => setIsOpen(false));
 
@@ -337,6 +339,13 @@ function DashboardRow({
                 className={ADMIN_INPUT}
               />
             </label>
+          </div>
+          {editTemplate === 'Driving' ? (
+            <DrivingSheetLinkFields
+              shiftSheetUrl={dashboard.sheetUrl}
+              cntDrvSheetUrl={dashboard.sheetUrlCntDrv}
+            />
+          ) : (
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
               Sheet link
               <input
@@ -345,7 +354,7 @@ function DashboardRow({
                 className={ADMIN_INPUT}
               />
             </label>
-          </div>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
               Company
@@ -383,7 +392,8 @@ function DashboardRow({
               Template
               <select
                 name="template"
-                defaultValue={dashboard.template ?? 'Summary'}
+                value={editTemplate}
+                onChange={(e) => setEditTemplate(e.target.value)}
                 className={ADMIN_SELECT}
               >
                 {DASHBOARD_TEMPLATES.map((template) => (
@@ -410,7 +420,9 @@ function DashboardRow({
             initialAlertTypes={dashboard.alertTypes ?? []}
             initialRemarks={dashboard.remarks ?? []}
           />
-          <DrivingThresholdAdminFields initial={dashboard.drivingThresholds} />
+          {editTemplate === 'Driving' ? (
+            <DrivingThresholdAdminFields initial={dashboard.drivingThresholds} />
+          ) : null}
           <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
             Default LINE channel
             <select
@@ -518,11 +530,13 @@ export default function DashboardsClient({
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createSheetUrl, setCreateSheetUrl] = useState('');
+  const [createTemplate, setCreateTemplate] = useState<string>(DASHBOARD_TEMPLATES[0]);
   const [createOrganizationId, setCreateOrganizationId] = useState('');
   useRefreshOnSuccess(dashboardCreateState);
   const closeCreateDashboardModal = useCallback(() => {
     setIsCreateOpen(false);
     setCreateSheetUrl('');
+    setCreateTemplate(DASHBOARD_TEMPLATES[0]);
     setCreateOrganizationId('');
   }, []);
   useDeferredCloseOnSuccess(dashboardCreateState.status === 'success', closeCreateDashboardModal);
@@ -1587,15 +1601,24 @@ export default function DashboardsClient({
                 className={ADMIN_INPUT}
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <label className={ADMIN_LABEL}>Google Sheet link *</label>
-              <input
-                name="sheetUrl"
-                value={createSheetUrl}
-                onChange={(e) => setCreateSheetUrl(e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                className={ADMIN_INPUT}
-              />
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              {createTemplate === 'Driving' ? (
+                <DrivingSheetLinkFields
+                  shiftSheetUrl={createSheetUrl}
+                  onShiftSheetUrlChange={setCreateSheetUrl}
+                />
+              ) : (
+                <>
+                  <label className={ADMIN_LABEL}>Google Sheet link *</label>
+                  <input
+                    name="sheetUrl"
+                    value={createSheetUrl}
+                    onChange={(e) => setCreateSheetUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className={ADMIN_INPUT}
+                  />
+                </>
+              )}
             </div>
             <div className="flex flex-col gap-2">
               <label className={ADMIN_LABEL}>Company *</label>
@@ -1631,6 +1654,8 @@ export default function DashboardsClient({
               <label className={ADMIN_LABEL}>Template *</label>
               <select
                 name="template"
+                value={createTemplate}
+                onChange={(e) => setCreateTemplate(e.target.value)}
                 className={ADMIN_SELECT}
               >
                 {DASHBOARD_TEMPLATES.map((template) => (
@@ -1656,9 +1681,11 @@ export default function DashboardsClient({
                 initialRemarks={[]}
               />
             </div>
-            <div className="sm:col-span-2">
-              <DrivingThresholdAdminFields />
-            </div>
+            {createTemplate === 'Driving' ? (
+              <div className="sm:col-span-2">
+                <DrivingThresholdAdminFields />
+              </div>
+            ) : null}
             <div className="flex flex-col gap-2 sm:col-span-2">
               <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
                 Default LINE channel

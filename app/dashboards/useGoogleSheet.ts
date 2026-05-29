@@ -12,6 +12,8 @@ type SheetColumn = GoogleSheetColumn;
 type UseGoogleSheetOptions = {
   sheetId: string;
   gid: string;
+  /** When false, skips fetch (for optional secondary tabs). */
+  enabled?: boolean;
 };
 
 type SheetRow = GoogleSheetRow;
@@ -41,10 +43,10 @@ const buildSheetUrl = (sheetId: string, gid: string) =>
 const buildApiUrl = (sheetId: string, gid: string) =>
   `/api/sheets/${encodeURIComponent(sheetId)}/${encodeURIComponent(gid)}`;
 
-export default function useGoogleSheet({ sheetId, gid }: UseGoogleSheetOptions): SheetResponse {
+export default function useGoogleSheet({ sheetId, gid, enabled = true }: UseGoogleSheetOptions): SheetResponse {
   const [columns, setColumns] = useState<SheetColumn[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -110,6 +112,14 @@ export default function useGoogleSheet({ sheetId, gid }: UseGoogleSheetOptions):
   );
 
   const fetchSheet = useCallback(async () => {
+    if (!enabled) {
+      setColumns([]);
+      setRows([]);
+      setLoading(false);
+      setError(null);
+      setLastUpdated(null);
+      return;
+    }
     const cached = readCache();
     if (cached) {
       setColumns(cached.columns);
@@ -161,7 +171,7 @@ export default function useGoogleSheet({ sheetId, gid }: UseGoogleSheetOptions):
     } finally {
       setLoading(false);
     }
-  }, [gid, readCache, sheetId, writeCache]);
+  }, [enabled, gid, readCache, sheetId, writeCache]);
 
   useEffect(() => {
     fetchSheet();
