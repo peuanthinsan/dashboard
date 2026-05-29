@@ -18,7 +18,7 @@ export const textMuted = 'text-xs text-zinc-400 dark:text-zinc-500';
 export const cardBase =
   'rounded-xl border border-zinc-200/60 bg-white/80 p-5 backdrop-blur-sm dark:border-zinc-800/60 dark:bg-zinc-900/80';
 export const cardHover = `${cardBase} transition-all duration-200 hover:border-red-300/60 hover:shadow-card-hover hover:translate-y-[-1px] dark:hover:border-red-800/60`;
-export const cardSection = `${cardBase} shadow-card`;
+export const cardSection = `${cardBase} min-w-0 shadow-card`;
 
 // ── Badges ──────────────────────────────────────────────
 export const badge =
@@ -62,7 +62,7 @@ export const tableCell =
 export const pageContainer =
   'min-h-[100dvh] min-h-screen bg-zinc-50 dark:bg-zinc-950';
 /** Narrower horizontal padding on very small screens */
-export const pageContent = 'mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8';
+export const pageContent = 'mx-auto w-full min-w-0 max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8';
 export const pageHeader = 'mb-8';
 
 // ── Filter chips ────────────────────────────────────────

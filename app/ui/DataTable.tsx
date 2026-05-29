@@ -103,11 +103,12 @@ export function DataTable<T extends object>({
   const pagedData = pageSize ? sortedData.slice(clampedPage * pageSize, (clampedPage + 1) * pageSize) : sortedData;
 
   return (
-    <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-lg [-webkit-overflow-scrolling:touch]">
-      <table
-        className="w-full border-collapse"
-        aria-label={ariaLabel}
-      >
+    <div className="w-full min-w-0">
+      <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-lg [-webkit-overflow-scrolling:touch]">
+        <table
+          className="w-max min-w-full border-collapse"
+          aria-label={ariaLabel}
+        >
         <thead className={tableHead}>
           <tr>
             {columns.map((col) => {
@@ -119,10 +120,13 @@ export function DataTable<T extends object>({
                   scope="col"
                   className={[
                     tableHeadCell,
+                    'whitespace-nowrap',
                     col.sortable
                       ? 'cursor-pointer select-none transition-colors duration-150 hover:text-zinc-900 dark:hover:text-zinc-100'
                       : '',
-                    col.stickyLeft ? 'sticky left-0 bg-zinc-50/90 dark:bg-zinc-900/90 backdrop-blur-sm z-10' : '',
+                    col.stickyLeft
+                      ? 'sticky left-0 z-10 border-r border-zinc-200/80 bg-zinc-50/95 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)] backdrop-blur-sm dark:border-zinc-700/80 dark:bg-zinc-900/95 dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.35)]'
+                      : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -186,8 +190,9 @@ export function DataTable<T extends object>({
                     key={col.key}
                     className={[
                       tableCell,
+                      'whitespace-nowrap',
                       col.stickyLeft
-                        ? 'sticky left-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm'
+                        ? 'sticky left-0 z-10 border-r border-zinc-200/80 bg-white/95 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)] backdrop-blur-sm dark:border-zinc-700/80 dark:bg-zinc-900/95 dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.35)]'
                         : '',
                     ]
                       .filter(Boolean)
@@ -211,6 +216,7 @@ export function DataTable<T extends object>({
           )}
         </tbody>
       </table>
+      </div>
       {pageSize && totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-zinc-100/80 bg-zinc-50/50 px-4 py-2.5 dark:border-zinc-800/60 dark:bg-zinc-900/30">
           <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">

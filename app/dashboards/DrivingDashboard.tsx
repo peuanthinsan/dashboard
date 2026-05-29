@@ -1153,7 +1153,7 @@ export default function DrivingDashboard({
             ? 'หนึ่งแถวต่อทริป — ชื่อคอลัมน์ตรงกับชีต ชั่วโมงแสดงเป็น ชม:นาที:วินาที'
             : 'One row per trip — column names match the spreadsheet; hours shown as H:MM:SS.'}
         </p>
-        <div className="mt-4">
+        <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-zinc-200/80 dark:border-zinc-800">
           <DataTable<SheetTripRow>
             columns={tripTableColumns}
             data={tripTableData}
