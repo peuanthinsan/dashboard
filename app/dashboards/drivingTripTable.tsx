@@ -21,7 +21,7 @@ function renderLocationCell(value: unknown) {
     return <span className="text-zinc-300">—</span>;
   }
   return (
-    <span className="line-clamp-3 text-xs leading-snug text-zinc-700 dark:text-zinc-300" title={text}>
+    <span className="text-xs leading-snug text-zinc-700 dark:text-zinc-300">
       {text}
     </span>
   );
