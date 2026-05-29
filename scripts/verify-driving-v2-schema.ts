@@ -55,6 +55,18 @@ async function main() {
     `;
     console.log('Dashboard.lineChannelId present:', dashboardHasFk.length === 1);
 
+    const cntDrvCols = await sql<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='Dashboard'
+        AND column_name IN ('sheetGidCntDrv', 'sheetUrlCntDrv')
+      ORDER BY column_name
+    `;
+    console.log('Dashboard dual-sheet columns (0008):', cntDrvCols.map((c) => c.column_name));
+    if (cntDrvCols.length !== 2) {
+      console.error('Missing sheetGidCntDrv or sheetUrlCntDrv — run: npm run db:migrate');
+      process.exit(1);
+    }
+
     const pgcryptoExists = await sql<{ extname: string }[]>`
       SELECT extname FROM pg_extension WHERE extname='pgcrypto'
     `;

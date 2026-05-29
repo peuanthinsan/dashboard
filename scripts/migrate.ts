@@ -92,6 +92,22 @@ async function migrate() {
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS "DrivingWarning_dashboard_key_unique" ON "DrivingWarning" ("dashboardId","violationKey")`;
     await sql`CREATE INDEX IF NOT EXISTS "DrivingWarning_dashboard_sentAt_idx" ON "DrivingWarning" ("dashboardId","sentAt")`;
 
+    // ── Driving dual-sheet tabs (migration 0008) ───────────────────────────
+    await sql`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "sheetGidCntDrv" VARCHAR(24)`;
+    await sql`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "sheetUrlCntDrv" VARCHAR(512)`;
+
+    await sql`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "drivingThresholds" JSONB`;
+
+    // Extend DrivingWarning.metric to include continuous-drive violations
+    await sql`
+      ALTER TABLE "DrivingWarning" DROP CONSTRAINT IF EXISTS "DrivingWarning_metric_check"
+    `;
+    await sql`
+      ALTER TABLE "DrivingWarning"
+      ADD CONSTRAINT "DrivingWarning_metric_check"
+      CHECK ("metric" IN ('drive_hrs', 'rest_hrs', 'cnt_drv_hrs'))
+    `;
+
     console.log('Migration completed successfully.');
   } catch (err) {
     console.error('Migration failed:', err);
