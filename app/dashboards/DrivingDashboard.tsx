@@ -41,6 +41,7 @@ import {
   buildRestHoursViolations,
 } from './violationBuilders';
 import {
+  isCompletedShift,
   mapCntDrvSheetRows,
   mapShiftSheetRows,
   type DrivingCntDrvRow,
@@ -264,6 +265,10 @@ export default function DrivingDashboard({
   const filteredShiftRows = useMemo(
     () => applyRowFilters(shiftRows),
     [applyRowFilters, shiftRows],
+  );
+  const completedShiftRows = useMemo(
+    () => filteredShiftRows.filter(isCompletedShift),
+    [filteredShiftRows],
   );
   const filteredCntDrvRows = useMemo(
     () => applyRowFilters(cntDrvRows),
@@ -690,15 +695,15 @@ export default function DrivingDashboard({
 
   const exportData = useMemo(
     () => buildTripExportRows(
-      filteredShiftRows.map((r) => r.sourceRow),
+      completedShiftRows.map((r) => r.sourceRow),
       sheetColumns,
     ),
-    [filteredShiftRows, sheetColumns],
+    [completedShiftRows, sheetColumns],
   );
 
   const tripTableData = useMemo(
-    () => buildTripTableRows(filteredShiftRows.map((r) => r.sourceRow)),
-    [filteredShiftRows],
+    () => buildTripTableRows(completedShiftRows.map((r) => r.sourceRow)),
+    [completedShiftRows],
   );
 
   const tripTableColumns = useMemo(
@@ -751,7 +756,7 @@ export default function DrivingDashboard({
             fullSheetExport={{
               rows,
               filteredRows: [
-                ...filteredShiftRows.map((r) => r.sourceRow),
+                ...completedShiftRows.map((r) => r.sourceRow),
                 ...filteredCntDrvRows.map((r) => r.sourceRow),
               ],
               columns: [...sheetColumns, ...cntDrvSheetColumns.filter(
@@ -1150,8 +1155,8 @@ export default function DrivingDashboard({
         <h2 className={heading2}>{lang === 'th' ? 'ข้อมูลทริป' : 'Trip data'}</h2>
         <p className={`mt-1 ${textSecondary}`}>
           {lang === 'th'
-            ? 'หนึ่งแถวต่อทริป — ชื่อคอลัมน์ตรงกับชีต ชั่วโมงแสดงเป็น ชม:นาที:วินาที'
-            : 'One row per trip — column names match the spreadsheet; hours shown as H:MM:SS.'}
+            ? 'หนึ่งแถวต่อทริปที่สถานะ Completed — ชื่อคอลัมน์ตรงกับชีต ชั่วโมงแสดงเป็น ชม:นาที:วินาที'
+            : 'One row per completed trip — column names match the spreadsheet; hours shown as H:MM:SS.'}
         </p>
         <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-zinc-200/80 dark:border-zinc-800">
           <DataTable<SheetTripRow>
