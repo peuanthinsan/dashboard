@@ -50,7 +50,7 @@ export default function DashboardShell({
   return (
     <div className={pageContainer}>
       <div className={pageContent}>
-        <div className="flex flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5">
           {/* ── Header with SongdeeGPS branding ── */}
           <header className="relative overflow-hidden rounded-xl border border-zinc-200/60 bg-white/80 shadow-card backdrop-blur-sm dark:border-zinc-800/60 dark:bg-zinc-900/80">
             {/* Red accent bar — matches logo */}
