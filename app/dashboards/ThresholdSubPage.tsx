@@ -68,11 +68,13 @@ export default function ThresholdSubPage({
   }, [violations, metric, lang]);
 
   const columns = useMemo<Column<ViolationRow>[]>(() => {
-    const useCntDrvLabels = metric === 'cnt_drv_hrs' || metric === 'drive_hrs';
+    const useCntDrvLabels = metric === 'cnt_drv_hrs';
     const hoursKey = metric === 'rest_hrs' ? 'restHours' : 'driveHours';
     const hoursLabel = metric === 'rest_hrs'
       ? copy.sheetRestTime
-      : copy.sheetCntDrvHr;
+      : metric === 'drive_hrs'
+        ? copy.sheetDriveHrs
+        : copy.sheetCntDrvHr;
 
     return [
       { key: 'driver', label: copy.sheetDriverName, sortable: true, stickyLeft: true },

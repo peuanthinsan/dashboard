@@ -37,6 +37,7 @@ import { deriveSubPages, subPageBySlug } from './drivingSubPages';
 import ThresholdSubPage from './ThresholdSubPage';
 import {
   buildCntDrvHoursViolations,
+  buildDriveHoursViolations,
   buildRestHoursViolations,
 } from './violationBuilders';
 import {
@@ -314,16 +315,14 @@ export default function DrivingDashboard({
 
   const driveHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'drive_hrs') return [];
-    if (!hasCntDrvSheet) return [];
-    const violations = buildCntDrvHoursViolations(
-      filteredCntDrvRows,
+    const violations = buildDriveHoursViolations(
+      completedShiftRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
-      'drive_hrs',
     );
     if (dayFilters.length === 0) return violations;
     return violations.filter((v) => dayFilters.includes(v.dayKey));
-  }, [activeSubPage, filteredCntDrvRows, hasCntDrvSheet, warningsMap, dayFilters]);
+  }, [activeSubPage, completedShiftRows, warningsMap, dayFilters]);
 
   const restHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'rest_hrs') return [];

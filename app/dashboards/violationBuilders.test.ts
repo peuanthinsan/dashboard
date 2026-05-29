@@ -59,39 +59,41 @@ describe('buildCntDrvHoursViolations', () => {
 });
 
 describe('buildDriveHoursViolations', () => {
-  it('emits one row per trip where driveHours > threshold', () => {
+  it('emits one row per (driver, day) where the SUM driveHours > threshold', () => {
     const rows = buildDriveHoursViolations(
       [
-        shift({ driver: 'Alice', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T10:00:00Z', driveHours: 11 }),
+        shift({ driver: 'Alice', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T10:00:00Z', driveHours: 6 }),
         shift({ driver: 'Alice', loginAt: '2026-05-01T14:00:00Z', logoutAt: '2026-05-01T18:00:00Z', driveHours: 5 }),
         shift({ driver: 'Bob', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T10:00:00Z', driveHours: 5 }),
       ],
-      { threshold: 10, label: 'Drive Hr > 10 h' },
+      { threshold: 10, label: 'Drive Hr/day > 10 h' },
       new Map(),
     );
     expect(rows).toHaveLength(1);
     expect(rows[0].driver).toBe('Alice');
     expect(rows[0].driveHours).toBe(11);
     expect(rows[0].metric).toBe('drive_hrs');
-    expect(rows[0].shiftCount).toBe(1);
+    expect(rows[0].threshold).toBe(10);
+    expect(rows[0].thresholdLabel).toBe('Drive Hr/day > 10 h');
+    expect(rows[0].shiftCount).toBe(2);
     expect(rows[0].vehicleCount).toBe(1);
     expect(rows[0].vehicle).toBe('V1');
     expect(rows[0].dayKey).toBe('2026-05-01');
     expect(rows[0].violationKey).toMatch(/^[0-9a-f]{40}$/);
   });
 
-  it('emits separate rows for each violating trip on the same day', () => {
+  it('marks vehicle as "*" when multiple vehicles in the day', () => {
     const rows = buildDriveHoursViolations(
       [
-        shift({ driver: 'Alice', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T10:00:00Z', driveHours: 11, vehicle: 'V1' }),
-        shift({ driver: 'Alice', loginAt: '2026-05-01T14:00:00Z', logoutAt: '2026-05-01T18:00:00Z', driveHours: 12, vehicle: 'V2' }),
+        shift({ driver: 'Alice', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T10:00:00Z', driveHours: 6, vehicle: 'V1' }),
+        shift({ driver: 'Alice', loginAt: '2026-05-01T14:00:00Z', logoutAt: '2026-05-01T18:00:00Z', driveHours: 5, vehicle: 'V2' }),
       ],
       { threshold: 10, label: 'x' },
       new Map(),
     );
-    expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.driveHours).sort()).toEqual([11, 12]);
-    expect(rows.map((r) => r.vehicle).sort()).toEqual(['V1', 'V2']);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].vehicleCount).toBe(2);
+    expect(rows[0].vehicle).toBe('*');
   });
 
   it('skips non-completed shifts', () => {
