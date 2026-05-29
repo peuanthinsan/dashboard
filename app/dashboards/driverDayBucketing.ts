@@ -69,7 +69,7 @@ export function splitShiftByCalendarDay(
     return new Map([[loginDayKey, { driveHours, distanceKm }]]);
   }
 
-  const entries = [...msByDay.entries()];
+  const entries = Array.from(msByDay.entries());
   const result = new Map<string, DayShare>();
   let allocatedHours = 0;
   let allocatedDistance = 0;
@@ -147,7 +147,7 @@ export function bucketByDriverDay<T extends DrivingShiftLike>(rows: T[]): Driver
       shift.distanceKm,
     );
 
-    for (const [dayKey, share] of dayShares) {
+    for (const [dayKey, share] of Array.from(dayShares.entries())) {
       const bucket = ensureBucket(buckets, shift.driver, dayKey);
       bucket.totalDriveHours += share.driveHours;
       bucket.totalDistanceKm += share.distanceKm;
@@ -164,7 +164,7 @@ export function bucketByDriverDay<T extends DrivingShiftLike>(rows: T[]): Driver
   return Array.from(buckets.values()).map((bucket) => {
     const vehicles = new Set([
       ...bucket.shifts.map((s) => s.vehicle).filter((v) => v && v !== '—'),
-      ...bucket.carryoverVehicles,
+      ...Array.from(bucket.carryoverVehicles),
     ]);
     const vehicleCount = vehicles.size;
     const vehicleSummary = vehicleCount === 1
