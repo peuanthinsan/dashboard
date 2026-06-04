@@ -29,15 +29,28 @@ function formatDateLabel(d: Date): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
-export function buildDriveHoursViolations(
+/**
+ * Returns ALL driver-day rows (no threshold filter). Rows exceeding the
+ * threshold should be highlighted by the caller — use `row.driveHours > row.threshold`.
+ */
+export function buildDriveHoursRows(
   shifts: ShiftRow[],
   spec: ThresholdSpec,
   warnings: WarningMap,
 ): ViolationRow[] {
+  return buildDriveHoursViolations(shifts, spec, warnings, false);
+}
+
+export function buildDriveHoursViolations(
+  shifts: ShiftRow[],
+  spec: ThresholdSpec,
+  warnings: WarningMap,
+  violationsOnly = true,
+): ViolationRow[] {
   const days = bucketByDriverDay(shifts);
   const out: ViolationRow[] = [];
   for (const day of days) {
-    if (day.totalDriveHours <= spec.threshold) continue;
+    if (violationsOnly && day.totalDriveHours <= spec.threshold) continue;
     const eventAt = new Date(`${day.dayKey}T00:00:00.000Z`);
     const vehicle = day.vehicleCount === 1 ? day.vehicleSummary : '*';
     const violationKey = computeViolationKey({

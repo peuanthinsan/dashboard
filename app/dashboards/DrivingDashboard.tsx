@@ -36,7 +36,7 @@ import { deriveSubPages, subPageBySlug } from './drivingSubPages';
 import ThresholdSubPage from './ThresholdSubPage';
 import {
   buildCntDrvHoursViolations,
-  buildDriveHoursViolations,
+  buildDriveHoursRows,
   buildRestHoursViolations,
 } from './violationBuilders';
 import {
@@ -315,13 +315,15 @@ export default function DrivingDashboard({
 
   const driveHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'drive_hrs') return [];
-    const violations = buildDriveHoursViolations(
+    // Use all rows (no threshold filter) so the selected day always shows data.
+    // ThresholdSubPage highlights the exceeding rows in red.
+    const allRows = buildDriveHoursRows(
       completedShiftRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
     );
-    if (dayFilters.length === 0) return violations;
-    return violations.filter((v) => dayFilters.includes(v.dayKey));
+    if (dayFilters.length === 0) return allRows;
+    return allRows.filter((v) => dayFilters.includes(v.dayKey));
   }, [activeSubPage, completedShiftRows, warningsMap, dayFilters]);
 
   const restHrsViolations = useMemo(() => {

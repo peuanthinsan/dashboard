@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import KpiCard from 'app/ui/KpiCard';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import TrendChart, { type MultiTrendDatum } from 'app/ui/TrendChart';
@@ -54,9 +54,21 @@ export default function ThresholdSubPage({
   renderWarnAction,
 }: Props) {
   const copy = getDashboardCopy(lang).drivingV2;
+  const isExceeding = useCallback(
+    (row: ViolationRow) =>
+      metric === 'rest_hrs'
+        ? row.restHours > 0 && row.restHours < row.threshold
+        : row.driveHours > row.threshold,
+    [metric],
+  );
+
   const uniqueDrivers = useMemo(
     () => new Set(violations.map((v) => v.driver)).size,
     [violations],
+  );
+  const exceedingDrivers = useMemo(
+    () => new Set(violations.filter(isExceeding).map((v) => v.driver)).size,
+    [violations, isExceeding],
   );
   const warnedDrivers = useMemo(
     () => new Set(violations.filter((v) => v.warning).map((v) => v.driver)).size,
@@ -121,9 +133,17 @@ export default function ThresholdSubPage({
         key: hoursKey,
         label: hoursLabel,
         sortable: true,
-        render: (v) => (
-          <span className="tabular-nums">{formatDurationDisplay(null, Number(v))}</span>
-        ),
+        render: (v, row) => {
+          const exceeded = isExceeding(row);
+          return (
+            <span className={exceeded
+              ? 'tabular-nums font-semibold text-red-600 dark:text-red-400'
+              : 'tabular-nums text-zinc-500 dark:text-zinc-400'
+            }>
+              {formatDurationDisplay(null, Number(v))}
+            </span>
+          );
+        },
       },
       {
         key: 'distanceKm',
@@ -144,7 +164,7 @@ export default function ThresholdSubPage({
         render: (_, row) => renderWarnAction ? renderWarnAction(row) : null,
       },
     ];
-  }, [metric, copy, renderWarnAction]);
+  }, [metric, copy, renderWarnAction, isExceeding]);
 
   return (
     <section className={dashboardSectionClass}>
@@ -153,11 +173,16 @@ export default function ThresholdSubPage({
         <span className={`text-sm ${textSecondary}`}>{violations.length} {copy.rowCountLabel}</span>
       </div>
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2">
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        <KpiCard
+          accentColor="#6b7280"
+          label={lang === 'th' ? 'คนขับทั้งหมด' : 'Total drivers'}
+          value={String(uniqueDrivers)}
+        />
         <KpiCard
           accentColor={ACCENT_VIOLATION}
           label={copy.kpiViolatingDrivers}
-          value={String(uniqueDrivers)}
+          value={String(exceedingDrivers)}
         />
         <KpiCard
           accentColor={ACCENT_WARNED}
