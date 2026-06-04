@@ -308,7 +308,7 @@ export async function userCanAccessSheet(
   userOrganizationIds: number[],
 ): Promise<boolean> {
   const conditions = [eq(dashboards.sheetId, sheetId)];
-  if (gid) conditions.push(eq(dashboards.sheetGid, gid));
+  if (gid) conditions.push(sql`(${dashboards.sheetGid} = ${gid} OR ${dashboards.sheetGidCntDrv} = ${gid})`);
   const matching = await db
     .select({ companyId: dashboards.companyId, organizationId: dashboards.organizationId })
     .from(dashboards)
