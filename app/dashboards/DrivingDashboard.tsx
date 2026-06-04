@@ -844,28 +844,7 @@ export default function DrivingDashboard({
       }
     >
 
-      <nav className="mb-6 -mt-2 flex gap-2 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800">
-        {subPages.map((p) => (
-          <Link
-            key={p.slug}
-            href={tabHref(p.slug)}
-            replace
-            className={[
-              'shrink-0 border-b-2 px-3 py-2 text-sm font-medium',
-              p.slug === activeSubPage.slug
-                ? 'border-red-500 text-red-600 dark:text-red-400'
-                : 'border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100',
-            ].join(' ')}
-          >
-            {p.label}
-          </Link>
-        ))}
-      </nav>
-
-      {activeSubPage.kind === 'overview' && (
-        <>
-
-      {/* Filters */}
+      {/* Global filters — visible on all tabs */}
       <FilterBar>
         <InlineDatePicker
           monthKey={selectedMonth}
@@ -898,6 +877,27 @@ export default function DrivingDashboard({
           </button>
         )}
       </FilterBar>
+
+      <nav className="mb-6 -mt-2 flex gap-2 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800">
+        {subPages.map((p) => (
+          <Link
+            key={p.slug}
+            href={tabHref(p.slug)}
+            replace
+            className={[
+              'shrink-0 border-b-2 px-3 py-2 text-sm font-medium',
+              p.slug === activeSubPage.slug
+                ? 'border-red-500 text-red-600 dark:text-red-400'
+                : 'border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100',
+            ].join(' ')}
+          >
+            {p.label}
+          </Link>
+        ))}
+      </nav>
+
+      {activeSubPage.kind === 'overview' && (
+        <>
 
       {/* ═══════════════ DRIVING SAFETY ═══════════════ */}
       <div className="flex items-center gap-3">
@@ -1232,45 +1232,7 @@ export default function DrivingDashboard({
               : 'One row per completed trip — column names match the spreadsheet; hours shown as H:MM:SS.')}
         </p>
 
-        <FilterBar className="mt-4">
-          <InlineDatePicker
-            monthKey={selectedMonth}
-            dayKeys={dayFilters}
-            onMonthChange={(v) => { setSelectedMonth(v); setDayFilters([]); }}
-            onDayChange={setDayFilters}
-            lang={lang}
-          />
-          <MultiSelect
-            label={lang === 'th' ? 'คนขับ' : 'drivers'}
-            options={driverOptions}
-            selected={driverFilters}
-            onChange={setDriverFilters}
-            lang={lang}
-          />
-          <MultiSelect
-            label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'}
-            options={vehicleOptions}
-            selected={vehicleFilters}
-            onChange={setVehicleFilters}
-            lang={lang}
-          />
-          {(selectedMonth || dayFilters.length > 0 || driverFilters.length > 0 || vehicleFilters.length > 0) && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedMonth('');
-                setDayFilters([]);
-                setDriverFilters([]);
-                setVehicleFilters([]);
-              }}
-              className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-            >
-              {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
-            </button>
-          )}
-        </FilterBar>
-
-        <div className="mt-3">
+        <div className="mt-4">
           <label className="block">
             <span className="sr-only">{lang === 'th' ? 'ค้นหาในตารางทริป' : 'Search trip table'}</span>
             <div className="relative">
