@@ -23,8 +23,7 @@ import TrendChart from 'app/ui/TrendChart';
 import HorizontalBarChart from 'app/ui/HorizontalBarChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import TrendIndicator from 'app/ui/TrendIndicator';
-import InlineMonthPicker from 'app/ui/InlineMonthPicker';
-import InlineDayPicker from 'app/ui/InlineDayPicker';
+import InlineDatePicker from 'app/ui/InlineDatePicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import FilterBar from 'app/ui/FilterBar';
 import DonutChart from 'app/ui/DonutChart';
@@ -55,6 +54,7 @@ import {
   buildTripTableColumns,
   buildTripTableRows,
   filterTripSourceRows,
+  findDateColumnFieldKey,
   type SheetTripRow,
 } from './drivingTripTable';
 
@@ -766,12 +766,10 @@ export default function DrivingDashboard({
     [tripTableColumnMeta],
   );
 
-  const tripTableDefaultSortKey = useMemo(() => {
-    const loginCol = tripTableColumnMeta.find((c) =>
-      ['login time', 'start time', 'datetime'].includes(c.label.trim().toLowerCase()),
-    );
-    return loginCol?.fieldKey ?? tripTableColumnMeta[0]?.fieldKey ?? '_id';
-  }, [tripTableColumnMeta]);
+  const tripTableDefaultSortKey = useMemo(
+    () => findDateColumnFieldKey(tripTableColumnMeta) ?? tripTableColumnMeta[0]?.fieldKey ?? '_id',
+    [tripTableColumnMeta],
+  );
 
   if (loading) {
     return (
@@ -867,23 +865,13 @@ export default function DrivingDashboard({
 
       {/* Filters */}
       <FilterBar>
-        <InlineMonthPicker
-          value={selectedMonth}
-          onChange={(v) => {
-            setSelectedMonth(v as string);
-            setDayFilters([]);
-          }}
+        <InlineDatePicker
+          monthKey={selectedMonth}
+          dayKeys={dayFilters}
+          onMonthChange={(v) => { setSelectedMonth(v); setDayFilters([]); }}
+          onDayChange={setDayFilters}
           lang={lang}
         />
-        {selectedMonth && (
-          <InlineDayPicker
-            monthKey={selectedMonth}
-            value={dayFilters}
-            onChange={(v) => setDayFilters(v as string[])}
-            multi
-            lang={lang}
-          />
-        )}
         <MultiSelect
           label={lang === 'th' ? 'คนขับ' : 'drivers'}
           options={driverOptions}
@@ -1243,23 +1231,13 @@ export default function DrivingDashboard({
         </p>
 
         <FilterBar className="mt-4">
-          <InlineMonthPicker
-            value={selectedMonth}
-            onChange={(v) => {
-              setSelectedMonth(v as string);
-              setDayFilters([]);
-            }}
+          <InlineDatePicker
+            monthKey={selectedMonth}
+            dayKeys={dayFilters}
+            onMonthChange={(v) => { setSelectedMonth(v); setDayFilters([]); }}
+            onDayChange={setDayFilters}
             lang={lang}
           />
-          {selectedMonth && (
-            <InlineDayPicker
-              monthKey={selectedMonth}
-              value={dayFilters}
-              onChange={(v) => setDayFilters(v as string[])}
-              multi
-              lang={lang}
-            />
-          )}
           <MultiSelect
             label={lang === 'th' ? 'คนขับ' : 'drivers'}
             options={driverOptions}

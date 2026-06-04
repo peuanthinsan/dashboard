@@ -45,6 +45,26 @@ export function tripRowSortValue(label: string, value: unknown): string | number
   return normalizeLabel(raw);
 }
 
+/**
+ * Finds the fieldKey of the best "date/time" column for default descending sort.
+ * Tries priority exact labels first, then a broader keyword search, skipping duration columns.
+ */
+export function findDateColumnFieldKey(columns: GoogleSheetColumn[]): string | undefined {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const PRIORITY = ['login time', 'start time', 'datetime', 'date time', 'date/time'];
+  for (const kw of PRIORITY) {
+    const col = columns.find((c) => norm(c.label) === kw);
+    if (col) return col.fieldKey;
+  }
+  // Broader: contains date/time keyword, but not a duration column
+  const col = columns.find((c) => {
+    if (isDurationColumnLabel(c.label)) return false;
+    const n = norm(c.label);
+    return n.includes('date') || n.includes('time') || n.includes('วัน') || n.includes('เวลา');
+  });
+  return col?.fieldKey;
+}
+
 export function buildTripTableColumns(columns: GoogleSheetColumn[]): Column<SheetTripRow>[] {
   return columns.map((col, index) => ({
     key: col.fieldKey,
