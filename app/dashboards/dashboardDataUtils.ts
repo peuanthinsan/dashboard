@@ -518,6 +518,8 @@ export type ViolationRow = {
   distanceKm: number;
   loginAt: Date | null;
   logoutAt: Date | null;
+  /** Numeric ms timestamp of loginAt (or eventAt) — used as a numeric sort key. */
+  _loginAtMs: number;
   loginLocation: string;
   logoutLocation: string;
   metric: ViolationMetric;

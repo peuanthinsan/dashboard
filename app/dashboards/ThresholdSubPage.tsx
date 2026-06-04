@@ -107,6 +107,8 @@ export default function ThresholdSubPage({
       { key: 'vehicle', label: copy.sheetVehicleNo, sortable: true },
       {
         key: 'loginAt',
+        sortKey: '_loginAtMs',
+        sortable: true,
         label: useCntDrvLabels ? copy.sheetStartTime : copy.sheetLoginTime,
         render: (v) => formatClock(v as Date | null),
       },
@@ -201,9 +203,7 @@ export default function ThresholdSubPage({
         columns={columns}
         data={violations}
         pageSize={15}
-        defaultSort={metric === 'rest_hrs'
-          ? { key: 'restHours', direction: 'asc' }
-          : { key: 'driveHours', direction: 'desc' }}
+        defaultSort={{ key: 'loginAt', direction: 'desc' }}
         ariaLabel={thresholdLabel}
       />
     </section>
