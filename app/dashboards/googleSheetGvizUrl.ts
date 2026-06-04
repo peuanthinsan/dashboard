@@ -8,12 +8,16 @@ const GVIZ_JSON = (sheetId: string, gid: string) =>
 const MAX_ROW_LIMIT = 50_000;
 
 /**
- * @param rowLimit — When set, adds `tq=select * limit N` so the response stays small enough
- *   for serverless memory and avoids Next.js data cache >2MB failures. Use for metadata-only flows.
+ * @param rowLimit — When set, caps the response to at most N rows.
+ * @param recentFirst — When true, orders by column A descending so the cap returns the most
+ *   recent rows rather than the oldest. Column A is SlNo (sequential integer) on all driving
+ *   and shift sheets, so desc order gives the newest data. Use for large historical sheets
+ *   where only recent months matter.
  */
-export function buildGvizJsonUrl(sheetId: string, gid: string, rowLimit?: number): string {
+export function buildGvizJsonUrl(sheetId: string, gid: string, rowLimit?: number, recentFirst?: boolean): string {
   const base = GVIZ_JSON(sheetId, gid);
   if (rowLimit == null || rowLimit <= 0) return base;
   const n = Math.min(Math.floor(rowLimit), MAX_ROW_LIMIT);
-  return `${base}&tq=${encodeURIComponent(`select * limit ${n}`)}`;
+  const tq = recentFirst ? `select * order by A desc limit ${n}` : `select * limit ${n}`;
+  return `${base}&tq=${encodeURIComponent(tq)}`;
 }

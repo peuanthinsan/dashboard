@@ -39,8 +39,9 @@ export async function GET(
   }
 
   try {
-    // Full sheet: do not use Next.js data cache — large responses exceed the 2MB cache limit and can OOM.
-    const response = await fetch(buildGvizJsonUrl(sheetId, gid), {
+    // Cap at 25 000 most-recent rows (order by SlNo/A desc) to avoid OOM on large historical sheets
+    // (e.g. ALCHEM cntDrv sheet is 64 MB / 66 k rows). 25 k rows ≈ 14 months of typical driving data.
+    const response = await fetch(buildGvizJsonUrl(sheetId, gid, 25_000, true), {
       headers: { 'User-Agent': 'SongdeeGPS-Dashboard/1.0' },
       cache: 'no-store',
     });
