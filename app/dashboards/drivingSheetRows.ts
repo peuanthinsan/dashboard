@@ -76,17 +76,41 @@ const CNT_DRV_LABELS = [
 
 /**
  * Finds the continuous-driving-hours value from a row.
- * Tries known exact labels first; falls back to any column key that contains
- * both "cnt" and "drv" (catches vendor-specific naming variations).
+ *
+ * Skips null/empty values at every step so that a column that exists in the
+ * sheet but is unpopulated for a given row (e.g. "Cnt Drv Hr" datetime column
+ * left blank on newer imports) doesn't shadow a populated sibling column
+ * (e.g. "Cnt Drv duration" number column which contains the real value).
  */
 function findCntDrvHoursValue(row: Record<string, unknown>): unknown {
-  const exact = findValue(row, CNT_DRV_LABELS);
-  if (exact != null && exact !== '') return exact;
-  // Fuzzy fallback: scan all keys for anything that looks like a cnt-drv column.
+  // Build a lowercase→original-key map once (mirrors getNormalizedKeyMap internals).
+  const keyMap = new Map<string, string>();
   for (const key of Object.keys(row)) {
-    const n = key.trim().toLowerCase();
-    if (n.includes('cnt') && n.includes('drv')) return row[key];
-    if (n.includes('continuous') && (n.includes('drv') || n.includes('driv'))) return row[key];
+    const n = normalizeLabel(key);
+    if (!keyMap.has(n)) keyMap.set(n, key);
+  }
+
+  // Exact-label scan: iterate ALL labels in priority order, skipping null/empty.
+  for (const label of CNT_DRV_LABELS) {
+    const key = keyMap.get(normalizeLabel(label));
+    if (key) {
+      const val = row[key];
+      if (val != null && val !== '') return val;
+    }
+  }
+
+  // Fuzzy fallback: scan all keys for anything that looks like a cnt-drv column,
+  // skipping null/empty values so we don't stop at an unpopulated column.
+  for (const key of Object.keys(row)) {
+    const n = normalizeLabel(key);
+    if (n.includes('cnt') && n.includes('drv')) {
+      const val = row[key];
+      if (val != null && val !== '') return val;
+    }
+    if (n.includes('continuous') && (n.includes('drv') || n.includes('driv'))) {
+      const val = row[key];
+      if (val != null && val !== '') return val;
+    }
   }
   return null;
 }
