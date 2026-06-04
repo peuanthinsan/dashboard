@@ -55,6 +55,42 @@ export const parseDurationHours = (value: unknown) => {
   return parseNumber(raw);
 };
 
+/** Known exact labels for the continuous-driving-hours column (case-insensitive). */
+const CNT_DRV_LABELS = [
+  'Cnt Drv Hr',
+  'Cnt Drv Hrs',
+  'Cnt Drv Hours',
+  'Cnt Drv duration',
+  'Cnt Drv',
+  'CntDrv Hr',
+  'CntDrv Hrs',
+  'Cnt.Drv Hr',
+  'Cnt. Drv Hr',
+  'Continuous Drv Hr',
+  'Continuous Drv Hrs',
+  'Continuous Driving Hr',
+  'Continuous Driving Hrs',
+  'Cont Drv Hr',
+  'Cont Drv Hrs',
+];
+
+/**
+ * Finds the continuous-driving-hours value from a row.
+ * Tries known exact labels first; falls back to any column key that contains
+ * both "cnt" and "drv" (catches vendor-specific naming variations).
+ */
+function findCntDrvHoursValue(row: Record<string, unknown>): unknown {
+  const exact = findValue(row, CNT_DRV_LABELS);
+  if (exact != null && exact !== '') return exact;
+  // Fuzzy fallback: scan all keys for anything that looks like a cnt-drv column.
+  for (const key of Object.keys(row)) {
+    const n = key.trim().toLowerCase();
+    if (n.includes('cnt') && n.includes('drv')) return row[key];
+    if (n.includes('continuous') && (n.includes('drv') || n.includes('driv'))) return row[key];
+  }
+  return null;
+}
+
 function filterByFleet<T extends { fleet?: string }>(
   rows: T[],
   normalizedOrganizationName: string | null,
@@ -120,7 +156,7 @@ export function mapCntDrvSheetRows(
     logoutAt: parseDate(findValue(row, ['End Time', 'Logout Time', 'Logout DateTime'])),
     loginLocation: toDisplayString(findValue(row, ['Start Location', 'Login Location'])),
     logoutLocation: toDisplayString(findValue(row, ['End Location', 'Logout Location'])),
-    cntDrvHours: parseDurationHours(findValue(row, ['Cnt Drv Hr', 'Cnt Drv duration', 'Cnt Drv'])),
+    cntDrvHours: parseDurationHours(findCntDrvHoursValue(row)),
     distanceKm: parseNumber(findValue(row, ['Distance', 'Distance KM', 'Distance(KM)'])),
     fleet: toDisplayString(findValue(row, ['Fleet'])),
   }));

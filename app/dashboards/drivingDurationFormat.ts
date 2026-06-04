@@ -24,8 +24,20 @@ const DURATION_LABELS = new Set([
   'workhrs',
   'workhrs duration',
   'cnt drv hr',
+  'cnt drv hrs',
+  'cnt drv hours',
   'cnt drv duration',
   'cnt drv',
+  'cntdrv hr',
+  'cntdrv hrs',
+  'cnt.drv hr',
+  'cnt. drv hr',
+  'continuous drv hr',
+  'continuous drv hrs',
+  'continuous driving hr',
+  'continuous driving hrs',
+  'cont drv hr',
+  'cont drv hrs',
 ]);
 
 export function isDurationColumnLabel(label: string): boolean {
