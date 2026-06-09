@@ -122,6 +122,22 @@ export const lineChannels = pgTable(
   }),
 );
 
+export const alertDriverOverrides = pgTable(
+  'AlertDriverOverride',
+  {
+    id: serial('id').primaryKey(),
+    dashboardId: integer('dashboardId').notNull(),
+    /** Stable content-derived key for a sheet alert row (sha1 of vehicle|time|alertType). */
+    alertKey: varchar('alertKey', { length: 64 }).notNull(),
+    driverName: varchar('driverName', { length: 128 }).notNull(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    dashboardAlertKeyUnique: uniqueIndex('AlertDriverOverride_dashboard_key_unique')
+      .on(table.dashboardId, table.alertKey),
+  }),
+);
+
 export const drivingWarnings = pgTable(
   'DrivingWarning',
   {

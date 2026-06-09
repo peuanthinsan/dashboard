@@ -505,6 +505,21 @@ export function computeViolationKey(args: ComputeViolationKeyArgs): string {
   return createHash('sha1').update(payload).digest('hex');
 }
 
+/**
+ * Stable key for a sheet alert row, used to attach manual driver-name
+ * overrides. Built from raw (formatted) sheet values so it survives
+ * re-fetches, row insertions, and re-sorting of the sheet.
+ */
+export function computeAlertKey(args: {
+  vehicle: string;
+  /** Raw/formatted time cell value from the sheet (not a locally parsed Date). */
+  timeRaw: string;
+  alertType: string;
+}): string {
+  const payload = [args.vehicle, args.timeRaw, args.alertType].join('|');
+  return createHash('sha1').update(payload).digest('hex');
+}
+
 export type ViolationRow = {
   driver: string;
   vehicle: string;

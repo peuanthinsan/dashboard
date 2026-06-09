@@ -108,6 +108,21 @@ async function migrate() {
       CHECK ("metric" IN ('drive_hrs', 'rest_hrs', 'cnt_drv_hrs'))
     `;
 
+    // ── Alert driver overrides (migration 0009) ───────────────────────────
+    await sql`
+      CREATE TABLE IF NOT EXISTS "AlertDriverOverride" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "dashboardId" integer NOT NULL REFERENCES "Dashboard"(id) ON DELETE CASCADE,
+        "alertKey" varchar(64) NOT NULL,
+        "driverName" varchar(128) NOT NULL,
+        "updatedAt" timestamp with time zone DEFAULT now() NOT NULL
+      )
+    `;
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS "AlertDriverOverride_dashboard_key_unique"
+      ON "AlertDriverOverride" ("dashboardId", "alertKey")
+    `;
+
     console.log('Migration completed successfully.');
   } catch (err) {
     console.error('Migration failed:', err);

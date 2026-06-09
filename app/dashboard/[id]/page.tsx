@@ -10,6 +10,7 @@ import {
   getCompanyById,
   listLineChannelsByOrganization,
   getWarningsForDashboard,
+  getAlertDriverOverridesForDashboard,
 } from 'app/db';
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import DrivingDashboard from 'app/dashboards/DrivingDashboard';
@@ -70,6 +71,7 @@ type DashboardByTemplateProps = DashboardViewProps & {
   lineChannels?: { id: number; name: string }[];
   defaultLineChannelId?: number | null;
   warnings?: Array<{ violationKey: string; sentAt: Date; channelName: string }>;
+  driverOverrides?: Record<string, string>;
 };
 
 function DashboardByTemplate({
@@ -80,12 +82,13 @@ function DashboardByTemplate({
   lineChannels,
   defaultLineChannelId,
   warnings,
+  driverOverrides,
   ...props
 }: DashboardByTemplateProps) {
   const name = resolveTemplateName(template ?? 'Summary');
   switch (name) {
     case 'Detail':
-      return <DetailDashboard {...props} isAdmin={isAdmin} />;
+      return <DetailDashboard {...props} isAdmin={isAdmin} driverOverrides={driverOverrides} />;
     case 'Simple':
       return <SimpleDashboard {...props} isAdmin={isAdmin} />;
     case 'Driving':
@@ -173,6 +176,14 @@ async function DashboardContent({
     windowEnd: null,
   });
 
+  let driverOverrides: Record<string, string> | undefined;
+  if (resolveTemplateName(dashboard.template ?? 'Summary') === 'Detail') {
+    const overrideRows = await getAlertDriverOverridesForDashboard(dashboard.id);
+    driverOverrides = Object.fromEntries(
+      overrideRows.map((row) => [row.alertKey, row.driverName]),
+    );
+  }
+
   return (
     <DashboardByTemplate
       template={dashboard.template ?? null}
@@ -197,6 +208,7 @@ async function DashboardContent({
         sentAt: w.sentAt!,
         channelName: w.channelName ?? '—',
       }))}
+      driverOverrides={driverOverrides}
     />
   );
 }

@@ -13,6 +13,7 @@ import {
   dashboards,
   lineChannels,
   drivingWarnings,
+  alertDriverOverrides,
 } from './db-schema';
 import { decryptLineTokenColumn } from './lib/lineTokenCrypto';
 import type { DrivingThresholds } from './dashboards/drivingThresholds';
@@ -971,6 +972,41 @@ export async function markWarningFailed(args: { id: number; errorMessage: string
     SET "lineStatus" = 'failed', "errorMessage" = ${args.errorMessage}
     WHERE id = ${args.id}
   `);
+}
+
+export async function getAlertDriverOverridesForDashboard(dashboardId: number) {
+  return db
+    .select({
+      alertKey: alertDriverOverrides.alertKey,
+      driverName: alertDriverOverrides.driverName,
+    })
+    .from(alertDriverOverrides)
+    .where(eq(alertDriverOverrides.dashboardId, dashboardId));
+}
+
+export async function upsertAlertDriverOverride(args: {
+  dashboardId: number;
+  alertKey: string;
+  driverName: string;
+}) {
+  await db.execute(sql`
+    INSERT INTO "AlertDriverOverride"("dashboardId", "alertKey", "driverName")
+    VALUES (${args.dashboardId}, ${args.alertKey}, ${args.driverName})
+    ON CONFLICT ("dashboardId", "alertKey") DO UPDATE
+      SET "driverName" = EXCLUDED."driverName", "updatedAt" = NOW()
+  `);
+}
+
+export async function deleteAlertDriverOverride(args: {
+  dashboardId: number;
+  alertKey: string;
+}) {
+  await db
+    .delete(alertDriverOverrides)
+    .where(and(
+      eq(alertDriverOverrides.dashboardId, args.dashboardId),
+      eq(alertDriverOverrides.alertKey, args.alertKey),
+    ));
 }
 
 export async function getWarningsForDashboard(args: {

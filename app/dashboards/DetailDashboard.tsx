@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
@@ -27,6 +27,7 @@ import {
   withDerivedRemark,
   applyAlertRules,
   colorForRemark,
+  computeAlertKey,
   type AlertRule,
 } from './dashboardDataUtils';
 
@@ -56,6 +57,7 @@ import FilterBar from 'app/ui/FilterBar';
 import AlertTimeline, { type TimelineEntry } from './AlertTimeline';
 import VideoEvidence, { type VideoEntry } from './VideoEvidence';
 import DriverSummaryCards from './DriverSummaryCards';
+import AlertDriverNameCell from './AlertDriverNameCell';
 
 type DashboardProps = {
   dashboardId: string;
@@ -70,10 +72,14 @@ type DashboardProps = {
   alertRules?: AlertRule[] | null;
   /** When true, show the raw "Alert Type" column from the sheet alongside the mapped remark. */
   isAdmin?: boolean;
+  /** Manual driver-name overrides keyed by alert key (loaded server-side from Postgres). */
+  driverOverrides?: Record<string, string>;
 };
 
 type AlertRow = {
   id: string;
+  /** Stable content-derived key used for manual driver-name overrides. */
+  alertKey: string;
   /** 1-based row number in the Google Sheet (header = row 1). */
   sheetRowNumber: number;
   sourceRow: Record<string, unknown>;
@@ -140,6 +146,7 @@ export default function DetailDashboard({
   allowedRemarks: allowedRemarksProp,
   alertRules: alertRulesProp,
   isAdmin = false,
+  driverOverrides,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
   const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
@@ -166,6 +173,18 @@ export default function DetailDashboard({
     trendRemarkFilter: 'all',
   });
   const { monthFilters, dayFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter } = filters;
+  // Manual driver-name overrides; seeded from the server, updated optimistically on save.
+  const [overrides, setOverrides] = useState<Record<string, string>>(() => driverOverrides ?? {});
+  const handleDriverSaved = useCallback((alertKey: string, driverName: string) => {
+    setOverrides((prev) => {
+      if (!driverName) {
+        const next = { ...prev };
+        delete next[alertKey];
+        return next;
+      }
+      return { ...prev, [alertKey]: driverName };
+    });
+  }, []);
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
@@ -235,12 +254,19 @@ export default function DetailDashboard({
       const derived = withDerivedRemark(alertType, toDisplayString(findValue(row, ['Remarks'])));
       const speed = Number(findValue(row, ['Speed', 'Max Speed']) ?? 0) || 0;
       const remarks = applyAlertRules(alertType, derived, speed, rules);
+      const vehicle = toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH']));
+      const alertKey = computeAlertKey({
+        vehicle,
+        timeRaw: String(timeValue ?? ''),
+        alertType,
+      });
       return {
         id: `${index}-${findValue(row, ['Vehicle No']) ?? 'vehicle'}`,
+        alertKey,
         sheetRowNumber: index + 2,
         sourceRow: row,
-        vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
-        driver: toDisplayString(findValue(row, ['Driver Name'])),
+        vehicle,
+        driver: overrides[alertKey] ?? toDisplayString(findValue(row, ['Driver Name'])),
         alertType,
         time: toDateLabel(timeValue),
         speed: toDisplayString(findValue(row, ['Speed'])),
@@ -262,7 +288,7 @@ export default function DetailDashboard({
       return remarkRows;
     }
     return remarkRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
-  }, [alertRulesProp, normalizedOrganizationName, rows]);
+  }, [alertRulesProp, normalizedOrganizationName, overrides, rows]);
 
   // ── Filter option lists ──
   const fleetOptions = useMemo(() => {
@@ -736,8 +762,22 @@ export default function DetailDashboard({
             <span className="text-zinc-400">—</span>
           ),
       },
+      {
+        key: 'manualDriver',
+        label: lang === 'th' ? 'แก้ไขคนขับ' : 'Set driver',
+        sortable: false,
+        render: (_v, row) => (
+          <AlertDriverNameCell
+            dashboardPublicId={dashboardId}
+            alertKey={row.alertKey}
+            overrideName={overrides[row.alertKey] ?? ''}
+            lang={lang}
+            onSaved={handleDriverSaved}
+          />
+        ),
+      },
     ],
-    [lang, isAdmin],
+    [lang, isAdmin, dashboardId, overrides, handleDriverSaved],
   );
 
   // ── Export data ──
