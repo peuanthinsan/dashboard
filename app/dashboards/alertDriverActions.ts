@@ -8,11 +8,21 @@ import {
   getUser,
   upsertAlertDriverOverride,
   deleteAlertDriverOverride,
+  upsertAlertDriverOverrides,
+  deleteAlertDriverOverrides,
 } from 'app/db';
+
+const AlertKey = z.string().min(1).max(64);
 
 const Input = z.object({
   dashboardPublicId: z.string().guid(),
-  alertKey: z.string().min(1).max(64),
+  alertKey: AlertKey,
+  driverName: z.string().max(128),
+});
+
+const BulkInput = z.object({
+  dashboardPublicId: z.string().guid(),
+  alertKeys: z.array(AlertKey).min(1).max(500),
   driverName: z.string().max(128),
 });
 
@@ -21,25 +31,15 @@ export type SaveAlertDriverNameResult =
   | { ok: false; message: string };
 
 /**
- * Set (or clear, when driverName is blank) a manual driver name for one
- * alert row on a Detail dashboard. Sheet data is read-only, so the override
- * lives in Postgres keyed by a content hash of the alert row.
+ * Resolve the dashboard and verify the signed-in user may edit it.
+ * Returns the dashboard row id, or an error result.
  */
-export async function saveAlertDriverName(input: {
-  dashboardPublicId: string;
-  alertKey: string;
-  driverName: string;
-}): Promise<SaveAlertDriverNameResult> {
+async function authorizeDashboardEdit(
+  dashboardPublicId: string,
+): Promise<{ ok: true; dashboardId: number } | { ok: false; message: string }> {
   const session = await auth();
   if (!session?.user?.email) {
     return { ok: false, message: 'Sign in required.' };
-  }
-
-  let parsed;
-  try {
-    parsed = Input.parse(input);
-  } catch {
-    return { ok: false, message: 'Invalid input.' };
   }
 
   const users = await getUser(session.user.email);
@@ -48,7 +48,7 @@ export async function saveAlertDriverName(input: {
   }
   const user = users[0];
 
-  const dashboards = await getDashboardByPublicId(parsed.dashboardPublicId);
+  const dashboards = await getDashboardByPublicId(dashboardPublicId);
   if (dashboards.length === 0) {
     return { ok: false, message: 'Dashboard not found.' };
   }
@@ -62,17 +62,78 @@ export async function saveAlertDriverName(input: {
     return { ok: false, message: 'You do not have access to this dashboard.' };
   }
 
+  return { ok: true, dashboardId: dashboard.id };
+}
+
+/**
+ * Set (or clear, when driverName is blank) a manual driver name for one
+ * alert row on a Detail dashboard. Sheet data is read-only, so the override
+ * lives in Postgres keyed by a content hash of the alert row.
+ */
+export async function saveAlertDriverName(input: {
+  dashboardPublicId: string;
+  alertKey: string;
+  driverName: string;
+}): Promise<SaveAlertDriverNameResult> {
+  let parsed;
+  try {
+    parsed = Input.parse(input);
+  } catch {
+    return { ok: false, message: 'Invalid input.' };
+  }
+
+  const access = await authorizeDashboardEdit(parsed.dashboardPublicId);
+  if (!access.ok) return access;
+
   const driverName = parsed.driverName.trim();
   if (driverName) {
     await upsertAlertDriverOverride({
-      dashboardId: dashboard.id,
+      dashboardId: access.dashboardId,
       alertKey: parsed.alertKey,
       driverName,
     });
   } else {
     await deleteAlertDriverOverride({
-      dashboardId: dashboard.id,
+      dashboardId: access.dashboardId,
       alertKey: parsed.alertKey,
+    });
+  }
+
+  revalidatePath(`/dashboard/${parsed.dashboardPublicId}`);
+  return { ok: true, driverName };
+}
+
+/**
+ * Set (or clear, when driverName is blank) a manual driver name for many
+ * alert rows at once. Callers with more than 500 rows should chunk requests.
+ */
+export async function saveAlertDriverNamesBulk(input: {
+  dashboardPublicId: string;
+  alertKeys: string[];
+  driverName: string;
+}): Promise<SaveAlertDriverNameResult> {
+  let parsed;
+  try {
+    parsed = BulkInput.parse(input);
+  } catch {
+    return { ok: false, message: 'Invalid input.' };
+  }
+
+  const access = await authorizeDashboardEdit(parsed.dashboardPublicId);
+  if (!access.ok) return access;
+
+  const driverName = parsed.driverName.trim();
+  const alertKeys = Array.from(new Set(parsed.alertKeys));
+  if (driverName) {
+    await upsertAlertDriverOverrides({
+      dashboardId: access.dashboardId,
+      alertKeys,
+      driverName,
+    });
+  } else {
+    await deleteAlertDriverOverrides({
+      dashboardId: access.dashboardId,
+      alertKeys,
     });
   }
 

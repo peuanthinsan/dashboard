@@ -1009,6 +1009,41 @@ export async function deleteAlertDriverOverride(args: {
     ));
 }
 
+export async function upsertAlertDriverOverrides(args: {
+  dashboardId: number;
+  alertKeys: string[];
+  driverName: string;
+}) {
+  if (args.alertKeys.length === 0) return;
+  await db
+    .insert(alertDriverOverrides)
+    .values(args.alertKeys.map((alertKey) => ({
+      dashboardId: args.dashboardId,
+      alertKey,
+      driverName: args.driverName,
+    })))
+    .onConflictDoUpdate({
+      target: [alertDriverOverrides.dashboardId, alertDriverOverrides.alertKey],
+      set: {
+        driverName: sql`excluded."driverName"`,
+        updatedAt: sql`now()`,
+      },
+    });
+}
+
+export async function deleteAlertDriverOverrides(args: {
+  dashboardId: number;
+  alertKeys: string[];
+}) {
+  if (args.alertKeys.length === 0) return;
+  await db
+    .delete(alertDriverOverrides)
+    .where(and(
+      eq(alertDriverOverrides.dashboardId, args.dashboardId),
+      inArray(alertDriverOverrides.alertKey, args.alertKeys),
+    ));
+}
+
 export async function getWarningsForDashboard(args: {
   dashboardId: number;
   windowStart: Date | null;

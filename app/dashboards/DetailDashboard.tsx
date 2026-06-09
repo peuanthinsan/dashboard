@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
@@ -58,6 +58,7 @@ import AlertTimeline, { type TimelineEntry } from './AlertTimeline';
 import VideoEvidence, { type VideoEntry } from './VideoEvidence';
 import DriverSummaryCards from './DriverSummaryCards';
 import AlertDriverNameCell from './AlertDriverNameCell';
+import { saveAlertDriverNamesBulk } from './alertDriverActions';
 
 type DashboardProps = {
   dashboardId: string;
@@ -185,6 +186,21 @@ export default function DetailDashboard({
       return { ...prev, [alertKey]: driverName };
     });
   }, []);
+
+  // ── Bulk driver-name editing (row selection + apply-to-all bar) ──
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+  const [bulkDraft, setBulkDraft] = useState('');
+  const [isBulkPending, startBulkTransition] = useTransition();
+  const [bulkError, setBulkError] = useState(false);
+  const toggleSelected = useCallback((alertKey: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(alertKey)) next.delete(alertKey);
+      else next.add(alertKey);
+      return next;
+    });
+  }, []);
+
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
@@ -415,6 +431,55 @@ export default function DetailDashboard({
     }
     return rows;
   }, [baseFilteredRows, dayFilters, monthFilters]);
+
+  // Selection restricted to rows that are currently visible under the active
+  // filters, so bulk edits never touch rows the user can't see.
+  const selectedVisibleKeys = useMemo(() => {
+    const keys = new Set<string>();
+    filteredAlerts.forEach((row) => {
+      if (selectedKeys.has(row.alertKey)) keys.add(row.alertKey);
+    });
+    return Array.from(keys);
+  }, [filteredAlerts, selectedKeys]);
+
+  const applyBulkDriverName = useCallback(
+    (rawName: string) => {
+      const driverName = rawName.trim();
+      const keys = selectedVisibleKeys;
+      if (keys.length === 0 || isBulkPending) return;
+      setBulkError(false);
+      startBulkTransition(async () => {
+        try {
+          // Server action caps each request at 500 keys.
+          for (let i = 0; i < keys.length; i += 500) {
+            const chunk = keys.slice(i, i + 500);
+            const result = await saveAlertDriverNamesBulk({
+              dashboardPublicId: dashboardId,
+              alertKeys: chunk,
+              driverName,
+            });
+            if (!result.ok) {
+              setBulkError(true);
+              return;
+            }
+          }
+          setOverrides((prev) => {
+            const next = { ...prev };
+            keys.forEach((key) => {
+              if (driverName) next[key] = driverName;
+              else delete next[key];
+            });
+            return next;
+          });
+          setSelectedKeys(new Set());
+          setBulkDraft('');
+        } catch {
+          setBulkError(true);
+        }
+      });
+    },
+    [dashboardId, isBulkPending, selectedVisibleKeys],
+  );
 
   // ── Trend remark filter options ──
   const availableTrendRemarkOptions = useMemo(() => {
@@ -681,6 +746,20 @@ export default function DetailDashboard({
   const tableColumns = useMemo<Column<AlertRow>[]>(
     () => [
       {
+        key: 'select',
+        label: '',
+        sortable: false,
+        render: (_v, row) => (
+          <input
+            type="checkbox"
+            checked={selectedKeys.has(row.alertKey)}
+            onChange={() => toggleSelected(row.alertKey)}
+            aria-label={lang === 'th' ? 'เลือกแถวนี้' : 'Select this row'}
+            className="h-4 w-4 cursor-pointer accent-red-600"
+          />
+        ),
+      },
+      {
         key: 'sheetRowNumber',
         label: lang === 'th' ? 'แถว' : 'Row #',
         sortable: true,
@@ -777,7 +856,7 @@ export default function DetailDashboard({
         ),
       },
     ],
-    [lang, isAdmin, dashboardId, overrides, handleDriverSaved],
+    [lang, isAdmin, dashboardId, overrides, handleDriverSaved, selectedKeys, toggleSelected],
   );
 
   // ── Export data ──
@@ -1158,12 +1237,83 @@ export default function DetailDashboard({
               <h2 className={heading2}>
                 {lang === 'th' ? 'ตารางการแจ้งเตือน' : 'Alert records'}
               </h2>
-              <span className={textSecondary}>
-                {filteredAlerts.length === 0
-                  ? (lang === 'th' ? 'ไม่มีการแจ้งเตือนที่จะแสดง' : 'No alerts to show.')
-                  : `${filteredAlerts.length} ${lang === 'th' ? 'รายการ' : 'records'}`}
-              </span>
+              <div className="flex items-center gap-3">
+                {filteredAlerts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedKeys((prev) => {
+                        const allKeys = filteredAlerts.map((row) => row.alertKey);
+                        const allSelected = allKeys.every((key) => prev.has(key));
+                        return allSelected ? new Set<string>() : new Set(allKeys);
+                      })
+                    }
+                    className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  >
+                    {selectedVisibleKeys.length === filteredAlerts.length && filteredAlerts.length > 0
+                      ? (lang === 'th' ? 'ยกเลิกเลือกทั้งหมด' : 'Deselect all')
+                      : (lang === 'th' ? 'เลือกทั้งหมด' : 'Select all')}
+                  </button>
+                )}
+                <span className={textSecondary}>
+                  {filteredAlerts.length === 0
+                    ? (lang === 'th' ? 'ไม่มีการแจ้งเตือนที่จะแสดง' : 'No alerts to show.')
+                    : `${filteredAlerts.length} ${lang === 'th' ? 'รายการ' : 'records'}`}
+                </span>
+              </div>
             </div>
+            {selectedVisibleKeys.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/30">
+                <span className="text-xs font-semibold text-red-700 dark:text-red-300">
+                  {lang === 'th'
+                    ? `เลือกแล้ว ${selectedVisibleKeys.length} รายการ`
+                    : `${selectedVisibleKeys.length} selected`}
+                </span>
+                <input
+                  type="text"
+                  maxLength={128}
+                  value={bulkDraft}
+                  onChange={(e) => setBulkDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && bulkDraft.trim()) applyBulkDriverName(bulkDraft);
+                  }}
+                  placeholder={lang === 'th' ? 'ชื่อคนขับ' : 'Driver name'}
+                  className="w-44 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => applyBulkDriverName(bulkDraft)}
+                  disabled={isBulkPending || !bulkDraft.trim()}
+                  className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-500 disabled:opacity-60"
+                >
+                  {isBulkPending
+                    ? (lang === 'th' ? 'กำลังบันทึก…' : 'Saving…')
+                    : (lang === 'th' ? 'ใช้กับที่เลือก' : 'Apply to selected')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyBulkDriverName('')}
+                  disabled={isBulkPending}
+                  title={lang === 'th' ? 'ลบชื่อคนขับที่ตั้งเองออกจากแถวที่เลือก' : 'Remove manual driver names from the selected rows'}
+                  className="rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  {lang === 'th' ? 'ล้างชื่อ' : 'Clear names'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedKeys(new Set())}
+                  disabled={isBulkPending}
+                  className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                >
+                  {lang === 'th' ? 'ยกเลิกการเลือก' : 'Deselect'}
+                </button>
+                {bulkError && (
+                  <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                    {lang === 'th' ? 'บันทึกไม่สำเร็จ' : 'Failed to save'}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="mt-4">
               <DataTable
                 columns={tableColumns}
