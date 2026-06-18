@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useCallback, useMemo, useState, useTransition } from 'react';
+import { useActionState, useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '../AdminModal';
 import {
@@ -267,8 +267,34 @@ function DashboardRow({
   const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [isOpen, setIsOpen] = useState(false);
   const [editTemplate, setEditTemplate] = useState(dashboard.template ?? 'Summary');
+  const [editCompanyId, setEditCompanyId] = useState(String(dashboard.companyId ?? ''));
+  const [editOrganizationId, setEditOrganizationId] = useState(String(dashboard.organizationId ?? ''));
+  const [duplicateOrgIds, setDuplicateOrgIds] = useState<Set<number>>(new Set());
   useRefreshOnSuccess(state);
   useDeferredCloseOnSuccess(state.status === 'success', () => setIsOpen(false));
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setEditTemplate(dashboard.template ?? 'Summary');
+    setEditCompanyId(String(dashboard.companyId ?? ''));
+    setEditOrganizationId(String(dashboard.organizationId ?? ''));
+    setDuplicateOrgIds(new Set());
+  }, [isOpen, dashboard.companyId, dashboard.organizationId, dashboard.template]);
+
+  const editFilteredOrgs = useMemo(() => {
+    const cId = parseInt(editCompanyId, 10);
+    if (!cId) return [];
+    return organizations.filter((o) => o.companyId === cId || o.companyId === null);
+  }, [organizations, editCompanyId]);
+
+  function toggleDuplicateOrg(id: number) {
+    setDuplicateOrgIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <>
@@ -360,7 +386,12 @@ function DashboardRow({
               Company
               <select
                 name="companyId"
-                defaultValue={dashboard.companyId ?? ''}
+                value={editCompanyId}
+                onChange={(e) => {
+                  setEditCompanyId(e.target.value);
+                  setEditOrganizationId('');
+                  setDuplicateOrgIds(new Set());
+                }}
                 className={ADMIN_SELECT}
               >
                 <option value="">Select company</option>
@@ -375,7 +406,8 @@ function DashboardRow({
               Fleet
               <select
                 name="organizationId"
-                defaultValue={dashboard.organizationId ?? ''}
+                value={editOrganizationId}
+                onChange={(e) => setEditOrganizationId(e.target.value)}
                 className={ADMIN_SELECT}
               >
                 <option value="">No fleet</option>
@@ -387,6 +419,33 @@ function DashboardRow({
               </select>
             </label>
           </div>
+          {editFilteredOrgs.length > 0 && (
+            <div>
+              <p className={`mb-2 ${ADMIN_LABEL}`}>
+                Also create copies for other fleets (optional)
+              </p>
+              <p className={`mb-2 text-xs ${ADMIN_TEXT_SUBTLE}`}>
+                Saves this dashboard as-is, then creates identical dashboards for each checked fleet.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {editFilteredOrgs
+                  .filter((o) => String(o.id) !== editOrganizationId)
+                  .map((o) => (
+                    <label key={o.id} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
+                      <input
+                        type="checkbox"
+                        name="duplicateOrganizationIds"
+                        value={o.id}
+                        checked={duplicateOrgIds.has(o.id)}
+                        onChange={() => toggleDuplicateOrg(o.id)}
+                        className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                      />
+                      {o.name}
+                    </label>
+                  ))}
+              </div>
+            </div>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
               Template
@@ -432,7 +491,11 @@ function DashboardRow({
             >
               <option value="">— None —</option>
               {lineChannels
-                .filter((c) => c.organizationId === dashboard.organizationId)
+                .filter((c) =>
+                  editOrganizationId
+                    ? c.organizationId === Number(editOrganizationId)
+                    : false,
+                )
                 .map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -531,13 +594,15 @@ export default function DashboardsClient({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createSheetUrl, setCreateSheetUrl] = useState('');
   const [createTemplate, setCreateTemplate] = useState<string>(DASHBOARD_TEMPLATES[0]);
-  const [createOrganizationId, setCreateOrganizationId] = useState('');
+  const [createCompanyId, setCreateCompanyId] = useState('');
+  const [createOrgIds, setCreateOrgIds] = useState<Set<number>>(new Set());
   useRefreshOnSuccess(dashboardCreateState);
   const closeCreateDashboardModal = useCallback(() => {
     setIsCreateOpen(false);
     setCreateSheetUrl('');
     setCreateTemplate(DASHBOARD_TEMPLATES[0]);
-    setCreateOrganizationId('');
+    setCreateCompanyId('');
+    setCreateOrgIds(new Set());
   }, []);
   useDeferredCloseOnSuccess(dashboardCreateState.status === 'success', closeCreateDashboardModal);
 
@@ -622,6 +687,15 @@ export default function DashboardsClient({
 
   function toggleBulkOrg(id: number) {
     setBulkOrgIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleCreateOrg(id: number) {
+    setCreateOrgIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -886,6 +960,14 @@ export default function DashboardsClient({
     if (!cId) return organizations;
     return organizations.filter((o) => o.companyId === cId || o.companyId === null);
   }, [organizations, bulkCompanyId]);
+
+  const createFilteredOrgs = useMemo(() => {
+    const cId = parseInt(createCompanyId, 10);
+    if (!cId) return [];
+    return organizations.filter((o) => o.companyId === cId || o.companyId === null);
+  }, [organizations, createCompanyId]);
+
+  const createSingleOrgId = createOrgIds.size === 1 ? Array.from(createOrgIds)[0] : null;
 
   const bulkSheetTargetRows = useMemo(() => {
     const cId = parseInt(bulkCompanyId, 10);
@@ -1586,7 +1668,7 @@ export default function DashboardsClient({
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         title="Create dashboard"
-        description="Add a new dashboard, connect it to a sheet, and assign a company."
+        description="Add one or more dashboards with the same settings. Check fleets to create one per fleet, or leave all unchecked for a company-wide dashboard."
       >
         <form
           action={dashboardCreateAction}
@@ -1624,6 +1706,11 @@ export default function DashboardsClient({
               <label className={ADMIN_LABEL}>Company *</label>
               <select
                 name="companyId"
+                value={createCompanyId}
+                onChange={(e) => {
+                  setCreateCompanyId(e.target.value);
+                  setCreateOrgIds(new Set());
+                }}
                 className={ADMIN_SELECT}
               >
                 <option value="">Select company</option>
@@ -1634,22 +1721,31 @@ export default function DashboardsClient({
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-2">
-              <label className={ADMIN_LABEL}>Fleet (optional)</label>
-              <select
-                name="organizationId"
-                value={createOrganizationId}
-                onChange={(e) => setCreateOrganizationId(e.target.value)}
-                className={ADMIN_SELECT}
-              >
-                <option value="">No fleet</option>
-                {organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {createFilteredOrgs.length > 0 ? (
+              <div className="sm:col-span-2">
+                <p className={`mb-2 ${ADMIN_LABEL}`}>
+                  Fleets (optional — one dashboard per checked fleet)
+                </p>
+                <p className={`mb-2 text-xs ${ADMIN_TEXT_SUBTLE}`}>
+                  Leave all unchecked for a company-wide dashboard with no fleet.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {createFilteredOrgs.map((o) => (
+                    <label key={o.id} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
+                      <input
+                        type="checkbox"
+                        name="organizationIds"
+                        value={o.id}
+                        checked={createOrgIds.has(o.id)}
+                        onChange={() => toggleCreateOrg(o.id)}
+                        className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                      />
+                      {o.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-2">
               <label className={ADMIN_LABEL}>Template *</label>
               <select
@@ -1689,12 +1785,22 @@ export default function DashboardsClient({
             <div className="flex flex-col gap-2 sm:col-span-2">
               <label className={`flex flex-col gap-1 ${ADMIN_LABEL}`}>
                 Default LINE channel
-                <select name="lineChannelId" defaultValue="" className={ADMIN_SELECT}>
+                {createOrgIds.size !== 1 && (
+                  <span className={`text-xs font-normal ${ADMIN_TEXT_SUBTLE}`}>
+                    Select exactly one fleet to assign a LINE channel.
+                  </span>
+                )}
+                <select
+                  name="lineChannelId"
+                  defaultValue=""
+                  disabled={createOrgIds.size !== 1}
+                  className={ADMIN_SELECT}
+                >
                   <option value="">— None —</option>
                   {lineChannels
                     .filter((c) =>
-                      createOrganizationId
-                        ? c.organizationId === Number(createOrganizationId)
+                      createSingleOrgId != null
+                        ? c.organizationId === createSingleOrgId
                         : false,
                     )
                     .map((c) => (
@@ -1711,7 +1817,7 @@ export default function DashboardsClient({
               Links are validated and parsed automatically.
             </p>
             <button type="submit" className={ADMIN_PRIMARY_BUTTON}>
-              Create dashboard
+              {createOrgIds.size > 1 ? `Create ${createOrgIds.size} dashboards` : 'Create dashboard'}
             </button>
           </div>
           <StatusMessage state={dashboardCreateState} />

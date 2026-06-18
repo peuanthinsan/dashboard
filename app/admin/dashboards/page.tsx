@@ -64,7 +64,12 @@ export default async function AdminDashboardsPage() {
     const notesValue = (formData.get('dashboardNotes') as string) ?? '';
     const notes = notesValue.trim() ? notesValue.trim() : null;
     const companyId = Number(formData.get('companyId'));
-    const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const organizationIdsRaw = formData.getAll('organizationIds');
+    const organizationIds = Array.isArray(organizationIdsRaw)
+      ? organizationIdsRaw.map((v) => Number(String(v))).filter(Number.isFinite)
+      : [];
+    const organizationTargets: (number | null)[] =
+      organizationIds.length > 0 ? organizationIds : [null];
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
     }
@@ -100,30 +105,42 @@ export default async function AdminDashboardsPage() {
     const lineChannelId = lineChannelIdRaw && String(lineChannelIdRaw).length > 0
       ? Number(lineChannelIdRaw)
       : null;
+    const dashboardPayload = {
+      name,
+      template,
+      sheetUrl,
+      sheetId,
+      sheetGid,
+      sheetGidCntDrv,
+      sheetUrlCntDrv,
+      companyId,
+      notes,
+      alertTypes: alertTypes.length > 0 ? alertTypes : null,
+      remarks: remarks.length > 0 ? remarks : null,
+      drivingThresholds: drivingThresholds as unknown as {
+        continuousDrivingMaxHours: number;
+        restMinimumHours: number;
+        workingHoursMax: number;
+      },
+      alertRules,
+    };
     try {
-      await createDashboard({
-        name,
-        template,
-        sheetUrl,
-        sheetId,
-        sheetGid,
-        sheetGidCntDrv,
-        sheetUrlCntDrv,
-        companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
-        notes,
-        alertTypes: alertTypes.length > 0 ? alertTypes : null,
-        remarks: remarks.length > 0 ? remarks : null,
-        drivingThresholds: drivingThresholds as unknown as {
-          continuousDrivingMaxHours: number;
-          restMinimumHours: number;
-          workingHoursMax: number;
-        },
-        alertRules,
-        lineChannelId,
-      });
+      let created = 0;
+      for (const organizationId of organizationTargets) {
+        const lineChannelForOrg =
+          organizationTargets.length === 1 && organizationId != null ? lineChannelId : null;
+        await createDashboard({
+          ...dashboardPayload,
+          organizationId,
+          lineChannelId: lineChannelForOrg,
+        });
+        created += 1;
+      }
       revalidatePath('/admin/dashboards');
-      return { status: 'success', message: 'Dashboard created.' };
+      return {
+        status: 'success',
+        message: created === 1 ? 'Dashboard created.' : `Created ${created} dashboards.`,
+      };
     } catch (error) {
       console.error('Failed to create dashboard', error);
       return { status: 'error', message: 'Unable to create dashboard.' };
@@ -159,6 +176,10 @@ export default async function AdminDashboardsPage() {
     const notes = notesValue.trim() ? notesValue.trim() : null;
     const companyId = Number(formData.get('companyId'));
     const organizationValue = (formData.get('organizationId') as string) ?? '';
+    const duplicateOrgIdsRaw = formData.getAll('duplicateOrganizationIds');
+    const duplicateOrganizationIds = Array.isArray(duplicateOrgIdsRaw)
+      ? duplicateOrgIdsRaw.map((v) => Number(String(v))).filter(Number.isFinite)
+      : [];
     if (!name || !template || !sheetUrl || !companyId) {
       return { status: 'error', message: 'Fill in all required dashboard fields.' };
     }
@@ -194,30 +215,49 @@ export default async function AdminDashboardsPage() {
     const lineChannelId = lineChannelIdRaw && String(lineChannelIdRaw).length > 0
       ? Number(lineChannelIdRaw)
       : null;
+    const organizationId = organizationValue ? Number(organizationValue) : null;
+    const dashboardPayload = {
+      name,
+      template,
+      sheetUrl,
+      sheetId,
+      sheetGid,
+      sheetGidCntDrv,
+      sheetUrlCntDrv,
+      companyId,
+      organizationId,
+      notes,
+      alertTypes: alertTypes.length > 0 ? alertTypes : null,
+      remarks: remarks.length > 0 ? remarks : null,
+      drivingThresholds: drivingThresholds as unknown as {
+        continuousDrivingMaxHours: number;
+        restMinimumHours: number;
+        workingHoursMax: number;
+      },
+      alertRules,
+      lineChannelId,
+    };
     try {
       await updateDashboard({
         id: dashboardId,
-        name,
-        template,
-        sheetUrl,
-        sheetId,
-        sheetGid,
-        sheetGidCntDrv,
-        sheetUrlCntDrv,
-        companyId,
-        organizationId: organizationValue ? Number(organizationValue) : null,
-        notes,
-        alertTypes: alertTypes.length > 0 ? alertTypes : null,
-        remarks: remarks.length > 0 ? remarks : null,
-        drivingThresholds: drivingThresholds as unknown as {
-          continuousDrivingMaxHours: number;
-          restMinimumHours: number;
-          workingHoursMax: number;
-        },
-        alertRules,
-        lineChannelId,
+        ...dashboardPayload,
       });
+      let duplicated = 0;
+      for (const duplicateOrgId of duplicateOrganizationIds) {
+        await createDashboard({
+          ...dashboardPayload,
+          organizationId: duplicateOrgId,
+          lineChannelId: null,
+        });
+        duplicated += 1;
+      }
       revalidatePath('/admin/dashboards');
+      if (duplicated > 0) {
+        return {
+          status: 'success',
+          message: `Dashboard updated and ${duplicated} cop${duplicated === 1 ? 'y' : 'ies'} created.`,
+        };
+      }
       return { status: 'success', message: 'Dashboard updated.' };
     } catch (error) {
       console.error('Failed to update dashboard', error);
