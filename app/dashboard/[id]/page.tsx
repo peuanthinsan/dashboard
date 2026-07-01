@@ -61,6 +61,8 @@ export async function generateMetadata({
 
 type DashboardViewProps = ComponentProps<typeof SummaryDashboard> & {
   sheetGidCntDrv?: string | null;
+  /** Full fleet scope for hard-limiting (empty/undefined = show all fleets). */
+  organizationNames?: string[] | null;
 };
 
 type DashboardByTemplateProps = DashboardViewProps & {
@@ -134,19 +136,32 @@ async function DashboardContent({
   }
   const dashboard = dashboardResult[0];
 
+  const scopedOrgIds =
+    dashboard.organizationIds && dashboard.organizationIds.length > 0
+      ? dashboard.organizationIds
+      : dashboard.organizationId != null
+        ? [dashboard.organizationId]
+        : [];
+
   const matchesCompany = userCompanyIds.includes(dashboard.companyId ?? -1);
+  // Hard scope: the viewer must be entitled to every fleet the dashboard is
+  // limited to (reduces to the prior single-fleet rule when there is one fleet).
   const matchesOrganization =
-    !dashboard.organizationId || userOrganizationIds.includes(dashboard.organizationId);
+    scopedOrgIds.length === 0 ||
+    scopedOrgIds.every((oid) => userOrganizationIds.includes(oid));
 
   if (!matchesCompany || !matchesOrganization) {
     redirect('/dashboard');
   }
 
-  let organizationName: string | null = null;
-  if (dashboard.organizationId) {
-    const organizationResult = await getOrganizationById(dashboard.organizationId);
-    organizationName = organizationResult[0]?.name ?? null;
+  let organizationNames: string[] = [];
+  if (scopedOrgIds.length > 0) {
+    const resolved = await Promise.all(scopedOrgIds.map((oid) => getOrganizationById(oid)));
+    organizationNames = resolved
+      .map((r) => r[0]?.name ?? null)
+      .filter((n): n is string => Boolean(n));
   }
+  const organizationName: string | null = organizationNames[0] ?? null;
 
   const allowedAlertTypes = (dashboard as { alertTypes?: string[] | null }).alertTypes ?? null;
   const allowedRemarks = (dashboard as { remarks?: string[] | null }).remarks ?? null;
@@ -195,6 +210,7 @@ async function DashboardContent({
       sheetGidCntDrv={dashboard.sheetGidCntDrv ?? null}
       dashboardNotes={dashboard.notes ?? null}
       organizationName={organizationName}
+      organizationNames={organizationNames}
       allowedAlertTypes={allowedAlertTypes}
       allowedRemarks={allowedRemarks}
       alertRules={alertRules}

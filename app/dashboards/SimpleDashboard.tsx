@@ -20,6 +20,8 @@ import {
   previousMonthKey,
   withDerivedRemark,
   applyAlertRules,
+  resolveScopeFleetNames,
+  scopeFleetSet,
   type AlertRule,
 } from './dashboardDataUtils';
 import TrendChart from 'app/ui/TrendChart';
@@ -42,6 +44,7 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  organizationNames?: string[] | null;
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
@@ -52,6 +55,7 @@ type DashboardProps = {
 type SimpleFilterState = {
   month: string;
   dayFilters: string[];
+  fleetFilters: string[];
   vehicleFilters: string[];
   driverFilters: string[];
 };
@@ -59,6 +63,7 @@ type SimpleFilterState = {
 const defaultFilters: SimpleFilterState = {
   month: '',
   dayFilters: [],
+  fleetFilters: [],
   vehicleFilters: [],
   driverFilters: [],
 };
@@ -81,6 +86,7 @@ export default function SimpleDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  organizationNames,
   lang = 'en',
   allowedAlertTypes: allowedAlertTypesProp,
   allowedRemarks: allowedRemarksProp,
@@ -88,16 +94,19 @@ export default function SimpleDashboard({
   isAdmin = false,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
+  const scopeNames = useMemo(
+    () => resolveScopeFleetNames(organizationName, organizationNames),
+    [organizationName, organizationNames],
+  );
+  const scopeSet = useMemo(
+    () => scopeFleetSet(organizationName, organizationNames),
+    [organizationName, organizationNames],
+  );
   const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
   });
-  const normalizedOrganizationName = useMemo(
-    () => (organizationName ? normalizeLabel(organizationName) : null),
-    [organizationName],
-  );
-
-  const [filters, setFilters] = useState<SimpleFilterState>(defaultFilters);
+  const [filters, setFilters] = useState<SimpleFilterState>({ ...defaultFilters, fleetFilters: scopeNames });
   const storageKey = useMemo(() => `${dashboardId}-v2`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
@@ -113,6 +122,9 @@ export default function SimpleDashboard({
         dayFilters: Array.isArray(stored.dayFilters)
           ? stored.dayFilters.filter((v) => typeof v === 'string')
           : [],
+        fleetFilters: (Array.isArray((stored as SimpleFilterState).fleetFilters) && (stored as SimpleFilterState).fleetFilters.length > 0)
+          ? (stored as SimpleFilterState).fleetFilters.filter((v) => typeof v === 'string')
+          : scopeNames,
         vehicleFilters: Array.isArray(stored.vehicleFilters)
           ? stored.vehicleFilters.filter((v) => typeof v === 'string')
           : [],
@@ -129,10 +141,10 @@ export default function SimpleDashboard({
     saveStoredFilters(storageKey, filters);
   }, [storageKey, filters]);
 
-  const resetFilters = () => setFilters(defaultFilters);
+  const resetFilters = () => setFilters({ ...defaultFilters, fleetFilters: scopeNames });
 
   const hasActiveFilters = useMemo(() => {
-    return filters.month !== '' || filters.dayFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
+    return filters.month !== '' || filters.dayFilters.length > 0 || filters.fleetFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
   }, [filters]);
 
   // null = allow-all; only restrict if admin explicitly set an allow-list.
@@ -171,10 +183,8 @@ export default function SimpleDashboard({
         };
       })
       .filter((row) => {
-        if (!normalizedOrganizationName) return true;
-        return normalizeLabel(row.fleet) === normalizedOrganizationName;
-      })
-      .filter((row) => {
+        // Hard fleet scope: drop rows outside the dashboard's fleet set.
+        if (scopeSet.size > 0 && !scopeSet.has(normalizeLabel(row.fleet))) return false;
         if (normalizedAllowed && !normalizedAllowed.has(normalizeLabel(row.alertType))) return false;
         if (normalizedAllowedRemarks) {
           const nRemark = normalizeLabel(row.remarks);
@@ -183,7 +193,7 @@ export default function SimpleDashboard({
         return true;
       })
       .filter((row) => row.parsedDate);
-  }, [alertRulesProp, normalizedOrganizationName, rows, effectiveAlertTypes, effectiveRemarks]);
+  }, [alertRulesProp, rows, effectiveAlertTypes, effectiveRemarks, scopeSet]);
 
   // ── Default to current month when no stored filters ──────────────────────
   const monthOptions = useMemo(() => {
@@ -221,6 +231,13 @@ export default function SimpleDashboard({
     }
     return alerts;
   }, [baseAlerts, filters.month, filters.dayFilters]);
+
+  // ── Fleet options (from all data, not month-filtered) ──────────────────
+  const fleetOptions = useMemo(() => {
+    const unique = new Set<string>();
+    baseAlerts.forEach((row) => { if (row.fleet && row.fleet !== '—') unique.add(row.fleet); });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [baseAlerts]);
 
   // ── Compute options from month-filtered data ────────────────────────────
   const vehicleOptions = useMemo(() => {
@@ -264,6 +281,10 @@ export default function SimpleDashboard({
   // ── Fully filtered alerts ───────────────────────────────────────────────
   const filteredAlerts = useMemo(() => {
     let alerts = monthFilteredAlerts;
+    if (filters.fleetFilters.length > 0) {
+      const activeFleets = new Set(filters.fleetFilters.map((f) => normalizeLabel(f)));
+      alerts = alerts.filter((row) => activeFleets.has(normalizeLabel(row.fleet)));
+    }
     if (filters.vehicleFilters.length > 0) {
       const activeVehicles = new Set(filters.vehicleFilters);
       alerts = alerts.filter((row) => activeVehicles.has(row.vehicle));
@@ -273,7 +294,7 @@ export default function SimpleDashboard({
       alerts = alerts.filter((row) => activeDrivers.has(row.driver));
     }
     return alerts;
-  }, [monthFilteredAlerts, filters.vehicleFilters, filters.driverFilters]);
+  }, [monthFilteredAlerts, filters.fleetFilters, filters.vehicleFilters, filters.driverFilters]);
 
   const uniqueVehiclesForScore = useMemo(
     () => new Set(filteredAlerts.map((r) => r.vehicle).filter((v) => v && v !== '—')).size,
@@ -550,6 +571,15 @@ export default function SimpleDashboard({
                 value={filters.dayFilters}
                 onChange={(v) => setFilters((f) => ({ ...f, dayFilters: v as string[] }))}
                 multi
+                lang={lang}
+              />
+            )}
+            {fleetOptions.length > 1 && (
+              <MultiSelect
+                label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
+                options={fleetOptions}
+                selected={filters.fleetFilters}
+                onChange={(v) => setFilters((f) => ({ ...f, fleetFilters: v }))}
                 lang={lang}
               />
             )}

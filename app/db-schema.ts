@@ -97,6 +97,8 @@ export const dashboards = pgTable(
     alertRules: jsonb('alertRules').$type<import('./dashboards/dashboardDataUtils').AlertRule[]>(),
     companyId: integer('companyId'),
     organizationId: integer('organizationId'),
+    // Multi-fleet scope (source of truth); organizationId mirrors organizationIds[0].
+    organizationIds: jsonb('organizationIds').$type<number[]>(),
     lineChannelId: integer('lineChannelId'),
   },
   (table) => ({

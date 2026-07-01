@@ -7,7 +7,7 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString } from './dashboardDataUtils';
+import { findValue, parseDate, previousMonthKey, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
 import {
   computeDrivingScore,
@@ -74,6 +74,7 @@ type DashboardProps = {
   sheetGidCntDrv?: string | null;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  organizationNames?: string[] | null;
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
@@ -120,6 +121,7 @@ export default function DrivingDashboard({
   sheetGidCntDrv = null,
   dashboardNotes,
   organizationName,
+  organizationNames,
   lang = 'en',
   drivingThresholds: drivingThresholdsProp,
   lineChannels = [],
@@ -213,7 +215,7 @@ export default function DrivingDashboard({
   const [tripSearch, setTripSearch] = useState('');
   const [tripPageSize, setTripPageSize] = useState<number | 'all'>(25);
 
-  const normalizedOrganizationName = useMemo(() => (organizationName ? normalizeLabel(organizationName) : null), [organizationName]);
+  const scopeSet = useMemo(() => scopeFleetSet(organizationName, organizationNames), [organizationName, organizationNames]);
   const storageKey = useMemo(() => `${dashboardId}-driving`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
@@ -256,12 +258,12 @@ export default function DrivingDashboard({
   }, [storageKey, selectedMonth, dayFilters, driverFilters, vehicleFilters, tripSearch, tripPageSize]);
 
   const shiftRows = useMemo(
-    () => mapShiftSheetRows(rows, normalizedOrganizationName),
-    [rows, normalizedOrganizationName],
+    () => mapShiftSheetRows(rows, scopeSet),
+    [rows, scopeSet],
   );
   const cntDrvRows = useMemo(
-    () => (hasCntDrvSheet ? mapCntDrvSheetRows(cntDrvRawRows, normalizedOrganizationName) : []),
-    [cntDrvRawRows, hasCntDrvSheet, normalizedOrganizationName],
+    () => (hasCntDrvSheet ? mapCntDrvSheetRows(cntDrvRawRows, scopeSet) : []),
+    [cntDrvRawRows, hasCntDrvSheet, scopeSet],
   );
 
   const applyRowFilters = useCallback(

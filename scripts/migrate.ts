@@ -123,6 +123,15 @@ async function migrate() {
       ON "AlertDriverOverride" ("dashboardId", "alertKey")
     `;
 
+    // ── Multi-fleet dashboard scoping (migration 0010) ────────────────────
+    await sql`ALTER TABLE "Dashboard" ADD COLUMN IF NOT EXISTS "organizationIds" JSONB`;
+    await sql`
+      UPDATE "Dashboard"
+      SET "organizationIds" = jsonb_build_array("organizationId")
+      WHERE "organizationId" IS NOT NULL
+        AND "organizationIds" IS NULL
+    `;
+
     console.log('Migration completed successfully.');
   } catch (err) {
     console.error('Migration failed:', err);

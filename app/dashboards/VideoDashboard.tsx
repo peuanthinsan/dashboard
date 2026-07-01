@@ -12,6 +12,7 @@ import {
   isExcludedAlertRemark,
   normalizeLabel,
   parseDate,
+  scopeFleetSet,
   toDisplayString,
 } from './dashboardDataUtils';
 import KpiCard from 'app/ui/KpiCard';
@@ -25,6 +26,7 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  organizationNames?: string[] | null;
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
@@ -49,14 +51,15 @@ export default function VideoDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  organizationNames,
   lang = 'en',
   isAdmin = false,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
   const { rows, loading, error, lastUpdated } = useGoogleSheet({ sheetId, gid: sheetGid });
-  const normalizedOrganizationName = useMemo(
-    () => (organizationName ? normalizeLabel(organizationName) : null),
-    [organizationName],
+  const scopeSet = useMemo(
+    () => scopeFleetSet(organizationName, organizationNames),
+    [organizationName, organizationNames],
   );
 
   const samples = useMemo<VideoSample[]>(() => {
@@ -77,12 +80,12 @@ export default function VideoDashboard({
       })
       .filter((row) => {
         if (!hasRemark(row.remarks) || isExcludedAlertRemark(row.remarks)) return false;
-        if (!normalizedOrganizationName) return true;
-        return normalizeLabel(row.fleet) === normalizedOrganizationName;
+        if (scopeSet.size === 0) return true;
+        return scopeSet.has(normalizeLabel(row.fleet));
       })
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 12);
-  }, [normalizedOrganizationName, rows]);
+  }, [scopeSet, rows]);
 
   const uniqueVehicles = useMemo(() => new Set(samples.map((s) => s.vehicle)).size, [samples]);
   const uniqueDrivers = useMemo(() => new Set(samples.map((s) => s.driver)).size, [samples]);

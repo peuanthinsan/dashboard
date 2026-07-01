@@ -117,15 +117,15 @@ function findCntDrvHoursValue(row: Record<string, unknown>): unknown {
 
 function filterByFleet<T extends { fleet?: string }>(
   rows: T[],
-  normalizedOrganizationName: string | null,
+  normalizedFleetSet: Set<string>,
 ): T[] {
-  if (!normalizedOrganizationName) return rows;
-  return rows.filter((row) => normalizeLabel(row.fleet ?? '') === normalizedOrganizationName);
+  if (normalizedFleetSet.size === 0) return rows;
+  return rows.filter((row) => normalizedFleetSet.has(normalizeLabel(row.fleet ?? '')));
 }
 
 export function mapShiftSheetRows(
   rows: Record<string, unknown>[],
-  normalizedOrganizationName: string | null,
+  normalizedFleetSet: Set<string>,
 ): DrivingShiftRow[] {
   const mapped = rows.map((row) => ({
     sourceRow: row,
@@ -150,7 +150,7 @@ export function mapShiftSheetRows(
     fleet: toDisplayString(findValue(row, ['Fleet'])),
   }));
 
-  return filterByFleet(mapped, normalizedOrganizationName).map((row) => ({
+  return filterByFleet(mapped, normalizedFleetSet).map((row) => ({
     sourceRow: row.sourceRow,
     driver: row.driver,
     vehicle: row.vehicle,
@@ -169,7 +169,7 @@ export function mapShiftSheetRows(
 
 export function mapCntDrvSheetRows(
   rows: Record<string, unknown>[],
-  normalizedOrganizationName: string | null,
+  normalizedFleetSet: Set<string>,
 ): DrivingCntDrvRow[] {
   const mapped = rows.map((row) => ({
     sourceRow: row,
@@ -185,5 +185,5 @@ export function mapCntDrvSheetRows(
     fleet: toDisplayString(findValue(row, ['Fleet'])),
   }));
 
-  return filterByFleet(mapped, normalizedOrganizationName);
+  return filterByFleet(mapped, normalizedFleetSet);
 }

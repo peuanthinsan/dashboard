@@ -28,6 +28,8 @@ import {
   applyAlertRules,
   colorForRemark,
   computeAlertKey,
+  resolveScopeFleetNames,
+  scopeFleetSet,
   type AlertRule,
 } from './dashboardDataUtils';
 
@@ -67,6 +69,7 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  organizationNames?: string[] | null;
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
@@ -142,6 +145,7 @@ export default function DetailDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  organizationNames,
   lang = 'en',
   allowedAlertTypes: allowedAlertTypesProp,
   allowedRemarks: allowedRemarksProp,
@@ -159,15 +163,19 @@ export default function DetailDashboard({
     const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
     return () => window.clearInterval(id);
   }, []);
-  const normalizedOrganizationName = useMemo(
-    () => (organizationName ? normalizeLabel(organizationName) : null),
-    [organizationName],
+  const scopeNames = useMemo(
+    () => resolveScopeFleetNames(organizationName, organizationNames),
+    [organizationName, organizationNames],
+  );
+  const scopeSet = useMemo(
+    () => scopeFleetSet(organizationName, organizationNames),
+    [organizationName, organizationNames],
   );
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
   const [filters, setFilters] = useState<DetailFilterState>({
     monthFilters: [],
     dayFilters: [],
-    fleetFilters: [],
+    fleetFilters: scopeNames,
     remarkFilters: [],
     vehicleFilters: [],
     driverFilters: [],
@@ -214,7 +222,7 @@ export default function DetailDashboard({
         ...prev,
         monthFilters: Array.isArray(stored.monthFilters) ? stored.monthFilters.filter((v) => typeof v === 'string') : prev.monthFilters,
         dayFilters: Array.isArray(stored.dayFilters) ? stored.dayFilters.filter((v) => typeof v === 'string') : prev.dayFilters,
-        fleetFilters: Array.isArray(stored.fleetFilters) ? stored.fleetFilters.filter((v) => typeof v === 'string') : prev.fleetFilters,
+        fleetFilters: (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) ? stored.fleetFilters.filter((v) => typeof v === 'string') : (scopeNames.length > 0 ? scopeNames : prev.fleetFilters),
         remarkFilters: Array.isArray(stored.remarkFilters) ? stored.remarkFilters.filter((v) => typeof v === 'string') : prev.remarkFilters,
         vehicleFilters: Array.isArray(stored.vehicleFilters) ? stored.vehicleFilters.filter((v) => typeof v === 'string') : prev.vehicleFilters,
         driverFilters: Array.isArray(stored.driverFilters) ? stored.driverFilters.filter((v) => typeof v === 'string') : prev.driverFilters,
@@ -232,7 +240,7 @@ export default function DetailDashboard({
     setFilters({
       monthFilters: [],
       dayFilters: [],
-      fleetFilters: [],
+      fleetFilters: scopeNames,
       remarkFilters: [],
       vehicleFilters: [],
       driverFilters: [],
@@ -298,13 +306,12 @@ export default function DetailDashboard({
     const remarkRows = mappedRows.filter((row) => {
       if (!hasRemark(row.remarks)) return false;
       if (isExcludedAlertRemark(row.remarks)) return false;
+      // Hard fleet scope: drop rows outside the dashboard's fleet set.
+      if (scopeSet.size > 0 && !scopeSet.has(normalizeLabel(row.fleet))) return false;
       return true;
     });
-    if (!normalizedOrganizationName) {
-      return remarkRows;
-    }
-    return remarkRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
-  }, [alertRulesProp, normalizedOrganizationName, overrides, rows]);
+    return remarkRows;
+  }, [alertRulesProp, overrides, rows, scopeSet]);
 
   // ── Filter option lists ──
   const fleetOptions = useMemo(() => {
@@ -660,7 +667,7 @@ export default function DetailDashboard({
 
   // ── Fleet comparison data (bar chart) ──
   const fleetComparisonData = useMemo(() => {
-    if (fleetFilters.length > 0 || organizationName) return null;
+    if (fleetFilters.length > 0) return null;
     const fleetCounts = new Map<string, number>();
     filteredAlerts.forEach((r) => {
       if (r.fleet && r.fleet !== '—') {
@@ -980,7 +987,7 @@ export default function DetailDashboard({
                 lang={lang}
               />
             )}
-            {!organizationName && (
+            {fleetOptions.length > 1 && (
               <MultiSelect label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'} options={fleetOptions} selected={filters.fleetFilters} onChange={(v) => setFilters(f => ({ ...f, fleetFilters: v }))} lang={lang} />
             )}
             <MultiSelect label={lang === 'th' ? 'ประเภท' : 'types'} options={remarkOptions} selected={filters.remarkFilters} onChange={(v) => setFilters(f => ({ ...f, remarkFilters: v }))} lang={lang} />

@@ -507,7 +507,7 @@ export async function deleteOrganization(id: number) {
 export async function createDashboard({
   name,
   companyId,
-  organizationId,
+  organizationIds,
   template,
   sheetId,
   sheetGid,
@@ -523,7 +523,8 @@ export async function createDashboard({
 }: {
   name: string;
   companyId: number;
-  organizationId: number | null;
+  /** Full fleet scope; [] = company-wide. organizationId is derived from this. */
+  organizationIds: number[];
   template: string;
   sheetId: string;
   sheetGid: string;
@@ -541,11 +542,16 @@ export async function createDashboard({
   alertRules?: import('./dashboards/dashboardDataUtils').AlertRule[] | null;
   lineChannelId?: number | null;
 }) {
-  await assertOrganizationBelongsToCompany(companyId, organizationId);
+  const orgIds = organizationIds ?? [];
+  for (const oid of orgIds) {
+    await assertOrganizationBelongsToCompany(companyId, oid);
+  }
+  const primaryOrganizationId = orgIds.length > 0 ? orgIds[0] : null;
   const [result] = await db.insert(dashboards).values({
     name,
     companyId,
-    organizationId,
+    organizationId: primaryOrganizationId,
+    organizationIds: orgIds.length > 0 ? orgIds : null,
     template,
     sheetId,
     sheetGid,
@@ -567,7 +573,7 @@ export async function updateDashboard({
   id,
   name,
   companyId,
-  organizationId,
+  organizationIds,
   template,
   sheetId,
   sheetGid,
@@ -584,7 +590,8 @@ export async function updateDashboard({
   id: number;
   name: string;
   companyId: number;
-  organizationId: number | null;
+  /** Full fleet scope; [] = company-wide. organizationId is derived from this. */
+  organizationIds: number[];
   template: string;
   sheetId: string;
   sheetGid: string;
@@ -602,13 +609,18 @@ export async function updateDashboard({
   alertRules?: import('./dashboards/dashboardDataUtils').AlertRule[] | null;
   lineChannelId?: number | null;
 }) {
-  await assertOrganizationBelongsToCompany(companyId, organizationId);
+  const orgIds = organizationIds ?? [];
+  for (const oid of orgIds) {
+    await assertOrganizationBelongsToCompany(companyId, oid);
+  }
+  const primaryOrganizationId = orgIds.length > 0 ? orgIds[0] : null;
   return await db
     .update(dashboards)
     .set({
       name,
       companyId,
-      organizationId,
+      organizationId: primaryOrganizationId,
+      organizationIds: orgIds.length > 0 ? orgIds : null,
       template,
       sheetId,
       sheetGid,

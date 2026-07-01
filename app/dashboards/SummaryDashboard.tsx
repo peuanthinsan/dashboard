@@ -28,6 +28,8 @@ import {
   withDerivedRemark,
   applyAlertRules,
   colorForRemark,
+  resolveScopeFleetNames,
+  scopeFleetSet,
   type AlertRule,
 } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
@@ -50,6 +52,7 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  organizationNames?: string[] | null;
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
@@ -76,12 +79,21 @@ export default function SummaryDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  organizationNames,
   lang = 'en',
   allowedAlertTypes: allowedAlertTypesProp,
   allowedRemarks: allowedRemarksProp,
   alertRules: alertRulesProp,
   isAdmin = false,
 }: DashboardProps) {
+  const scopeNames = useMemo(
+    () => resolveScopeFleetNames(organizationName, organizationNames),
+    [organizationName, organizationNames],
+  );
+  const scopeSet = useMemo(
+    () => scopeFleetSet(organizationName, organizationNames),
+    [organizationName, organizationNames],
+  );
   const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
@@ -91,15 +103,10 @@ export default function SummaryDashboard({
     const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
     return () => window.clearInterval(id);
   }, []);
-  const normalizedOrganizationName = useMemo(
-    () => (organizationName ? normalizeLabel(organizationName) : null),
-    [organizationName],
-  );
-
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [dayFilters, setDayFilters] = useState<string[]>([]);
-  const [fleetFilters, setFleetFilters] = useState<string[]>([]);
+  const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
 
@@ -114,7 +121,8 @@ export default function SummaryDashboard({
     const frame = requestAnimationFrame(() => {
       if (Array.isArray(stored.monthFilters)) setMonthFilters(stored.monthFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
-      if (Array.isArray(stored.fleetFilters)) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
+      else setFleetFilters(scopeNames);
     });
     return () => cancelAnimationFrame(frame);
   }, [storageKey]);
@@ -126,7 +134,7 @@ export default function SummaryDashboard({
   const resetFilters = () => {
     setMonthFilters([]);
     setDayFilters([]);
-    setFleetFilters([]);
+    setFleetFilters(scopeNames);
   };
 
   // null = no filter; only restrict when the admin explicitly configured an allow-list.
@@ -156,9 +164,10 @@ export default function SummaryDashboard({
       return { sourceRow: row, alertType, driver, fleet, remarks, vehicle, monthKey, monthLabel, dateValue, parsedDate };
     });
     const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks) && !isExcludedAlertRemark(row.remarks));
-    if (!normalizedOrganizationName) return remarkRows;
-    return remarkRows.filter((row) => normalizeLabel(row.fleet) === normalizedOrganizationName);
-  }, [alertRulesProp, normalizedOrganizationName, rows]);
+    // Hard fleet scope: drop rows outside the dashboard's fleet set so options + KPIs stay limited.
+    if (scopeSet.size === 0) return remarkRows;
+    return remarkRows.filter((row) => scopeSet.has(normalizeLabel(row.fleet)));
+  }, [alertRulesProp, rows, scopeSet]);
 
   // Filter options
   const fleetOptions = useMemo(() => {
@@ -462,7 +471,7 @@ export default function SummaryDashboard({
                 lang={lang}
               />
             )}
-            {!organizationName && (
+            {fleetOptions.length > 1 && (
               <MultiSelect
                 label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
                 options={fleetOptions}

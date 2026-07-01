@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
-import { findValue, normalizeLabel, parseDate } from './dashboardDataUtils';
+import { findValue, normalizeLabel, parseDate, resolveScopeFleetNames, scopeFleetSet } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import MultiSelect from 'app/ui/MultiSelect';
 
@@ -12,6 +12,8 @@ type DashboardProps = {
   dashboardName: string;
   sheetId: string;
   dashboardNotes?: string | null;
+  organizationName?: string | null;
+  organizationNames?: string[] | null;
   lang?: DashboardLang;
   isAdmin?: boolean;
 };
@@ -126,6 +128,8 @@ export default function BigthUnitStatusDashboard({
   dashboardName,
   sheetId,
   dashboardNotes,
+  organizationName,
+  organizationNames,
   lang = 'en',
   isAdmin = false,
 }: DashboardProps) {
@@ -142,8 +146,17 @@ export default function BigthUnitStatusDashboard({
     return () => window.clearInterval(id);
   }, [refreshChSheet, refreshUnitSheet]);
 
+  const scopeNames = useMemo(
+    () => resolveScopeFleetNames(organizationName, organizationNames),
+    [organizationName, organizationNames],
+  );
+  const scopeSet = useMemo(
+    () => scopeFleetSet(organizationName, organizationNames),
+    [organizationName, organizationNames],
+  );
+
   const [vehicleSearch, setVehicleSearch] = useState('');
-  const [fleetFilters, setFleetFilters] = useState<string[]>([]);
+  const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
 
   const unitRows = useMemo<UnitRow[]>(
     () =>
@@ -167,8 +180,8 @@ export default function BigthUnitStatusDashboard({
         seatVibrator: toText(findValue(row, ['Seat Vibrator'])),
         intercom: toText(findValue(row, ['Intercom'])),
         ch1Ai: toText(findValue(row, ['CH1 AI'])),
-      })),
-    [unitSheet.rows],
+      })).filter((row) => scopeSet.size === 0 || scopeSet.has(normalizeLabel(row.fleet))),
+    [unitSheet.rows, scopeSet],
   );
 
   const chRows = useMemo<ChRow[]>(
@@ -177,8 +190,8 @@ export default function BigthUnitStatusDashboard({
         vehicleNo: toText(findValue(row, ['Vehicle No'])),
         fleet: toText(findValue(row, ['Fleet'])),
         expectedCameras: Number(findValue(row, ['CH']) ?? 0) || 0,
-      })),
-    [chSheet.rows],
+      })).filter((row) => scopeSet.size === 0 || scopeSet.has(normalizeLabel(row.fleet))),
+    [chSheet.rows, scopeSet],
   );
 
   const fleetOptions = useMemo(() => {

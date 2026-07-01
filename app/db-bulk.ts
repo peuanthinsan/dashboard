@@ -107,6 +107,7 @@ const dashboards = pgTable(
     alertRules: jsonb('alertRules').$type<import('./dashboards/dashboardDataUtils').AlertRule[]>(),
     companyId: integer('companyId'),
     organizationId: integer('organizationId'),
+    organizationIds: jsonb('organizationIds').$type<number[]>(),
     lineChannelId: integer('lineChannelId'),
   },
   (table) => ({
@@ -309,6 +310,7 @@ export async function bulkCreateDashboards(
       await db.insert(dashboards).values({
         ...rest,
         organizationId: item.organizationId ?? null,
+        organizationIds: item.organizationId != null ? [item.organizationId] : null,
         notes: item.notes ?? null,
         alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
         remarks: remarks && remarks.length > 0 ? remarks : null,
@@ -329,7 +331,7 @@ export async function bulkReassignDashboards(ids: number[], organizationId: numb
   if (ids.length === 0) return;
   await db
     .update(dashboards)
-    .set({ organizationId })
+    .set({ organizationId, organizationIds: [organizationId] })
     .where(inArray(dashboards.id, ids));
   revalidatePath('/admin');
 }

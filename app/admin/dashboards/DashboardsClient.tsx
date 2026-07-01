@@ -268,8 +268,10 @@ function DashboardRow({
   const [isOpen, setIsOpen] = useState(false);
   const [editTemplate, setEditTemplate] = useState(dashboard.template ?? 'Summary');
   const [editCompanyId, setEditCompanyId] = useState(String(dashboard.companyId ?? ''));
-  const [editOrganizationId, setEditOrganizationId] = useState(String(dashboard.organizationId ?? ''));
-  const [duplicateOrgIds, setDuplicateOrgIds] = useState<Set<number>>(new Set());
+  const initialOrganizationIds = dashboard.organizationIds && dashboard.organizationIds.length > 0
+    ? dashboard.organizationIds
+    : (dashboard.organizationId != null ? [dashboard.organizationId] : []);
+  const [editOrganizationIds, setEditOrganizationIds] = useState<number[]>(initialOrganizationIds);
   useRefreshOnSuccess(state);
   useDeferredCloseOnSuccess(state.status === 'success', () => setIsOpen(false));
 
@@ -277,23 +279,25 @@ function DashboardRow({
     if (!isOpen) return;
     setEditTemplate(dashboard.template ?? 'Summary');
     setEditCompanyId(String(dashboard.companyId ?? ''));
-    setEditOrganizationId(String(dashboard.organizationId ?? ''));
-    setDuplicateOrgIds(new Set());
+    setEditOrganizationIds(
+      dashboard.organizationIds && dashboard.organizationIds.length > 0
+        ? dashboard.organizationIds
+        : (dashboard.organizationId != null ? [dashboard.organizationId] : []),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, dashboard.companyId, dashboard.organizationId, dashboard.template]);
 
+  // Fleets selectable for the chosen company (fleet must belong to it, or be unassigned).
   const editFilteredOrgs = useMemo(() => {
     const cId = parseInt(editCompanyId, 10);
     if (!cId) return [];
     return organizations.filter((o) => o.companyId === cId || o.companyId === null);
   }, [organizations, editCompanyId]);
 
-  function toggleDuplicateOrg(id: number) {
-    setDuplicateOrgIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  function toggleEditOrg(id: number) {
+    setEditOrganizationIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   }
 
   return (
@@ -389,8 +393,7 @@ function DashboardRow({
                 value={editCompanyId}
                 onChange={(e) => {
                   setEditCompanyId(e.target.value);
-                  setEditOrganizationId('');
-                  setDuplicateOrgIds(new Set());
+                  setEditOrganizationIds([]);
                 }}
                 className={ADMIN_SELECT}
               >
@@ -402,50 +405,33 @@ function DashboardRow({
                 ))}
               </select>
             </label>
-            <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
-              Fleet
-              <select
-                name="organizationId"
-                value={editOrganizationId}
-                onChange={(e) => setEditOrganizationId(e.target.value)}
-                className={ADMIN_SELECT}
-              >
-                <option value="">No fleet</option>
-                {organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
-          {editFilteredOrgs.length > 0 && (
-            <div>
-              <p className={`mb-2 ${ADMIN_LABEL}`}>
-                Also create copies for other fleets (optional)
-              </p>
-              <p className={`mb-2 text-xs ${ADMIN_TEXT_SUBTLE}`}>
-                Saves this dashboard as-is, then creates identical dashboards for each checked fleet.
-              </p>
+          <div>
+            <p className={`mb-1 ${ADMIN_LABEL}`}>Fleets</p>
+            <p className={`mb-2 text-xs ${ADMIN_TEXT_SUBTLE}`}>
+              Limits this dashboard to the checked fleets. Leave all unchecked to show every
+              fleet in the company.
+            </p>
+            {editFilteredOrgs.length === 0 ? (
+              <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>Select a company to choose fleets.</p>
+            ) : (
               <div className="flex flex-wrap gap-3">
-                {editFilteredOrgs
-                  .filter((o) => String(o.id) !== editOrganizationId)
-                  .map((o) => (
-                    <label key={o.id} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
-                      <input
-                        type="checkbox"
-                        name="duplicateOrganizationIds"
-                        value={o.id}
-                        checked={duplicateOrgIds.has(o.id)}
-                        onChange={() => toggleDuplicateOrg(o.id)}
-                        className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
-                      />
-                      {o.name}
-                    </label>
-                  ))}
+                {editFilteredOrgs.map((o) => (
+                  <label key={o.id} className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
+                    <input
+                      type="checkbox"
+                      name="organizationIds"
+                      value={o.id}
+                      checked={editOrganizationIds.includes(o.id)}
+                      onChange={() => toggleEditOrg(o.id)}
+                      className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
+                    />
+                    {o.name}
+                  </label>
+                ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
               Template
@@ -491,11 +477,7 @@ function DashboardRow({
             >
               <option value="">— None —</option>
               {lineChannels
-                .filter((c) =>
-                  editOrganizationId
-                    ? c.organizationId === Number(editOrganizationId)
-                    : false,
-                )
+                .filter((c) => editOrganizationIds.includes(c.organizationId))
                 .map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -1447,9 +1429,18 @@ export default function DashboardsClient({
                         dashboard.companyId ? companyMap.get(dashboard.companyId) ?? 'Unassigned' : 'Unassigned'
                       }
                       organizationName={
-                        dashboard.organizationId
-                          ? organizationMap.get(dashboard.organizationId) ?? 'No fleet'
-                          : 'No fleet'
+                        (() => {
+                          const ids =
+                            dashboard.organizationIds && dashboard.organizationIds.length > 0
+                              ? dashboard.organizationIds
+                              : dashboard.organizationId != null
+                                ? [dashboard.organizationId]
+                                : [];
+                          if (ids.length === 0) return 'No fleet';
+                          return ids
+                            .map((oid) => organizationMap.get(oid) ?? `#${oid}`)
+                            .join(', ');
+                        })()
                       }
                       checked={selectedIds.has(dashboard.id)}
                       onCheck={handleCheck}

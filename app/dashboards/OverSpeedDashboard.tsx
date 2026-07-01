@@ -5,7 +5,7 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { findValue, normalizeLabel, parseDate, previousMonthKey, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
+import { findValue, normalizeLabel, parseDate, previousMonthKey, resolveScopeFleetNames, scopeFleetSet, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import ExportButton from 'app/ui/ExportButton';
 import EmptyState from 'app/ui/EmptyState';
@@ -26,6 +26,7 @@ type DashboardProps = {
   sheetGid: string;
   dashboardNotes?: string | null;
   organizationName?: string | null;
+  organizationNames?: string[] | null;
   lang?: DashboardLang;
   allowedAlertTypes?: string[] | null;
   allowedRemarks?: string[] | null;
@@ -86,6 +87,7 @@ export default function OverSpeedDashboard({
   sheetGid,
   dashboardNotes,
   organizationName,
+  organizationNames,
   lang = 'en',
   isAdmin = false,
 }: DashboardProps) {
@@ -103,12 +105,15 @@ export default function OverSpeedDashboard({
   const [dayFilters, setDayFilters] = useState<string[]>([]);
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
-  const [fleetFilters, setFleetFilters] = useState<string[]>([]);
-
-  const normalizedOrganizationName = useMemo(
-    () => (organizationName ? normalizeLabel(organizationName) : null),
-    [organizationName],
+  const scopeNames = useMemo(
+    () => resolveScopeFleetNames(organizationName, organizationNames),
+    [organizationName, organizationNames],
   );
+  const scopeSet = useMemo(
+    () => scopeFleetSet(organizationName, organizationNames),
+    [organizationName, organizationNames],
+  );
+  const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
   const storageKey = useMemo(() => `${dashboardId}-overspeed`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
@@ -129,7 +134,8 @@ export default function OverSpeedDashboard({
       if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
-      if (Array.isArray(stored.fleetFilters)) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
+      else setFleetFilters(scopeNames);
     });
     return () => cancelAnimationFrame(frame);
   }, [storageKey]);
@@ -143,7 +149,7 @@ export default function OverSpeedDashboard({
     setDayFilters([]);
     setDriverFilters([]);
     setVehicleFilters([]);
-    setFleetFilters([]);
+    setFleetFilters(scopeNames);
   };
 
   // ── Parse rows ──
@@ -165,10 +171,7 @@ export default function OverSpeedDashboard({
         ? parsedDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
         : 'Unknown';
       return { sourceRow: row, driver, vehicle, fleet, date: parsedDate, speed, overSpeed, rawGt1, rawLt1, location, monthKey, monthLabel };
-    }).filter((row) => {
-      if (!normalizedOrganizationName) return true;
-      return normalizeLabel(row.fleet) === normalizedOrganizationName;
-    });
+    }).filter((r) => scopeSet.size === 0 || scopeSet.has(normalizeLabel(r.fleet)));
 
     // Check if any row has explicit duration columns
     const hasDurationColumns = parsed.some((r) => r.rawGt1 != null || r.rawLt1 != null);
@@ -192,7 +195,7 @@ export default function OverSpeedDashboard({
       lt1min: r.overSpeed === 0 ? 0 : 1,
       location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel,
     }));
-  }, [rows, normalizedOrganizationName]);
+  }, [rows, scopeSet]);
 
   // ── Filter options ──
   const driverOptions = useMemo(
@@ -554,7 +557,7 @@ export default function OverSpeedDashboard({
             onChange={setVehicleFilters}
             lang={lang}
           />
-          {!organizationName && fleetOptions.length > 1 && (
+          {fleetOptions.length > 1 && (
             <MultiSelect
               label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
               options={fleetOptions}

@@ -44,6 +44,9 @@ export type Dashboard = {
   } | null;
   alertRules?: import('app/dashboards/dashboardDataUtils').AlertRule[] | null;
   companyId: number | null;
+  /** Primary fleet — mirrors organizationIds[0]; drives LINE-channel binding and access. */
   organizationId: number | null;
+  /** Full fleet scope. Empty/null = company-wide (all fleets). */
+  organizationIds?: number[] | null;
   lineChannelId?: number | null;
 };

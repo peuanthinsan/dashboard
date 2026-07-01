@@ -33,6 +33,29 @@ const normalizedKeyCache = new WeakMap<Row, Map<string, string>>();
 
 export const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
+/**
+ * Resolve a dashboard's fleet scope to the list of fleet names it is limited to.
+ * Prefers the multi-fleet `organizationNames`; falls back to the legacy single
+ * `organizationName`. An empty result means "no scope" (show every fleet).
+ */
+export const resolveScopeFleetNames = (
+  organizationName?: string | null,
+  organizationNames?: string[] | null,
+): string[] => {
+  if (organizationNames && organizationNames.length > 0) return organizationNames;
+  return organizationName ? [organizationName] : [];
+};
+
+/**
+ * Normalized Set of the scoped fleet names, for hard-limit membership tests.
+ * Empty Set means "no scope" — callers should treat that as "allow all".
+ */
+export const scopeFleetSet = (
+  organizationName?: string | null,
+  organizationNames?: string[] | null,
+): Set<string> =>
+  new Set(resolveScopeFleetNames(organizationName, organizationNames).map(normalizeLabel));
+
 const getNormalizedKeyMap = (row: Row) => {
   const cached = normalizedKeyCache.get(row);
   if (cached) return cached;
