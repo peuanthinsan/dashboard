@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
@@ -105,7 +105,7 @@ const parseNumber = (value: unknown) => {
 };
 
 const formatHours = (hours: number) => hoursToHms(hours);
-const formatDistance = (km: number) => `${km.toFixed(1)} km`;
+const formatDistance = (km: number) => `${km.toFixed(2)} km`;
 const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 const getMonthLabel = (key: string) => {
   const [y, m] = key.split('-').map(Number);
@@ -142,12 +142,17 @@ export default function DrivingDashboard({
     [thresholds, lang, copy],
   );
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const activeSubPage = useMemo(
-    () => subPageBySlug(subPages, searchParams.get('tab')),
-    [subPages, searchParams],
-  );
   const pathname = usePathname();
+  // Tab switching is pure client-side state — the tab param is mirrored into the
+  // URL via history.replaceState (not Next's router) so it stays shareable/
+  // refresh-safe without forcing a server re-render of this dynamic route on
+  // every click (that previously re-ran page.tsx's DB fetches and flashed
+  // loading.tsx for a tab change that needs no new server data).
+  const [activeSlug, setActiveSlug] = useState<string | null>(() => searchParams.get('tab'));
+  const activeSubPage = useMemo(
+    () => subPageBySlug(subPages, activeSlug),
+    [subPages, activeSlug],
+  );
   const tabHref = useCallback(
     (slug: string) => {
       const usp = new URLSearchParams(searchParams.toString());
@@ -156,16 +161,21 @@ export default function DrivingDashboard({
     },
     [pathname, searchParams],
   );
+  const goToTab = useCallback(
+    (slug: string) => {
+      window.history.replaceState(null, '', tabHref(slug));
+      setActiveSlug(slug);
+    },
+    [tabHref],
+  );
   const jumpToFirstThresholdTab = useCallback(
     (nextThresholds: DrivingThresholds) => {
       const nextPages = deriveSubPages(nextThresholds, lang, copy.drivingV2);
       const target = nextPages.find((p) => p.kind !== 'overview');
       if (!target) return;
-      const usp = new URLSearchParams(searchParams.toString());
-      usp.set('tab', target.slug);
-      router.replace(`${pathname}?${usp.toString()}`);
+      goToTab(target.slug);
     },
-    [copy.drivingV2, lang, pathname, router, searchParams],
+    [copy.drivingV2, goToTab, lang],
   );
   const restMinHours = thresholds.restHours[0]
     ? thresholdEntryValue(thresholds.restHours[0]) : 0;
@@ -519,8 +529,8 @@ export default function DrivingDashboard({
     const sorted = [...vehicleAggregates].sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
     const top = sorted.slice(0, 6);
     const rest = sorted.slice(6);
-    const result = top.map((r) => ({ label: r.vehicle, value: Math.round(r.totalDistanceKm) }));
-    if (rest.length > 0) result.push({ label: lang === 'th' ? 'อื่นๆ' : 'Others', value: Math.round(rest.reduce((s, r) => s + r.totalDistanceKm, 0)) });
+    const result = top.map((r) => ({ label: r.vehicle, value: Math.round(r.totalDistanceKm * 100) / 100 }));
+    if (rest.length > 0) result.push({ label: lang === 'th' ? 'อื่นๆ' : 'Others', value: Math.round(rest.reduce((s, r) => s + r.totalDistanceKm, 0) * 100) / 100 });
     return result;
   }, [vehicleAggregates, lang]);
 
@@ -547,7 +557,7 @@ export default function DrivingDashboard({
     return [...cntDrvByDriver]
       .sort((a, b) => b.totalCntDrvHours - a.totalCntDrvHours)
       .slice(0, 5)
-      .map((a) => ({ label: a.driver, value: Math.round(a.totalCntDrvHours * 10) / 10 }));
+      .map((a) => ({ label: a.driver, value: Math.round(a.totalCntDrvHours * 100) / 100 }));
   }, [cntDrvByDriver]);
 
   // --- Violation reports ---
@@ -886,6 +896,11 @@ export default function DrivingDashboard({
             key={p.slug}
             href={tabHref(p.slug)}
             replace
+            onClick={(e) => {
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              e.preventDefault();
+              goToTab(p.slug);
+            }}
             className={[
               'shrink-0 border-b-2 px-3 py-2 text-sm font-medium',
               p.slug === activeSubPage.slug
@@ -999,7 +1014,7 @@ export default function DrivingDashboard({
               label: d.driver,
               values: {
                 [lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr']: Math.round(d.totalCntDrvDurationHours * 100) / 100,
-                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(d.totalDistanceKm * 10) / 10,
+                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(d.totalDistanceKm * 100) / 100,
               },
             }))}
             ariaLabel={lang === 'th' ? 'ชม.ขับต่อเนื่อง vs ระยะทาง' : 'Continuous driving hours vs distance by driver'}
@@ -1115,7 +1130,7 @@ export default function DrivingDashboard({
             data={monthlyTrend.map((p) => ({
               label: p.monthLabel,
               values: {
-                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(p.totalDistanceKm * 10) / 10,
+                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(p.totalDistanceKm * 100) / 100,
                 [lang === 'th' ? 'ทริป' : 'Trips']: p.tripCount,
               },
             }))}
