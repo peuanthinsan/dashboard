@@ -653,7 +653,6 @@ export default function DrivingDashboard({
   const driversByCntDrv = useMemo(
     () => [...cntDrvByDriver]
       .sort((a, b) => b.totalCntDrvHours - a.totalCntDrvHours)
-      .slice(0, 10)
       .map((d) => ({
         driver: d.driver,
         tripCount: d.tripCount,
@@ -1040,6 +1039,7 @@ export default function DrivingDashboard({
             }))}
             ariaLabel={lang === 'th' ? 'ชม.ขับต่อเนื่อง vs ระยะทาง' : 'Continuous driving hours vs distance by driver'}
             xAxisCategoryMode
+            minCategoryWidth={48}
           />
         )}
       </section>
