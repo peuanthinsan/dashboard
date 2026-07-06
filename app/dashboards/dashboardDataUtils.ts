@@ -560,6 +560,8 @@ export function computeAlertKey(args: {
 }
 
 export type ViolationRow = {
+  /** Sheet SlNo (column A). Blank for aggregated drive-hours rows spanning >1 shift. */
+  slNo: string;
   driver: string;
   vehicle: string;
   vehicleCount: number;
