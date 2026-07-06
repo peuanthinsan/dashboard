@@ -267,11 +267,11 @@ export default function DrivingDashboard({
   );
 
   const applyRowFilters = useCallback(
-    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[]) =>
+    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[], opts?: { includeMonth?: boolean }) =>
       source.filter((row) => {
         if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
         if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
-        if (selectedMonth) {
+        if ((opts?.includeMonth ?? true) && selectedMonth) {
           if (!row.date) return false;
           if (getMonthKey(row.date) !== selectedMonth) return false;
         }
@@ -285,6 +285,12 @@ export default function DrivingDashboard({
 
   const filteredShiftRows = useMemo(
     () => applyRowFilters(shiftRows),
+    [applyRowFilters, shiftRows],
+  );
+
+  // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
+  const trendShiftRows = useMemo(
+    () => applyRowFilters(shiftRows, { includeMonth: false }),
     [applyRowFilters, shiftRows],
   );
   const completedShiftRows = useMemo(
@@ -460,7 +466,7 @@ export default function DrivingDashboard({
 
   const monthlyTrend = useMemo<MonthlyTrendPoint[]>(() => {
     const map = new Map<string, MonthlyTrendPoint>();
-    filteredShiftRows.forEach((row) => {
+    trendShiftRows.forEach((row) => {
       if (!row.date) return;
       const mk = getMonthKey(row.date);
       const c = map.get(mk) ?? { monthKey: mk, monthLabel: getMonthLabel(mk), totalDistanceKm: 0, totalCntDrvDurationHours: 0, tripCount: 0 };
@@ -470,7 +476,7 @@ export default function DrivingDashboard({
       map.set(mk, c);
     });
     return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
-  }, [filteredShiftRows]);
+  }, [trendShiftRows]);
 
   // --- Fleet counts ---
   const fleetCounts = useMemo(() => {
