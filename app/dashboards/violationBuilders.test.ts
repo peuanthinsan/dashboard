@@ -8,9 +8,11 @@ import {
 function shift(o: {
   driver: string; loginAt: string; logoutAt: string; driveHours: number; restHours?: number;
   vehicle?: string; distanceKm?: number; status?: string; loginLocation?: string; logoutLocation?: string;
+  slNo?: string;
 }) {
   return {
     sourceRow: {},
+    slNo: o.slNo ?? '1',
     driver: o.driver,
     vehicle: o.vehicle ?? 'V1',
     date: new Date(o.loginAt),
@@ -29,10 +31,11 @@ function shift(o: {
 describe('buildCntDrvHoursViolations', () => {
   function segment(o: {
     driver: string; loginAt: string; logoutAt: string; cntDrvHours: number;
-    vehicle?: string; distanceKm?: number;
+    vehicle?: string; distanceKm?: number; slNo?: string;
   }) {
     return {
       sourceRow: {},
+      slNo: o.slNo ?? '1',
       driver: o.driver,
       vehicle: o.vehicle ?? 'V1',
       date: new Date(o.loginAt),
@@ -44,6 +47,15 @@ describe('buildCntDrvHoursViolations', () => {
       distanceKm: o.distanceKm ?? 10,
     };
   }
+
+  it('carries the sheet SlNo through to the violation row', () => {
+    const rows = buildCntDrvHoursViolations(
+      [segment({ driver: 'Alice', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T10:00:00Z', cntDrvHours: 5, slNo: '2115' })],
+      { threshold: 4, label: 'Cnt Drv > 4 h' },
+      new Map(),
+    );
+    expect(rows[0].slNo).toBe('2115');
+  });
 
   it('supports drive_hrs metric for continuous-drive segments', () => {
     const rows = buildCntDrvHoursViolations(

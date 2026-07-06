@@ -1,6 +1,7 @@
 import { toDayKey } from './dashboardDataUtils';
 
 type DrivingShiftLike = {
+  slNo?: string;
   driver: string;
   vehicle: string;
   loginAt: Date | null;

@@ -4,6 +4,7 @@ import type { DrivingCntDrvRow } from './drivingSheetRows';
 
 type ShiftRow = {
   sourceRow: Record<string, unknown>;
+  slNo: string;
   driver: string;
   vehicle: string;
   date: Date | null;
@@ -61,6 +62,7 @@ export function buildDriveHoursViolations(
       threshold: spec.threshold,
     });
     out.push({
+      slNo: day.shifts.length === 1 ? (day.shifts[0].slNo ?? '') : '',
       driver: day.driver,
       vehicle,
       vehicleCount: day.vehicleCount,
@@ -107,6 +109,7 @@ export function buildRestHoursViolations(
       threshold: spec.threshold,
     });
     out.push({
+      slNo: s.slNo,
       driver: s.driver,
       vehicle: s.vehicle,
       vehicleCount: 1,
@@ -152,6 +155,7 @@ export function buildCntDrvHoursViolations(
       threshold: spec.threshold,
     });
     out.push({
+      slNo: s.slNo,
       driver: s.driver,
       vehicle: s.vehicle,
       vehicleCount: 1,

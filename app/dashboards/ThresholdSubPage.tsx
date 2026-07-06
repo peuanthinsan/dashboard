@@ -82,7 +82,9 @@ export default function ThresholdSubPage({
     // One bar per trip (not aggregated by date); table below remains uncapped.
     return violations
       .map((v) => ({
-        label: `${v.driver} ${v.dayKey.slice(5).replace('-', '/')}`,
+        // Match the source report's "{SlNo}-{Driver}" bar labels; fall back to
+        // driver + date when SlNo is absent (aggregated drive-hours rows).
+        label: v.slNo ? `${v.slNo}-${v.driver}` : `${v.driver} ${v.dayKey.slice(5).replace('-', '/')}`,
         duration: metric === 'rest_hrs' ? v.restHours : v.driveHours,
         distance: v.distanceKm,
       }))
@@ -104,7 +106,8 @@ export default function ThresholdSubPage({
       : copy.sheetCntDrvHr;
 
     return [
-      { key: 'driver', label: copy.sheetDriverName, sortable: true, stickyLeft: true },
+      { key: 'slNo', label: copy.sheetSlNo, sortable: true, stickyLeft: true },
+      { key: 'driver', label: copy.sheetDriverName, sortable: true },
       { key: 'vehicle', label: copy.sheetVehicleNo, sortable: true },
       {
         key: 'loginAt',
