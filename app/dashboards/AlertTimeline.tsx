@@ -24,11 +24,11 @@ interface AlertTimelineProps {
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 }
 
 function formatShortDate(date: Date): string {
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' });
 }
 
 function computeHighlights(entries: TimelineEntry[]): Set<number> {

@@ -106,7 +106,7 @@ const parseNumber = (value: unknown) => {
 
 const formatHours = (hours: number) => hoursToHms(hours);
 const formatDistance = (km: number) => `${km.toFixed(2)} km`;
-const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+const getMonthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 const getMonthLabel = (key: string) => {
   const [y, m] = key.split('-').map(Number);
   if (!y || !m) return key;
@@ -572,7 +572,7 @@ export default function DrivingDashboard({
   const violations = useMemo<ViolationRow[]>(() => {
     const result: ViolationRow[] = [];
     filteredCntDrvRows.forEach((row) => {
-      const dateStr = row.date ? row.date.toLocaleDateString('en-GB') : '—';
+      const dateStr = row.date ? row.date.toLocaleDateString('en-GB', { timeZone: 'UTC' }) : '—';
       if (row.cntDrvHours > cntDrvMaxHours) {
         result.push({
           driver: row.driver,
@@ -585,7 +585,7 @@ export default function DrivingDashboard({
       }
     });
     filteredShiftRows.forEach((row) => {
-      const dateStr = row.date ? row.date.toLocaleDateString('en-GB') : '—';
+      const dateStr = row.date ? row.date.toLocaleDateString('en-GB', { timeZone: 'UTC' }) : '—';
       if (row.restHours > 0 && row.restHours < restMinHours) {
         result.push({
           driver: row.driver,

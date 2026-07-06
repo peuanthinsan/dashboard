@@ -21,8 +21,9 @@ export default function AlertHeatmap({ dates }: HeatmapProps) {
   const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
   let maxCount = 0;
   dates.forEach((d) => {
-    const day = (d.getDay() + 6) % 7;
-    const hour = d.getHours();
+    // Parsed dates carry Bangkok wall-clock as UTC digits — bucket in UTC.
+    const day = (d.getUTCDay() + 6) % 7;
+    const hour = d.getUTCHours();
     grid[day][hour]++;
     maxCount = Math.max(maxCount, grid[day][hour]);
   });

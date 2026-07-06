@@ -176,8 +176,8 @@ const formatDateTwoLine = (timestamp: number | '') => {
   if (timestamp === '') return null;
   const d = new Date(timestamp);
   return {
-    date: d.toLocaleDateString('en-GB'),
-    time: d.toLocaleTimeString('en-GB'),
+    date: d.toLocaleDateString('en-GB', { timeZone: 'UTC' }),
+    time: d.toLocaleTimeString('en-GB', { timeZone: 'UTC' }),
   };
 };
 
@@ -423,9 +423,10 @@ export default function DynamicTripDashboard({
         key: 'startLocation',
         label: labels.startLocation,
         sortable: true,
+        wrap: true,
         render: (_v, row) =>
           row.startLocation ? (
-            <span className="block max-w-[20rem] text-xs text-zinc-600 dark:text-zinc-300">
+            <span className="block max-w-[20rem] break-words text-xs text-zinc-600 dark:text-zinc-300">
               {row.startLocation}
             </span>
           ) : (
@@ -436,9 +437,10 @@ export default function DynamicTripDashboard({
         key: 'endLocation',
         label: labels.endLocation,
         sortable: true,
+        wrap: true,
         render: (_v, row) =>
           row.endLocation ? (
-            <span className="block max-w-[20rem] text-xs text-zinc-600 dark:text-zinc-300">
+            <span className="block max-w-[20rem] break-words text-xs text-zinc-600 dark:text-zinc-300">
               {row.endLocation}
             </span>
           ) : (

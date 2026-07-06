@@ -96,6 +96,14 @@ export const isExcludedAlertRemark = (value: string) => {
   );
 };
 
+/**
+ * Sheet timestamps are wall-clock Thailand (Asia/Bangkok, fixed UTC+7, no DST)
+ * with no timezone marker. We normalise every parsed date to a UTC instant that
+ * carries the Bangkok wall-clock DIGITS (e.g. "12:08" Bangkok → 12:08 UTC). All
+ * downstream formatting and month/day keys then use UTC getters (`getUTC*`,
+ * `toISOString`, `timeZone: 'UTC'`), so displayed values match the source report
+ * exactly and are identical regardless of the viewer's own timezone.
+ */
 export const parseDate = (value: unknown) => {
   if (!value) return null;
   const raw = String(value).trim();
@@ -110,28 +118,36 @@ export const parseDate = (value: unknown) => {
     const hour = hh ? parseInt(hh, 10) : 0;
     const min = mi ? parseInt(mi, 10) : 0;
     const sec = ss ? parseInt(ss, 10) : 0;
-    const parsed = new Date(y, m, d, hour, min, sec);
+    const parsed = new Date(Date.UTC(y, m, d, hour, min, sec));
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed;
+  // Fallback for other formats (e.g. "Jun 30, 2026, 12:08:47 PM"). `new Date(raw)`
+  // interprets a zoneless string in the runtime's local zone; we read those local
+  // wall-clock components straight back and re-stamp them as UTC digits so the
+  // result is viewer-independent.
+  const local = new Date(raw);
+  if (Number.isNaN(local.getTime())) return null;
+  return new Date(Date.UTC(
+    local.getFullYear(), local.getMonth(), local.getDate(),
+    local.getHours(), local.getMinutes(), local.getSeconds(),
+  ));
 };
 
 export const toMonthKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 
 export const previousMonthKey = (now: Date = new Date()) =>
-  toMonthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  toMonthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)));
 
 export const toMonthLabel = (date: Date) =>
   date.toLocaleString('default', {
     month: 'long',
     year: 'numeric',
+    timeZone: 'UTC',
   });
 
 export const toDayKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 
 /** Typical MDVR sheet values that map into the standard remark categories below. */
 export const STANDARD_ALERT_TYPES = [
@@ -435,7 +451,7 @@ export const buildTrendGeometry = (trendData: TrendDatum[], maxTrendValue: numbe
         ? padding.left + plotWidth / 2
         : padding.left + (index / (trendData.length - 1)) * plotWidth;
     const y = padding.top + (1 - item.count / maxValue) * plotHeight;
-    return { x, y, count: item.count, label: item.date.toLocaleDateString('en-GB') };
+    return { x, y, count: item.count, label: item.date.toLocaleDateString('en-GB', { timeZone: 'UTC' }) };
   });
   const path = points
     .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
@@ -473,7 +489,7 @@ export const buildXAxisLabels = (trendData: TrendDatum[], maxLabels = 6): TrendL
     const dataIndex = labelCount === 1 ? 0 : Math.round(position * (trendData.length - 1));
     const item = trendData[dataIndex];
     return {
-      label: item.date.toLocaleDateString('en-GB'),
+      label: item.date.toLocaleDateString('en-GB', { timeZone: 'UTC' }),
       position,
     };
   });

@@ -79,7 +79,7 @@ const parseNumber = (value: unknown) => {
 const formatSpeed = (kmh: number) => `${kmh.toFixed(0)} km/h`;
 
 const getMonthKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 export default function OverSpeedDashboard({
   dashboardId,
   dashboardName,
@@ -168,7 +168,7 @@ export default function OverSpeedDashboard({
       const location = toDisplayString(findValue(row, ['Location', 'Address', 'Landmark']));
       const monthKey = parsedDate ? getMonthKey(parsedDate) : null;
       const monthLabel = parsedDate
-        ? parsedDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+        ? parsedDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' })
         : 'Unknown';
       return { sourceRow: row, driver, vehicle, fleet, date: parsedDate, speed, overSpeed, rawGt1, rawLt1, location, monthKey, monthLabel };
     }).filter((r) => scopeSet.size === 0 || scopeSet.has(normalizeLabel(r.fleet)));
@@ -399,7 +399,7 @@ export default function OverSpeedDashboard({
       key: 'date',
       label: lang === 'th' ? 'วัน/เวลา' : 'Track Time',
       sortable: true,
-      render: (_v, row) => row.date ? row.date.toLocaleDateString('en-GB') + ' ' + row.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—',
+      render: (_v, row) => row.date ? row.date.toLocaleDateString('en-GB', { timeZone: 'UTC' }) + ' ' + row.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : '—',
     },
     {
       key: 'gt1min',
