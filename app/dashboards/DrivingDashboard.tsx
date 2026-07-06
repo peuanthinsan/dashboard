@@ -499,7 +499,7 @@ export default function DrivingDashboard({
       c.tripCount += 1;
       map.set(mk, c);
     });
-    return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
+    return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
   }, [trendShiftRows]);
 
   // --- Fleet counts ---
@@ -1140,7 +1140,7 @@ export default function DrivingDashboard({
       {/* Monthly Trend — dual-axis */}
       <section className={dashboardSectionClass}>
         <h2 className={heading2}>{lang === 'th' ? 'แนวโน้มรายเดือน' : 'Monthly trend'}</h2>
-        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ระยะทาง (แท่ง) และจำนวนทริป (เส้น) — 8 เดือนล่าสุด' : 'Distance (bars) and trip count (line) — last 8 months.'}</p>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? 'ระยะทาง (แท่ง) และจำนวนทริป (เส้น) — ทุกเดือน' : 'Distance (bars) and trip count (line) — all months.'}</p>
         {monthlyTrend.length === 0 ? (
           <div className="mt-4"><EmptyState title="No dated trip data" /></div>
         ) : (
