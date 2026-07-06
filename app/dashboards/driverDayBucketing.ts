@@ -1,6 +1,7 @@
 import { toDayKey } from './dashboardDataUtils';
 
 type DrivingShiftLike = {
+  slNo?: string;
   driver: string;
   vehicle: string;
   loginAt: Date | null;
@@ -31,12 +32,12 @@ type DayShare = { driveHours: number; distanceKm: number };
 
 function parseDayKey(dayKey: string): Date {
   const [y, m, d] = dayKey.split('-').map(Number);
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
 }
 
 function startOfNextCalendarDay(dayKey: string): Date {
   const next = parseDayKey(dayKey);
-  next.setDate(next.getDate() + 1);
+  next.setUTCDate(next.getUTCDate() + 1);
   return next;
 }
 

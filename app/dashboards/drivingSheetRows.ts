@@ -2,6 +2,7 @@ import { findValue, normalizeLabel, parseDate, toDisplayString } from './dashboa
 
 export type DrivingShiftRow = {
   sourceRow: Record<string, unknown>;
+  slNo: string;
   driver: string;
   vehicle: string;
   date: Date | null;
@@ -17,12 +18,16 @@ export type DrivingShiftRow = {
   fleet?: string;
 };
 
+/** Row A / SlNo aliases across customer sheets. */
+const SL_NO_ALIASES = ['SlNo', 'Sl No', 'Sl. No', 'SI No', 'No.', 'No', 'Serial', 'Seq'];
+
 export function isCompletedShift(row: Pick<DrivingShiftRow, 'status'>): boolean {
   return row.status === 'COMPLETED';
 }
 
 export type DrivingCntDrvRow = {
   sourceRow: Record<string, unknown>;
+  slNo: string;
   driver: string;
   vehicle: string;
   date: Date | null;
@@ -129,6 +134,7 @@ export function mapShiftSheetRows(
 ): DrivingShiftRow[] {
   const mapped = rows.map((row) => ({
     sourceRow: row,
+    slNo: toDisplayString(findValue(row, SL_NO_ALIASES)),
     driver: toDisplayString(findValue(row, ['Driver Name'])),
     vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
     date: parseDate(findValue(row, ['DateTime', 'Login Time', 'Date', 'Start Time'])),
@@ -152,6 +158,7 @@ export function mapShiftSheetRows(
 
   return filterByFleet(mapped, normalizedFleetSet).map((row) => ({
     sourceRow: row.sourceRow,
+    slNo: row.slNo,
     driver: row.driver,
     vehicle: row.vehicle,
     date: row.date,
@@ -173,6 +180,7 @@ export function mapCntDrvSheetRows(
 ): DrivingCntDrvRow[] {
   const mapped = rows.map((row) => ({
     sourceRow: row,
+    slNo: toDisplayString(findValue(row, SL_NO_ALIASES)),
     driver: toDisplayString(findValue(row, ['Driver Name'])),
     vehicle: toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH'])),
     date: parseDate(findValue(row, ['DateTime', 'Start Time', 'Login Time', 'Date'])),

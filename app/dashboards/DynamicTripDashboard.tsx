@@ -176,8 +176,8 @@ const formatDateTwoLine = (timestamp: number | '') => {
   if (timestamp === '') return null;
   const d = new Date(timestamp);
   return {
-    date: d.toLocaleDateString('en-GB'),
-    time: d.toLocaleTimeString('en-GB'),
+    date: d.toLocaleDateString('en-GB', { timeZone: 'UTC' }),
+    time: d.toLocaleTimeString('en-GB', { timeZone: 'UTC' }),
   };
 };
 

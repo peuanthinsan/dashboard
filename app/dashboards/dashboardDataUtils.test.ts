@@ -75,18 +75,30 @@ describe('dashboardDataUtils', () => {
   });
 
   describe('parseDate', () => {
+    // Sheet timestamps are Bangkok wall-clock stored as UTC digits and read back
+    // via UTC getters (viewer-timezone independent).
     it('parses DD/MM/YYYY', () => {
       const d = parseDate('15/3/2024');
       expect(d).toBeInstanceOf(Date);
-      expect(d!.getDate()).toBe(15);
-      expect(d!.getMonth()).toBe(2);
-      expect(d!.getFullYear()).toBe(2024);
+      expect(d!.getUTCDate()).toBe(15);
+      expect(d!.getUTCMonth()).toBe(2);
+      expect(d!.getUTCFullYear()).toBe(2024);
     });
     it('parses DD/MM/YYYY HH:MM:SS', () => {
       const d = parseDate('15/3/2024 14:30:00');
       expect(d).toBeInstanceOf(Date);
-      expect(d!.getHours()).toBe(14);
-      expect(d!.getMinutes()).toBe(30);
+      expect(d!.getUTCHours()).toBe(14);
+      expect(d!.getUTCMinutes()).toBe(30);
+    });
+    it('keeps wall-clock digits for non-DDMMYYYY formats regardless of viewer timezone', () => {
+      // e.g. the "Cnt Drv > 4 Hrs" sheet emits "Jun 30, 2026, 12:08:47 PM".
+      const d = parseDate('Jun 30, 2026, 12:08:47 PM');
+      expect(d).toBeInstanceOf(Date);
+      expect(d!.getUTCFullYear()).toBe(2026);
+      expect(d!.getUTCMonth()).toBe(5);
+      expect(d!.getUTCDate()).toBe(30);
+      expect(d!.getUTCHours()).toBe(12);
+      expect(d!.getUTCMinutes()).toBe(8);
     });
     it('returns null for invalid input', () => {
       expect(parseDate(null)).toBeNull();

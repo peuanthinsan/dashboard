@@ -539,14 +539,14 @@ export default function DetailDashboard({
       if (existing) {
         existing.count += 1;
       } else {
-        const dayDate = new Date(row.parsedDate.getFullYear(), row.parsedDate.getMonth(), row.parsedDate.getDate());
+        const dayDate = new Date(Date.UTC(row.parsedDate.getUTCFullYear(), row.parsedDate.getUTCMonth(), row.parsedDate.getUTCDate()));
         counts.set(dayKey, { key: dayKey, date: dayDate, count: 1 });
       }
     });
     return Array.from(counts.values())
       .sort((a, b) => a.date.getTime() - b.date.getTime())
       .map((item) => ({
-        label: item.date.toLocaleDateString('en-GB'),
+        label: item.date.toLocaleDateString('en-GB', { timeZone: 'UTC' }),
         value: item.count,
       }));
   }, [filteredAlerts, trendRemarkFilter]);

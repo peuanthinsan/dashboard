@@ -1,8 +1,8 @@
-'use client';
+'use client'; // MARKER_RETRY_1 // MARKER_TIMING_TEST // MARKER_TEST_67890 // MARKER_TEST_12345
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
@@ -105,8 +105,8 @@ const parseNumber = (value: unknown) => {
 };
 
 const formatHours = (hours: number) => hoursToHms(hours);
-const formatDistance = (km: number) => `${km.toFixed(1)} km`;
-const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+const formatDistance = (km: number) => `${km.toFixed(2)} km`;
+const getMonthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 const getMonthLabel = (key: string) => {
   const [y, m] = key.split('-').map(Number);
   if (!y || !m) return key;
@@ -142,12 +142,17 @@ export default function DrivingDashboard({
     [thresholds, lang, copy],
   );
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const activeSubPage = useMemo(
-    () => subPageBySlug(subPages, searchParams.get('tab')),
-    [subPages, searchParams],
-  );
   const pathname = usePathname();
+  // Tab switching is pure client-side state — the tab param is mirrored into the
+  // URL via history.replaceState (not Next's router) so it stays shareable/
+  // refresh-safe without forcing a server re-render of this dynamic route on
+  // every click (that previously re-ran page.tsx's DB fetches and flashed
+  // loading.tsx for a tab change that needs no new server data).
+  const [activeSlug, setActiveSlug] = useState<string | null>(() => searchParams.get('tab'));
+  const activeSubPage = useMemo(
+    () => subPageBySlug(subPages, activeSlug),
+    [subPages, activeSlug],
+  );
   const tabHref = useCallback(
     (slug: string) => {
       const usp = new URLSearchParams(searchParams.toString());
@@ -156,16 +161,21 @@ export default function DrivingDashboard({
     },
     [pathname, searchParams],
   );
+  const goToTab = useCallback(
+    (slug: string) => {
+      window.history.replaceState(null, '', tabHref(slug));
+      setActiveSlug(slug);
+    },
+    [tabHref],
+  );
   const jumpToFirstThresholdTab = useCallback(
     (nextThresholds: DrivingThresholds) => {
       const nextPages = deriveSubPages(nextThresholds, lang, copy.drivingV2);
       const target = nextPages.find((p) => p.kind !== 'overview');
       if (!target) return;
-      const usp = new URLSearchParams(searchParams.toString());
-      usp.set('tab', target.slug);
-      router.replace(`${pathname}?${usp.toString()}`);
+      goToTab(target.slug);
     },
-    [copy.drivingV2, lang, pathname, router, searchParams],
+    [copy.drivingV2, goToTab, lang],
   );
   const restMinHours = thresholds.restHours[0]
     ? thresholdEntryValue(thresholds.restHours[0]) : 0;
@@ -210,7 +220,7 @@ export default function DrivingDashboard({
   }, []);
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [dayFilters, setDayFilters] = useState<string[]>([]);
   const [tripSearch, setTripSearch] = useState('');
   const [tripPageSize, setTripPageSize] = useState<number | 'all'>(25);
@@ -223,6 +233,8 @@ export default function DrivingDashboard({
   // ── Load persisted filters ──────────────────────────────────────────────
   useEffect(() => {
     const stored = loadStoredFilters<{
+      selectedMonths?: string[];
+      /** @deprecated legacy single-month field, still read for old persisted payloads */
       selectedMonth?: string;
       dayFilters?: string[];
       driverFilters?: string[];
@@ -233,7 +245,11 @@ export default function DrivingDashboard({
     if (!stored) return;
     didSetDefaultMonth.current = true;
     const frame = requestAnimationFrame(() => {
-      if (typeof stored.selectedMonth === 'string') setSelectedMonth(stored.selectedMonth);
+      if (Array.isArray(stored.selectedMonths)) {
+        setSelectedMonths(stored.selectedMonths.filter((v): v is string => typeof v === 'string'));
+      } else if (typeof stored.selectedMonth === 'string' && stored.selectedMonth) {
+        setSelectedMonths([stored.selectedMonth]);
+      }
       if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
@@ -248,14 +264,14 @@ export default function DrivingDashboard({
   // ── Persist filters ─────────────────────────────────────────────────────
   useEffect(() => {
     saveStoredFilters(storageKey, {
-      selectedMonth,
+      selectedMonths,
       dayFilters,
       driverFilters,
       vehicleFilters,
       tripSearch,
       tripPageSize,
     });
-  }, [storageKey, selectedMonth, dayFilters, driverFilters, vehicleFilters, tripSearch, tripPageSize]);
+  }, [storageKey, selectedMonths, dayFilters, driverFilters, vehicleFilters, tripSearch, tripPageSize]);
 
   const shiftRows = useMemo(
     () => mapShiftSheetRows(rows, scopeSet),
@@ -267,24 +283,42 @@ export default function DrivingDashboard({
   );
 
   const applyRowFilters = useCallback(
-    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[]) =>
+    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[], opts?: { includeMonth?: boolean }) =>
       source.filter((row) => {
         if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
         if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
-        if (selectedMonth) {
+        if ((opts?.includeMonth ?? true) && selectedMonths.length > 0) {
           if (!row.date) return false;
-          if (getMonthKey(row.date) !== selectedMonth) return false;
+          if (!selectedMonths.includes(getMonthKey(row.date))) return false;
         }
         if (dayFilters.length > 0 && row.date && !dayFilters.includes(toDayKey(row.date))) {
           return false;
         }
         return true;
       }),
-    [dayFilters, driverFilters, selectedMonth, vehicleFilters],
+    [dayFilters, driverFilters, selectedMonths, vehicleFilters],
   );
 
   const filteredShiftRows = useMemo(
     () => applyRowFilters(shiftRows),
+    [applyRowFilters, shiftRows],
+  );
+
+  // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
+  const trendShiftRows = useMemo(
+    () => applyRowFilters(shiftRows, { includeMonth: false }),
+    [applyRowFilters, shiftRows],
+  );
+
+  // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
+  const trendShiftRows = useMemo(
+    () => applyRowFilters(shiftRows, { includeMonth: false }),
+    [applyRowFilters, shiftRows],
+  );
+
+  // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
+  const trendShiftRows = useMemo(
+    () => applyRowFilters(shiftRows, { includeMonth: false }),
     [applyRowFilters, shiftRows],
   );
   const completedShiftRows = useMemo(
@@ -330,19 +364,26 @@ export default function DrivingDashboard({
 
   const restHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'rest_hrs') return [];
+    // Show ALL completed shifts (not only violations); the table highlights the
+    // exceeding rows. Mirrors buildDriveHoursRows' violationsOnly=false.
     return buildRestHoursViolations(
       filteredShiftRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
+      false,
     );
   }, [activeSubPage, filteredShiftRows, warningsMap]);
 
   const cntDrvHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'cnt_drv_hrs') return [];
+    // Show ALL cnt-drv segments (not only violations); the table highlights the
+    // exceeding rows. Mirrors buildDriveHoursRows' violationsOnly=false.
     return buildCntDrvHoursViolations(
       filteredCntDrvRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
+      'cnt_drv_hrs',
+      false,
     );
   }, [activeSubPage, filteredCntDrvRows, warningsMap]);
 
@@ -351,15 +392,15 @@ export default function DrivingDashboard({
     () => [
       driverFilters.length > 0,
       vehicleFilters.length > 0,
-      selectedMonth,
+      selectedMonths.length > 0,
       dayFilters.length > 0,
       tripSearch.trim().length > 0,
     ].filter(Boolean).length,
-    [dayFilters.length, driverFilters.length, selectedMonth, tripSearch, vehicleFilters.length],
+    [dayFilters.length, driverFilters.length, selectedMonths.length, tripSearch, vehicleFilters.length],
   );
 
   // Date range string for ExportButton
-  const dateRange = useMemo(() => selectedMonth || undefined, [selectedMonth]);
+  const dateRange = useMemo(() => (selectedMonths.length > 0 ? selectedMonths.join('_') : undefined), [selectedMonths]);
 
   // All months in filtered data (sorted)
   const allMonthKeys = useMemo(() => {
@@ -382,18 +423,18 @@ export default function DrivingDashboard({
     const frame = requestAnimationFrame(() => {
       if (didSetDefaultMonth.current) return;
       if (allMonthsFromData.length === 0) return;
-      if (selectedMonth !== '') {
+      if (selectedMonths.length > 0) {
         didSetDefaultMonth.current = true;
         return;
       }
       didSetDefaultMonth.current = true;
       if (allMonthsFromData.includes(defaultMonthKey)) {
-        setSelectedMonth(defaultMonthKey);
+        setSelectedMonths([defaultMonthKey]);
         setDayFilters([]);
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [allMonthsFromData, defaultMonthKey, selectedMonth]);
+  }, [allMonthsFromData, defaultMonthKey, selectedMonths]);
 
   const aggregates = useMemo<DriverAggregate[]>(() => {
     const totals = new Map<string, { driver: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; monthlyMap: Map<string, number> }>();
@@ -460,7 +501,7 @@ export default function DrivingDashboard({
 
   const monthlyTrend = useMemo<MonthlyTrendPoint[]>(() => {
     const map = new Map<string, MonthlyTrendPoint>();
-    filteredShiftRows.forEach((row) => {
+    trendShiftRows.forEach((row) => {
       if (!row.date) return;
       const mk = getMonthKey(row.date);
       const c = map.get(mk) ?? { monthKey: mk, monthLabel: getMonthLabel(mk), totalDistanceKm: 0, totalCntDrvDurationHours: 0, tripCount: 0 };
@@ -470,7 +511,7 @@ export default function DrivingDashboard({
       map.set(mk, c);
     });
     return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
-  }, [filteredShiftRows]);
+  }, [trendShiftRows]);
 
   // --- Fleet counts ---
   const fleetCounts = useMemo(() => {
@@ -519,8 +560,8 @@ export default function DrivingDashboard({
     const sorted = [...vehicleAggregates].sort((a, b) => b.totalDistanceKm - a.totalDistanceKm);
     const top = sorted.slice(0, 6);
     const rest = sorted.slice(6);
-    const result = top.map((r) => ({ label: r.vehicle, value: Math.round(r.totalDistanceKm) }));
-    if (rest.length > 0) result.push({ label: lang === 'th' ? 'อื่นๆ' : 'Others', value: Math.round(rest.reduce((s, r) => s + r.totalDistanceKm, 0)) });
+    const result = top.map((r) => ({ label: r.vehicle, value: Math.round(r.totalDistanceKm * 100) / 100 }));
+    if (rest.length > 0) result.push({ label: lang === 'th' ? 'อื่นๆ' : 'Others', value: Math.round(rest.reduce((s, r) => s + r.totalDistanceKm, 0) * 100) / 100 });
     return result;
   }, [vehicleAggregates, lang]);
 
@@ -531,11 +572,12 @@ export default function DrivingDashboard({
   );
 
   const cntDrvByDriver = useMemo(() => {
-    const map = new Map<string, { driver: string; totalCntDrvHours: number; tripCount: number }>();
+    const map = new Map<string, { driver: string; totalCntDrvHours: number; totalDistanceKm: number; tripCount: number }>();
     filteredCntDrvRows.forEach((row) => {
       if (row.driver === '—') return;
-      const c = map.get(row.driver) ?? { driver: row.driver, totalCntDrvHours: 0, tripCount: 0 };
+      const c = map.get(row.driver) ?? { driver: row.driver, totalCntDrvHours: 0, totalDistanceKm: 0, tripCount: 0 };
       c.totalCntDrvHours += row.cntDrvHours;
+      c.totalDistanceKm += row.distanceKm;
       c.tripCount += 1;
       map.set(row.driver, c);
     });
@@ -547,7 +589,7 @@ export default function DrivingDashboard({
     return [...cntDrvByDriver]
       .sort((a, b) => b.totalCntDrvHours - a.totalCntDrvHours)
       .slice(0, 5)
-      .map((a) => ({ label: a.driver, value: Math.round(a.totalCntDrvHours * 10) / 10 }));
+      .map((a) => ({ label: a.driver, value: Math.round(a.totalCntDrvHours * 100) / 100 }));
   }, [cntDrvByDriver]);
 
   // --- Violation reports ---
@@ -562,7 +604,7 @@ export default function DrivingDashboard({
   const violations = useMemo<ViolationRow[]>(() => {
     const result: ViolationRow[] = [];
     filteredCntDrvRows.forEach((row) => {
-      const dateStr = row.date ? row.date.toLocaleDateString('en-GB') : '—';
+      const dateStr = row.date ? row.date.toLocaleDateString('en-GB', { timeZone: 'UTC' }) : '—';
       if (row.cntDrvHours > cntDrvMaxHours) {
         result.push({
           driver: row.driver,
@@ -575,7 +617,7 @@ export default function DrivingDashboard({
       }
     });
     filteredShiftRows.forEach((row) => {
-      const dateStr = row.date ? row.date.toLocaleDateString('en-GB') : '—';
+      const dateStr = row.date ? row.date.toLocaleDateString('en-GB', { timeZone: 'UTC' }) : '—';
       if (row.restHours > 0 && row.restHours < restMinHours) {
         result.push({
           driver: row.driver,
@@ -626,9 +668,9 @@ export default function DrivingDashboard({
       .map((d) => ({
         driver: d.driver,
         tripCount: d.tripCount,
-        totalDistanceKm: 0,
+        totalDistanceKm: d.totalDistanceKm,
         totalCntDrvDurationHours: d.totalCntDrvHours,
-        avgDistancePerTrip: 0,
+        avgDistancePerTrip: d.tripCount > 0 ? d.totalDistanceKm / d.tripCount : 0,
         avgDurationPerTrip: d.tripCount > 0 ? d.totalCntDrvHours / d.tripCount : 0,
         monthlyDistances: [] as number[],
       })),
@@ -849,9 +891,9 @@ export default function DrivingDashboard({
       {/* Global filters — visible on all tabs */}
       <FilterBar>
         <InlineDatePicker
-          monthKey={selectedMonth}
+          monthKeys={selectedMonths}
           dayKeys={dayFilters}
-          onMonthChange={(v) => { setSelectedMonth(v); setDayFilters([]); }}
+          onMonthChange={(v) => { setSelectedMonths(v); setDayFilters([]); }}
           onDayChange={setDayFilters}
           lang={lang}
         />
@@ -869,10 +911,10 @@ export default function DrivingDashboard({
           onChange={setVehicleFilters}
           lang={lang}
         />
-        {(selectedMonth || dayFilters.length > 0 || driverFilters.length > 0 || vehicleFilters.length > 0) && (
+        {(selectedMonths.length > 0 || dayFilters.length > 0 || driverFilters.length > 0 || vehicleFilters.length > 0) && (
           <button
             type="button"
-            onClick={() => { setSelectedMonth(''); setDayFilters([]); setDriverFilters([]); setVehicleFilters([]); }}
+            onClick={() => { setSelectedMonths([]); setDayFilters([]); setDriverFilters([]); setVehicleFilters([]); }}
             className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           >
             {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
@@ -886,6 +928,11 @@ export default function DrivingDashboard({
             key={p.slug}
             href={tabHref(p.slug)}
             replace
+            onClick={(e) => {
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              e.preventDefault();
+              goToTab(p.slug);
+            }}
             className={[
               'shrink-0 border-b-2 px-3 py-2 text-sm font-medium',
               p.slug === activeSubPage.slug
@@ -999,7 +1046,7 @@ export default function DrivingDashboard({
               label: d.driver,
               values: {
                 [lang === 'th' ? 'ชม.ขับต่อเนื่อง' : 'Cnt Drv Hr']: Math.round(d.totalCntDrvDurationHours * 100) / 100,
-                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(d.totalDistanceKm * 10) / 10,
+                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(d.totalDistanceKm * 100) / 100,
               },
             }))}
             ariaLabel={lang === 'th' ? 'ชม.ขับต่อเนื่อง vs ระยะทาง' : 'Continuous driving hours vs distance by driver'}
@@ -1115,7 +1162,7 @@ export default function DrivingDashboard({
             data={monthlyTrend.map((p) => ({
               label: p.monthLabel,
               values: {
-                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(p.totalDistanceKm * 10) / 10,
+                [lang === 'th' ? 'ระยะทาง (km)' : 'Distance (km)']: Math.round(p.totalDistanceKm * 100) / 100,
                 [lang === 'th' ? 'ทริป' : 'Trips']: p.tripCount,
               },
             }))}

@@ -396,14 +396,14 @@ export default function SimpleDashboard({
       if (existing) {
         existing.count += 1;
       } else {
-        const dayDate = new Date(row.parsedDate.getFullYear(), row.parsedDate.getMonth(), row.parsedDate.getDate());
+        const dayDate = new Date(Date.UTC(row.parsedDate.getUTCFullYear(), row.parsedDate.getUTCMonth(), row.parsedDate.getUTCDate()));
         counts.set(dayKey, { key: dayKey, date: dayDate, count: 1 });
       }
     });
     return Array.from(counts.values())
       .sort((a, b) => a.date.getTime() - b.date.getTime())
       .map((d) => ({
-        label: d.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        label: d.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }),
         value: d.count,
       }));
   }, [filteredAlerts]);
@@ -412,7 +412,7 @@ export default function SimpleDashboard({
   const tableRows = useMemo<TableRow[]>(() => {
     const grouped = new Map<string, TableRow>();
     filteredAlerts.forEach((row) => {
-      const dateLabel = row.parsedDate ? row.parsedDate.toLocaleDateString('en-GB') : '—';
+      const dateLabel = row.parsedDate ? row.parsedDate.toLocaleDateString('en-GB', { timeZone: 'UTC' }) : '—';
       const dateKey = row.parsedDate ? toDayKey(row.parsedDate) : 'unknown';
       const groupKey = `${dateKey}-${row.vehicle}`;
       const existing = grouped.get(groupKey);

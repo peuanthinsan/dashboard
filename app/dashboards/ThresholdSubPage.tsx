@@ -25,13 +25,14 @@ type Props = {
 
 const ACCENT_VIOLATION = '#f59e0b';
 const ACCENT_WARNED = '#10b981';
+const MAX_CHART_TRIPS = 20;
 
 const formatClock = (d: Date | null) =>
   d
     ? `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
     : '—';
 
-const formatDistance = (n: number) => `${n.toFixed(1)} km`;
+const formatDistance = (n: number) => `${n.toFixed(2)} km`;
 
 const renderLocation = (value: unknown) => {
   const text = String(value ?? '').trim();
@@ -54,6 +55,8 @@ export default function ThresholdSubPage({
   renderWarnAction,
 }: Props) {
   const copy = getDashboardCopy(lang).drivingV2;
+  // The hours column key drives both the table column and the initial sort.
+  const hoursKey = metric === 'rest_hrs' ? 'restHours' : 'driveHours';
   const isExceeding = useCallback(
     (row: ViolationRow) =>
       metric === 'rest_hrs'
@@ -76,34 +79,35 @@ export default function ThresholdSubPage({
   );
 
   const chartData = useMemo<MultiTrendDatum[]>(() => {
-    const map = new Map<string, { duration: number; distance: number }>();
-    for (const v of violations) {
-      const key = v.dayKey;
-      const c = map.get(key) ?? { duration: 0, distance: 0 };
-      c.duration += metric === 'rest_hrs' ? v.restHours : v.driveHours;
-      c.distance += v.distanceKm;
-      map.set(key, c);
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, c]) => ({
-        label: key.slice(5).replace('-', '/'),
+    // One bar per trip (not aggregated by date); table below remains uncapped.
+    return violations
+      .map((v) => ({
+        // Match the source report's "{SlNo}-{Driver}" bar labels; fall back to
+        // driver + date when SlNo is absent (aggregated drive-hours rows).
+        label: v.slNo ? `${v.slNo}-${v.driver}` : `${v.driver} ${v.dayKey.slice(5).replace('-', '/')}`,
+        duration: metric === 'rest_hrs' ? v.restHours : v.driveHours,
+        distance: v.distanceKm,
+      }))
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, MAX_CHART_TRIPS)
+      .map(({ label, duration, distance }) => ({
+        label,
         values: {
-          [lang === 'th' ? 'ชั่วโมง' : 'Hours']: Math.round(c.duration * 10) / 10,
-          [lang === 'th' ? 'กม.' : 'KM']: Math.round(c.distance),
+          [lang === 'th' ? 'ชั่วโมง' : 'Hours']: Math.round(duration * 100) / 100,
+          [lang === 'th' ? 'กม.' : 'KM']: Math.round(distance * 100) / 100,
         },
       }));
   }, [violations, metric, lang]);
 
   const columns = useMemo<Column<ViolationRow>[]>(() => {
     const useCntDrvLabels = metric === 'cnt_drv_hrs';
-    const hoursKey = metric === 'rest_hrs' ? 'restHours' : 'driveHours';
     const hoursLabel = metric === 'rest_hrs'
       ? copy.sheetRestTime
       : copy.sheetCntDrvHr;
 
     return [
-      { key: 'driver', label: copy.sheetDriverName, sortable: true, stickyLeft: true },
+      { key: 'slNo', label: copy.sheetSlNo, sortable: true, stickyLeft: true },
+      { key: 'driver', label: copy.sheetDriverName, sortable: true },
       { key: 'vehicle', label: copy.sheetVehicleNo, sortable: true },
       {
         key: 'loginAt',
@@ -166,7 +170,7 @@ export default function ThresholdSubPage({
         render: (_, row) => renderWarnAction ? renderWarnAction(row) : null,
       },
     ];
-  }, [metric, copy, renderWarnAction, isExceeding]);
+  }, [metric, copy, renderWarnAction, isExceeding, hoursKey]);
 
   return (
     <section className={dashboardSectionClass}>
@@ -195,7 +199,13 @@ export default function ThresholdSubPage({
 
       {chartData.length > 0 && (
         <div className="mb-6">
-          <TrendChart data={chartData} mode="dual-axis" height={280} ariaLabel={thresholdLabel} />
+          <TrendChart
+            data={chartData}
+            mode="dual-axis"
+            height={280}
+            xAxisCategoryMode
+            ariaLabel={thresholdLabel}
+          />
         </div>
       )}
 
@@ -203,7 +213,7 @@ export default function ThresholdSubPage({
         columns={columns}
         data={violations}
         pageSize={15}
-        defaultSort={{ key: 'loginAt', direction: 'desc' }}
+        defaultSort={{ key: hoursKey, direction: 'desc' }}
         ariaLabel={thresholdLabel}
       />
     </section>

@@ -397,7 +397,7 @@ export default function BigthUnitStatusDashboard({
                     return (
                       <tr key={`${row.vehicleNo}-${row.dateTime}`} className="border-t border-zinc-100 dark:border-zinc-800">
                         <td className="px-2 py-2 font-semibold">{row.vehicleNo}</td>
-                        <td className="px-2 py-2">{dt ? dt.toLocaleString('en-GB') : row.dateTime || '—'}</td>
+                        <td className="px-2 py-2">{dt ? dt.toLocaleString('en-GB', { timeZone: 'UTC' }) : row.dateTime || '—'}</td>
                         <td className="px-2 py-2">{statusBadge(row.gpsStatus)}</td>
                         <td className="px-2 py-2">{statusBadge(row.statusAi)}</td>
                         <td className="px-2 py-2">{statusBadge(row.deviceStatus)}</td>
