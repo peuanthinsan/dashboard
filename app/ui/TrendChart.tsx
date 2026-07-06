@@ -56,6 +56,14 @@ function formatAxisValue(v: number): string {
   return String(v);
 }
 
+/** On-chart data label: up to 2 decimals, trailing zeros trimmed (4.20 → "4.2", 216.00 → "216"). */
+function formatDataLabel(v: number): string {
+  return String(+v.toFixed(2));
+}
+
+/** Beyond this many categories, on-chart data labels crowd — omit them. */
+const MAX_DATA_LABEL_POINTS = 40;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -541,6 +549,7 @@ function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCatego
   const lineColor = colors[1] ?? colors[0];
 
   const barWidth = (plotWidth / data.length) * 0.6;
+  const showLabels = data.length <= MAX_DATA_LABEL_POINTS;
 
   // Right-axis y mapping uses maxLineValue
   const linePoints = data.map((d, i) => ({
@@ -593,6 +602,28 @@ function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCatego
         );
       })}
 
+      {/* Bar value labels (always visible, no hover needed) */}
+      {showLabels && data.map((d, i) => {
+        const barH = (barValues[i] / maxBarValue) * plotHeight;
+        const slotWidth = plotWidth / data.length;
+        const cx = layout.left + i * slotWidth + slotWidth / 2;
+        const top = baselineY - barH;
+        const inside = barH >= 26;
+        return (
+          <text
+            key={`dual-bar-label-${i}`}
+            x={cx}
+            y={inside ? top + 18 : top - 6}
+            textAnchor="middle"
+            fontSize="13"
+            fontWeight="700"
+            fill={inside ? '#ffffff' : barColor}
+          >
+            {formatDataLabel(barValues[i])}
+          </text>
+        );
+      })}
+
       {/* Line (right axis) */}
       {lineKey ? (
         <>
@@ -626,6 +657,20 @@ function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCatego
               }
               onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
             />
+          ))}
+          {/* Line value labels (always visible, no hover needed) */}
+          {showLabels && linePoints.map((p, i) => (
+            <text
+              key={`dual-line-label-${i}`}
+              x={p.x}
+              y={p.y - 10}
+              textAnchor="middle"
+              fontSize="13"
+              fontWeight="600"
+              fill={lineColor}
+            >
+              {formatDataLabel(lineValues[i])}
+            </text>
           ))}
         </>
       ) : null}
