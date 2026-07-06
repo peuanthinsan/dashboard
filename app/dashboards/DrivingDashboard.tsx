@@ -548,11 +548,12 @@ export default function DrivingDashboard({
   );
 
   const cntDrvByDriver = useMemo(() => {
-    const map = new Map<string, { driver: string; totalCntDrvHours: number; tripCount: number }>();
+    const map = new Map<string, { driver: string; totalCntDrvHours: number; totalDistanceKm: number; tripCount: number }>();
     filteredCntDrvRows.forEach((row) => {
       if (row.driver === '—') return;
-      const c = map.get(row.driver) ?? { driver: row.driver, totalCntDrvHours: 0, tripCount: 0 };
+      const c = map.get(row.driver) ?? { driver: row.driver, totalCntDrvHours: 0, totalDistanceKm: 0, tripCount: 0 };
       c.totalCntDrvHours += row.cntDrvHours;
+      c.totalDistanceKm += row.distanceKm;
       c.tripCount += 1;
       map.set(row.driver, c);
     });
@@ -643,9 +644,9 @@ export default function DrivingDashboard({
       .map((d) => ({
         driver: d.driver,
         tripCount: d.tripCount,
-        totalDistanceKm: 0,
+        totalDistanceKm: d.totalDistanceKm,
         totalCntDrvDurationHours: d.totalCntDrvHours,
-        avgDistancePerTrip: 0,
+        avgDistancePerTrip: d.tripCount > 0 ? d.totalDistanceKm / d.tripCount : 0,
         avgDurationPerTrip: d.tripCount > 0 ? d.totalCntDrvHours / d.tripCount : 0,
         monthlyDistances: [] as number[],
       })),
