@@ -340,19 +340,26 @@ export default function DrivingDashboard({
 
   const restHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'rest_hrs') return [];
+    // Show ALL completed shifts (not only violations); the table highlights the
+    // exceeding rows. Mirrors buildDriveHoursRows' violationsOnly=false.
     return buildRestHoursViolations(
       filteredShiftRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
+      false,
     );
   }, [activeSubPage, filteredShiftRows, warningsMap]);
 
   const cntDrvHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'cnt_drv_hrs') return [];
+    // Show ALL cnt-drv segments (not only violations); the table highlights the
+    // exceeding rows. Mirrors buildDriveHoursRows' violationsOnly=false.
     return buildCntDrvHoursViolations(
       filteredCntDrvRows,
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
+      'cnt_drv_hrs',
+      false,
     );
   }, [activeSubPage, filteredCntDrvRows, warningsMap]);
 

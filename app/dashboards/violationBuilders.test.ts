@@ -56,6 +56,34 @@ describe('buildCntDrvHoursViolations', () => {
     expect(rows[0].metric).toBe('drive_hrs');
     expect(rows[0].driveHours).toBe(11);
   });
+
+  it('returns only violations by default (> threshold)', () => {
+    const rows = buildCntDrvHoursViolations(
+      [
+        segment({ driver: 'Alice', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T10:00:00Z', cntDrvHours: 4.5 }),
+        segment({ driver: 'Bob', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T08:00:00Z', cntDrvHours: 3.2 }),
+        segment({ driver: 'Carl', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T08:00:00Z', cntDrvHours: 0 }),
+      ],
+      { threshold: 4, label: 'Cnt Drv > 4 h' },
+      new Map(),
+    );
+    expect(rows.map((r) => r.driver)).toEqual(['Alice']);
+  });
+
+  it('returns ALL segments with data when violationsOnly is false (0-hour rows excluded)', () => {
+    const rows = buildCntDrvHoursViolations(
+      [
+        segment({ driver: 'Alice', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T10:00:00Z', cntDrvHours: 4.5 }),
+        segment({ driver: 'Bob', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T08:00:00Z', cntDrvHours: 3.2 }),
+        segment({ driver: 'Carl', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T08:00:00Z', cntDrvHours: 0 }),
+      ],
+      { threshold: 4, label: 'Cnt Drv > 4 h' },
+      new Map(),
+      'cnt_drv_hrs',
+      false,
+    );
+    expect(rows.map((r) => r.driver).sort()).toEqual(['Alice', 'Bob']);
+  });
 });
 
 describe('buildDriveHoursViolations', () => {
@@ -152,5 +180,19 @@ describe('buildRestHoursViolations', () => {
     expect(rows[0].metric).toBe('rest_hrs');
     expect(rows[0].shiftCount).toBe(1);
     expect(rows[0].vehicleCount).toBe(1);
+  });
+
+  it('returns ALL rested shifts when violationsOnly is false (rest>=threshold included, 0-rest excluded)', () => {
+    const rows = buildRestHoursViolations(
+      [
+        shift({ driver: 'Alice', loginAt: '2026-05-01T04:00:00Z', logoutAt: '2026-05-01T12:00:00Z', driveHours: 6, restHours: 8 }),
+        shift({ driver: 'Alice', loginAt: '2026-05-02T04:00:00Z', logoutAt: '2026-05-02T12:00:00Z', driveHours: 6, restHours: 12 }),
+        shift({ driver: 'Alice', loginAt: '2026-05-03T04:00:00Z', logoutAt: '2026-05-03T12:00:00Z', driveHours: 6, restHours: 0 }),
+      ],
+      { threshold: 10, label: 'Rest Hr < 10 h' },
+      new Map(),
+      false,
+    );
+    expect(rows.map((r) => r.restHours).sort((a, b) => a - b)).toEqual([8, 12]);
   });
 });

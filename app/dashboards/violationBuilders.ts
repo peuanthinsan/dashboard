@@ -90,13 +90,14 @@ export function buildRestHoursViolations(
   shifts: ShiftRow[],
   spec: ThresholdSpec,
   warnings: WarningMap,
+  violationsOnly = true,
 ): ViolationRow[] {
   const out: ViolationRow[] = [];
   for (const s of shifts) {
     if (s.status !== 'COMPLETED') continue;
     if (!s.loginAt) continue;
     if (s.restHours <= 0) continue;
-    if (s.restHours >= spec.threshold) continue;
+    if (violationsOnly && s.restHours >= spec.threshold) continue;
     const eventAtIso = s.loginAt.toISOString();
     const violationKey = computeViolationKey({
       metric: 'rest_hrs',
@@ -136,11 +137,12 @@ export function buildCntDrvHoursViolations(
   spec: ThresholdSpec,
   warnings: WarningMap,
   metric: ViolationMetric = 'cnt_drv_hrs',
+  violationsOnly = true,
 ): ViolationRow[] {
   const out: ViolationRow[] = [];
   for (const s of segments) {
     if (!s.loginAt) continue;
-    if (s.cntDrvHours <= spec.threshold) continue;
+    if (violationsOnly ? s.cntDrvHours <= spec.threshold : s.cntDrvHours <= 0) continue;
     const eventAtIso = s.loginAt.toISOString();
     const violationKey = computeViolationKey({
       metric,

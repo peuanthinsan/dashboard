@@ -55,6 +55,8 @@ export default function ThresholdSubPage({
   renderWarnAction,
 }: Props) {
   const copy = getDashboardCopy(lang).drivingV2;
+  // The hours column key drives both the table column and the initial sort.
+  const hoursKey = metric === 'rest_hrs' ? 'restHours' : 'driveHours';
   const isExceeding = useCallback(
     (row: ViolationRow) =>
       metric === 'rest_hrs'
@@ -97,7 +99,6 @@ export default function ThresholdSubPage({
 
   const columns = useMemo<Column<ViolationRow>[]>(() => {
     const useCntDrvLabels = metric === 'cnt_drv_hrs';
-    const hoursKey = metric === 'rest_hrs' ? 'restHours' : 'driveHours';
     const hoursLabel = metric === 'rest_hrs'
       ? copy.sheetRestTime
       : copy.sheetCntDrvHr;
@@ -166,7 +167,7 @@ export default function ThresholdSubPage({
         render: (_, row) => renderWarnAction ? renderWarnAction(row) : null,
       },
     ];
-  }, [metric, copy, renderWarnAction, isExceeding]);
+  }, [metric, copy, renderWarnAction, isExceeding, hoursKey]);
 
   return (
     <section className={dashboardSectionClass}>
@@ -209,7 +210,7 @@ export default function ThresholdSubPage({
         columns={columns}
         data={violations}
         pageSize={15}
-        defaultSort={{ key: 'loginAt', direction: 'desc' }}
+        defaultSort={{ key: hoursKey, direction: 'desc' }}
         ariaLabel={thresholdLabel}
       />
     </section>
