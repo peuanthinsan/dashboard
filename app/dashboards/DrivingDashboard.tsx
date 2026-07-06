@@ -310,17 +310,6 @@ export default function DrivingDashboard({
     [applyRowFilters, shiftRows],
   );
 
-  // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
-  const trendShiftRows = useMemo(
-    () => applyRowFilters(shiftRows, { includeMonth: false }),
-    [applyRowFilters, shiftRows],
-  );
-
-  // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
-  const trendShiftRows = useMemo(
-    () => applyRowFilters(shiftRows, { includeMonth: false }),
-    [applyRowFilters, shiftRows],
-  );
   const completedShiftRows = useMemo(
     () => filteredShiftRows.filter(isCompletedShift),
     [filteredShiftRows],
