@@ -25,6 +25,8 @@ interface TrendChartProps {
   ariaLabel?: string;
   /** Show every category with full labels (angled); extra bottom margin. Use for driver / entity names on bar charts. */
   xAxisCategoryMode?: boolean;
+  /** When set, guarantees each category at least this many SVG units of width, growing the chart and making it horizontally scrollable instead of shrinking bars as categories are added. */
+  minCategoryWidth?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,8 +96,8 @@ function toY(value: number, maxValue: number, svgHeight: number, layout: ChartLa
 }
 
 /** Map an index to an SVG x coordinate within the plot area. */
-function toX(index: number, total: number, layout: ChartLayout): number {
-  const plotWidth = SVG_WIDTH - layout.left - layout.right;
+function toX(index: number, total: number, layout: ChartLayout, svgWidth: number): number {
+  const plotWidth = svgWidth - layout.left - layout.right;
   if (total === 1) return layout.left + plotWidth / 2;
   return layout.left + (index / (total - 1)) * plotWidth;
 }
@@ -104,9 +106,9 @@ function toX(index: number, total: number, layout: ChartLayout): number {
 // Sub-renderers
 // ---------------------------------------------------------------------------
 
-function YAxisLeft({ svgHeight, maxValue, layout }: { svgHeight: number; maxValue: number; layout: ChartLayout }) {
+function YAxisLeft({ svgHeight, maxValue, layout, svgWidth }: { svgHeight: number; maxValue: number; layout: ChartLayout; svgWidth: number }) {
   const ticks = buildYAxisTicks(maxValue, 4);
-  const plotWidth = SVG_WIDTH - layout.left - layout.right;
+  const plotWidth = svgWidth - layout.left - layout.right;
   return (
     <>
       {ticks.map((tick) => {
@@ -154,14 +156,16 @@ function YAxisRight({
   maxValue,
   label,
   layout,
+  svgWidth,
 }: {
   svgHeight: number;
   maxValue: number;
   label?: string;
   layout: ChartLayout;
+  svgWidth: number;
 }) {
   const ticks = buildYAxisTicks(maxValue, 4);
-  const rightX = SVG_WIDTH - layout.right;
+  const rightX = svgWidth - layout.right;
   return (
     <>
       {ticks.map((tick) => {
@@ -209,12 +213,14 @@ function XAxisLabels({
   maxLabels = 8,
   categoryMode = false,
   layout,
+  svgWidth,
 }: {
   labels: string[];
   svgHeight: number;
   maxLabels?: number;
   categoryMode?: boolean;
   layout: ChartLayout;
+  svgWidth: number;
 }) {
   const count = labels.length;
   if (count === 0) return null;
@@ -235,7 +241,7 @@ function XAxisLabels({
             filteredIndex < arr.length - 1
               ? filteredIndex * step
               : count - 1;
-          const x = toX(origIndex, count, layout);
+          const x = toX(origIndex, count, layout, svgWidth);
           const text = label.length > maxChars ? `${label.slice(0, maxChars - 1)}…` : label;
           return (
             <text
@@ -255,7 +261,7 @@ function XAxisLabels({
       <line
         x1={layout.left}
         y1={axisY}
-        x2={SVG_WIDTH - layout.right}
+        x2={svgWidth - layout.right}
         y2={axisY}
         stroke="currentColor"
         strokeWidth="1"
@@ -276,9 +282,10 @@ interface LineModeProps {
   setTooltip: SetTooltip;
   layout: ChartLayout;
   xAxisCategoryMode: boolean;
+  svgWidth: number;
 }
 
-function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode }: LineModeProps) {
+function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode, svgWidth }: LineModeProps) {
   if (data.length === 0) return null;
 
   const isMulti = isMultiTrendData(data);
@@ -293,12 +300,12 @@ function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMo
 
     return (
       <g>
-        <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} />
-        <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} />
+        <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} svgWidth={svgWidth} />
+        <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
         {seriesKeys.map((key, si) => {
           const color = colors[si % colors.length];
           const points = multiData.map((d, i) => ({
-            x: toX(i, multiData.length, layout),
+            x: toX(i, multiData.length, layout, svgWidth),
             y: toY(d.values[key] ?? 0, maxValue, svgHeight, layout),
           }));
           const linePath = buildLinePath(points);
@@ -351,7 +358,7 @@ function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMo
   const baselineY = svgHeight - layout.bottom;
 
   const points = singleData.map((d, i) => ({
-    x: toX(i, singleData.length, layout),
+    x: toX(i, singleData.length, layout, svgWidth),
     y: toY(d.value, maxValue, svgHeight, layout),
   }));
 
@@ -360,8 +367,8 @@ function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMo
 
   return (
     <g>
-      <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} />
-      <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} />
+      <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} svgWidth={svgWidth} />
+      <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
       {/* Area fill */}
       <path d={areaPath} fill={color} fillOpacity="0.08" stroke="none" />
       {/* Line */}
@@ -408,13 +415,14 @@ interface BarModeProps {
   setTooltip: SetTooltip;
   layout: ChartLayout;
   xAxisCategoryMode: boolean;
+  svgWidth: number;
 }
 
-function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode }: BarModeProps) {
+function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode, svgWidth }: BarModeProps) {
   if (data.length === 0) return null;
 
   const isMulti = isMultiTrendData(data);
-  const plotWidth = SVG_WIDTH - layout.left - layout.right;
+  const plotWidth = svgWidth - layout.left - layout.right;
   const baselineY = svgHeight - layout.bottom;
 
   if (isMulti) {
@@ -429,8 +437,8 @@ function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMod
 
     return (
       <g>
-        <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} />
-        <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} />
+        <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} svgWidth={svgWidth} />
+        <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
         {multiData.map((d, gi) => {
           const groupX = layout.left + gi * groupWidth + groupWidth * barPad;
           return seriesKeys.map((key, si) => {
@@ -481,8 +489,8 @@ function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMod
 
   return (
     <g>
-      <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} />
-      <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} />
+      <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} svgWidth={svgWidth} />
+      <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
       {singleData.map((d, i) => {
         const slotWidth = plotWidth / singleData.length;
         const x = layout.left + i * slotWidth + slotWidth * barPad;
@@ -525,9 +533,10 @@ interface DualAxisModeProps {
   setTooltip: SetTooltip;
   layout: ChartLayout;
   xAxisCategoryMode: boolean;
+  svgWidth: number;
 }
 
-function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode }: DualAxisModeProps) {
+function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode, svgWidth }: DualAxisModeProps) {
   if (data.length === 0) return null;
 
   const seriesKeys = Object.keys(data[0].values);
@@ -541,7 +550,7 @@ function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCatego
   const maxBarValue = computeNiceMax(Math.max(1, ...barValues), 4);
   const maxLineValue = computeNiceMax(Math.max(1, ...lineValues), 4);
 
-  const plotWidth = SVG_WIDTH - layout.left - layout.right;
+  const plotWidth = svgWidth - layout.left - layout.right;
   const plotHeight = svgHeight - layout.top - layout.bottom;
   const baselineY = svgHeight - layout.bottom;
 
@@ -553,7 +562,7 @@ function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCatego
 
   // Right-axis y mapping uses maxLineValue
   const linePoints = data.map((d, i) => ({
-    x: toX(i, data.length, layout),
+    x: toX(i, data.length, layout, svgWidth),
     y: layout.top + (1 - (d.values[lineKey] ?? 0) / maxLineValue) * plotHeight,
   }));
   const linePath = buildLinePath(linePoints);
@@ -561,12 +570,12 @@ function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCatego
   return (
     <g>
       {/* Left Y-axis (bars) */}
-      <YAxisLeft svgHeight={svgHeight} maxValue={maxBarValue} layout={layout} />
+      <YAxisLeft svgHeight={svgHeight} maxValue={maxBarValue} layout={layout} svgWidth={svgWidth} />
       {/* Right Y-axis (line) */}
       {lineKey ? (
-        <YAxisRight svgHeight={svgHeight} maxValue={maxLineValue} label={lineKey} layout={layout} />
+        <YAxisRight svgHeight={svgHeight} maxValue={maxLineValue} label={lineKey} layout={layout} svgWidth={svgWidth} />
       ) : null}
-      <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} />
+      <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
 
       {/* Bars */}
       {data.map((d, i) => {
@@ -727,10 +736,10 @@ function Legend({ seriesKeys, colors, mode, barKey, lineKey }: LegendProps) {
 // Empty state
 // ---------------------------------------------------------------------------
 
-function EmptyChart({ svgHeight }: { svgHeight: number }) {
+function EmptyChart({ svgHeight, svgWidth }: { svgHeight: number; svgWidth: number }) {
   return (
     <text
-      x={SVG_WIDTH / 2}
+      x={svgWidth / 2}
       y={svgHeight / 2}
       textAnchor="middle"
       fontSize="18"
@@ -753,10 +762,13 @@ export default function TrendChart({
   className = '',
   ariaLabel,
   xAxisCategoryMode = false,
+  minCategoryWidth,
 }: TrendChartProps) {
   const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0, header: '', rows: [] });
   const svgHeight = height;
-  const viewBox = `0 0 ${SVG_WIDTH} ${svgHeight}`;
+  const svgWidth = minCategoryWidth ? Math.max(SVG_WIDTH, data.length * minCategoryWidth) : SVG_WIDTH;
+  const scrolls = svgWidth > SVG_WIDTH;
+  const viewBox = `0 0 ${svgWidth} ${svgHeight}`;
   const isEmpty = data.length === 0;
   const layout = getChartLayout(xAxisCategoryMode);
 
@@ -768,54 +780,60 @@ export default function TrendChart({
 
   return (
     <div className={className}>
-      <svg
-        viewBox={viewBox}
-        overflow="visible"
-        style={{ width: '100%', height: 'auto', display: 'block' }}
-        role="img"
-        aria-label={ariaLabel ?? 'Trend chart'}
-      >
-        {isEmpty ? (
-          <EmptyChart svgHeight={svgHeight} />
-        ) : mode === 'line' ? (
-          <LineMode
-            data={data}
-            svgHeight={svgHeight}
-            colors={colors}
-            setTooltip={setTooltip}
-            layout={layout}
-            xAxisCategoryMode={xAxisCategoryMode}
-          />
-        ) : mode === 'bar' ? (
-          <BarMode
-            data={data}
-            svgHeight={svgHeight}
-            colors={colors}
-            setTooltip={setTooltip}
-            layout={layout}
-            xAxisCategoryMode={xAxisCategoryMode}
-          />
-        ) : mode === 'dual-axis' && isMulti ? (
-          <DualAxisMode
-            data={data as MultiTrendDatum[]}
-            svgHeight={svgHeight}
-            colors={colors}
-            setTooltip={setTooltip}
-            layout={layout}
-            xAxisCategoryMode={xAxisCategoryMode}
-          />
-        ) : (
-          // Fallback: dual-axis requested but single data provided — render as bar
-          <BarMode
-            data={data}
-            svgHeight={svgHeight}
-            colors={colors}
-            setTooltip={setTooltip}
-            layout={layout}
-            xAxisCategoryMode={xAxisCategoryMode}
-          />
-        )}
-      </svg>
+      <div style={scrolls ? { overflowX: 'auto' } : undefined}>
+        <svg
+          viewBox={viewBox}
+          overflow="visible"
+          style={scrolls ? { width: `${svgWidth}px`, height: 'auto', display: 'block' } : { width: '100%', height: 'auto', display: 'block' }}
+          role="img"
+          aria-label={ariaLabel ?? 'Trend chart'}
+        >
+          {isEmpty ? (
+            <EmptyChart svgHeight={svgHeight} svgWidth={svgWidth} />
+          ) : mode === 'line' ? (
+            <LineMode
+              data={data}
+              svgHeight={svgHeight}
+              colors={colors}
+              setTooltip={setTooltip}
+              layout={layout}
+              xAxisCategoryMode={xAxisCategoryMode}
+              svgWidth={svgWidth}
+            />
+          ) : mode === 'bar' ? (
+            <BarMode
+              data={data}
+              svgHeight={svgHeight}
+              colors={colors}
+              setTooltip={setTooltip}
+              layout={layout}
+              xAxisCategoryMode={xAxisCategoryMode}
+              svgWidth={svgWidth}
+            />
+          ) : mode === 'dual-axis' && isMulti ? (
+            <DualAxisMode
+              data={data as MultiTrendDatum[]}
+              svgHeight={svgHeight}
+              colors={colors}
+              setTooltip={setTooltip}
+              layout={layout}
+              xAxisCategoryMode={xAxisCategoryMode}
+              svgWidth={svgWidth}
+            />
+          ) : (
+            // Fallback: dual-axis requested but single data provided — render as bar
+            <BarMode
+              data={data}
+              svgHeight={svgHeight}
+              colors={colors}
+              setTooltip={setTooltip}
+              layout={layout}
+              xAxisCategoryMode={xAxisCategoryMode}
+              svgWidth={svgWidth}
+            />
+          )}
+        </svg>
+      </div>
       <Legend
         seriesKeys={seriesKeys}
         colors={colors}
