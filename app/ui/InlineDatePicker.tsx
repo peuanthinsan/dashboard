@@ -6,11 +6,11 @@ const MONTH_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
 const MONTH_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
 type InlineDatePickerProps = {
-  /** Selected month as "YYYY-MM", empty string for none. */
-  monthKey: string;
+  /** Selected months as "YYYY-MM" (multi-select), empty array for none. */
+  monthKeys: string[];
   /** Selected days as "YYYY-MM-DD" array. */
   dayKeys: string[];
-  onMonthChange: (monthKey: string) => void;
+  onMonthChange: (monthKeys: string[]) => void;
   onDayChange: (dayKeys: string[]) => void;
   multiDay?: boolean;
   lang?: string;
@@ -22,7 +22,7 @@ function getDaysInMonth(year: number, month: number): number {
 }
 
 export default function InlineDatePicker({
-  monthKey,
+  monthKeys,
   dayKeys,
   onMonthChange,
   onDayChange,
@@ -33,8 +33,9 @@ export default function InlineDatePicker({
   const months = lang === 'th' ? MONTH_TH : MONTH_EN;
 
   const initialYear = useMemo(() => {
-    if (monthKey) {
-      const y = parseInt(monthKey.split('-')[0]!, 10);
+    const first = monthKeys[0];
+    if (first) {
+      const y = parseInt(first.split('-')[0]!, 10);
       if (!isNaN(y)) return y;
     }
     return new Date().getFullYear();
@@ -43,39 +44,44 @@ export default function InlineDatePicker({
   const [year, setYear] = useState(initialYear);
   const [showAllDays, setShowAllDays] = useState(false);
 
-  const selectedMonthIndex = useMemo(() => {
-    if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return -1;
-    const parts = monthKey.split('-');
-    const y = parseInt(parts[0]!, 10);
-    const m = parseInt(parts[1]!, 10);
-    if (isNaN(y) || isNaN(m)) return -1;
-    if (y !== year) return -1;
-    return m - 1;
-  }, [monthKey, year]);
+  // The single month to use for day-level filtering; day pills only show when exactly one month is selected.
+  const soleMonthKey = monthKeys.length === 1 ? monthKeys[0]! : '';
+
+  const selectedMonthIndices = useMemo(() => {
+    const indices = new Set<number>();
+    monthKeys.forEach((key) => {
+      if (!/^\d{4}-\d{2}$/.test(key)) return;
+      const parts = key.split('-');
+      const y = parseInt(parts[0]!, 10);
+      const m = parseInt(parts[1]!, 10);
+      if (isNaN(y) || isNaN(m) || y !== year) return;
+      indices.add(m - 1);
+    });
+    return indices;
+  }, [monthKeys, year]);
 
   const daysInMonth = useMemo(() => {
-    if (selectedMonthIndex < 0 || !monthKey) return 0;
-    const parts = monthKey.split('-');
+    if (!soleMonthKey) return 0;
+    const parts = soleMonthKey.split('-');
     const y = parseInt(parts[0]!, 10);
     const m = parseInt(parts[1]!, 10);
     if (isNaN(y) || isNaN(m)) return 0;
     return getDaysInMonth(y, m);
-  }, [monthKey, selectedMonthIndex]);
+  }, [soleMonthKey]);
 
   const handleMonthClick = (monthIndex: number) => {
     const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-    if (key === monthKey) {
-      onMonthChange('');
-      onDayChange([]);
-    } else {
-      onMonthChange(key);
-      onDayChange([]);
-      setShowAllDays(false);
-    }
+    const next = monthKeys.includes(key)
+      ? monthKeys.filter((v) => v !== key)
+      : [...monthKeys, key].sort();
+    onMonthChange(next);
+    onDayChange([]);
+    setShowAllDays(false);
   };
 
   const handleDayClick = (day: number) => {
-    const dayKey = `${monthKey}-${String(day).padStart(2, '0')}`;
+    if (!soleMonthKey) return;
+    const dayKey = `${soleMonthKey}-${String(day).padStart(2, '0')}`;
     if (multiDay) {
       const next = dayKeys.includes(dayKey)
         ? dayKeys.filter((v) => v !== dayKey)
@@ -87,7 +93,7 @@ export default function InlineDatePicker({
   };
 
   const handleClear = () => {
-    onMonthChange('');
+    onMonthChange([]);
     onDayChange([]);
   };
 
@@ -121,7 +127,7 @@ export default function InlineDatePicker({
 
       <span className="text-zinc-200 dark:text-zinc-700">|</span>
 
-      {/* Month pills */}
+      {/* Month pills — clicking toggles a month on/off without clearing the others */}
       {months.map((abbr, i) => (
         <button
           key={i}
@@ -129,7 +135,7 @@ export default function InlineDatePicker({
           onClick={() => handleMonthClick(i)}
           className={[
             'rounded-md px-1.5 py-0.5 text-xs font-medium transition-all duration-150',
-            i === selectedMonthIndex
+            selectedMonthIndices.has(i)
               ? 'bg-red-600 text-white shadow-sm'
               : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100',
           ].join(' ')}
@@ -138,12 +144,12 @@ export default function InlineDatePicker({
         </button>
       ))}
 
-      {/* Day pills — only when a month in the current year is selected */}
-      {selectedMonthIndex >= 0 && daysInMonth > 0 && (
+      {/* Day pills — only when exactly one month is selected */}
+      {soleMonthKey && daysInMonth > 0 && (
         <>
           <span className="text-zinc-200 dark:text-zinc-700">|</span>
           {Array.from({ length: displayDays }, (_, i) => i + 1).map((day) => {
-            const dayKey = `${monthKey}-${String(day).padStart(2, '0')}`;
+            const dayKey = `${soleMonthKey}-${String(day).padStart(2, '0')}`;
             const isSelected = dayKeys.includes(dayKey);
             return (
               <button
@@ -174,7 +180,7 @@ export default function InlineDatePicker({
       )}
 
       {/* Clear button */}
-      {monthKey && (
+      {monthKeys.length > 0 && (
         <>
           <span className="text-zinc-200 dark:text-zinc-700">|</span>
           <button

@@ -1,4 +1,4 @@
-'use client';
+'use client'; // MARKER_RETRY_1 // MARKER_TIMING_TEST // MARKER_TEST_67890 // MARKER_TEST_12345
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -220,7 +220,7 @@ export default function DrivingDashboard({
   }, []);
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [dayFilters, setDayFilters] = useState<string[]>([]);
   const [tripSearch, setTripSearch] = useState('');
   const [tripPageSize, setTripPageSize] = useState<number | 'all'>(25);
@@ -233,6 +233,8 @@ export default function DrivingDashboard({
   // ── Load persisted filters ──────────────────────────────────────────────
   useEffect(() => {
     const stored = loadStoredFilters<{
+      selectedMonths?: string[];
+      /** @deprecated legacy single-month field, still read for old persisted payloads */
       selectedMonth?: string;
       dayFilters?: string[];
       driverFilters?: string[];
@@ -243,7 +245,11 @@ export default function DrivingDashboard({
     if (!stored) return;
     didSetDefaultMonth.current = true;
     const frame = requestAnimationFrame(() => {
-      if (typeof stored.selectedMonth === 'string') setSelectedMonth(stored.selectedMonth);
+      if (Array.isArray(stored.selectedMonths)) {
+        setSelectedMonths(stored.selectedMonths.filter((v): v is string => typeof v === 'string'));
+      } else if (typeof stored.selectedMonth === 'string' && stored.selectedMonth) {
+        setSelectedMonths([stored.selectedMonth]);
+      }
       if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
@@ -258,14 +264,14 @@ export default function DrivingDashboard({
   // ── Persist filters ─────────────────────────────────────────────────────
   useEffect(() => {
     saveStoredFilters(storageKey, {
-      selectedMonth,
+      selectedMonths,
       dayFilters,
       driverFilters,
       vehicleFilters,
       tripSearch,
       tripPageSize,
     });
-  }, [storageKey, selectedMonth, dayFilters, driverFilters, vehicleFilters, tripSearch, tripPageSize]);
+  }, [storageKey, selectedMonths, dayFilters, driverFilters, vehicleFilters, tripSearch, tripPageSize]);
 
   const shiftRows = useMemo(
     () => mapShiftSheetRows(rows, scopeSet),
@@ -277,24 +283,42 @@ export default function DrivingDashboard({
   );
 
   const applyRowFilters = useCallback(
-    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[]) =>
+    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[], opts?: { includeMonth?: boolean }) =>
       source.filter((row) => {
         if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
         if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
-        if (selectedMonth) {
+        if ((opts?.includeMonth ?? true) && selectedMonths.length > 0) {
           if (!row.date) return false;
-          if (getMonthKey(row.date) !== selectedMonth) return false;
+          if (!selectedMonths.includes(getMonthKey(row.date))) return false;
         }
         if (dayFilters.length > 0 && row.date && !dayFilters.includes(toDayKey(row.date))) {
           return false;
         }
         return true;
       }),
-    [dayFilters, driverFilters, selectedMonth, vehicleFilters],
+    [dayFilters, driverFilters, selectedMonths, vehicleFilters],
   );
 
   const filteredShiftRows = useMemo(
     () => applyRowFilters(shiftRows),
+    [applyRowFilters, shiftRows],
+  );
+
+  // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
+  const trendShiftRows = useMemo(
+    () => applyRowFilters(shiftRows, { includeMonth: false }),
+    [applyRowFilters, shiftRows],
+  );
+
+  // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
+  const trendShiftRows = useMemo(
+    () => applyRowFilters(shiftRows, { includeMonth: false }),
+    [applyRowFilters, shiftRows],
+  );
+
+  // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
+  const trendShiftRows = useMemo(
+    () => applyRowFilters(shiftRows, { includeMonth: false }),
     [applyRowFilters, shiftRows],
   );
   const completedShiftRows = useMemo(
@@ -368,15 +392,15 @@ export default function DrivingDashboard({
     () => [
       driverFilters.length > 0,
       vehicleFilters.length > 0,
-      selectedMonth,
+      selectedMonths.length > 0,
       dayFilters.length > 0,
       tripSearch.trim().length > 0,
     ].filter(Boolean).length,
-    [dayFilters.length, driverFilters.length, selectedMonth, tripSearch, vehicleFilters.length],
+    [dayFilters.length, driverFilters.length, selectedMonths.length, tripSearch, vehicleFilters.length],
   );
 
   // Date range string for ExportButton
-  const dateRange = useMemo(() => selectedMonth || undefined, [selectedMonth]);
+  const dateRange = useMemo(() => (selectedMonths.length > 0 ? selectedMonths.join('_') : undefined), [selectedMonths]);
 
   // All months in filtered data (sorted)
   const allMonthKeys = useMemo(() => {
@@ -399,18 +423,18 @@ export default function DrivingDashboard({
     const frame = requestAnimationFrame(() => {
       if (didSetDefaultMonth.current) return;
       if (allMonthsFromData.length === 0) return;
-      if (selectedMonth !== '') {
+      if (selectedMonths.length > 0) {
         didSetDefaultMonth.current = true;
         return;
       }
       didSetDefaultMonth.current = true;
       if (allMonthsFromData.includes(defaultMonthKey)) {
-        setSelectedMonth(defaultMonthKey);
+        setSelectedMonths([defaultMonthKey]);
         setDayFilters([]);
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [allMonthsFromData, defaultMonthKey, selectedMonth]);
+  }, [allMonthsFromData, defaultMonthKey, selectedMonths]);
 
   const aggregates = useMemo<DriverAggregate[]>(() => {
     const totals = new Map<string, { driver: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; monthlyMap: Map<string, number> }>();
@@ -477,7 +501,7 @@ export default function DrivingDashboard({
 
   const monthlyTrend = useMemo<MonthlyTrendPoint[]>(() => {
     const map = new Map<string, MonthlyTrendPoint>();
-    filteredShiftRows.forEach((row) => {
+    trendShiftRows.forEach((row) => {
       if (!row.date) return;
       const mk = getMonthKey(row.date);
       const c = map.get(mk) ?? { monthKey: mk, monthLabel: getMonthLabel(mk), totalDistanceKm: 0, totalCntDrvDurationHours: 0, tripCount: 0 };
@@ -487,7 +511,7 @@ export default function DrivingDashboard({
       map.set(mk, c);
     });
     return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
-  }, [filteredShiftRows]);
+  }, [trendShiftRows]);
 
   // --- Fleet counts ---
   const fleetCounts = useMemo(() => {
@@ -867,9 +891,9 @@ export default function DrivingDashboard({
       {/* Global filters — visible on all tabs */}
       <FilterBar>
         <InlineDatePicker
-          monthKey={selectedMonth}
+          monthKeys={selectedMonths}
           dayKeys={dayFilters}
-          onMonthChange={(v) => { setSelectedMonth(v); setDayFilters([]); }}
+          onMonthChange={(v) => { setSelectedMonths(v); setDayFilters([]); }}
           onDayChange={setDayFilters}
           lang={lang}
         />
@@ -887,10 +911,10 @@ export default function DrivingDashboard({
           onChange={setVehicleFilters}
           lang={lang}
         />
-        {(selectedMonth || dayFilters.length > 0 || driverFilters.length > 0 || vehicleFilters.length > 0) && (
+        {(selectedMonths.length > 0 || dayFilters.length > 0 || driverFilters.length > 0 || vehicleFilters.length > 0) && (
           <button
             type="button"
-            onClick={() => { setSelectedMonth(''); setDayFilters([]); setDriverFilters([]); setVehicleFilters([]); }}
+            onClick={() => { setSelectedMonths([]); setDayFilters([]); setDriverFilters([]); setVehicleFilters([]); }}
             className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           >
             {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
