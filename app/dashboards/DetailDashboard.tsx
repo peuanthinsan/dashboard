@@ -30,6 +30,7 @@ import {
   computeAlertKey,
   resolveScopeFleetNames,
   scopeFleetSet,
+  ALERT_TIME_ALIASES,
   type AlertRule,
 } from './dashboardDataUtils';
 
@@ -270,7 +271,7 @@ export default function DetailDashboard({
   const alertRows = useMemo<AlertRow[]>(() => {
     const rules = alertRulesProp ?? [];
     const mappedRows = rows.map((row, index) => {
-      const timeValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
+      const timeValue = findValue(row, ALERT_TIME_ALIASES);
       const parsedDate = parseDate(timeValue);
       const monthKey = parsedDate ? toMonthKey(parsedDate) : null;
       const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'Unknown month';

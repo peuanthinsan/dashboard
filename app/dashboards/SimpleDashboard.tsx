@@ -22,6 +22,7 @@ import {
   applyAlertRules,
   resolveScopeFleetNames,
   scopeFleetSet,
+  ALERT_TIME_ALIASES,
   type AlertRule,
 } from './dashboardDataUtils';
 import TrendChart from 'app/ui/TrendChart';
@@ -170,7 +171,7 @@ export default function SimpleDashboard({
         const derived = withDerivedRemark(alertType, String(findValue(row, ['Remarks']) ?? ''));
         const speed = Number(findValue(row, ['Speed', 'Max Speed']) ?? 0) || 0;
         const remarks = applyAlertRules(alertType, derived, speed, rules);
-        const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
+        const dateValue = findValue(row, ALERT_TIME_ALIASES);
         const parsedDate = parseDate(dateValue);
         return {
           sourceRow: row,

@@ -30,6 +30,7 @@ import {
   colorForRemark,
   resolveScopeFleetNames,
   scopeFleetSet,
+  ALERT_TIME_ALIASES,
   type AlertRule,
 } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
@@ -157,7 +158,7 @@ export default function SummaryDashboard({
       const speed = Number(findValue(row, ['Speed', 'Max Speed']) ?? 0) || 0;
       const remarks = applyAlertRules(alertType, derived, speed, rules);
       const vehicle = toDisplayString(findValue(row, ['Vehicle No', 'Vehicle No TH']));
-      const dateValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
+      const dateValue = findValue(row, ALERT_TIME_ALIASES);
       const parsedDate = parseDate(dateValue);
       const monthKey = parsedDate ? toMonthKey(parsedDate) : null;
       const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'Unknown month';

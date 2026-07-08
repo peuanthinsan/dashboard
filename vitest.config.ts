@@ -5,7 +5,10 @@ import path from 'path';
 // developer machines and CI. Driving v2 sub-page aggregation buckets shifts by
 // (driver, calendar day) — without a fixed TZ, ISO-Z timestamps in tests can
 // drift across day boundaries depending on the local zone.
-process.env.TZ = 'UTC';
+// Respect an explicit override (e.g. `TZ=America/Los_Angeles npx vitest run`)
+// so timezone-sensitivity can actually be exercised; an unconditional pin made
+// such runs silently identical to the UTC run.
+process.env.TZ = process.env.TZ ?? 'UTC';
 
 export default defineConfig({
   test: {
