@@ -14,6 +14,7 @@ import {
   parseDate,
   scopeFleetSet,
   toDisplayString,
+  ALERT_TIME_ALIASES,
 } from './dashboardDataUtils';
 import KpiCard from 'app/ui/KpiCard';
 import EmptyState from 'app/ui/EmptyState';
@@ -65,7 +66,7 @@ export default function VideoDashboard({
   const samples = useMemo<VideoSample[]>(() => {
     return rows
       .map((row, index) => {
-        const timeValue = findValue(row, ['Alert Date Time', 'Track Time', 'Date']);
+        const timeValue = findValue(row, ALERT_TIME_ALIASES);
         const parsedDate = parseDate(timeValue);
         return {
           id: `${index}-${findValue(row, ['Vehicle No', 'Vehicle No TH']) ?? 'vehicle'}`,

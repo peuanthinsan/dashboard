@@ -79,6 +79,16 @@ export const findValue = (row: Row, labels: string[]) => {
   return null;
 };
 
+/**
+ * Shared header aliases for the alert timestamp column, in lookup order.
+ * Customer sheets spell this header differently; when a customer's rows come
+ * back empty, extend THIS list so every template that reads alert times picks
+ * up the fix at once (previously each template carried its own inline copy and
+ * single-template fixes left the same customer's other dashboards broken).
+ * OverSpeedDashboard keeps its own wider list ('DateTime', 'Start Time', …).
+ */
+export const ALERT_TIME_ALIASES = ['Alert Date Time', 'Track Time', 'Date'];
+
 export const toDisplayString = (value: unknown) => {
   if (value == null || value === '') return '—';
   return String(value);
