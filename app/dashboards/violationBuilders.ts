@@ -1,4 +1,4 @@
-import { computeViolationKey, type ViolationMetric, type ViolationRow } from './dashboardDataUtils';
+import { computeViolationKey, toDayKey, type ViolationMetric, type ViolationRow } from './dashboardDataUtils';
 import { bucketByDriverDay } from './driverDayBucketing';
 import type { DrivingCntDrvRow } from './drivingSheetRows';
 
@@ -100,6 +100,8 @@ export function buildRestHoursViolations(
     if (!s.loginAt) continue;
     if (s.restHours <= 0) continue;
     if (violationsOnly && s.restHours >= spec.threshold) continue;
+    // loginAt is a parseDate value: Bangkok wall-clock stored as UTC digits. Read it
+    // with toISOString()/toDayKey() (UTC getters) so keys carry the sheet's local day.
     const eventAtIso = s.loginAt.toISOString();
     const violationKey = computeViolationKey({
       metric: 'rest_hrs',
@@ -114,7 +116,7 @@ export function buildRestHoursViolations(
       vehicle: s.vehicle,
       vehicleCount: 1,
       shiftCount: 1,
-      dayKey: s.loginAt.toISOString().slice(0, 10),
+      dayKey: toDayKey(s.loginAt),
       dateLabel: formatDateLabel(s.loginAt),
       eventAt: s.loginAt,
       driveHours: s.driveHours,
@@ -146,6 +148,8 @@ export function buildCntDrvHoursViolations(
   for (const s of segments) {
     if (!s.loginAt) continue;
     if (violationsOnly ? s.cntDrvHours <= spec.threshold : s.cntDrvHours <= 0) continue;
+    // loginAt is a parseDate value: Bangkok wall-clock stored as UTC digits. Read it
+    // with toISOString()/toDayKey() (UTC getters) so keys carry the sheet's local day.
     const eventAtIso = s.loginAt.toISOString();
     const violationKey = computeViolationKey({
       metric,
@@ -160,7 +164,7 @@ export function buildCntDrvHoursViolations(
       vehicle: s.vehicle,
       vehicleCount: 1,
       shiftCount: 1,
-      dayKey: s.loginAt.toISOString().slice(0, 10),
+      dayKey: toDayKey(s.loginAt),
       dateLabel: formatDateLabel(s.loginAt),
       eventAt: s.loginAt,
       driveHours: s.cntDrvHours,

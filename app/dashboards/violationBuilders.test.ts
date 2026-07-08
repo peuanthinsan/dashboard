@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { computeViolationKey, parseDate } from './dashboardDataUtils';
 import {
   buildCntDrvHoursViolations,
   buildDriveHoursViolations,
@@ -172,6 +173,117 @@ describe('buildDriveHoursViolations', () => {
       map,
     );
     expect(rows2[0].warning?.channelName).toBe('Bangkok Ops');
+  });
+});
+
+describe('pre-dawn Bangkok logins keep their sheet calendar day (Invariant 2)', () => {
+  // A login before 07:00 Bangkok is the case where mixing the two timezone
+  // conventions shifts the day: 01:30 Bangkok read as a true instant is 18:30
+  // the PREVIOUS day in UTC. parseDate stamps the sheet's Bangkok digits as
+  // UTC digits, so dayKey/dateLabel/eventAt (and therefore violationKey) must
+  // stay on the sheet's own calendar day for every viewer/runner timezone.
+  const loginAt = parseDate('01/07/2026 01:30:00')!;
+  const logoutAt = parseDate('01/07/2026 09:30:00')!;
+
+  it('buildRestHoursViolations keeps a 01:30 login on 01/07', () => {
+    const rows = buildRestHoursViolations(
+      [
+        {
+          sourceRow: {},
+          slNo: '7',
+          driver: 'Alice',
+          vehicle: 'V1',
+          date: loginAt,
+          loginAt,
+          logoutAt,
+          loginLocation: 'L1',
+          logoutLocation: 'L2',
+          driveHours: 6,
+          workingHours: 0,
+          restHours: 8,
+          distanceKm: 120,
+          status: 'COMPLETED',
+        },
+      ],
+      { threshold: 10, label: 'Rest Hr < 10 h' },
+      new Map(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].dayKey).toBe('2026-07-01');
+    expect(rows[0].dateLabel).toBe('01/07/2026');
+    expect(rows[0].eventAt.toISOString()).toBe('2026-07-01T01:30:00.000Z');
+    expect(rows[0].violationKey).toBe(
+      computeViolationKey({
+        metric: 'rest_hrs',
+        driver: 'Alice',
+        vehicle: 'V1',
+        eventAtIso: '2026-07-01T01:30:00.000Z',
+        threshold: 10,
+      }),
+    );
+  });
+
+  it('buildCntDrvHoursViolations keeps a 01:30 login on 01/07', () => {
+    const rows = buildCntDrvHoursViolations(
+      [
+        {
+          sourceRow: {},
+          slNo: '7',
+          driver: 'Alice',
+          vehicle: 'V1',
+          date: loginAt,
+          loginAt,
+          logoutAt,
+          loginLocation: 'L1',
+          logoutLocation: 'L2',
+          cntDrvHours: 5,
+          distanceKm: 120,
+        },
+      ],
+      { threshold: 4, label: 'Cnt Drv > 4 h' },
+      new Map(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].dayKey).toBe('2026-07-01');
+    expect(rows[0].dateLabel).toBe('01/07/2026');
+    expect(rows[0].eventAt.toISOString()).toBe('2026-07-01T01:30:00.000Z');
+    expect(rows[0].violationKey).toBe(
+      computeViolationKey({
+        metric: 'cnt_drv_hrs',
+        driver: 'Alice',
+        vehicle: 'V1',
+        eventAtIso: '2026-07-01T01:30:00.000Z',
+        threshold: 4,
+      }),
+    );
+  });
+
+  it('buildDriveHoursViolations day-buckets a 01:30 login on 01/07', () => {
+    const rows = buildDriveHoursViolations(
+      [
+        {
+          sourceRow: {},
+          slNo: '7',
+          driver: 'Alice',
+          vehicle: 'V1',
+          date: loginAt,
+          loginAt,
+          logoutAt,
+          loginLocation: 'L1',
+          logoutLocation: 'L2',
+          driveHours: 6,
+          workingHours: 0,
+          restHours: 0,
+          distanceKm: 120,
+          status: 'COMPLETED',
+        },
+      ],
+      { threshold: 5, label: 'Drive Hr/day > 5 h' },
+      new Map(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].dayKey).toBe('2026-07-01');
+    expect(rows[0].dateLabel).toBe('01/07/2026');
   });
 });
 
