@@ -21,9 +21,11 @@ playbook, escalation triggers).
    alias-list changes must be mirrored across all dashboard templates in
    `app/dashboards/`. One-template fixes are incomplete. Shared alias constants (e.g.
    `ALERT_TIME_ALIASES` in `dashboardDataUtils.ts`) are the preferred home for new aliases.
-2. **Two timezone conventions, never mixed** — `parseDate` sheet dates are local-in/
-   local-out; Postgres/ISO-Z values hold Bangkok digits as UTC and need `getUTC*` /
-   `timeZone:'UTC'` reads.
+2. **One timezone convention (Bangkok-as-UTC)** — since `c0cbd77`, `parseDate` stamps each
+   sheet timestamp's Bangkok wall-clock digits into a UTC instant (`Date.UTC`), and every
+   reader formats with `getUTC*` / `timeZone:'UTC'`, so values are identical for any viewer
+   timezone. Sole exception: `app/ui/exportCsvFormat.ts` (own parser, deliberate local
+   round-trip). Reading a parsed value with local getters reintroduces a viewer shift.
 3. **Fleet scoping matches Organization NAMES to the sheet's Fleet column** — renaming an
    org in admin silently breaks existing dashboards.
 4. **`Dashboard.organizationId` stays mirrored to `organizationIds[0]`** — LINE channels,
