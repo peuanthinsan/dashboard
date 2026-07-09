@@ -113,7 +113,7 @@ export default function OverSpeedDashboard({
   const storageKey = useMemo(() => `${dashboardId}-overspeed`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
-  const { rows, columns: sheetColumns, loading, refreshing, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
+  const { rows, columns: sheetColumns, loading, refreshing, progress, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
     monthKeys: monthFilters,
@@ -490,7 +490,7 @@ export default function OverSpeedDashboard({
     [lang],
   );
 
-  if (loading || refreshing) {
+  if (loading) {
     return (
       <DashboardShell title={dashboardName} subtitle={lang === 'th' ? 'แดชบอร์ดความเร็วเกินกำหนด' : 'OverSpeed dashboard'} lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
         <div className="flex flex-col gap-6">
@@ -508,8 +508,10 @@ export default function OverSpeedDashboard({
           <LoadingState
             lang={lang}
             message={
-              refreshing
-                ? (lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…')
+              progress
+                ? (lang === 'th'
+                    ? `กำลังโหลดเดือนที่เลือก… ${Math.round((progress.done / progress.total) * 100)}%`
+                    : `Loading selected month… ${Math.round((progress.done / progress.total) * 100)}%`)
                 : (lang === 'th' ? 'กำลังโหลด…' : 'Loading overspeed dashboard')
             }
             detail={lang === 'th' ? 'กำลังดึงข้อมูลความเร็วเกินกำหนด' : 'Fetching overspeed data.'}
@@ -552,6 +554,12 @@ export default function OverSpeedDashboard({
       }
     >
       <div className="flex flex-col gap-6">
+        {refreshing && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
+            {lang === 'th' ? 'กำลังโหลดข้อมูลเพิ่มเติม…' : 'Loading more data…'}
+            {progress ? ` ${Math.round((progress.done / progress.total) * 100)}%` : ''}
+          </p>
+        )}
 
         {/* ① Filters */}
         <FilterBar>

@@ -37,11 +37,23 @@ function gvizBase(sheetId: string, gid: string): string {
   );
 }
 
-/** Detect the first date/datetime-typed column; fall back to "A". */
+type DetectedSheetMeta = { orderColId: string; columns: GoogleSheetColumn[] };
+
+// Detection costs a full GViz round-trip (~10s on large sheets) and the answer is
+// stable, so cache it per sheet. On Vercel, warm function instances reuse this map,
+// halving the latency of every chunked date-range request.
+const detectCache = new Map<string, { meta: DetectedSheetMeta; fetchedAt: number }>();
+const DETECT_TTL_MS = 10 * 60 * 1000;
+
+/** Detect the first date/datetime-typed column; fall back to "A". Cached per sheet. */
 export async function detectSheetDateColumn(
   sheetId: string,
   gid: string,
-): Promise<{ orderColId: string; columns: GoogleSheetColumn[] }> {
+): Promise<DetectedSheetMeta> {
+  const key = `${sheetId}:${gid}`;
+  const hit = detectCache.get(key);
+  if (hit && Date.now() - hit.fetchedAt <= DETECT_TTL_MS) return hit.meta;
+
   const meta = await fetch(buildGvizJsonUrl(sheetId, gid, { rowLimit: 1 }), {
     headers: UA,
     cache: 'no-store',
@@ -51,10 +63,14 @@ export async function detectSheetDateColumn(
   }
   const parsed = parseGoogleSheetGvizText(await meta.text());
   const dateIdx = parsed.columns.findIndex((c) => c.type === 'datetime' || c.type === 'date');
-  return {
+  const result: DetectedSheetMeta = {
     orderColId: dateIdx >= 0 ? gvizColumnLetter(dateIdx) : 'A',
     columns: parsed.columns,
   };
+  if (result.columns.length > 0) {
+    detectCache.set(key, { meta: result, fetchedAt: Date.now() });
+  }
+  return result;
 }
 
 /**

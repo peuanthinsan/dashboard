@@ -7,15 +7,23 @@ import {
   parseGoogleSheetGvizText,
 } from './googleSheetParse';
 import {
+  buildDatedRowsWhere,
+  buildGvizJsonUrl,
+  gvizColumnLetter,
   monthKeyToDateRange,
-  SHEET_CHUNK_DAYS,
   splitDateRangeIntoChunks,
 } from './googleSheetGvizUrl';
+import { buildAlertColumnSelect } from './googleSheetFetch';
 
 export type SheetMonthOption = {
   key: string;
   label: string;
   count: number;
+};
+
+export type SheetLoadProgress = {
+  done: number;
+  total: number;
 };
 
 type UseGoogleSheetOptions = {
@@ -27,7 +35,7 @@ type UseGoogleSheetOptions = {
    * Month-scoped fetch mode (alert dashboards on large sheets):
    * - `undefined` — legacy "most recent 25k" (Driving / Video / etc.).
    * - `[]` — load the month catalogue only; wait for a selection before fetching rows.
-   * - `['2026-06', …]` — fetch those months via 2-day chunks.
+   * - `['2026-06', …]` — fetch those months in chunks, rendered progressively.
    */
   monthKeys?: string[];
   /**
@@ -41,10 +49,12 @@ type UseGoogleSheetOptions = {
 type SheetResponse = {
   columns: GoogleSheetColumn[];
   rows: GoogleSheetRow[];
-  /** True only while the first payload is loading (no rows yet / initial mount). */
+  /** True while there is nothing to render yet (first paint). */
   loading: boolean;
-  /** True while a month switch / refresh is in flight. */
+  /** True while more chunks are still arriving; partial rows are already visible. */
   refreshing: boolean;
+  /** Chunk progress for the current month load (null when idle). */
+  progress: SheetLoadProgress | null;
   error: string | null;
   lastUpdated: Date | null;
   refresh: () => void;
@@ -59,15 +69,27 @@ type CachedSheet = {
   availableMonths?: SheetMonthOption[];
 };
 
+type SheetMeta = { orderColId: string; select: string };
+
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const CATALOG_TTL_MS = 10 * 60 * 1000;
 const MAX_CACHE_CHARS = 2_000_000;
-/** Bump when fetch semantics change (timeout vs abort, no empty-cache). */
-const CACHE_VERSION = 'v7';
+/** Bump when fetch semantics change (direct GViz chunks + progressive apply). */
+const CACHE_VERSION = 'v8';
 const memoryCache = new Map<string, CachedSheet>();
 const catalogCache = new Map<string, { months: SheetMonthOption[]; fetchedAt: number }>();
-const CHUNK_DAYS = SHEET_CHUNK_DAYS;
-const FETCH_CONCURRENCY = 4;
-/** Per-chunk timeout. Dense May/June windows can take 20–30s through the proxy. */
+const metaCache = new Map<string, { meta: SheetMeta; fetchedAt: number }>();
+/** Sheets where direct browser→GViz failed (CORS/permission); use the proxy instead. */
+const directBroken = new Set<string>();
+
+/**
+ * Direct browser→GViz chunks skip the Vercel proxy (no ~4.5 MB response cap and no
+ * serverless hop), so they can be week-sized: 5 requests per month instead of 15.
+ */
+const DIRECT_CHUNK_DAYS = 7;
+/** Proxy fallback chunks must stay under the serverless payload limit (≤4-day guard). */
+const PROXY_CHUNK_DAYS = 3;
+const FETCH_CONCURRENCY = 5;
 const CHUNK_TIMEOUT_MS = 60_000;
 
 class ChunkTimeoutError extends Error {
@@ -87,7 +109,7 @@ const buildApiUrl = (sheetId: string, gid: string, query?: Record<string, string
   return `${base}?${params.toString()}`;
 };
 
-const catalogCacheKey = (sheetId: string, gid: string) => `${sheetId}:${gid}`;
+const sheetKey = (sheetId: string, gid: string) => `${sheetId}:${gid}`;
 
 function isAbortError(err: unknown): boolean {
   return (
@@ -132,6 +154,31 @@ async function fetchWithTimeout(
   }
 }
 
+/** Detect the timestamp column + pruned select directly from GViz. Cached per sheet. */
+async function getSheetMeta(
+  sheetId: string,
+  gid: string,
+  signal: AbortSignal,
+): Promise<SheetMeta> {
+  const key = sheetKey(sheetId, gid);
+  const hit = metaCache.get(key);
+  if (hit && Date.now() - hit.fetchedAt <= CATALOG_TTL_MS) return hit.meta;
+
+  const res = await fetchWithTimeout(
+    buildGvizJsonUrl(sheetId, gid, { rowLimit: 1 }),
+    signal,
+  );
+  if (!res.ok) throw new Error('Unable to read the sheet header.');
+  const parsed = parseGoogleSheetGvizText(await res.text());
+  const dateIdx = parsed.columns.findIndex((c) => c.type === 'datetime' || c.type === 'date');
+  const meta: SheetMeta = {
+    orderColId: dateIdx >= 0 ? gvizColumnLetter(dateIdx) : 'A',
+    select: buildAlertColumnSelect(parsed.columns),
+  };
+  metaCache.set(key, { meta, fetchedAt: Date.now() });
+  return meta;
+}
+
 export default function useGoogleSheet({
   sheetId,
   gid,
@@ -147,6 +194,7 @@ export default function useGoogleSheet({
   const [availableMonths, setAvailableMonths] = useState<SheetMonthOption[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [refreshing, setRefreshing] = useState(false);
+  const [progress, setProgress] = useState<SheetLoadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const fetchGen = useRef(0);
@@ -160,16 +208,12 @@ export default function useGoogleSheet({
 
   const readCache = useCallback(() => {
     if (typeof window === 'undefined') return null;
+    const isRealMonthFetch = monthScoped && monthKeySig && monthKeySig !== 'NONE';
     const cachedMemory = memoryCache.get(cacheKey);
     if (cachedMemory) {
-      // Never treat an empty month payload as a hit — it is almost always a
-      // failed/aborted fetch that got written before v7, and it locks the UI at 0.
-      if (
-        cachedMemory.rows.length === 0 &&
-        monthScoped &&
-        monthKeySig &&
-        monthKeySig !== 'NONE'
-      ) {
+      // Never treat an empty month payload as a hit — it is almost always a failed
+      // fetch and it locks the UI at 0.
+      if (cachedMemory.rows.length === 0 && isRealMonthFetch) {
         memoryCache.delete(cacheKey);
       } else if (Date.now() - cachedMemory.lastUpdated <= CACHE_TTL_MS) {
         return cachedMemory;
@@ -191,7 +235,7 @@ export default function useGoogleSheet({
         window.localStorage.removeItem(`google-sheet:${cacheKey}`);
         return null;
       }
-      if (parsed.rows.length === 0 && monthScoped && monthKeySig && monthKeySig !== 'NONE') {
+      if (parsed.rows.length === 0 && isRealMonthFetch) {
         memoryCache.delete(cacheKey);
         window.localStorage.removeItem(`google-sheet:${cacheKey}`);
         return null;
@@ -228,21 +272,64 @@ export default function useGoogleSheet({
 
   const fetchMonthCatalog = useCallback(
     async (signal: AbortSignal): Promise<SheetMonthOption[]> => {
-      const key = catalogCacheKey(sheetId, gid);
+      const key = sheetKey(sheetId, gid);
       const hit = catalogCache.get(key);
-      if (hit && Date.now() - hit.fetchedAt <= CACHE_TTL_MS) return hit.months;
+      if (hit && Date.now() - hit.fetchedAt <= CATALOG_TTL_MS) return hit.months;
+
+      // localStorage survives reloads — the catalogue is expensive (GViz group-by
+      // scans the whole sheet) and rarely changes.
+      const lsKey = `google-sheet-months:${key}`;
+      try {
+        const raw = window.localStorage.getItem(lsKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { months: SheetMonthOption[]; fetchedAt: number };
+          if (parsed?.fetchedAt && Date.now() - parsed.fetchedAt <= CATALOG_TTL_MS) {
+            catalogCache.set(key, { months: parsed.months, fetchedAt: parsed.fetchedAt });
+            return parsed.months;
+          }
+        }
+      } catch {
+        // Ignore storage failures.
+      }
 
       const res = await fetchWithTimeout(buildApiUrl(sheetId, gid, { mode: 'months' }), signal);
       if (!res.ok) throw new Error('Unable to list sheet months.');
       const data = (await res.json()) as { months?: SheetMonthOption[] };
       const months = Array.isArray(data.months) ? data.months : [];
       catalogCache.set(key, { months, fetchedAt: Date.now() });
+      try {
+        window.localStorage.setItem(lsKey, JSON.stringify({ months, fetchedAt: Date.now() }));
+      } catch {
+        // Ignore storage failures.
+      }
       return months;
     },
     [gid, sheetId],
   );
 
-  const fetchDateChunk = useCallback(
+  /** One chunk, straight from Google (fast path — no serverless hop, no payload cap). */
+  const fetchDirectChunk = useCallback(
+    async (
+      meta: SheetMeta,
+      from: string,
+      to: string,
+      signal: AbortSignal,
+    ): Promise<CachedSheet> => {
+      const url = buildGvizJsonUrl(sheetId, gid, {
+        rowLimit: 50_000,
+        where: buildDatedRowsWhere(meta.orderColId, from, to, 'A'),
+        select: meta.select,
+      });
+      const res = await fetchWithTimeout(url, signal);
+      if (!res.ok) throw new Error('Unable to fetch the Google Sheet data.');
+      const parsed = parseGoogleSheetGvizText(await res.text());
+      return { columns: parsed.columns, rows: parsed.rows, lastUpdated: Date.now() };
+    },
+    [gid, sheetId],
+  );
+
+  /** One chunk via the authenticated proxy (fallback when direct GViz is blocked). */
+  const fetchProxyChunk = useCallback(
     async (from: string, to: string, signal: AbortSignal): Promise<CachedSheet> => {
       const res = await fetchWithTimeout(buildApiUrl(sheetId, gid, { from, to }), signal);
       if (!res.ok) throw new Error('Unable to fetch the Google Sheet data.');
@@ -256,44 +343,86 @@ export default function useGoogleSheet({
     [gid, sheetId],
   );
 
-  const fetchMonths = useCallback(
-    async (keys: string[], signal: AbortSignal): Promise<CachedSheet> => {
-      // Fetch one calendar month at a time so a timeout in June doesn't wipe April/May,
-      // and so multi-month selections (Apr+May+Jun ≈ 45 chunks) stay manageable.
+  const runChunkJobs = useCallback(
+    async (
+      jobs: Array<{ start: string; endExclusive: string }>,
+      runJob: (from: string, to: string) => Promise<CachedSheet>,
+      signal: AbortSignal,
+      onPartial: (acc: CachedSheet, done: number, total: number) => void,
+    ): Promise<CachedSheet> => {
       let columnsAcc: GoogleSheetColumn[] = [];
       const rowsAcc: GoogleSheetRow[] = [];
+      let done = 0;
 
-      for (const key of keys) {
-        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-        const range = monthKeyToDateRange(key);
-        if (!range) continue;
-        const chunkJobs = splitDateRangeIntoChunks(range.start, range.endExclusive, CHUNK_DAYS);
-        const parts: CachedSheet[] = new Array(chunkJobs.length);
-        let next = 0;
-        const worker = async () => {
-          while (next < chunkJobs.length) {
-            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-            const i = next++;
-            const chunk = chunkJobs[i]!;
-            parts[i] = await fetchDateChunk(chunk.start, chunk.endExclusive, signal);
-          }
-        };
-        await Promise.all(
-          Array.from(
-            { length: Math.min(FETCH_CONCURRENCY, Math.max(chunkJobs.length, 1)) },
-            () => worker(),
-          ),
-        );
-        for (const part of parts) {
-          if (!part) continue;
-          if (columnsAcc.length === 0) columnsAcc = part.columns;
+      let next = 0;
+      const worker = async () => {
+        while (next < jobs.length) {
+          if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+          const i = next++;
+          const job = jobs[i]!;
+          const part = await runJob(job.start, job.endExclusive);
+          if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+          if (columnsAcc.length === 0 && part.columns.length > 0) columnsAcc = part.columns;
           rowsAcc.push(...part.rows);
+          done += 1;
+          onPartial(
+            { columns: columnsAcc, rows: rowsAcc, lastUpdated: Date.now() },
+            done,
+            jobs.length,
+          );
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(FETCH_CONCURRENCY, Math.max(jobs.length, 1)) }, () =>
+          worker(),
+        ),
+      );
+      return { columns: columnsAcc, rows: rowsAcc, lastUpdated: Date.now() };
+    },
+    [],
+  );
+
+  const fetchMonths = useCallback(
+    async (
+      keys: string[],
+      signal: AbortSignal,
+      onPartial: (acc: CachedSheet, done: number, total: number) => void,
+    ): Promise<CachedSheet> => {
+      const buildJobs = (chunkDays: number) => {
+        const jobs: Array<{ start: string; endExclusive: string }> = [];
+        for (const key of keys) {
+          const range = monthKeyToDateRange(key);
+          if (!range) continue;
+          jobs.push(...splitDateRangeIntoChunks(range.start, range.endExclusive, chunkDays));
+        }
+        return jobs;
+      };
+
+      const key = sheetKey(sheetId, gid);
+      if (!directBroken.has(key)) {
+        try {
+          const meta = await getSheetMeta(sheetId, gid, signal);
+          return await runChunkJobs(
+            buildJobs(DIRECT_CHUNK_DAYS),
+            (from, to) => fetchDirectChunk(meta, from, to, signal),
+            signal,
+            onPartial,
+          );
+        } catch (err) {
+          if (signal.aborted || isAbortError(err)) throw err;
+          // Direct GViz blocked or flaky for this sheet — remember and fall back.
+          directBroken.add(key);
         }
       }
 
-      return { columns: columnsAcc, rows: rowsAcc, lastUpdated: Date.now() };
+      return runChunkJobs(
+        buildJobs(PROXY_CHUNK_DAYS),
+        (from, to) => fetchProxyChunk(from, to, signal),
+        signal,
+        onPartial,
+      );
     },
-    [fetchDateChunk],
+    [fetchDirectChunk, fetchProxyChunk, gid, runChunkJobs, sheetId],
   );
 
   const fetchRecent = useCallback(
@@ -321,7 +450,6 @@ export default function useGoogleSheet({
         return await tryFetch(buildApiUrl(sheetId, gid), true);
       } catch (err) {
         if (signal.aborted || isAbortError(err)) throw err;
-        if (err instanceof ChunkTimeoutError) throw err;
         return await tryFetch(buildSheetUrl(sheetId, gid), false);
       }
     },
@@ -344,6 +472,7 @@ export default function useGoogleSheet({
       setAvailableMonths([]);
       setLoading(false);
       setRefreshing(false);
+      setProgress(null);
       setError(null);
       setLastUpdated(null);
       loadedMonthSigRef.current = null;
@@ -363,6 +492,7 @@ export default function useGoogleSheet({
       applyPayload(cached, targetSig);
       setLoading(false);
       setRefreshing(false);
+      setProgress(null);
       setError(null);
       return;
     }
@@ -372,17 +502,20 @@ export default function useGoogleSheet({
       loadedMonthSigRef.current !== null &&
       loadedMonthSigRef.current !== targetSig;
 
+    // Drop stale rows immediately on month change so client-side month filters
+    // don't zero out KPIs against the previous month's data.
     if (switchingMonths) {
       setRows([]);
       setColumns([]);
-      setRefreshing(true);
-      setLoading(false);
+      setLoading(true);
+      setRefreshing(false);
     } else if (loadedMonthSigRef.current === null) {
       setLoading(true);
       setRefreshing(false);
     } else {
       setRefreshing(true);
     }
+    setProgress(null);
     setError(null);
 
     try {
@@ -394,12 +527,7 @@ export default function useGoogleSheet({
           setAvailableMonths(months);
         } catch (err) {
           if (signal.aborted || isAbortError(err)) return;
-          if (err instanceof ChunkTimeoutError) {
-            // Catalogue timeout is non-fatal if we can still load rows.
-            months = [];
-          } else {
-            months = [];
-          }
+          months = [];
         }
       }
 
@@ -414,9 +542,23 @@ export default function useGoogleSheet({
         return;
       }
 
-      const result = monthScoped
-        ? await fetchMonths(monthKeys!, signal)
-        : await fetchRecent(signal);
+      let result: CachedSheet;
+      if (monthScoped) {
+        result = await fetchMonths(monthKeys!, signal, (acc, done, total) => {
+          if (gen !== fetchGen.current) return;
+          // Progressive apply: show data as soon as the first chunk lands.
+          setColumns([...acc.columns]);
+          setRows([...acc.rows]);
+          setLastUpdated(new Date(acc.lastUpdated));
+          setProgress({ done, total });
+          if (acc.rows.length > 0) {
+            setLoading(false);
+            setRefreshing(done < total);
+          }
+        });
+      } else {
+        result = await fetchRecent(signal);
+      }
       if (gen !== fetchGen.current) return;
 
       const payload: CachedSheet = {
@@ -440,6 +582,7 @@ export default function useGoogleSheet({
       if (gen === fetchGen.current) {
         setLoading(false);
         setRefreshing(false);
+        setProgress(null);
       }
     }
   }, [
@@ -468,6 +611,7 @@ export default function useGoogleSheet({
     rows,
     loading,
     refreshing,
+    progress,
     error,
     lastUpdated,
     refresh: fetchSheet,

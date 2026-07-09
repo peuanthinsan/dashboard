@@ -111,7 +111,7 @@ export default function SimpleDashboard({
     () => (filters.month ? [filters.month] : []),
     [filters.month],
   );
-  const { rows, columns: sheetColumns, loading, refreshing, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
+  const { rows, columns: sheetColumns, loading, refreshing, progress, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
     monthKeys: monthKeysForFetch,
@@ -603,20 +603,28 @@ export default function SimpleDashboard({
             )}
           </FilterBar>
 
-          {(loading || refreshing || error) ? (
+          {(loading || error) ? (
             <LoadingState
               error={error ?? undefined}
               onRetry={refresh}
               lang={lang}
               message={
-                refreshing
-                  ? (lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…')
+                progress
+                  ? (lang === 'th'
+                      ? `กำลังโหลดเดือนที่เลือก… ${Math.round((progress.done / progress.total) * 100)}%`
+                      : `Loading selected month… ${Math.round((progress.done / progress.total) * 100)}%`)
                   : (lang === 'th' ? 'กำลังโหลด…' : 'Loading…')
               }
               fallbackDetail={copy.loadingDetail}
             />
           ) : (
           <>
+          {refreshing && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
+              {lang === 'th' ? 'กำลังโหลดข้อมูลเพิ่มเติม…' : 'Loading more data…'}
+              {progress ? ` ${Math.round((progress.done / progress.total) * 100)}%` : ''}
+            </p>
+          )}
           {/* KPIs — one row, the only numbers that matter */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard

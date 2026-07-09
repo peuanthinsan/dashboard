@@ -179,7 +179,7 @@ export default function DetailDashboard({
     trendRemarkFilter: 'all',
   });
   const { monthFilters, dayFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter } = filters;
-  const { rows, columns: sheetColumns, loading, refreshing, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
+  const { rows, columns: sheetColumns, loading, refreshing, progress, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
     monthKeys: monthFilters,
@@ -960,7 +960,7 @@ export default function DetailDashboard({
         />
       }
     >
-      {loading || refreshing || error ? (
+      {loading || error ? (
         <div className="flex flex-col gap-6">
           {/* Keep month picker usable while a month fetch is in flight. */}
           <FilterBar>
@@ -989,8 +989,10 @@ export default function DetailDashboard({
           <LoadingState
             lang={lang}
             message={
-              refreshing
-                ? (lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…')
+              progress
+                ? (lang === 'th'
+                    ? `กำลังโหลดเดือนที่เลือก… ${Math.round((progress.done / progress.total) * 100)}%`
+                    : `Loading selected month… ${Math.round((progress.done / progress.total) * 100)}%`)
                 : (lang === 'th' ? 'กำลังโหลดการแจ้งเตือนแบบละเอียด...' : 'Loading detailed alerts...')
             }
             detail={lang === 'th' ? 'กำลังสร้างไทม์ไลน์การแจ้งเตือนล่าสุด' : 'Building the latest alert timeline.'}
@@ -1001,6 +1003,12 @@ export default function DetailDashboard({
         </div>
       ) : (
         <div>
+          {refreshing && (
+            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
+              {lang === 'th' ? 'กำลังโหลดข้อมูลเพิ่มเติม…' : 'Loading more data…'}
+              {progress ? ` ${Math.round((progress.done / progress.total) * 100)}%` : ''}
+            </p>
+          )}
           {/* ── Filters ── */}
           <FilterBar>
             <InlineMonthPicker
