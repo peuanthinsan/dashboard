@@ -11,6 +11,47 @@ const MAX_ROW_LIMIT = 50_000;
 export const DEFAULT_SHEET_ROW_LIMIT = 25_000;
 
 /**
+ * Day-window size for month-scoped chunk fetches.
+ * Full-row 7-day windows on PoonNok are ~16 MB (over Vercel's ~4.5 MB response limit).
+ * 2-day pruned windows (with videoURL) stay ~2–3.5 MB even on dense May weeks.
+ */
+export const SHEET_CHUNK_DAYS = 2;
+
+/**
+ * Labels of columns alert dashboards actually read. Used to build a pruned GViz
+ * `select` so date-range responses stay under the serverless payload limit.
+ * Matched case-insensitively against the sheet's header row.
+ */
+export const ALERT_SHEET_COLUMN_LABELS = [
+  'id',
+  'SlNo',
+  'Sl No',
+  'Vehicle No',
+  'Vehicle No TH',
+  'Plate',
+  'Driver Name',
+  'Alert Type',
+  'Alert Date Time',
+  'Track Time',
+  'Date',
+  'DateTime',
+  'Start Time',
+  'Speed',
+  'Max Speed',
+  'Spd',
+  'Over Speed',
+  'OverSpeed',
+  'videoURL',
+  'Videoit',
+  'Remarks',
+  'Fleet',
+  'User',
+  'Location',
+  'Address',
+  'Landmark',
+] as const;
+
+/**
  * GViz/spreadsheet column reference for a zero-based column index:
  * 0 → "A", 25 → "Z", 26 → "AA". Used to build `order by <col>` clauses.
  */

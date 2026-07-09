@@ -46,8 +46,8 @@ async function authorize(sheetId: string, gid: string) {
  * - (default) — 25k most-recent rows by timestamp, excluding null-id poison rows.
  *
  * Large alert sheets (e.g. PoonNok ~245k rows) cannot fit in one response. Clients
- * should call `mode=months`, then fetch each selected month as week-sized `from`/`to`
- * chunks and merge client-side.
+ * should call `mode=months`, then fetch each selected month as 2-day `from`/`to`
+ * chunks (pruned columns) and merge client-side.
  */
 export async function GET(
   request: Request,
@@ -82,12 +82,14 @@ export async function GET(
           { status: 400 },
         );
       }
-      // Guard against accidental full-sheet pulls: max 31-day window per request.
+      // Guard against accidental full-month pulls: dense alert sheets blow past the
+      // ~4.5 MB response limit beyond a few days even with pruned columns. Clients
+      // should use SHEET_CHUNK_DAYS (2) windows; allow a little headroom.
       const fromMs = Date.parse(`${from}T00:00:00Z`);
       const toMs = Date.parse(`${to}T00:00:00Z`);
-      if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs - fromMs > 31 * 86_400_000) {
+      if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs - fromMs > 4 * 86_400_000) {
         return NextResponse.json(
-          { error: 'from/to window must be at most 31 days' },
+          { error: 'from/to window must be at most 4 days' },
           { status: 400 },
         );
       }

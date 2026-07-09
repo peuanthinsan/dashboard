@@ -102,6 +102,15 @@ describe('splitDateRangeIntoChunks', () => {
     ]);
   });
 
+  it('splits a month into 2-day windows (production chunk size)', () => {
+    const chunks = splitDateRangeIntoChunks('2026-06-01', '2026-06-07', 2);
+    expect(chunks).toEqual([
+      { start: '2026-06-01', endExclusive: '2026-06-03' },
+      { start: '2026-06-03', endExclusive: '2026-06-05' },
+      { start: '2026-06-05', endExclusive: '2026-06-07' },
+    ]);
+  });
+
   it('returns empty for inverted or equal ranges', () => {
     expect(splitDateRangeIntoChunks('2026-07-01', '2026-06-01', 7)).toEqual([]);
     expect(splitDateRangeIntoChunks('2026-06-01', '2026-06-01', 7)).toEqual([]);

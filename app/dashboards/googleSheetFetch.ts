@@ -1,4 +1,5 @@
 import {
+  ALERT_SHEET_COLUMN_LABELS,
   buildDatedRowsWhere,
   buildGvizJsonUrl,
   buildMonthListQuery,
@@ -6,6 +7,7 @@ import {
   DEFAULT_SHEET_ROW_LIMIT,
   gvizColumnLetter,
   monthKeyToDateRange,
+  SHEET_CHUNK_DAYS,
   splitDateRangeIntoChunks,
 } from './googleSheetGvizUrl';
 import {
@@ -56,6 +58,38 @@ export async function detectSheetDateColumn(
 }
 
 /**
+ * Build a GViz `select` of column letters for headers that match ALERT_SHEET_COLUMN_LABELS.
+ * Always includes column A (id) so the null-id poison filter still works.
+ * Falls back to `*` when nothing matches (unknown sheet shape).
+ *
+ * Omits videoURL by default — those cells are long URLs that push dense 2–3 day
+ * windows over Vercel's ~4.5 MB response limit. Detail's video evidence is empty
+ * for month-scoped loads on huge sheets; Summary/Simple/OverSpeed don't need it.
+ */
+export function buildAlertColumnSelect(columns: GoogleSheetColumn[]): string {
+  const wanted = new Set(ALERT_SHEET_COLUMN_LABELS.map((l) => l.trim().toLowerCase()));
+  // Drop video columns from the prune set — too large for dense chunks.
+  wanted.delete('videourl');
+  wanted.delete('videoit');
+
+  const letters: string[] = [];
+  const seen = new Set<string>();
+  columns.forEach((col, index) => {
+    const letter = gvizColumnLetter(index);
+    if (index === 0) {
+      letters.push(letter);
+      seen.add(letter);
+      return;
+    }
+    if (wanted.has(col.label.trim().toLowerCase()) && !seen.has(letter)) {
+      letters.push(letter);
+      seen.add(letter);
+    }
+  });
+  return letters.length > 1 ? letters.join(',') : '*';
+}
+
+/**
  * List calendar months present in the sheet (non-null id rows only).
  * GViz month() is 0-based — we add 1 when building YYYY-MM keys.
  */
@@ -70,7 +104,7 @@ export async function listSheetMonths(sheetId: string, gid: string): Promise<She
 
   const months: SheetMonthOption[] = [];
   for (const row of parsed.rows) {
-    // year()/month()/count() produce unlabeled cols → fieldKeys "Column 1"…
+    // year()/month()/count() produce labeled cols like "year(Alert Date Time)".
     const values = Object.values(row);
     const year = Number(values[0]);
     const month0 = Number(values[1]);
@@ -95,12 +129,14 @@ export async function fetchRecentSheetRows(
   gid: string,
   rowLimit = DEFAULT_SHEET_ROW_LIMIT,
 ): Promise<SheetFetchResult> {
-  const { orderColId } = await detectSheetDateColumn(sheetId, gid);
+  const { orderColId, columns } = await detectSheetDateColumn(sheetId, gid);
+  const select = buildAlertColumnSelect(columns);
   const url = buildGvizJsonUrl(sheetId, gid, {
     rowLimit,
     recentFirst: true,
     orderColId,
     where: buildNonNullIdWhere('A'),
+    select,
   });
   const res = await fetch(url, { headers: UA, cache: 'no-store' });
   if (!res.ok) throw new Error('Unable to fetch the Google Sheet data.');
@@ -109,7 +145,7 @@ export async function fetchRecentSheetRows(
 
 /**
  * Fetch rows in [fromIso, toIso) with a non-null id, capped at rowLimit.
- * Keep the window ≤ ~7 days on high-volume alert sheets so the response stays under ~20 MB.
+ * Columns are pruned to ALERT_SHEET_COLUMN_LABELS so dense windows stay under ~4.5 MB.
  */
 export async function fetchSheetDateRange(
   sheetId: string,
@@ -118,25 +154,27 @@ export async function fetchSheetDateRange(
   toIso: string,
   rowLimit = DEFAULT_SHEET_ROW_LIMIT,
 ): Promise<SheetFetchResult> {
-  const { orderColId } = await detectSheetDateColumn(sheetId, gid);
+  const { orderColId, columns } = await detectSheetDateColumn(sheetId, gid);
   if (orderColId === 'A') {
     return fetchRecentSheetRows(sheetId, gid, rowLimit);
   }
+  const select = buildAlertColumnSelect(columns);
   const url = buildGvizJsonUrl(sheetId, gid, {
     rowLimit,
     where: buildDatedRowsWhere(orderColId, fromIso, toIso, 'A'),
+    select,
   });
   const res = await fetch(url, { headers: UA, cache: 'no-store' });
   if (!res.ok) throw new Error('Unable to fetch the Google Sheet data.');
   return parseGoogleSheetGvizText(await res.text());
 }
 
-/** Week-chunk a calendar month and merge (server-side helper; prefer client chunking for large months). */
+/** Chunk a calendar month and merge (server-side helper; prefer client chunking). */
 export async function fetchSheetMonth(
   sheetId: string,
   gid: string,
   monthKey: string,
-  chunkDays = 7,
+  chunkDays = SHEET_CHUNK_DAYS,
 ): Promise<SheetFetchResult> {
   const range = monthKeyToDateRange(monthKey);
   if (!range) throw new Error(`Invalid month key: ${monthKey}`);

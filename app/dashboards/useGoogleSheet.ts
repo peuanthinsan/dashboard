@@ -8,6 +8,7 @@ import {
 } from './googleSheetParse';
 import {
   monthKeyToDateRange,
+  SHEET_CHUNK_DAYS,
   splitDateRangeIntoChunks,
 } from './googleSheetGvizUrl';
 
@@ -58,9 +59,9 @@ type CachedSheet = {
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_CHARS = 2_000_000;
 /** Bump when fetch semantics change (month-scoped / poison-row filter). */
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const memoryCache = new Map<string, CachedSheet>();
-const CHUNK_DAYS = 7;
+const CHUNK_DAYS = SHEET_CHUNK_DAYS;
 
 const buildSheetUrl = (sheetId: string, gid: string) =>
   `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
@@ -167,17 +168,35 @@ export default function useGoogleSheet({
 
   const fetchMonths = useCallback(
     async (keys: string[]): Promise<CachedSheet> => {
-      let columnsAcc: GoogleSheetColumn[] = [];
-      const rowsAcc: GoogleSheetRow[] = [];
+      const chunkJobs: Array<{ start: string; endExclusive: string }> = [];
       for (const key of keys) {
         const range = monthKeyToDateRange(key);
         if (!range) continue;
-        const chunks = splitDateRangeIntoChunks(range.start, range.endExclusive, CHUNK_DAYS);
-        for (const chunk of chunks) {
-          const part = await fetchDateChunk(chunk.start, chunk.endExclusive);
-          if (columnsAcc.length === 0) columnsAcc = part.columns;
-          rowsAcc.push(...part.rows);
+        chunkJobs.push(...splitDateRangeIntoChunks(range.start, range.endExclusive, CHUNK_DAYS));
+      }
+
+      // Parallelize with a small concurrency cap — June is ~15 two-day chunks and
+      // sequential GViz round-trips were timing out the spinner for users.
+      const CONCURRENCY = 4;
+      const parts: CachedSheet[] = new Array(chunkJobs.length);
+      let next = 0;
+      async function worker() {
+        while (next < chunkJobs.length) {
+          const i = next++;
+          const chunk = chunkJobs[i]!;
+          parts[i] = await fetchDateChunk(chunk.start, chunk.endExclusive);
         }
+      }
+      await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, Math.max(chunkJobs.length, 1)) }, () => worker()),
+      );
+
+      let columnsAcc: GoogleSheetColumn[] = [];
+      const rowsAcc: GoogleSheetRow[] = [];
+      for (const part of parts) {
+        if (!part) continue;
+        if (columnsAcc.length === 0) columnsAcc = part.columns;
+        rowsAcc.push(...part.rows);
       }
       return { columns: columnsAcc, rows: rowsAcc, lastUpdated: Date.now() };
     },
