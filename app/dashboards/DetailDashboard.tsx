@@ -179,7 +179,7 @@ export default function DetailDashboard({
     trendRemarkFilter: 'all',
   });
   const { monthFilters, dayFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter } = filters;
-  const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
+  const { rows, columns: sheetColumns, loading, refreshing, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
     monthKeys: monthFilters,
@@ -976,7 +976,12 @@ export default function DetailDashboard({
           onRetry={refresh}
         />
       ) : (
-        <>
+        <div className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+          {refreshing && (
+            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
+              {lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…'}
+            </p>
+          )}
           {/* ── Filters ── */}
           <FilterBar>
             <InlineMonthPicker
@@ -1341,7 +1346,7 @@ export default function DetailDashboard({
               />
             </div>
           </section>
-        </>
+        </div>
       )}
     </DashboardShell>
   );

@@ -108,7 +108,7 @@ export default function SummaryDashboard({
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
   // Month-scoped fetch: selected months load in week chunks so large sheets
   // (PoonNok ~245k rows) still expose April/June. Empty selection = catalogue only.
-  const { rows, columns: sheetColumns, loading, error, lastUpdated, availableMonths } = useGoogleSheet({
+  const { rows, columns: sheetColumns, loading, refreshing, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
     monthKeys: monthFilters,
@@ -463,11 +463,16 @@ export default function SummaryDashboard({
           message={lang === 'th' ? 'กำลังโหลดภาพรวม…' : 'Loading summary…'}
           detail={lang === 'th' ? 'กำลังสรุป KPI ระดับสูง' : 'Compiling high-level KPI totals.'}
           error={error ?? undefined}
-          onRetry={() => window.location.reload()}
+          onRetry={refresh}
           lang={lang}
         />
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className={`flex flex-col gap-6${refreshing ? ' opacity-60 transition-opacity' : ''}`}>
+          {refreshing && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
+              {lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…'}
+            </p>
+          )}
 
           {/* ① Filters — set context first */}
           <FilterBar>

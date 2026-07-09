@@ -113,7 +113,7 @@ export default function OverSpeedDashboard({
   const storageKey = useMemo(() => `${dashboardId}-overspeed`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
-  const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
+  const { rows, columns: sheetColumns, loading, refreshing, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
     monthKeys: monthFilters,
@@ -502,7 +502,7 @@ export default function OverSpeedDashboard({
     );
   }
 
-  if (error) {
+  if (error && !refreshing) {
     return (
       <DashboardShell title={dashboardName} subtitle={lang === 'th' ? 'แดชบอร์ดความเร็วเกินกำหนด' : 'OverSpeed dashboard'} lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
         <LoadingState lang={lang} error={error} onRetry={refresh} />
@@ -534,7 +534,12 @@ export default function OverSpeedDashboard({
         />
       }
     >
-      <div className="flex flex-col gap-6">
+      <div className={`flex flex-col gap-6${refreshing ? ' opacity-60 transition-opacity' : ''}`}>
+        {refreshing && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
+            {lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…'}
+          </p>
+        )}
 
         {/* ① Filters */}
         <FilterBar>

@@ -27,7 +27,7 @@ type UseGoogleSheetOptions = {
    * Month-scoped fetch mode (alert dashboards on large sheets):
    * - `undefined` — legacy "most recent 25k" (Driving / Video / etc.).
    * - `[]` — load the month catalogue only; wait for a selection before fetching rows.
-   * - `['2026-06', …]` — fetch those months via week-sized chunks.
+   * - `['2026-06', …]` — fetch those months via 2-day chunks.
    */
   monthKeys?: string[];
   /**
@@ -41,7 +41,10 @@ type UseGoogleSheetOptions = {
 type SheetResponse = {
   columns: GoogleSheetColumn[];
   rows: GoogleSheetRow[];
+  /** True only while the first payload is loading (no rows yet). */
   loading: boolean;
+  /** True while a subsequent month/refresh fetch is in flight; prior rows stay visible. */
+  refreshing: boolean;
   error: string | null;
   lastUpdated: Date | null;
   refresh: () => void;
@@ -58,10 +61,12 @@ type CachedSheet = {
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_CHARS = 2_000_000;
-/** Bump when fetch semantics change (month-scoped / poison-row filter). */
-const CACHE_VERSION = 'v4';
+/** Bump when fetch semantics change (month-scoped / poison-row filter / soft refresh). */
+const CACHE_VERSION = 'v5';
 const memoryCache = new Map<string, CachedSheet>();
+const catalogCache = new Map<string, { months: SheetMonthOption[]; fetchedAt: number }>();
 const CHUNK_DAYS = SHEET_CHUNK_DAYS;
+const FETCH_CONCURRENCY = 4;
 
 const buildSheetUrl = (sheetId: string, gid: string) =>
   `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
@@ -72,6 +77,8 @@ const buildApiUrl = (sheetId: string, gid: string, query?: Record<string, string
   const params = new URLSearchParams(query);
   return `${base}?${params.toString()}`;
 };
+
+const catalogCacheKey = (sheetId: string, gid: string) => `${sheetId}:${gid}`;
 
 export default function useGoogleSheet({
   sheetId,
@@ -87,9 +94,11 @@ export default function useGoogleSheet({
   const [rows, setRows] = useState<GoogleSheetRow[]>([]);
   const [availableMonths, setAvailableMonths] = useState<SheetMonthOption[]>([]);
   const [loading, setLoading] = useState(enabled);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const fetchGen = useRef(0);
+  const hasRowsRef = useRef(false);
 
   const monthKeySig = monthKeys ? [...monthKeys].sort().join(',') : '';
   const cacheKey = `${CACHE_VERSION}:${sheetId}:${gid}:months=${
@@ -146,10 +155,16 @@ export default function useGoogleSheet({
   );
 
   const fetchMonthCatalog = useCallback(async (): Promise<SheetMonthOption[]> => {
+    const key = catalogCacheKey(sheetId, gid);
+    const hit = catalogCache.get(key);
+    if (hit && Date.now() - hit.fetchedAt <= CACHE_TTL_MS) return hit.months;
+
     const res = await fetch(buildApiUrl(sheetId, gid, { mode: 'months' }));
     if (!res.ok) throw new Error('Unable to list sheet months.');
     const data = (await res.json()) as { months?: SheetMonthOption[] };
-    return Array.isArray(data.months) ? data.months : [];
+    const months = Array.isArray(data.months) ? data.months : [];
+    catalogCache.set(key, { months, fetchedAt: Date.now() });
+    return months;
   }, [gid, sheetId]);
 
   const fetchDateChunk = useCallback(
@@ -175,9 +190,6 @@ export default function useGoogleSheet({
         chunkJobs.push(...splitDateRangeIntoChunks(range.start, range.endExclusive, CHUNK_DAYS));
       }
 
-      // Parallelize with a small concurrency cap — June is ~15 two-day chunks and
-      // sequential GViz round-trips were timing out the spinner for users.
-      const CONCURRENCY = 4;
       const parts: CachedSheet[] = new Array(chunkJobs.length);
       let next = 0;
       async function worker() {
@@ -188,7 +200,10 @@ export default function useGoogleSheet({
         }
       }
       await Promise.all(
-        Array.from({ length: Math.min(CONCURRENCY, Math.max(chunkJobs.length, 1)) }, () => worker()),
+        Array.from(
+          { length: Math.min(FETCH_CONCURRENCY, Math.max(chunkJobs.length, 1)) },
+          () => worker(),
+        ),
       );
 
       let columnsAcc: GoogleSheetColumn[] = [];
@@ -230,30 +245,43 @@ export default function useGoogleSheet({
     }
   }, [gid, sheetId]);
 
+  const applyPayload = useCallback((payload: CachedSheet) => {
+    setColumns(payload.columns);
+    setRows(payload.rows);
+    if (payload.availableMonths) setAvailableMonths(payload.availableMonths);
+    setLastUpdated(new Date(payload.lastUpdated));
+    hasRowsRef.current = payload.rows.length > 0 || payload.columns.length > 0;
+  }, []);
+
   const fetchSheet = useCallback(async () => {
     if (!enabled) {
       setColumns([]);
       setRows([]);
       setAvailableMonths([]);
       setLoading(false);
+      setRefreshing(false);
       setError(null);
       setLastUpdated(null);
+      hasRowsRef.current = false;
       return;
     }
 
     const gen = ++fetchGen.current;
     const cached = readCache();
     if (cached) {
-      setColumns(cached.columns);
-      setRows(cached.rows);
-      if (cached.availableMonths) setAvailableMonths(cached.availableMonths);
-      setLastUpdated(new Date(cached.lastUpdated));
+      applyPayload(cached);
       setLoading(false);
+      setRefreshing(false);
       setError(null);
       return;
     }
 
-    setLoading(true);
+    const soft = hasRowsRef.current;
+    if (soft) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -264,48 +292,46 @@ export default function useGoogleSheet({
           if (gen !== fetchGen.current) return;
           setAvailableMonths(months);
         } catch {
-          // Catalog failure is non-fatal when we can still load rows.
           months = [];
         }
       }
 
-      // Month-scoped with no selection yet: catalogue only (avoid pulling 245k rows).
-      // Stay in loading state — the dashboard's default-month effect will pick a
-      // month and re-trigger this fetch; flashing an empty table in between is worse.
+      // Month-scoped with no selection yet: catalogue only.
       if (monthScoped && (!monthKeys || monthKeys.length === 0)) {
         if (gen !== fetchGen.current) return;
-        setColumns([]);
-        setRows([]);
-        setLastUpdated(new Date());
-        // Keep loading=true so the spinner stays up until a month is selected.
+        // Keep prior rows if any; only spin on true first load.
+        if (!soft) {
+          setColumns([]);
+          setRows([]);
+          setLastUpdated(new Date());
+          // Stay in loading until a month is selected.
+          return;
+        }
+        setRefreshing(false);
         return;
       }
 
-      let result: CachedSheet;
-      if (monthScoped) {
-        result = await fetchMonths(monthKeys!);
-      } else {
-        result = await fetchRecent();
-      }
-
+      const result = monthScoped ? await fetchMonths(monthKeys!) : await fetchRecent();
       if (gen !== fetchGen.current) return;
 
       const payload: CachedSheet = {
         ...result,
         availableMonths: months.length > 0 ? months : undefined,
       };
-      setColumns(payload.columns);
-      setRows(payload.rows);
-      setLastUpdated(new Date(payload.lastUpdated));
+      applyPayload(payload);
       writeCache(payload);
     } catch (err) {
       if (gen !== fetchGen.current) return;
       const message = err instanceof Error ? err.message : 'Unable to fetch the Google Sheet data.';
       setError(message);
     } finally {
-      if (gen === fetchGen.current) setLoading(false);
+      if (gen === fetchGen.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [
+    applyPayload,
     enabled,
     fetchMonthCatalog,
     fetchMonths,
@@ -325,6 +351,7 @@ export default function useGoogleSheet({
     columns,
     rows,
     loading,
+    refreshing,
     error,
     lastUpdated,
     refresh: fetchSheet,

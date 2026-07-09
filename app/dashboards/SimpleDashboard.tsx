@@ -111,7 +111,7 @@ export default function SimpleDashboard({
     () => (filters.month ? [filters.month] : []),
     [filters.month],
   );
-  const { rows, columns: sheetColumns, loading, error, lastUpdated, availableMonths } = useGoogleSheet({
+  const { rows, columns: sheetColumns, loading, refreshing, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
     monthKeys: monthKeysForFetch,
@@ -560,13 +560,18 @@ export default function SimpleDashboard({
       {(loading || error) ? (
         <LoadingState
           error={error ?? undefined}
-          onRetry={() => window.location.reload()}
+          onRetry={refresh}
           lang={lang}
           message={lang === 'th' ? 'กำลังโหลด…' : 'Loading…'}
           fallbackDetail={copy.loadingDetail}
         />
       ) : (
-        <>
+        <div className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+          {refreshing && (
+            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
+              {lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…'}
+            </p>
+          )}
           {/* Filters */}
           <FilterBar>
             <InlineMonthPicker
@@ -662,7 +667,7 @@ export default function SimpleDashboard({
               />
             </div>
           </section>
-        </>
+        </div>
       )}
     </DashboardShell>
   );
