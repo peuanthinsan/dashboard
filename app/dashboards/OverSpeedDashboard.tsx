@@ -490,19 +490,36 @@ export default function OverSpeedDashboard({
     [lang],
   );
 
-  if (loading) {
+  if (loading || refreshing) {
     return (
       <DashboardShell title={dashboardName} subtitle={lang === 'th' ? 'แดชบอร์ดความเร็วเกินกำหนด' : 'OverSpeed dashboard'} lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
-        <LoadingState
-          lang={lang}
-          message={lang === 'th' ? 'กำลังโหลด…' : 'Loading overspeed dashboard'}
-          detail={lang === 'th' ? 'กำลังดึงข้อมูลความเร็วเกินกำหนด' : 'Fetching overspeed data.'}
-        />
+        <div className="flex flex-col gap-6">
+          <FilterBar>
+            <InlineMonthPicker
+              value={monthFilters}
+              onChange={(v) => {
+                setMonthFilters(v as string[]);
+                if (Array.isArray(v) && v.length !== 1) setDayFilters([]);
+              }}
+              multi
+              lang={lang}
+            />
+          </FilterBar>
+          <LoadingState
+            lang={lang}
+            message={
+              refreshing
+                ? (lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…')
+                : (lang === 'th' ? 'กำลังโหลด…' : 'Loading overspeed dashboard')
+            }
+            detail={lang === 'th' ? 'กำลังดึงข้อมูลความเร็วเกินกำหนด' : 'Fetching overspeed data.'}
+          />
+        </div>
       </DashboardShell>
     );
   }
 
-  if (error && !refreshing) {
+  if (error) {
     return (
       <DashboardShell title={dashboardName} subtitle={lang === 'th' ? 'แดชบอร์ดความเร็วเกินกำหนด' : 'OverSpeed dashboard'} lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
         <LoadingState lang={lang} error={error} onRetry={refresh} />
@@ -534,12 +551,7 @@ export default function OverSpeedDashboard({
         />
       }
     >
-      <div className={`flex flex-col gap-6${refreshing ? ' opacity-60 transition-opacity' : ''}`}>
-        {refreshing && (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
-            {lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…'}
-          </p>
-        )}
+      <div className="flex flex-col gap-6">
 
         {/* ① Filters */}
         <FilterBar>

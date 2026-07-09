@@ -557,22 +557,7 @@ export default function SimpleDashboard({
         />
       }
     >
-      {(loading || error) ? (
-        <LoadingState
-          error={error ?? undefined}
-          onRetry={refresh}
-          lang={lang}
-          message={lang === 'th' ? 'กำลังโหลด…' : 'Loading…'}
-          fallbackDetail={copy.loadingDetail}
-        />
-      ) : (
-        <div className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
-          {refreshing && (
-            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
-              {lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…'}
-            </p>
-          )}
-          {/* Filters */}
+      <div className="flex flex-col gap-6">
           <FilterBar>
             <InlineMonthPicker
               value={filters.month}
@@ -618,6 +603,20 @@ export default function SimpleDashboard({
             )}
           </FilterBar>
 
+          {(loading || refreshing || error) ? (
+            <LoadingState
+              error={error ?? undefined}
+              onRetry={refresh}
+              lang={lang}
+              message={
+                refreshing
+                  ? (lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…')
+                  : (lang === 'th' ? 'กำลังโหลด…' : 'Loading…')
+              }
+              fallbackDetail={copy.loadingDetail}
+            />
+          ) : (
+          <>
           {/* KPIs — one row, the only numbers that matter */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
@@ -667,8 +666,9 @@ export default function SimpleDashboard({
               />
             </div>
           </section>
+          </>
+          )}
         </div>
-      )}
     </DashboardShell>
   );
 }

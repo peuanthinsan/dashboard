@@ -960,28 +960,47 @@ export default function DetailDashboard({
         />
       }
     >
-      {loading ? (
-        <LoadingState
-          lang={lang}
-          message={lang === 'th' ? 'กำลังโหลดการแจ้งเตือนแบบละเอียด...' : 'Loading detailed alerts...'}
-          detail={lang === 'th' ? 'กำลังสร้างไทม์ไลน์การแจ้งเตือนล่าสุด' : 'Building the latest alert timeline.'}
-          fallbackDetail={copy.loadingDetail}
-          error={error ?? undefined}
-          onRetry={error ? refresh : undefined}
-        />
-      ) : error ? (
-        <LoadingState
-          lang={lang}
-          error={error}
-          onRetry={refresh}
-        />
+      {loading || refreshing || error ? (
+        <div className="flex flex-col gap-6">
+          {/* Keep month picker usable while a month fetch is in flight. */}
+          <FilterBar>
+            <InlineMonthPicker
+              value={filters.monthFilters}
+              onChange={(v) => {
+                const arr = v as string[];
+                setFilters((f) => ({ ...f, monthFilters: arr, dayFilters: arr.length === 1 ? f.dayFilters : [] }));
+              }}
+              multi
+              lang={lang}
+            />
+            {monthFilters.length === 1 && (
+              <InlineDayPicker
+                monthKey={monthFilters[0]}
+                value={filters.dayFilters}
+                onChange={(v) => setFilters((f) => ({ ...f, dayFilters: v as string[] }))}
+                multi
+                lang={lang}
+              />
+            )}
+            {hasActiveFilters && (
+              <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">{lang === 'th' ? 'รีเซ็ต' : 'Reset'}</button>
+            )}
+          </FilterBar>
+          <LoadingState
+            lang={lang}
+            message={
+              refreshing
+                ? (lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…')
+                : (lang === 'th' ? 'กำลังโหลดการแจ้งเตือนแบบละเอียด...' : 'Loading detailed alerts...')
+            }
+            detail={lang === 'th' ? 'กำลังสร้างไทม์ไลน์การแจ้งเตือนล่าสุด' : 'Building the latest alert timeline.'}
+            fallbackDetail={copy.loadingDetail}
+            error={error ?? undefined}
+            onRetry={error ? refresh : undefined}
+          />
+        </div>
       ) : (
-        <div className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
-          {refreshing && (
-            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
-              {lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…'}
-            </p>
-          )}
+        <div>
           {/* ── Filters ── */}
           <FilterBar>
             <InlineMonthPicker

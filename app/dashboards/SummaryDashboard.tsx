@@ -458,23 +458,8 @@ export default function SummaryDashboard({
         />
       }
     >
-      {(loading || error) ? (
-        <LoadingState
-          message={lang === 'th' ? 'กำลังโหลดภาพรวม…' : 'Loading summary…'}
-          detail={lang === 'th' ? 'กำลังสรุป KPI ระดับสูง' : 'Compiling high-level KPI totals.'}
-          error={error ?? undefined}
-          onRetry={refresh}
-          lang={lang}
-        />
-      ) : (
-        <div className={`flex flex-col gap-6${refreshing ? ' opacity-60 transition-opacity' : ''}`}>
-          {refreshing && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
-              {lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…'}
-            </p>
-          )}
-
-          {/* ① Filters — set context first */}
+      <div className="flex flex-col gap-6">
+          {/* Filters stay mounted during month switches so the picker never disappears. */}
           <FilterBar>
             <InlineMonthPicker
               value={monthFilters}
@@ -510,6 +495,20 @@ export default function SummaryDashboard({
             )}
           </FilterBar>
 
+          {(loading || refreshing || error) ? (
+            <LoadingState
+              message={
+                refreshing
+                  ? (lang === 'th' ? 'กำลังโหลดเดือนที่เลือก…' : 'Loading selected month…')
+                  : (lang === 'th' ? 'กำลังโหลดภาพรวม…' : 'Loading summary…')
+              }
+              detail={lang === 'th' ? 'กำลังสรุป KPI ระดับสูง' : 'Compiling high-level KPI totals.'}
+              error={error ?? undefined}
+              onRetry={refresh}
+              lang={lang}
+            />
+          ) : (
+          <>
           {/* ② Overview — headline numbers + safety score */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
@@ -733,8 +732,9 @@ export default function SummaryDashboard({
               })}
             </div>
           </section>
+          </>
+          )}
         </div>
-      )}
     </DashboardShell>
   );
 }
