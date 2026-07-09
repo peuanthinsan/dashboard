@@ -1,13 +1,57 @@
 import { NextResponse } from 'next/server';
 import { auth } from 'app/auth';
-import { buildGvizJsonUrl, gvizColumnLetter } from 'app/dashboards/googleSheetGvizUrl';
-import { parseGoogleSheetGvizText } from 'app/dashboards/googleSheetParse';
+import {
+  fetchRecentSheetRows,
+  fetchSheetDateRange,
+  listSheetMonths,
+} from 'app/dashboards/googleSheetFetch';
+import { DEFAULT_SHEET_ROW_LIMIT } from 'app/dashboards/googleSheetGvizUrl';
 import { getUser, userCanAccessSheet } from 'app/db';
 import { isValidSheetGid, isValidSheetId } from 'app/admin/admin-utils';
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export const maxDuration = 60;
+
+async function authorize(sheetId: string, gid: string) {
+  const session = await auth();
+  if (!session?.user?.email) {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+  const userRows = await getUser(session.user.email);
+  if (userRows.length === 0) {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+  const user = userRows[0]!;
+  if (!user.isAdmin) {
+    const allowed = await userCanAccessSheet(
+      sheetId,
+      gid,
+      user.companyIds ?? [],
+      user.organizationIds ?? [],
+    );
+    if (!allowed) {
+      return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+    }
+  }
+  return { user };
+}
+
+/**
+ * GET /api/sheets/[sheetId]/[gid]
+ *
+ * Query params:
+ * - `mode=months` — list calendar months present in the sheet (non-null id rows).
+ * - `from=YYYY-MM-DD&to=YYYY-MM-DD` — rows in [from, to) with non-null id (≤25k).
+ * - (default) — 25k most-recent rows by timestamp, excluding null-id poison rows.
+ *
+ * Large alert sheets (e.g. PoonNok ~245k rows) cannot fit in one response. Clients
+ * should call `mode=months`, then fetch each selected month as week-sized `from`/`to`
+ * chunks and merge client-side.
+ */
 export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ sheetId: string; gid: string }> }
+  request: Request,
+  { params }: { params: Promise<{ sheetId: string; gid: string }> },
 ) {
   const { sheetId, gid } = await params;
   if (!sheetId || !gid) {
@@ -17,64 +61,53 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid sheet identifier' }, { status: 400 });
   }
 
-  const session = await auth();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const userRows = await getUser(session.user.email);
-  if (userRows.length === 0) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const user = userRows[0];
-  if (!user.isAdmin) {
-    const allowed = await userCanAccessSheet(
-      sheetId,
-      gid,
-      user.companyIds ?? [],
-      user.organizationIds ?? [],
-    );
-    if (!allowed) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-  }
+  const authResult = await authorize(sheetId, gid);
+  if ('error' in authResult && authResult.error) return authResult.error;
+
+  const url = new URL(request.url);
+  const mode = url.searchParams.get('mode');
+  const from = url.searchParams.get('from');
+  const to = url.searchParams.get('to');
 
   try {
-    // Cap at 25 000 most-recent rows to avoid OOM on large historical sheets (e.g. ALCHEM cntDrv
-    // is 64 MB / ~69 k rows). "Most recent" must be ordered by the timestamp column, NOT column A:
-    // SlNo is not globally sequential on every sheet (ALCHEM cntDrv has 68 981 rows but SlNo maxes
-    // at 3 270, so `order by A desc` silently dropped ~700 June rows). Preflight one row to find the
-    // first date/datetime-typed column and order by that; fall back to A if none is typed as a date.
-    let orderColId = 'A';
-    try {
-      const meta = await fetch(buildGvizJsonUrl(sheetId, gid, 1), {
-        headers: { 'User-Agent': 'SongdeeGPS-Dashboard/1.0' },
-        cache: 'no-store',
-      });
-      if (meta.ok) {
-        const metaCols = parseGoogleSheetGvizText(await meta.text()).columns;
-        const dateIdx = metaCols.findIndex((c) => c.type === 'datetime' || c.type === 'date');
-        if (dateIdx >= 0) orderColId = gvizColumnLetter(dateIdx);
+    if (mode === 'months') {
+      const months = await listSheetMonths(sheetId, gid);
+      return NextResponse.json({ months, lastUpdated: Date.now() });
+    }
+
+    if (from || to) {
+      if (!from || !to || !ISO_DATE.test(from) || !ISO_DATE.test(to) || from >= to) {
+        return NextResponse.json(
+          { error: 'from/to must be YYYY-MM-DD with from < to' },
+          { status: 400 },
+        );
       }
-    } catch {
-      // Preflight failed — keep the column-A default.
+      // Guard against accidental full-sheet pulls: max 31-day window per request.
+      const fromMs = Date.parse(`${from}T00:00:00Z`);
+      const toMs = Date.parse(`${to}T00:00:00Z`);
+      if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs - fromMs > 31 * 86_400_000) {
+        return NextResponse.json(
+          { error: 'from/to window must be at most 31 days' },
+          { status: 400 },
+        );
+      }
+      const parsed = await fetchSheetDateRange(sheetId, gid, from, to, DEFAULT_SHEET_ROW_LIMIT);
+      return NextResponse.json({
+        columns: parsed.columns,
+        rows: parsed.rows,
+        lastUpdated: Date.now(),
+        from,
+        to,
+        truncated: parsed.rows.length >= DEFAULT_SHEET_ROW_LIMIT,
+      });
     }
 
-    const response = await fetch(buildGvizJsonUrl(sheetId, gid, 25_000, true, orderColId), {
-      headers: { 'User-Agent': 'SongdeeGPS-Dashboard/1.0' },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ error: 'Unable to fetch the Google Sheet data.' }, { status: 502 });
-    }
-
-    const text = await response.text();
-    const parsed = parseGoogleSheetGvizText(text);
-
+    const parsed = await fetchRecentSheetRows(sheetId, gid, DEFAULT_SHEET_ROW_LIMIT);
     return NextResponse.json({
       columns: parsed.columns,
       rows: parsed.rows,
       lastUpdated: Date.now(),
+      truncated: parsed.rows.length >= DEFAULT_SHEET_ROW_LIMIT,
     });
   } catch (err) {
     console.error('Sheet fetch error:', err);

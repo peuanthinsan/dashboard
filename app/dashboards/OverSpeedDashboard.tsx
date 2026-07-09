@@ -5,7 +5,7 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { findValue, normalizeLabel, parseDate, previousMonthKey, resolveScopeFleetNames, scopeFleetSet, toDayKey, toDisplayString, toMonthKey } from './dashboardDataUtils';
+import { findValue, normalizeLabel, parseDate, previousMonthKey, resolveScopeFleetNames, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import ExportButton from 'app/ui/ExportButton';
 import EmptyState from 'app/ui/EmptyState';
@@ -91,10 +91,6 @@ export default function OverSpeedDashboard({
   lang = 'en',
   isAdmin = false,
 }: DashboardProps) {
-  const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
-    sheetId,
-    gid: sheetGid,
-  });
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
@@ -117,6 +113,12 @@ export default function OverSpeedDashboard({
   const storageKey = useMemo(() => `${dashboardId}-overspeed`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
+  const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
+    sheetId,
+    gid: sheetGid,
+    monthKeys: monthFilters,
+    loadMonthCatalog: true,
+  });
 
   // ── Persist / restore filters ──
   useEffect(() => {
@@ -128,9 +130,14 @@ export default function OverSpeedDashboard({
       fleetFilters?: string[];
     }>(storageKey);
     if (!stored) return;
-    didSetDefaultMonth.current = true;
     const frame = requestAnimationFrame(() => {
-      if (Array.isArray(stored.monthFilters)) setMonthFilters(stored.monthFilters.filter((v) => typeof v === 'string'));
+      const storedMonths = Array.isArray(stored.monthFilters)
+        ? stored.monthFilters.filter((v) => typeof v === 'string')
+        : [];
+      if (storedMonths.length > 0) {
+        didSetDefaultMonth.current = true;
+        setMonthFilters(storedMonths);
+      }
       if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
@@ -145,7 +152,7 @@ export default function OverSpeedDashboard({
   }, [storageKey, monthFilters, dayFilters, driverFilters, vehicleFilters, fleetFilters]);
 
   const resetFilters = () => {
-    setMonthFilters([]);
+    setMonthFilters(defaultMonthKey ? [defaultMonthKey] : []);
     setDayFilters([]);
     setDriverFilters([]);
     setVehicleFilters([]);
@@ -212,12 +219,15 @@ export default function OverSpeedDashboard({
     return Array.from(unique).sort();
   }, [overSpeedRows]);
   const monthOptions = useMemo(() => {
+    if (availableMonths.length > 0) {
+      return availableMonths.map((m) => ({ key: m.key, label: m.label }));
+    }
     const map = new Map<string, string>();
     overSpeedRows.forEach((row) => { if (row.monthKey) map.set(row.monthKey, row.monthLabel); });
     return Array.from(map.entries())
       .map(([key, label]) => ({ key, label }))
       .sort((a, b) => b.key.localeCompare(a.key));
-  }, [overSpeedRows]);
+  }, [availableMonths, overSpeedRows]);
 
   // ── Default to current month ──
   useEffect(() => {
@@ -229,7 +239,10 @@ export default function OverSpeedDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (monthOptions.some((o) => o.key === defaultMonthKey)) setMonthFilters([defaultMonthKey]);
+      const next = monthOptions.some((o) => o.key === defaultMonthKey)
+        ? defaultMonthKey
+        : monthOptions[0]!.key;
+      setMonthFilters([next]);
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, monthFilters, monthOptions]);

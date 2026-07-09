@@ -95,10 +95,6 @@ export default function SummaryDashboard({
     () => scopeFleetSet(organizationName, organizationNames),
     [organizationName, organizationNames],
   );
-  const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
-    sheetId,
-    gid: sheetGid,
-  });
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
@@ -110,6 +106,14 @@ export default function SummaryDashboard({
   const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
+  // Month-scoped fetch: selected months load in week chunks so large sheets
+  // (PoonNok ~245k rows) still expose April/June. Empty selection = catalogue only.
+  const { rows, columns: sheetColumns, loading, error, lastUpdated, availableMonths } = useGoogleSheet({
+    sheetId,
+    gid: sheetGid,
+    monthKeys: monthFilters,
+    loadMonthCatalog: true,
+  });
 
   useEffect(() => {
     const stored = loadStoredFilters<{
@@ -118,9 +122,16 @@ export default function SummaryDashboard({
       fleetFilters: string[];
     }>(storageKey);
     if (!stored) return;
-    didSetDefaultMonth.current = true;
     const frame = requestAnimationFrame(() => {
-      if (Array.isArray(stored.monthFilters)) setMonthFilters(stored.monthFilters.filter((v) => typeof v === 'string'));
+      const storedMonths = Array.isArray(stored.monthFilters)
+        ? stored.monthFilters.filter((v) => typeof v === 'string')
+        : [];
+      // Empty stored months = pre-month-scope payload or "all"; let the default-month
+      // effect pick previousMonthKey once the catalogue arrives.
+      if (storedMonths.length > 0) {
+        didSetDefaultMonth.current = true;
+        setMonthFilters(storedMonths);
+      }
       if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
       else setFleetFilters(scopeNames);
@@ -133,7 +144,7 @@ export default function SummaryDashboard({
   }, [dayFilters, fleetFilters, monthFilters, storageKey]);
 
   const resetFilters = () => {
-    setMonthFilters([]);
+    setMonthFilters(defaultMonthKey ? [defaultMonthKey] : []);
     setDayFilters([]);
     setFleetFilters(scopeNames);
   };
@@ -177,10 +188,15 @@ export default function SummaryDashboard({
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
   const monthOptions = useMemo(() => {
+    // Prefer the sheet-wide catalog so months outside the current 25k window
+    // (e.g. April on a 245k-row sheet) still appear in the picker.
+    if (availableMonths.length > 0) {
+      return availableMonths.map((m) => ({ key: m.key, label: m.label }));
+    }
     const unique = new Map<string, string>();
     alertRows.forEach((row) => { if (row.monthKey && row.monthLabel) unique.set(row.monthKey, row.monthLabel); });
     return Array.from(unique.entries()).map(([key, label]) => ({ key, label })).sort((a, b) => b.key.localeCompare(a.key));
-  }, [alertRows]);
+  }, [alertRows, availableMonths]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       if (didSetDefaultMonth.current) return;
@@ -191,6 +207,7 @@ export default function SummaryDashboard({
       }
       didSetDefaultMonth.current = true;
       if (monthOptions.some((o) => o.key === defaultMonthKey)) setMonthFilters([defaultMonthKey]);
+      else setMonthFilters([monthOptions[0]!.key]);
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, monthFilters, monthOptions]);

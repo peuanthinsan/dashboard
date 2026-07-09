@@ -155,10 +155,6 @@ export default function DetailDashboard({
   driverOverrides,
 }: DashboardProps) {
   const copy = getDashboardCopy(lang);
-  const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh } = useGoogleSheet({
-    sheetId,
-    gid: sheetGid,
-  });
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
@@ -183,6 +179,12 @@ export default function DetailDashboard({
     trendRemarkFilter: 'all',
   });
   const { monthFilters, dayFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter } = filters;
+  const { rows, columns: sheetColumns, loading, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
+    sheetId,
+    gid: sheetGid,
+    monthKeys: monthFilters,
+    loadMonthCatalog: true,
+  });
   // Manual driver-name overrides; seeded from the server, updated optimistically on save.
   const [overrides, setOverrides] = useState<Record<string, string>>(() => driverOverrides ?? {});
   const handleDriverSaved = useCallback((alertKey: string, driverName: string) => {
@@ -217,11 +219,14 @@ export default function DetailDashboard({
   useEffect(() => {
     const stored = loadStoredFilters<DetailFilterState>(storageKey);
     if (!stored) return;
-    didSetDefaultMonth.current = true;
     const frame = requestAnimationFrame(() => {
+      const storedMonths = Array.isArray(stored.monthFilters)
+        ? stored.monthFilters.filter((v) => typeof v === 'string')
+        : [];
+      if (storedMonths.length > 0) didSetDefaultMonth.current = true;
       setFilters((prev) => ({
         ...prev,
-        monthFilters: Array.isArray(stored.monthFilters) ? stored.monthFilters.filter((v) => typeof v === 'string') : prev.monthFilters,
+        monthFilters: storedMonths.length > 0 ? storedMonths : prev.monthFilters,
         dayFilters: Array.isArray(stored.dayFilters) ? stored.dayFilters.filter((v) => typeof v === 'string') : prev.dayFilters,
         fleetFilters: (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) ? stored.fleetFilters.filter((v) => typeof v === 'string') : (scopeNames.length > 0 ? scopeNames : prev.fleetFilters),
         remarkFilters: Array.isArray(stored.remarkFilters) ? stored.remarkFilters.filter((v) => typeof v === 'string') : prev.remarkFilters,
@@ -239,7 +244,7 @@ export default function DetailDashboard({
 
   const resetFilters = () => {
     setFilters({
-      monthFilters: [],
+      monthFilters: defaultMonthKey ? [defaultMonthKey] : [],
       dayFilters: [],
       fleetFilters: scopeNames,
       remarkFilters: [],
@@ -363,6 +368,9 @@ export default function DetailDashboard({
   }, [alertRows]);
 
   const monthOptions = useMemo(() => {
+    if (availableMonths.length > 0) {
+      return availableMonths.map((m) => ({ key: m.key, label: m.label }));
+    }
     const unique = new Map<string, string>();
     alertRows.forEach((row) => {
       if (row.monthKey && row.monthLabel) {
@@ -372,7 +380,7 @@ export default function DetailDashboard({
     return Array.from(unique.entries())
       .map(([key, label]) => ({ key, label }))
       .sort((a, b) => b.key.localeCompare(a.key));
-  }, [alertRows]);
+  }, [alertRows, availableMonths]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -383,9 +391,10 @@ export default function DetailDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (monthOptions.some((option) => option.key === defaultMonthKey)) {
-        setFilters((f) => ({ ...f, monthFilters: [defaultMonthKey] }));
-      }
+      const next = monthOptions.some((option) => option.key === defaultMonthKey)
+        ? defaultMonthKey
+        : monthOptions[0]!.key;
+      setFilters((f) => ({ ...f, monthFilters: [next] }));
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, monthFilters, monthOptions]);

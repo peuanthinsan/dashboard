@@ -103,23 +103,30 @@ export default function SimpleDashboard({
     () => scopeFleetSet(organizationName, organizationNames),
     [organizationName, organizationNames],
   );
-  const { rows, columns: sheetColumns, loading, error, lastUpdated } = useGoogleSheet({
-    sheetId,
-    gid: sheetGid,
-  });
   const [filters, setFilters] = useState<SimpleFilterState>({ ...defaultFilters, fleetFilters: scopeNames });
   const storageKey = useMemo(() => `${dashboardId}-v2`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
+  const monthKeysForFetch = useMemo(
+    () => (filters.month ? [filters.month] : []),
+    [filters.month],
+  );
+  const { rows, columns: sheetColumns, loading, error, lastUpdated, availableMonths } = useGoogleSheet({
+    sheetId,
+    gid: sheetGid,
+    monthKeys: monthKeysForFetch,
+    loadMonthCatalog: true,
+  });
 
   // ── Load persisted filters ──────────────────────────────────────────────
   useEffect(() => {
     const stored = loadStoredFilters<SimpleFilterState>(storageKey);
     if (!stored) return;
-    didSetDefaultMonth.current = true;
     const frame = requestAnimationFrame(() => {
+      const storedMonth = typeof stored.month === 'string' ? stored.month : '';
+      if (storedMonth) didSetDefaultMonth.current = true;
       setFilters({
-        month: typeof stored.month === 'string' ? stored.month : '',
+        month: storedMonth,
         dayFilters: Array.isArray(stored.dayFilters)
           ? stored.dayFilters.filter((v) => typeof v === 'string')
           : [],
@@ -142,7 +149,8 @@ export default function SimpleDashboard({
     saveStoredFilters(storageKey, filters);
   }, [storageKey, filters]);
 
-  const resetFilters = () => setFilters({ ...defaultFilters, fleetFilters: scopeNames });
+  const resetFilters = () =>
+    setFilters({ ...defaultFilters, month: defaultMonthKey, fleetFilters: scopeNames });
 
   const hasActiveFilters = useMemo(() => {
     return filters.month !== '' || filters.dayFilters.length > 0 || filters.fleetFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
@@ -198,12 +206,13 @@ export default function SimpleDashboard({
 
   // ── Default to current month when no stored filters ──────────────────────
   const monthOptions = useMemo(() => {
+    if (availableMonths.length > 0) return availableMonths.map((m) => m.key);
     const keys = new Set<string>();
     baseAlerts.forEach((row) => {
       if (row.parsedDate) keys.add(toMonthKey(row.parsedDate));
     });
     return Array.from(keys).sort();
-  }, [baseAlerts]);
+  }, [availableMonths, baseAlerts]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -214,9 +223,8 @@ export default function SimpleDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (monthOptions.includes(defaultMonthKey)) {
-        setFilters((f) => ({ ...f, month: defaultMonthKey, dayFilters: [] }));
-      }
+      const next = monthOptions.includes(defaultMonthKey) ? defaultMonthKey : monthOptions[0]!;
+      setFilters((f) => ({ ...f, month: next, dayFilters: [] }));
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, filters.month, monthOptions]);
