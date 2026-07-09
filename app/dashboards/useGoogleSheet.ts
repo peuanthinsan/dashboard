@@ -61,14 +61,21 @@ type CachedSheet = {
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_CHARS = 2_000_000;
-/** Bump when fetch semantics change (clear-on-switch / abort). */
-const CACHE_VERSION = 'v6';
+/** Bump when fetch semantics change (timeout vs abort, no empty-cache). */
+const CACHE_VERSION = 'v7';
 const memoryCache = new Map<string, CachedSheet>();
 const catalogCache = new Map<string, { months: SheetMonthOption[]; fetchedAt: number }>();
 const CHUNK_DAYS = SHEET_CHUNK_DAYS;
 const FETCH_CONCURRENCY = 4;
-/** Per-chunk timeout — hung GViz calls were leaving "Loading selected month…" forever. */
-const CHUNK_TIMEOUT_MS = 45_000;
+/** Per-chunk timeout. Dense May/June windows can take 20–30s through the proxy. */
+const CHUNK_TIMEOUT_MS = 60_000;
+
+class ChunkTimeoutError extends Error {
+  constructor(message = 'Sheet chunk request timed out') {
+    super(message);
+    this.name = 'ChunkTimeoutError';
+  }
+}
 
 const buildSheetUrl = (sheetId: string, gid: string) =>
   `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
@@ -82,20 +89,46 @@ const buildApiUrl = (sheetId: string, gid: string, query?: Record<string, string
 
 const catalogCacheKey = (sheetId: string, gid: string) => `${sheetId}:${gid}`;
 
+function isAbortError(err: unknown): boolean {
+  return (
+    (err instanceof DOMException && err.name === 'AbortError') ||
+    (err instanceof Error && err.name === 'AbortError')
+  );
+}
+
+/**
+ * Fetch with a per-request timeout that is DISTINCT from parent cancellation.
+ * Parent abort → AbortError (silent cancel). Timer fire → ChunkTimeoutError (surface to UI).
+ */
 async function fetchWithTimeout(
   url: string,
-  signal: AbortSignal,
+  parentSignal: AbortSignal,
   timeoutMs = CHUNK_TIMEOUT_MS,
 ): Promise<Response> {
+  if (parentSignal.aborted) throw new DOMException('Aborted', 'AbortError');
+
   const controller = new AbortController();
-  const onAbort = () => controller.abort();
-  signal.addEventListener('abort', onAbort);
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+
+  const onParentAbort = () => controller.abort();
+  parentSignal.addEventListener('abort', onParentAbort);
+
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
   try {
     return await fetch(url, { signal: controller.signal });
+  } catch (err) {
+    if (timedOut) throw new ChunkTimeoutError();
+    if (parentSignal.aborted || isAbortError(err)) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
-    signal.removeEventListener('abort', onAbort);
+    parentSignal.removeEventListener('abort', onParentAbort);
   }
 }
 
@@ -129,8 +162,20 @@ export default function useGoogleSheet({
     if (typeof window === 'undefined') return null;
     const cachedMemory = memoryCache.get(cacheKey);
     if (cachedMemory) {
-      if (Date.now() - cachedMemory.lastUpdated <= CACHE_TTL_MS) return cachedMemory;
-      memoryCache.delete(cacheKey);
+      // Never treat an empty month payload as a hit — it is almost always a
+      // failed/aborted fetch that got written before v7, and it locks the UI at 0.
+      if (
+        cachedMemory.rows.length === 0 &&
+        monthScoped &&
+        monthKeySig &&
+        monthKeySig !== 'NONE'
+      ) {
+        memoryCache.delete(cacheKey);
+      } else if (Date.now() - cachedMemory.lastUpdated <= CACHE_TTL_MS) {
+        return cachedMemory;
+      } else {
+        memoryCache.delete(cacheKey);
+      }
     }
     let cached: string | null = null;
     try {
@@ -146,6 +191,11 @@ export default function useGoogleSheet({
         window.localStorage.removeItem(`google-sheet:${cacheKey}`);
         return null;
       }
+      if (parsed.rows.length === 0 && monthScoped && monthKeySig && monthKeySig !== 'NONE') {
+        memoryCache.delete(cacheKey);
+        window.localStorage.removeItem(`google-sheet:${cacheKey}`);
+        return null;
+      }
       memoryCache.set(cacheKey, parsed);
       return parsed;
     } catch {
@@ -153,11 +203,13 @@ export default function useGoogleSheet({
       window.localStorage.removeItem(`google-sheet:${cacheKey}`);
       return null;
     }
-  }, [cacheKey]);
+  }, [cacheKey, monthKeySig, monthScoped]);
 
   const writeCache = useCallback(
     (payload: CachedSheet) => {
       if (typeof window === 'undefined') return;
+      // Do not persist empty month fetches — they poison the next load with zeros.
+      if (payload.rows.length === 0 && monthScoped) return;
       memoryCache.set(cacheKey, payload);
       const serialized = JSON.stringify(payload);
       if (serialized.length > MAX_CACHE_CHARS) return;
@@ -171,7 +223,7 @@ export default function useGoogleSheet({
         }
       }
     },
-    [cacheKey],
+    [cacheKey, monthScoped],
   );
 
   const fetchMonthCatalog = useCallback(
@@ -206,37 +258,39 @@ export default function useGoogleSheet({
 
   const fetchMonths = useCallback(
     async (keys: string[], signal: AbortSignal): Promise<CachedSheet> => {
-      const chunkJobs: Array<{ start: string; endExclusive: string }> = [];
-      for (const key of keys) {
-        const range = monthKeyToDateRange(key);
-        if (!range) continue;
-        chunkJobs.push(...splitDateRangeIntoChunks(range.start, range.endExclusive, CHUNK_DAYS));
-      }
-
-      const parts: CachedSheet[] = new Array(chunkJobs.length);
-      let next = 0;
-      async function worker() {
-        while (next < chunkJobs.length) {
-          if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-          const i = next++;
-          const chunk = chunkJobs[i]!;
-          parts[i] = await fetchDateChunk(chunk.start, chunk.endExclusive, signal);
-        }
-      }
-      await Promise.all(
-        Array.from(
-          { length: Math.min(FETCH_CONCURRENCY, Math.max(chunkJobs.length, 1)) },
-          () => worker(),
-        ),
-      );
-
+      // Fetch one calendar month at a time so a timeout in June doesn't wipe April/May,
+      // and so multi-month selections (Apr+May+Jun ≈ 45 chunks) stay manageable.
       let columnsAcc: GoogleSheetColumn[] = [];
       const rowsAcc: GoogleSheetRow[] = [];
-      for (const part of parts) {
-        if (!part) continue;
-        if (columnsAcc.length === 0) columnsAcc = part.columns;
-        rowsAcc.push(...part.rows);
+
+      for (const key of keys) {
+        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+        const range = monthKeyToDateRange(key);
+        if (!range) continue;
+        const chunkJobs = splitDateRangeIntoChunks(range.start, range.endExclusive, CHUNK_DAYS);
+        const parts: CachedSheet[] = new Array(chunkJobs.length);
+        let next = 0;
+        const worker = async () => {
+          while (next < chunkJobs.length) {
+            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+            const i = next++;
+            const chunk = chunkJobs[i]!;
+            parts[i] = await fetchDateChunk(chunk.start, chunk.endExclusive, signal);
+          }
+        };
+        await Promise.all(
+          Array.from(
+            { length: Math.min(FETCH_CONCURRENCY, Math.max(chunkJobs.length, 1)) },
+            () => worker(),
+          ),
+        );
+        for (const part of parts) {
+          if (!part) continue;
+          if (columnsAcc.length === 0) columnsAcc = part.columns;
+          rowsAcc.push(...part.rows);
+        }
       }
+
       return { columns: columnsAcc, rows: rowsAcc, lastUpdated: Date.now() };
     },
     [fetchDateChunk],
@@ -266,7 +320,8 @@ export default function useGoogleSheet({
       try {
         return await tryFetch(buildApiUrl(sheetId, gid), true);
       } catch (err) {
-        if (signal.aborted) throw err;
+        if (signal.aborted || isAbortError(err)) throw err;
+        if (err instanceof ChunkTimeoutError) throw err;
         return await tryFetch(buildSheetUrl(sheetId, gid), false);
       }
     },
@@ -295,8 +350,6 @@ export default function useGoogleSheet({
       return;
     }
 
-    // Cancel any in-flight month fetch so a hung June load can't leave the UI stuck
-    // after the user switches to May.
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -319,8 +372,6 @@ export default function useGoogleSheet({
       loadedMonthSigRef.current !== null &&
       loadedMonthSigRef.current !== targetSig;
 
-    // Drop stale rows immediately on month change so client-side month filters
-    // don't zero out KPIs against the previous month's data (June rows + May filter).
     if (switchingMonths) {
       setRows([]);
       setColumns([]);
@@ -342,8 +393,13 @@ export default function useGoogleSheet({
           if (gen !== fetchGen.current) return;
           setAvailableMonths(months);
         } catch (err) {
-          if (signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) return;
-          months = [];
+          if (signal.aborted || isAbortError(err)) return;
+          if (err instanceof ChunkTimeoutError) {
+            // Catalogue timeout is non-fatal if we can still load rows.
+            months = [];
+          } else {
+            months = [];
+          }
         }
       }
 
@@ -352,7 +408,6 @@ export default function useGoogleSheet({
         setRows([]);
         setColumns([]);
         setLastUpdated(new Date());
-        // First visit with no month yet — keep loading until default month is set.
         if (loadedMonthSigRef.current === null) return;
         setRefreshing(false);
         setLoading(false);
@@ -372,8 +427,14 @@ export default function useGoogleSheet({
       writeCache(payload);
     } catch (err) {
       if (gen !== fetchGen.current) return;
-      if (signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) return;
-      const message = err instanceof Error ? err.message : 'Unable to fetch the Google Sheet data.';
+      // Only swallow aborts from a newer month selection replacing this one.
+      if (signal.aborted || isAbortError(err)) return;
+      const message =
+        err instanceof ChunkTimeoutError
+          ? 'Loading timed out — try fewer months, or retry.'
+          : err instanceof Error
+            ? err.message
+            : 'Unable to fetch the Google Sheet data.';
       setError(message);
     } finally {
       if (gen === fetchGen.current) {
