@@ -41,7 +41,6 @@ import TrendIndicator from 'app/ui/TrendIndicator';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
 import DriverLeaderboard from 'app/ui/DriverLeaderboard';
 import ExportButton from 'app/ui/ExportButton';
-import { calendarDateToIsoLocal } from 'app/ui/exportCsvFormat';
 import TrendChart from 'app/ui/TrendChart';
 import { heading2, textSecondary, CHART_COLORS, SAFETY_THRESHOLDS } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
@@ -406,7 +405,7 @@ export default function SummaryDashboard({
       'Fleet': r.fleet,
       'Remarks': r.remarks,
       'Month': r.monthLabel,
-      'Date': r.parsedDate ? calendarDateToIsoLocal(r.parsedDate) : '',
+      'Date': r.parsedDate ? toDayKey(r.parsedDate) : '',
     }));
   }, [currentRows]);
 
