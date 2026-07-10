@@ -73,6 +73,13 @@ const buildCounts = (rows: Record<string, unknown>[], labels: string[]) => {
     .sort((a, b) => b.total - a.total);
 };
 
+/** YYYY-MM → previous calendar month key (UTC-digit math; no viewer-zone read). */
+const priorMonthKeyOf = (monthKey: string): string | null => {
+  const [y, m] = monthKey.split('-').map(Number);
+  if (!y || !m) return null;
+  return toMonthKey(new Date(Date.UTC(y, m - 2, 1)));
+};
+
 export default function SummaryDashboard({
   dashboardId,
   dashboardName,
@@ -103,6 +110,16 @@ export default function SummaryDashboard({
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [dayFilters, setDayFilters] = useState<string[]>([]);
+  // When exactly one month is selected, also fetch its prior month so the
+  // "vs last month" KPI trend, highlight previous-counts, and the monthly
+  // comparison cards compare against real data instead of an unfetched
+  // month's implicit zero. currentRows still filters to monthFilters, so
+  // KPIs and tables show only the selected month.
+  const fetchMonthKeys = useMemo(() => {
+    if (monthFilters.length !== 1) return monthFilters;
+    const prior = priorMonthKeyOf(monthFilters[0]!);
+    return prior ? [monthFilters[0]!, prior] : monthFilters;
+  }, [monthFilters]);
   const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
@@ -111,7 +128,7 @@ export default function SummaryDashboard({
   const { rows, columns: sheetColumns, loading, refreshing, progress, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
-    monthKeys: monthFilters,
+    monthKeys: fetchMonthKeys,
     loadMonthCatalog: true,
   });
 
@@ -197,6 +214,14 @@ export default function SummaryDashboard({
     alertRows.forEach((row) => { if (row.monthKey && row.monthLabel) unique.set(row.monthKey, row.monthLabel); });
     return Array.from(unique.entries()).map(([key, label]) => ({ key, label })).sort((a, b) => b.key.localeCompare(a.key));
   }, [alertRows, availableMonths]);
+  // Months whose data is actually in `rows` (explicitly fetched, or present in
+  // the legacy fallback window). Per-month aggregations must not read
+  // unfetched catalogue months — those render as misleading zeros.
+  const loadedMonthKeys = useMemo(() => {
+    const keys = new Set(fetchMonthKeys);
+    alertRows.forEach((row) => { if (row.monthKey) keys.add(row.monthKey); });
+    return keys;
+  }, [alertRows, fetchMonthKeys]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       if (didSetDefaultMonth.current) return;
@@ -246,12 +271,13 @@ export default function SummaryDashboard({
     return rows;
   }, [baseFilteredRows, dayFilters, monthFilters]);
 
-  const priorMonthKey = useMemo(() => {
-    if (!activeMonthKey) return null;
-    const [y, m] = activeMonthKey.split('-').map(Number);
-    if (!y || !m) return null;
-    return toMonthKey(new Date(y, m - 2, 1));
-  }, [activeMonthKey]);
+  // NOTE: was `new Date(y, m - 2, 1)` (local construction) read back with the
+  // UTC-convention toMonthKey — for viewers east of UTC (Bangkok!) that named
+  // the month TWO back. priorMonthKeyOf builds with Date.UTC.
+  const priorMonthKey = useMemo(
+    () => (activeMonthKey ? priorMonthKeyOf(activeMonthKey) : null),
+    [activeMonthKey],
+  );
 
   const previousRows = useMemo(() => {
     if (!priorMonthKey) return [];
@@ -311,12 +337,14 @@ export default function SummaryDashboard({
 
   // Monthly trend data for TrendChart
   const monthlyTrendData = useMemo(() => {
-    const monthsAsc = [...monthOptions].sort((a, b) => a.key.localeCompare(b.key));
+    const monthsAsc = monthOptions
+      .filter((m) => loadedMonthKeys.has(m.key))
+      .sort((a, b) => a.key.localeCompare(b.key));
     return monthsAsc.map((month) => {
       const count = baseFilteredRows.filter((r) => r.monthKey === month.key).length;
       return { label: month.label, value: count };
     });
-  }, [baseFilteredRows, monthOptions]);
+  }, [baseFilteredRows, loadedMonthKeys, monthOptions]);
 
   // Leaderboard data: prefer driver-grouping; fall back to vehicle-grouping when
   // the sheet has no driver names (common for camera-only feeds).
@@ -381,7 +409,9 @@ export default function SummaryDashboard({
 
   // Monthly comparisons
   const monthlyComparisons = useMemo(() => {
-    const monthsAsc = [...monthOptions].sort((a, b) => a.key.localeCompare(b.key));
+    const monthsAsc = monthOptions
+      .filter((m) => loadedMonthKeys.has(m.key))
+      .sort((a, b) => a.key.localeCompare(b.key));
     const targets = highlightLabels.map((l) => ({ label: l, field: 'remarks' as const }));
     return targets
       .map((item) => {
@@ -395,7 +425,7 @@ export default function SummaryDashboard({
       })
       .filter((c) => c.total > 0)
       .map((c) => ({ label: c.label, color: c.color, rows: c.rows }));
-  }, [highlightLabels, baseFilteredRows, countMatches, monthOptions, remarkColorMap]);
+  }, [highlightLabels, baseFilteredRows, countMatches, loadedMonthKeys, monthOptions, remarkColorMap]);
 
   // Export data
   const exportData = useMemo(() => {
