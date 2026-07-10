@@ -59,7 +59,9 @@ function getSortedData<T>(
     if (typeof aVal === 'number' && typeof bVal === 'number') {
       comparison = aVal - bVal;
     } else {
-      comparison = String(aVal).localeCompare(String(bVal));
+      // numeric:true keeps digit-bearing strings (SlNo, plate numbers) in
+      // numeric order instead of lexicographic ("10" < "2", "100" < "99").
+      comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
     }
 
     return sort.direction === 'asc' ? comparison : -comparison;

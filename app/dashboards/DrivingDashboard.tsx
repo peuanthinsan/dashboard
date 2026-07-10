@@ -1,4 +1,4 @@
-'use client'; // MARKER_RETRY_1 // MARKER_TIMING_TEST // MARKER_TEST_67890 // MARKER_TEST_12345
+'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';

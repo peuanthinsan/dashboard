@@ -109,3 +109,54 @@ describe('sendDrivingWarning — happy path', () => {
     expect(dbModule.markWarningFailed).toHaveBeenCalled();
   });
 });
+
+describe('sendDrivingWarning — breach guard', () => {
+  const base = {
+    dashboardPublicId: '11111111-1111-1111-1111-111111111111',
+    lineChannelId: 5,
+  };
+  const violation = (metric: string, threshold: number, valueHours: number) => ({
+    metric,
+    driver: 'A',
+    vehicle: 'V1',
+    eventAt: '2026-05-01T04:14:00.000Z',
+    threshold,
+    valueHours,
+    distanceKm: 80,
+    loginAt: '2026-05-01T04:14:00.000Z',
+    logoutAt: '2026-05-01T13:14:00.000Z',
+    loginLocation: 'L1',
+    logoutLocation: 'L2',
+  });
+
+  it('rejects a compliant drive-hours row (value below threshold)', async () => {
+    const fd = makeFormData({ ...base, violation: violation('drive_hrs', 10, 8) });
+    const result = await sendDrivingWarning({ status: 'idle' }, fd);
+    expect(result.status).toBe('error');
+    if (result.status === 'error') expect(result.code).toBe('invalid-input');
+    expect(dbModule.insertPendingDrivingWarning).not.toHaveBeenCalled();
+    expect(sendLinePushMessage).not.toHaveBeenCalled();
+  });
+
+  it('rejects a compliant rest-hours row (rest at/above threshold)', async () => {
+    const fd = makeFormData({ ...base, violation: violation('rest_hrs', 8, 12) });
+    const result = await sendDrivingWarning({ status: 'idle' }, fd);
+    expect(result.status).toBe('error');
+    if (result.status === 'error') expect(result.code).toBe('invalid-input');
+    expect(sendLinePushMessage).not.toHaveBeenCalled();
+  });
+
+  it('rejects a zero rest-hours row (no rest recorded ≠ violation)', async () => {
+    const fd = makeFormData({ ...base, violation: violation('rest_hrs', 8, 0) });
+    const result = await sendDrivingWarning({ status: 'idle' }, fd);
+    expect(result.status).toBe('error');
+    if (result.status === 'error') expect(result.code).toBe('invalid-input');
+  });
+
+  it('still sends for a genuine rest-hours violation (below threshold)', async () => {
+    const fd = makeFormData({ ...base, violation: violation('rest_hrs', 8, 5.5) });
+    const result = await sendDrivingWarning({ status: 'idle' }, fd);
+    expect(result.status).toBe('success');
+    expect(sendLinePushMessage).toHaveBeenCalled();
+  });
+});

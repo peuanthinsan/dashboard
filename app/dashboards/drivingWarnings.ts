@@ -112,6 +112,21 @@ export async function sendDrivingWarning(
     return { status: 'error', code: 'invalid-input', message: 'Invalid payload.' };
   }
 
+  // The threshold tabs list ALL completed shifts, not just violations — reject
+  // payloads that don't actually breach, or one click sends the driver a
+  // factually false LINE warning and inflates the warned-drivers KPI.
+  // Mirrors ThresholdSubPage.isExceeding: rest violations are BELOW threshold.
+  const breach = parsed.violation.metric === 'rest_hrs'
+    ? parsed.violation.valueHours > 0 && parsed.violation.valueHours < parsed.violation.threshold
+    : parsed.violation.valueHours > parsed.violation.threshold;
+  if (!breach) {
+    return {
+      status: 'error',
+      code: 'invalid-input',
+      message: 'Value does not breach the threshold — no warning to send.',
+    };
+  }
+
   const users = await getUser(session.user.email);
   if (users.length === 0) {
     return { status: 'error', code: 'unauth', message: 'User not found.' };

@@ -80,6 +80,9 @@ export default function ThresholdSubPage({
 
   const chartData = useMemo<MultiTrendDatum[]>(() => {
     // One bar per trip (not aggregated by date); table below remains uncapped.
+    // Violations sort first: rest violations are the SMALLEST values (rest below
+    // threshold), drive/cnt-drv violations the largest — capping at 20 bars from
+    // the wrong end would show only the most compliant trips.
     return violations
       .map((v) => ({
         // Match the source report's "{SlNo}-{Driver}" bar labels; fall back to
@@ -88,7 +91,7 @@ export default function ThresholdSubPage({
         duration: metric === 'rest_hrs' ? v.restHours : v.driveHours,
         distance: v.distanceKm,
       }))
-      .sort((a, b) => b.duration - a.duration)
+      .sort((a, b) => (metric === 'rest_hrs' ? a.duration - b.duration : b.duration - a.duration))
       .slice(0, MAX_CHART_TRIPS)
       .map(({ label, duration, distance }) => ({
         label,
@@ -167,7 +170,10 @@ export default function ThresholdSubPage({
       {
         key: 'violationKey',
         label: '',
-        render: (_, row) => renderWarnAction ? renderWarnAction(row) : null,
+        // Warn only rows that actually breach the threshold — the tabs list ALL
+        // completed shifts, and a warning sent from a compliant row is factually
+        // false (e.g. "Rest Time 12.0 h (under 8h)").
+        render: (_, row) => (renderWarnAction && isExceeding(row) ? renderWarnAction(row) : null),
       },
     ];
   }, [metric, copy, renderWarnAction, isExceeding, hoursKey]);
@@ -213,7 +219,8 @@ export default function ThresholdSubPage({
         columns={columns}
         data={violations}
         pageSize={15}
-        defaultSort={{ key: hoursKey, direction: 'desc' }}
+        // Rest violations are the smallest values — surface them on page 1.
+        defaultSort={{ key: hoursKey, direction: metric === 'rest_hrs' ? 'asc' : 'desc' }}
         ariaLabel={thresholdLabel}
       />
     </section>
