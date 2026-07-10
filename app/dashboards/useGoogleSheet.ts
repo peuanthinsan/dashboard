@@ -46,6 +46,11 @@ type UseGoogleSheetOptions = {
    * row window (e.g. April on a 245k-row sheet).
    */
   loadMonthCatalog?: boolean;
+  /**
+   * Keep videoURL/Videoit in month-scoped chunk fetches. Only Detail renders
+   * video evidence — leave this off elsewhere so chunks stay smaller.
+   */
+  includeVideo?: boolean;
 };
 
 type SheetResponse = {
@@ -77,7 +82,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const CATALOG_TTL_MS = 10 * 60 * 1000;
 const MAX_CACHE_CHARS = 2_000_000;
 /** Bump when fetch semantics change (direct GViz chunks + progressive apply). */
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const memoryCache = new Map<string, CachedSheet>();
 const catalogCache = new Map<string, { months: SheetMonthOption[]; fetchedAt: number }>();
 const metaCache = new Map<string, { meta: SheetMeta; fetchedAt: number }>();
@@ -171,13 +176,19 @@ async function fetchWithTimeout(
   }
 }
 
-/** Detect the timestamp column + pruned select directly from GViz. Cached per sheet. */
+/**
+ * Detect the timestamp column + pruned select directly from GViz. Cached per
+ * sheet AND per `includeVideo` — the same sheet/gid can be fetched by both a
+ * Detail dashboard (needs video) and a Summary/Simple/OverSpeed dashboard
+ * (doesn't) with different pruned selects, so the cache must not conflate them.
+ */
 async function getSheetMeta(
   sheetId: string,
   gid: string,
   signal: AbortSignal,
+  includeVideo: boolean,
 ): Promise<SheetMeta> {
-  const key = sheetKey(sheetId, gid);
+  const key = `${sheetKey(sheetId, gid)}:video=${includeVideo}`;
   const hit = metaCache.get(key);
   if (hit && Date.now() - hit.fetchedAt <= CATALOG_TTL_MS) return hit.meta;
 
@@ -190,7 +201,7 @@ async function getSheetMeta(
   const dateIdx = parsed.columns.findIndex((c) => c.type === 'datetime' || c.type === 'date');
   const meta: SheetMeta = {
     orderColId: dateIdx >= 0 ? gvizColumnLetter(dateIdx) : 'A',
-    select: buildAlertColumnSelect(parsed.columns),
+    select: buildAlertColumnSelect(parsed.columns, { includeVideo }),
     hasDateColumn: dateIdx >= 0,
   };
   metaCache.set(key, { meta, fetchedAt: Date.now() });
@@ -203,6 +214,7 @@ export default function useGoogleSheet({
   enabled = true,
   monthKeys,
   loadMonthCatalog,
+  includeVideo = false,
 }: UseGoogleSheetOptions): SheetResponse {
   const monthScoped = monthKeys !== undefined;
   const wantCatalog = loadMonthCatalog ?? monthScoped;
@@ -221,11 +233,14 @@ export default function useGoogleSheet({
 
   const monthKeySig = monthKeys ? [...monthKeys].sort().join(',') : '';
   // Computed at call time: once a sheet is known not to support month scoping,
-  // reads and writes share the single legacy-window cache entry.
+  // reads and writes share the single legacy-window cache entry. `includeVideo`
+  // is part of the key so a Detail dashboard's video-inclusive rows never get
+  // served from (or clobbered by) a Summary/Simple/OverSpeed cache entry for
+  // the same sheet/gid.
   const getCacheKey = useCallback(() => {
     const scoped = monthScoped && !monthScopeUnsupported.has(sheetKey(sheetId, gid));
-    return `${CACHE_VERSION}:${sheetId}:${gid}:months=${scoped ? (monthKeySig || 'NONE') : 'recent'}`;
-  }, [gid, monthKeySig, monthScoped, sheetId]);
+    return `${CACHE_VERSION}:${sheetId}:${gid}:video=${includeVideo}:months=${scoped ? (monthKeySig || 'NONE') : 'recent'}`;
+  }, [gid, includeVideo, monthKeySig, monthScoped, sheetId]);
 
   const readCache = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -353,8 +368,16 @@ export default function useGoogleSheet({
 
   /** One chunk via the authenticated proxy (fallback when direct GViz is blocked). */
   const fetchProxyChunk = useCallback(
-    async (from: string, to: string, signal: AbortSignal): Promise<CachedSheet> => {
-      const res = await fetchWithTimeout(buildApiUrl(sheetId, gid, { from, to }), signal);
+    async (
+      from: string,
+      to: string,
+      signal: AbortSignal,
+      includeVideo: boolean,
+    ): Promise<CachedSheet> => {
+      const query: Record<string, string> = includeVideo
+        ? { from, to, video: '1' }
+        : { from, to };
+      const res = await fetchWithTimeout(buildApiUrl(sheetId, gid, query), signal);
       if (res.status === 422) throw new MonthScopeUnsupportedError();
       if (!res.ok) throw new Error('Unable to fetch the Google Sheet data.');
       const data = await res.json();
@@ -410,6 +433,7 @@ export default function useGoogleSheet({
     async (
       keys: string[],
       signal: AbortSignal,
+      includeVideo: boolean,
       onPartial: (acc: CachedSheet, done: number, total: number) => void,
     ): Promise<CachedSheet> => {
       const buildJobs = (chunkDays: number) => {
@@ -425,7 +449,7 @@ export default function useGoogleSheet({
       const key = sheetKey(sheetId, gid);
       if (!directBroken.has(key)) {
         try {
-          const meta = await getSheetMeta(sheetId, gid, signal);
+          const meta = await getSheetMeta(sheetId, gid, signal, includeVideo);
           if (!meta.hasDateColumn) throw new MonthScopeUnsupportedError();
           return await runChunkJobs(
             buildJobs(DIRECT_CHUNK_DAYS),
@@ -443,7 +467,7 @@ export default function useGoogleSheet({
 
       return runChunkJobs(
         buildJobs(PROXY_CHUNK_DAYS),
-        (from, to) => fetchProxyChunk(from, to, signal),
+        (from, to) => fetchProxyChunk(from, to, signal, includeVideo),
         signal,
         onPartial,
       );
@@ -584,7 +608,7 @@ export default function useGoogleSheet({
       let result: CachedSheet;
       if (monthScoped && !scopeBroken) {
         try {
-          result = await fetchMonths(monthKeys!, signal, (acc, done, total) => {
+          result = await fetchMonths(monthKeys!, signal, includeVideo, (acc, done, total) => {
             if (gen !== fetchGen.current) return;
             // Progressive apply: show data as soon as the first chunk lands.
             setColumns([...acc.columns]);
@@ -639,6 +663,7 @@ export default function useGoogleSheet({
     fetchMonths,
     fetchRecent,
     gid,
+    includeVideo,
     monthKeySig,
     monthKeys,
     monthScoped,

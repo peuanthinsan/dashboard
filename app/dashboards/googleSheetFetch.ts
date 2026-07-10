@@ -93,20 +93,32 @@ export async function detectSheetDateColumn(
   return result;
 }
 
+export type AlertColumnSelectOptions = {
+  /**
+   * Keep videoURL/Videoit in the pruned select. Only Detail renders video
+   * evidence — Summary/Simple/OverSpeed don't, so they skip it by default to
+   * leave more headroom under Vercel's ~4.5 MB response limit on dense chunks.
+   */
+  includeVideo?: boolean;
+};
+
 /**
  * Build a GViz `select` of column letters for headers that match ALERT_SHEET_COLUMN_LABELS.
  * Always includes column A (id) so the null-id poison filter still works.
  * Falls back to `*` when nothing matches (unknown sheet shape).
  *
- * Omits videoURL by default — those cells are long URLs that push dense 2–3 day
- * windows over Vercel's ~4.5 MB response limit. Detail's video evidence is empty
- * for month-scoped loads on huge sheets; Summary/Simple/OverSpeed don't need it.
+ * Omits videoURL unless `includeVideo` is set — those cells are long URLs that
+ * push dense 2–3 day windows closer to Vercel's ~4.5 MB response limit.
  */
-export function buildAlertColumnSelect(columns: GoogleSheetColumn[]): string {
+export function buildAlertColumnSelect(
+  columns: GoogleSheetColumn[],
+  options?: AlertColumnSelectOptions,
+): string {
   const wanted = new Set(ALERT_SHEET_COLUMN_LABELS.map((l) => l.trim().toLowerCase()));
-  // Drop video columns from the prune set — too large for dense chunks.
-  wanted.delete('videourl');
-  wanted.delete('videoit');
+  if (!options?.includeVideo) {
+    wanted.delete('videourl');
+    wanted.delete('videoit');
+  }
 
   const letters: string[] = [];
   const seen = new Set<string>();
@@ -195,6 +207,7 @@ export async function fetchSheetDateRange(
   fromIso: string,
   toIso: string,
   rowLimit = DEFAULT_SHEET_ROW_LIMIT,
+  options?: AlertColumnSelectOptions,
 ): Promise<SheetFetchResult> {
   const { orderColId, columns, hasDateColumn } = await detectSheetDateColumn(sheetId, gid);
   if (!hasDateColumn) {
@@ -204,7 +217,7 @@ export async function fetchSheetDateRange(
     }
     throw new SheetDateColumnError();
   }
-  const select = buildAlertColumnSelect(columns);
+  const select = buildAlertColumnSelect(columns, options);
   const url = buildGvizJsonUrl(sheetId, gid, {
     rowLimit,
     where: buildDatedRowsWhere(orderColId, fromIso, toIso, 'A'),
@@ -221,6 +234,7 @@ export async function fetchSheetMonth(
   gid: string,
   monthKey: string,
   chunkDays = SHEET_CHUNK_DAYS,
+  options?: AlertColumnSelectOptions,
 ): Promise<SheetFetchResult> {
   const range = monthKeyToDateRange(monthKey);
   if (!range) throw new Error(`Invalid month key: ${monthKey}`);
@@ -228,7 +242,14 @@ export async function fetchSheetMonth(
   let columns: GoogleSheetColumn[] = [];
   const rows: GoogleSheetRow[] = [];
   for (const chunk of chunks) {
-    const part = await fetchSheetDateRange(sheetId, gid, chunk.start, chunk.endExclusive);
+    const part = await fetchSheetDateRange(
+      sheetId,
+      gid,
+      chunk.start,
+      chunk.endExclusive,
+      DEFAULT_SHEET_ROW_LIMIT,
+      options,
+    );
     if (columns.length === 0) columns = part.columns;
     rows.push(...part.rows);
   }
