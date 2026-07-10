@@ -36,6 +36,8 @@ type UseGoogleSheetOptions = {
    * - `undefined` — legacy "most recent 25k" (Driving / Video / etc.).
    * - `[]` — load the month catalogue only; wait for a selection before fetching rows.
    * - `['2026-06', …]` — fetch those months in chunks, rendered progressively.
+   * Sheets that can't serve month scoping (no date-typed column, empty/failed
+   * catalogue) automatically fall back to the legacy most-recent window.
    */
   monthKeys?: string[];
   /**
@@ -69,7 +71,7 @@ type CachedSheet = {
   availableMonths?: SheetMonthOption[];
 };
 
-type SheetMeta = { orderColId: string; select: string };
+type SheetMeta = { orderColId: string; select: string; hasDateColumn: boolean };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CATALOG_TTL_MS = 10 * 60 * 1000;
@@ -81,6 +83,13 @@ const catalogCache = new Map<string, { months: SheetMonthOption[]; fetchedAt: nu
 const metaCache = new Map<string, { meta: SheetMeta; fetchedAt: number }>();
 /** Sheets where direct browser→GViz failed (CORS/permission); use the proxy instead. */
 const directBroken = new Set<string>();
+/**
+ * Sheets where month-scoped fetching cannot work (no date-typed column, or the
+ * month catalogue is empty). These fall back to the legacy most-recent window so
+ * the dashboard never renders permanently blank; templates' client-side month
+ * filters still apply to the fallback rows.
+ */
+const monthScopeUnsupported = new Set<string>();
 
 /**
  * Direct browser→GViz chunks skip the Vercel proxy (no ~4.5 MB response cap and no
@@ -96,6 +105,14 @@ class ChunkTimeoutError extends Error {
   constructor(message = 'Sheet chunk request timed out') {
     super(message);
     this.name = 'ChunkTimeoutError';
+  }
+}
+
+/** The sheet cannot serve date-scoped chunks (no date-typed column). */
+class MonthScopeUnsupportedError extends Error {
+  constructor(message = 'Month-scoped fetch unsupported for this sheet') {
+    super(message);
+    this.name = 'MonthScopeUnsupportedError';
   }
 }
 
@@ -174,6 +191,7 @@ async function getSheetMeta(
   const meta: SheetMeta = {
     orderColId: dateIdx >= 0 ? gvizColumnLetter(dateIdx) : 'A',
     select: buildAlertColumnSelect(parsed.columns),
+    hasDateColumn: dateIdx >= 0,
   };
   metaCache.set(key, { meta, fetchedAt: Date.now() });
   return meta;
@@ -202,12 +220,16 @@ export default function useGoogleSheet({
   const loadedMonthSigRef = useRef<string | null>(null);
 
   const monthKeySig = monthKeys ? [...monthKeys].sort().join(',') : '';
-  const cacheKey = `${CACHE_VERSION}:${sheetId}:${gid}:months=${
-    monthScoped ? (monthKeySig || 'NONE') : 'recent'
-  }`;
+  // Computed at call time: once a sheet is known not to support month scoping,
+  // reads and writes share the single legacy-window cache entry.
+  const getCacheKey = useCallback(() => {
+    const scoped = monthScoped && !monthScopeUnsupported.has(sheetKey(sheetId, gid));
+    return `${CACHE_VERSION}:${sheetId}:${gid}:months=${scoped ? (monthKeySig || 'NONE') : 'recent'}`;
+  }, [gid, monthKeySig, monthScoped, sheetId]);
 
   const readCache = useCallback(() => {
     if (typeof window === 'undefined') return null;
+    const cacheKey = getCacheKey();
     const isRealMonthFetch = monthScoped && monthKeySig && monthKeySig !== 'NONE';
     const cachedMemory = memoryCache.get(cacheKey);
     if (cachedMemory) {
@@ -247,13 +269,14 @@ export default function useGoogleSheet({
       window.localStorage.removeItem(`google-sheet:${cacheKey}`);
       return null;
     }
-  }, [cacheKey, monthKeySig, monthScoped]);
+  }, [getCacheKey, monthKeySig, monthScoped]);
 
   const writeCache = useCallback(
     (payload: CachedSheet) => {
       if (typeof window === 'undefined') return;
       // Do not persist empty month fetches — they poison the next load with zeros.
       if (payload.rows.length === 0 && monthScoped) return;
+      const cacheKey = getCacheKey();
       memoryCache.set(cacheKey, payload);
       const serialized = JSON.stringify(payload);
       if (serialized.length > MAX_CACHE_CHARS) return;
@@ -267,7 +290,7 @@ export default function useGoogleSheet({
         }
       }
     },
-    [cacheKey, monthScoped],
+    [getCacheKey, monthScoped],
   );
 
   const fetchMonthCatalog = useCallback(
@@ -332,6 +355,7 @@ export default function useGoogleSheet({
   const fetchProxyChunk = useCallback(
     async (from: string, to: string, signal: AbortSignal): Promise<CachedSheet> => {
       const res = await fetchWithTimeout(buildApiUrl(sheetId, gid, { from, to }), signal);
+      if (res.status === 422) throw new MonthScopeUnsupportedError();
       if (!res.ok) throw new Error('Unable to fetch the Google Sheet data.');
       const data = await res.json();
       return {
@@ -402,6 +426,7 @@ export default function useGoogleSheet({
       if (!directBroken.has(key)) {
         try {
           const meta = await getSheetMeta(sheetId, gid, signal);
+          if (!meta.hasDateColumn) throw new MonthScopeUnsupportedError();
           return await runChunkJobs(
             buildJobs(DIRECT_CHUNK_DAYS),
             (from, to) => fetchDirectChunk(meta, from, to, signal),
@@ -410,6 +435,7 @@ export default function useGoogleSheet({
           );
         } catch (err) {
           if (signal.aborted || isAbortError(err)) throw err;
+          if (err instanceof MonthScopeUnsupportedError) throw err;
           // Direct GViz blocked or flaky for this sheet — remember and fall back.
           directBroken.add(key);
         }
@@ -519,19 +545,32 @@ export default function useGoogleSheet({
     setError(null);
 
     try {
+      const key = sheetKey(sheetId, gid);
+      let scopeBroken = monthScopeUnsupported.has(key);
+
       let months: SheetMonthOption[] = [];
-      if (wantCatalog) {
+      if (wantCatalog && !scopeBroken) {
         try {
           months = await fetchMonthCatalog(signal);
           if (gen !== fetchGen.current) return;
           setAvailableMonths(months);
+          if (monthScoped && months.length === 0) {
+            // No listable months (text dates, no date-typed column, or empty
+            // sheet) — month scoping cannot work. Permanently fall back to the
+            // legacy most-recent window instead of rendering a blank dashboard.
+            monthScopeUnsupported.add(key);
+            scopeBroken = true;
+          }
         } catch (err) {
           if (signal.aborted || isAbortError(err)) return;
+          // Catalogue unavailable this load — fall back to the legacy window
+          // for now, but don't permanently mark the sheet.
           months = [];
+          scopeBroken = monthScoped;
         }
       }
 
-      if (monthScoped && (!monthKeys || monthKeys.length === 0)) {
+      if (monthScoped && !scopeBroken && (!monthKeys || monthKeys.length === 0)) {
         if (gen !== fetchGen.current) return;
         setRows([]);
         setColumns([]);
@@ -543,19 +582,27 @@ export default function useGoogleSheet({
       }
 
       let result: CachedSheet;
-      if (monthScoped) {
-        result = await fetchMonths(monthKeys!, signal, (acc, done, total) => {
-          if (gen !== fetchGen.current) return;
-          // Progressive apply: show data as soon as the first chunk lands.
-          setColumns([...acc.columns]);
-          setRows([...acc.rows]);
-          setLastUpdated(new Date(acc.lastUpdated));
-          setProgress({ done, total });
-          if (acc.rows.length > 0) {
-            setLoading(false);
-            setRefreshing(done < total);
-          }
-        });
+      if (monthScoped && !scopeBroken) {
+        try {
+          result = await fetchMonths(monthKeys!, signal, (acc, done, total) => {
+            if (gen !== fetchGen.current) return;
+            // Progressive apply: show data as soon as the first chunk lands.
+            setColumns([...acc.columns]);
+            setRows([...acc.rows]);
+            setLastUpdated(new Date(acc.lastUpdated));
+            setProgress({ done, total });
+            if (acc.rows.length > 0) {
+              setLoading(false);
+              setRefreshing(done < total);
+            }
+          });
+        } catch (err) {
+          if (!(err instanceof MonthScopeUnsupportedError)) throw err;
+          // Discovered mid-fetch (no date column / proxy 422): remember and
+          // serve the legacy window instead of failing the dashboard.
+          monthScopeUnsupported.add(key);
+          result = await fetchRecent(signal);
+        }
       } else {
         result = await fetchRecent(signal);
       }
@@ -591,10 +638,12 @@ export default function useGoogleSheet({
     fetchMonthCatalog,
     fetchMonths,
     fetchRecent,
+    gid,
     monthKeySig,
     monthKeys,
     monthScoped,
     readCache,
+    sheetId,
     wantCatalog,
     writeCache,
   ]);
