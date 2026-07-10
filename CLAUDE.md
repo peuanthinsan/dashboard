@@ -18,9 +18,10 @@ playbook, escalation triggers).
 ## Top invariants (details in the skill)
 
 1. **Template parity is by copy** — filter/scoping/persistence changes and findValue
-   alias-list changes must be mirrored across all dashboard templates in
-   `app/dashboards/`. One-template fixes are incomplete. Shared alias constants (e.g.
-   `ALERT_TIME_ALIASES` in `dashboardDataUtils.ts`) are the preferred home for new aliases.
+   alias-list changes must be mirrored across every template that carries the equivalent
+   block — grep them all; DynamicTrip's fleet-scoping is a deliberate no-op. One-template
+   fixes are incomplete. Shared alias constants (e.g. `ALERT_TIME_ALIASES` in
+   `dashboardDataUtils.ts`) are the preferred home for new aliases.
 2. **One timezone convention (Bangkok-as-UTC)** — since `c0cbd77`, `parseDate` stamps each
    sheet timestamp's Bangkok wall-clock digits into a UTC instant (`Date.UTC`), and every
    reader formats with `getUTC*` / `timeZone:'UTC'`, so values are identical for any viewer
@@ -39,7 +40,8 @@ playbook, escalation triggers).
 
 ## Workflow
 
-Per the user's global CLAUDE.md: plan complex/cross-template work on Opus, execute on
-Sonnet, and escalate per the error-recovery rules. Related repos: the six `~/*-dvis`
-customer inspection apps (see the `dvis-fleet-apps` skill — inspection/unit-status
-screens live there, not here).
+- **Models:** plan on Fable/Opus; code with Codex by default (codex-delegation skill — Codex prompts must forbid git); review/verify/git on Fable/Opus. Sequencing, verification matrix, escalation: `songdee-fleet-workflow`.
+- **Git:** worktree + feature branch + PR. The main checkout is often mid-feature — don't disturb it (`git-rescue-and-parallel-sessions`).
+- **Deploy:** a push NEVER deploys (`git.deploymentEnabled:false`, region `sin1`); `vercel deploy --prod` on user request — commands in `peuan-portfolio`.
+- **Metrics:** semantics live in `docs/METRICS.md` — update it in the same PR when they change.
+- Related repos: the six `~/*-dvis` customer inspection apps (see `dvis-fleet-apps` — inspection/unit-status screens live there, not here).
