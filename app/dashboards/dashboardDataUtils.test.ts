@@ -9,6 +9,7 @@ import {
   resolveTemplate,
   remarkMatchesAllowedTarget,
   withDerivedRemark,
+  previousMonthKey,
 } from './dashboardDataUtils';
 
 describe('dashboardDataUtils', () => {
@@ -141,6 +142,23 @@ describe('dashboardDataUtils', () => {
       expect(withDerivedRemark('Eye Closing-A2', 'Driver fatigue')).toBe('Driver fatigue');
       expect(withDerivedRemark('Distraction-A2', 'Mobile Phone')).toBe('Mobile Phone');
       expect(withDerivedRemark('Distraction-A2', '  spaced  ')).toBe('spaced');
+    });
+  });
+  describe('previousMonthKey', () => {
+    it('returns last Bangkok month for a mid-month instant', () => {
+      expect(previousMonthKey(new Date('2026-07-09T12:00:00Z'))).toBe('2026-06');
+    });
+
+    it('uses the Bangkok calendar during the first 7 UTC hours of the month', () => {
+      // 2026-06-30T17:30Z = 2026-07-01 00:30 Bangkok -> previous month is June.
+      expect(previousMonthKey(new Date('2026-06-30T17:30:00Z'))).toBe('2026-06');
+      // 2026-06-30T16:30Z = 2026-06-30 23:30 Bangkok -> previous month is May.
+      expect(previousMonthKey(new Date('2026-06-30T16:30:00Z'))).toBe('2026-05');
+    });
+
+    it('handles the year boundary in Bangkok time', () => {
+      // 2025-12-31T18:00Z = 2026-01-01 01:00 Bangkok -> previous month is Dec 2025.
+      expect(previousMonthKey(new Date('2025-12-31T18:00:00Z'))).toBe('2025-12');
     });
   });
 });
