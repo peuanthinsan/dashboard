@@ -44,6 +44,8 @@ async function authorize(sheetId: string, gid: string) {
  * Query params:
  * - `mode=months` — list calendar months present in the sheet (non-null id rows).
  * - `from=YYYY-MM-DD&to=YYYY-MM-DD` — rows in [from, to) with non-null id (≤25k).
+ * - `video=1` (with from/to) — keep videoURL/Videoit in the pruned column set.
+ *   Only Detail needs this; omit it elsewhere to leave headroom under the payload limit.
  * - (default) — 25k most-recent rows by timestamp, excluding null-id poison rows.
  *
  * Large alert sheets (e.g. PoonNok ~245k rows) cannot fit in one response. Clients
@@ -69,6 +71,7 @@ export async function GET(
   const mode = url.searchParams.get('mode');
   const from = url.searchParams.get('from');
   const to = url.searchParams.get('to');
+  const includeVideo = url.searchParams.get('video') === '1';
 
   try {
     if (mode === 'months') {
@@ -94,7 +97,9 @@ export async function GET(
           { status: 400 },
         );
       }
-      const parsed = await fetchSheetDateRange(sheetId, gid, from, to, DEFAULT_SHEET_ROW_LIMIT);
+      const parsed = await fetchSheetDateRange(sheetId, gid, from, to, DEFAULT_SHEET_ROW_LIMIT, {
+        includeVideo,
+      });
       return NextResponse.json({
         columns: parsed.columns,
         rows: parsed.rows,

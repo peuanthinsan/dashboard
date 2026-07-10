@@ -184,6 +184,8 @@ export default function DetailDashboard({
     gid: sheetGid,
     monthKeys: monthFilters,
     loadMonthCatalog: true,
+    // Detail is the only month-scoped template that renders video evidence.
+    includeVideo: true,
   });
   // Manual driver-name overrides; seeded from the server, updated optimistically on save.
   const [overrides, setOverrides] = useState<Record<string, string>>(() => driverOverrides ?? {});

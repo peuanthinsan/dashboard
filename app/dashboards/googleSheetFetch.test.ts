@@ -63,6 +63,15 @@ describe('buildAlertColumnSelect', () => {
     );
     expect(select).toBe('A,B,C,D,E,F');
   });
+
+  it('keeps videoURL/Videoit when includeVideo is true (Detail needs video evidence)', () => {
+    const select = buildAlertColumnSelect(
+      cols('id', 'Vehicle No', 'Alert Type', 'videoURL', 'Videoit', 'noise'),
+      { includeVideo: true },
+    );
+    // A=id, B=Vehicle, C=Alert Type, D=videoURL, E=Videoit
+    expect(select).toBe('A,B,C,D,E');
+  });
 });
 
 // Each test uses a unique sheetId: detectSheetDateColumn caches per sheet for 10 min.
@@ -111,6 +120,32 @@ describe('fetchSheetDateRange', () => {
     expect(tq).toContain("A >= date '2026-06-01'");
     expect(tq).toContain("A < date '2026-06-03'");
     expect(tq).not.toContain('order by');
+  });
+
+  it('omits videoURL from the pruned select by default', async () => {
+    const header = [
+      { label: 'id', type: 'string' },
+      { label: 'Alert Date Time', type: 'datetime' },
+      { label: 'videoURL', type: 'string' },
+    ];
+    const calls = stubFetch([gvizPayload(header)]);
+    await fetchSheetDateRange('sheet-video-omitted', '0', '2026-06-01', '2026-06-03');
+    const tq = decodeURIComponent(calls[1]!);
+    expect(tq.match(/select ([A-Z,]+)/)?.[1]).toBe('A,B');
+  });
+
+  it('keeps videoURL in the pruned select when includeVideo is requested (Detail)', async () => {
+    const header = [
+      { label: 'id', type: 'string' },
+      { label: 'Alert Date Time', type: 'datetime' },
+      { label: 'videoURL', type: 'string' },
+    ];
+    const calls = stubFetch([gvizPayload(header)]);
+    await fetchSheetDateRange('sheet-video-included', '0', '2026-06-01', '2026-06-03', undefined, {
+      includeVideo: true,
+    });
+    const tq = decodeURIComponent(calls[1]!);
+    expect(tq.match(/select ([A-Z,]+)/)?.[1]).toBe('A,B,C');
   });
 });
 
