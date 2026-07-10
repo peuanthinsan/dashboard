@@ -146,8 +146,14 @@ export const parseDate = (value: unknown) => {
 export const toMonthKey = (date: Date) =>
   `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 
-export const previousMonthKey = (now: Date = new Date()) =>
-  toMonthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)));
+export const previousMonthKey = (now: Date = new Date()) => {
+  // Sheet month keys are Bangkok calendar months, but `now` is a real instant:
+  // during 00:00–07:00 Bangkok on the 1st, UTC is still in the prior month and
+  // unshifted UTC getters would default the dashboards to TWO months back.
+  // Shift +7h so the UTC getters read Bangkok's calendar (UTC+7, no DST).
+  const bangkok = new Date(now.getTime() + 7 * 3_600_000);
+  return toMonthKey(new Date(Date.UTC(bangkok.getUTCFullYear(), bangkok.getUTCMonth() - 1, 1)));
+};
 
 export const toMonthLabel = (date: Date) =>
   date.toLocaleString('default', {
