@@ -37,7 +37,25 @@ function gvizBase(sheetId: string, gid: string): string {
   );
 }
 
-type DetectedSheetMeta = { orderColId: string; columns: GoogleSheetColumn[] };
+type DetectedSheetMeta = {
+  orderColId: string;
+  /** True when the sheet has a real date/datetime-typed column to scope by. */
+  hasDateColumn: boolean;
+  columns: GoogleSheetColumn[];
+};
+
+/**
+ * Thrown when a date-scoped fetch is requested on a sheet with no date-typed
+ * column. Callers must fall back to the legacy most-recent window instead of
+ * silently receiving unrelated rows (a from/to caller merging chunked responses
+ * would otherwise duplicate the same 25k rows once per chunk).
+ */
+export class SheetDateColumnError extends Error {
+  constructor(message = 'Sheet has no date-typed column; month-scoped fetch unsupported.') {
+    super(message);
+    this.name = 'SheetDateColumnError';
+  }
+}
 
 // Detection costs a full GViz round-trip (~10s on large sheets) and the answer is
 // stable, so cache it per sheet. On Vercel, warm function instances reuse this map,
@@ -59,12 +77,14 @@ export async function detectSheetDateColumn(
     cache: 'no-store',
   });
   if (!meta.ok) {
-    return { orderColId: 'A', columns: [] };
+    // Header unavailable (transient) — NOT the same as "no date column".
+    return { orderColId: 'A', hasDateColumn: false, columns: [] };
   }
   const parsed = parseGoogleSheetGvizText(await meta.text());
   const dateIdx = parsed.columns.findIndex((c) => c.type === 'datetime' || c.type === 'date');
   const result: DetectedSheetMeta = {
     orderColId: dateIdx >= 0 ? gvizColumnLetter(dateIdx) : 'A',
+    hasDateColumn: dateIdx >= 0,
     columns: parsed.columns,
   };
   if (result.columns.length > 0) {
@@ -110,8 +130,8 @@ export function buildAlertColumnSelect(columns: GoogleSheetColumn[]): string {
  * GViz month() is 0-based — we add 1 when building YYYY-MM keys.
  */
 export async function listSheetMonths(sheetId: string, gid: string): Promise<SheetMonthOption[]> {
-  const { orderColId } = await detectSheetDateColumn(sheetId, gid);
-  if (orderColId === 'A') return [];
+  const { orderColId, hasDateColumn } = await detectSheetDateColumn(sheetId, gid);
+  if (!hasDateColumn) return [];
 
   const url = `${gvizBase(sheetId, gid)}&tq=${encodeURIComponent(buildMonthListQuery(orderColId))}`;
   const res = await fetch(url, { headers: UA, cache: 'no-store' });
@@ -139,20 +159,26 @@ export async function listSheetMonths(sheetId: string, gid: string): Promise<She
   return months.sort((a, b) => b.key.localeCompare(a.key));
 }
 
-/** Most-recent rows, excluding null-id poison rows that steal the cap window. */
+/**
+ * Most-recent rows, excluding null-id poison rows that steal the cap window.
+ *
+ * Returns FULL columns deliberately: this path serves the legacy (non-month-scoped)
+ * templates — Driving, Video, unit-status, DynamicTrip — whose sheets share a few
+ * alert-style headers but whose data lives in columns OUTSIDE the alert set
+ * (Login/Logout/WorkHrs, videoURL, GPS Status, trip coordinates…). Pruning here
+ * silently strips those columns. Prune only date-range chunk fetches.
+ */
 export async function fetchRecentSheetRows(
   sheetId: string,
   gid: string,
   rowLimit = DEFAULT_SHEET_ROW_LIMIT,
 ): Promise<SheetFetchResult> {
-  const { orderColId, columns } = await detectSheetDateColumn(sheetId, gid);
-  const select = buildAlertColumnSelect(columns);
+  const { orderColId } = await detectSheetDateColumn(sheetId, gid);
   const url = buildGvizJsonUrl(sheetId, gid, {
     rowLimit,
     recentFirst: true,
     orderColId,
     where: buildNonNullIdWhere('A'),
-    select,
   });
   const res = await fetch(url, { headers: UA, cache: 'no-store' });
   if (!res.ok) throw new Error('Unable to fetch the Google Sheet data.');
@@ -170,9 +196,13 @@ export async function fetchSheetDateRange(
   toIso: string,
   rowLimit = DEFAULT_SHEET_ROW_LIMIT,
 ): Promise<SheetFetchResult> {
-  const { orderColId, columns } = await detectSheetDateColumn(sheetId, gid);
-  if (orderColId === 'A') {
-    return fetchRecentSheetRows(sheetId, gid, rowLimit);
+  const { orderColId, columns, hasDateColumn } = await detectSheetDateColumn(sheetId, gid);
+  if (!hasDateColumn) {
+    if (columns.length === 0) {
+      // Header fetch failed — surface as retryable, not as a schema problem.
+      throw new Error('Unable to read the sheet header.');
+    }
+    throw new SheetDateColumnError();
   }
   const select = buildAlertColumnSelect(columns);
   const url = buildGvizJsonUrl(sheetId, gid, {

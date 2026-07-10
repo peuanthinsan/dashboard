@@ -4,6 +4,7 @@ import {
   fetchRecentSheetRows,
   fetchSheetDateRange,
   listSheetMonths,
+  SheetDateColumnError,
 } from 'app/dashboards/googleSheetFetch';
 import { DEFAULT_SHEET_ROW_LIMIT } from 'app/dashboards/googleSheetGvizUrl';
 import { getUser, userCanAccessSheet } from 'app/db';
@@ -112,6 +113,11 @@ export async function GET(
       truncated: parsed.rows.length >= DEFAULT_SHEET_ROW_LIMIT,
     });
   } catch (err) {
+    if (err instanceof SheetDateColumnError) {
+      // Explicit signal (not a silent recent-rows fallback, which chunked
+      // clients would merge once per chunk): this sheet can't serve date ranges.
+      return NextResponse.json({ error: err.message, code: 'NO_DATE_COLUMN' }, { status: 422 });
+    }
     console.error('Sheet fetch error:', err);
     return NextResponse.json({ error: 'Unable to fetch the Google Sheet data.' }, { status: 502 });
   }
