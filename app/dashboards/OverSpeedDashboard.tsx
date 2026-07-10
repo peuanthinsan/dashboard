@@ -17,7 +17,6 @@ import InlineDayPicker from 'app/ui/InlineDayPicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import FilterBar from 'app/ui/FilterBar';
 import { heading2, textSecondary, CHART_COLORS } from 'app/ui/design-tokens';
-import { calendarDateToIsoLocal } from 'app/ui/exportCsvFormat';
 
 type DashboardProps = {
   dashboardId: string;
@@ -451,7 +450,7 @@ export default function OverSpeedDashboard({
     filteredRows.map((r) => ({
       'Vehicle No': r.vehicle,
       'Driver Name': r.driver,
-      'Track Time': r.date ? calendarDateToIsoLocal(r.date) : '',
+      'Track Time': r.date ? toDayKey(r.date) : '',
       '> 1 min': r.gt1min,
       '< 1 min': r.lt1min,
       'Max Speed': r.speed,
