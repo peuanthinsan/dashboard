@@ -83,6 +83,9 @@ const CATALOG_TTL_MS = 10 * 60 * 1000;
 const MAX_CACHE_CHARS = 2_000_000;
 /** Bump when fetch semantics change (direct GViz chunks + progressive apply). */
 const CACHE_VERSION = 'v9';
+/** Cap on distinct in-memory cached sheets; each can hold a full multi-MB row array, so
+ *  an unbounded Map grows for the tab's lifetime as the user steps through months/dashboards. */
+const MAX_MEMORY_CACHE_ENTRIES = 12;
 const memoryCache = new Map<string, CachedSheet>();
 const catalogCache = new Map<string, { months: SheetMonthOption[]; fetchedAt: number }>();
 const metaCache = new Map<string, { meta: SheetMeta; fetchedAt: number }>();
@@ -293,6 +296,13 @@ export default function useGoogleSheet({
       if (payload.rows.length === 0 && monthScoped) return;
       const cacheKey = getCacheKey();
       memoryCache.set(cacheKey, payload);
+      // Bound the in-memory cache: evict oldest entries (Map preserves insertion order)
+      // so a long session across many months/dashboards can't grow it without limit.
+      while (memoryCache.size > MAX_MEMORY_CACHE_ENTRIES) {
+        const oldest = memoryCache.keys().next().value;
+        if (oldest === undefined) break;
+        memoryCache.delete(oldest);
+      }
       const serialized = JSON.stringify(payload);
       if (serialized.length > MAX_CACHE_CHARS) return;
       try {

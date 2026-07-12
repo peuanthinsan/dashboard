@@ -962,12 +962,15 @@ export async function insertPendingDrivingWarning(args: {
     ON CONFLICT ("dashboardId", "violationKey") DO UPDATE
       SET "lineStatus" = 'pending', "errorMessage" = NULL, "lineChannelId" = EXCLUDED."lineChannelId",
           "sentByUserId" = EXCLUDED."sentByUserId", "operatorNote" = EXCLUDED."operatorNote"
+      WHERE "DrivingWarning"."lineStatus" <> 'sent'
     RETURNING id, "lineStatus", "sentAt"
   `);
   const rows = (result as unknown as { rows?: Array<{ id: number; lineStatus: string; sentAt: Date | null }> }).rows
     ?? (result as unknown as Array<{ id: number; lineStatus: string; sentAt: Date | null }>);
   const row = Array.isArray(rows) ? rows[0] : rows;
-  return row as { id: number; lineStatus: string; sentAt: Date | null };
+  // A conflict on an already-'sent' row is intentionally NOT updated (the WHERE above),
+  // so RETURNING yields no row — signal that to the caller so it doesn't re-send.
+  return (row ?? undefined) as { id: number; lineStatus: string; sentAt: Date | null } | undefined;
 }
 
 export async function markWarningSent(args: { id: number; messageId: string | null }) {
