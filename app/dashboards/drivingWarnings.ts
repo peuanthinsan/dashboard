@@ -10,7 +10,6 @@ import {
   insertPendingDrivingWarning,
   markWarningSent,
   markWarningFailed,
-  getWarningsForDashboard as getWarningsForDashboardDb,
 } from 'app/db';
 import { sendLinePushMessage } from 'app/lib/lineMessagingApi';
 import {
@@ -186,6 +185,12 @@ export async function sendDrivingWarning(
     operatorNote: parsed.operatorNote ?? null,
   });
 
+  // No row means the upsert hit an already-'sent' warning (it is left untouched): don't
+  // re-push a duplicate LINE message or double-count the warned driver on a repeat click.
+  if (!inserted) {
+    return { status: 'error', code: 'already-sent', message: 'This warning has already been sent.' };
+  }
+
   const lang = (process.env.DASHBOARD_LANG ?? 'th') as 'th' | 'en';
   const dashboardName = dashboard.name ?? 'Songdee';
   const text = v.metric === 'drive_hrs'
@@ -224,8 +229,4 @@ export async function sendDrivingWarning(
     sentAt: new Date().toISOString(),
     channelName: channel.name,
   };
-}
-
-export async function getWarningsForDashboard(dashboardId: number) {
-  return getWarningsForDashboardDb({ dashboardId, windowStart: null, windowEnd: null });
 }

@@ -14,8 +14,15 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const [lang] = useState(() => readDashboardLangFromCookie());
+  // Start from the server default so the first client render matches the SSR HTML, then
+  // correct to the user's cookie language after mount (reading the cookie during render
+  // would diverge from the server and trip a hydration mismatch).
+  const [lang, setLang] = useState<ReturnType<typeof readDashboardLangFromCookie>>('th');
   const copy = useMemo(() => getSiteCopy(lang), [lang]);
+
+  useEffect(() => {
+    setLang(readDashboardLangFromCookie());
+  }, []);
 
   useEffect(() => {
     console.error('Route error:', error);

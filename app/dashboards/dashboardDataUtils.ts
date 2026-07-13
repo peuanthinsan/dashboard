@@ -118,8 +118,8 @@ export const parseDate = (value: unknown) => {
   if (!value) return null;
   const raw = String(value).trim();
   if (!raw) return null;
-  // Handle DD/MM/YYYY or DD/MM/YYYY HH:MM:SS
-  const ddmmyyyy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?$/);
+  // Handle DD/MM/YYYY, DD/MM/YYYY HH:MM, or DD/MM/YYYY HH:MM:SS (seconds optional)
+  const ddmmyyyy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/);
   if (ddmmyyyy) {
     const [, dd, mm, yyyy, hh, mi, ss] = ddmmyyyy;
     const d = parseInt(dd!, 10);
@@ -424,7 +424,13 @@ export function applyAlertRules(
     if (rule.type === 'false_alert_speed') {
       const nRemark = normalizeLabel(remark);
       const nTarget = normalizeLabel(rule.remark);
-      if ((nRemark.includes(nTarget) || nTarget.includes(nRemark)) && speed < rule.maxSpeed) {
+      // Only exclude on a KNOWN positive speed below the threshold. A missing/non-numeric
+      // speed cell arrives here as 0; treating "unknown" as "below threshold" would wrongly
+      // hide genuine alerts (fail toward showing the alert).
+      if (
+        (nRemark.includes(nTarget) || nTarget.includes(nRemark)) &&
+        Number.isFinite(speed) && speed > 0 && speed < rule.maxSpeed
+      ) {
         return 'False alert';
       }
     }

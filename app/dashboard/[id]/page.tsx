@@ -47,8 +47,17 @@ export async function generateMetadata({
   const userCompanyIds = user[0].companyIds ?? [];
   const userOrganizationIds = user[0].organizationIds ?? [];
   const matchesCompany = userCompanyIds.includes(dashboard.companyId ?? -1);
+  // Mirror the view gate exactly: the viewer must be entitled to EVERY scoped fleet, or
+  // a partially-entitled user could read the dashboard's name in the tab/OG title.
+  const scopedOrgIds =
+    dashboard.organizationIds && dashboard.organizationIds.length > 0
+      ? dashboard.organizationIds
+      : dashboard.organizationId != null
+        ? [dashboard.organizationId]
+        : [];
   const matchesOrganization =
-    !dashboard.organizationId || userOrganizationIds.includes(dashboard.organizationId);
+    scopedOrgIds.length === 0 ||
+    scopedOrgIds.every((oid) => userOrganizationIds.includes(oid));
   if (!matchesCompany || !matchesOrganization) {
     return { title: 'Dashboard | SongdeeGPS' };
   }

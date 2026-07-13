@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   tableHead,
   tableHeadCell,
@@ -108,7 +108,9 @@ export function DataTable<T extends object>({
     [handleSort],
   );
 
-  const sortedData = getSortedData(data, sort, columns);
+  // Memoized: parent dashboards re-render on a 60s tick (and hover/filter state), and an
+  // active sort copies + sorts the full (multi-thousand-row) dataset on every render.
+  const sortedData = useMemo(() => getSortedData(data, sort, columns), [data, sort, columns]);
   const totalPages = pageSize ? Math.max(1, Math.ceil(sortedData.length / pageSize)) : 1;
   const clampedPage = Math.min(page, totalPages - 1);
   const pagedData = pageSize ? sortedData.slice(clampedPage * pageSize, (clampedPage + 1) * pageSize) : sortedData;

@@ -56,8 +56,18 @@ async function authorizeDashboardEdit(
 
   const isAdmin = !!user.isAdmin;
   const matchesCompany = (user.companyIds ?? []).includes(dashboard.companyId ?? -1);
+  // Mirror the view gate: require entitlement to EVERY scoped fleet, not just the legacy
+  // scalar organizationId — otherwise a user who can't VIEW a multi-fleet dashboard could
+  // still edit its driver-name overrides.
+  const scopedOrgIds =
+    dashboard.organizationIds && dashboard.organizationIds.length > 0
+      ? dashboard.organizationIds
+      : dashboard.organizationId != null
+        ? [dashboard.organizationId]
+        : [];
   const matchesOrganization =
-    !dashboard.organizationId || (user.organizationIds ?? []).includes(dashboard.organizationId);
+    scopedOrgIds.length === 0 ||
+    scopedOrgIds.every((oid) => (user.organizationIds ?? []).includes(oid));
   if (!isAdmin && !(matchesCompany && matchesOrganization)) {
     return { ok: false, message: 'You do not have access to this dashboard.' };
   }
