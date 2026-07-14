@@ -453,6 +453,7 @@ export function resolveTemplate(template: string): string {
     return 'BIGTHUnitStatus';
   }
   if (template === 'OverSpeed') return 'OverSpeed';
+  if (normalized === 'vehicle kpi' || normalized === 'vehiclekpi') return 'VehicleKPI';
   if (template === 'DynamicTrip') return 'DynamicTrip';
   return template;
 }
