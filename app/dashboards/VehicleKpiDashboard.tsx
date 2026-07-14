@@ -392,20 +392,21 @@ export default function VehicleKpiDashboard({
         <button
           type="button"
           onClick={() => void handleExport()}
-          disabled={exporting || vehicleRows.length === 0}
+          disabled={exporting || refreshing || vehicleRows.length === 0}
+          title={refreshing ? 'Waiting for all data to finish loading before export…' : undefined}
           className="inline-flex items-center gap-2 rounded-lg border border-zinc-200/60 bg-white/80 px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-card backdrop-blur-sm transition-all duration-200 hover:border-zinc-300 hover:shadow-card-hover disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700/60 dark:bg-zinc-800/80 dark:text-zinc-200 dark:hover:border-zinc-600"
         >
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          {exporting ? 'Exporting…' : 'Export Excel'}
+          {exporting ? 'Exporting…' : refreshing ? 'Loading…' : 'Export Excel'}
         </button>
       }
     >
       <div className="flex flex-col gap-6">
         {refreshing && (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
-            Loading more data…{progress ? ` ${Math.round((progress.done / progress.total) * 100)}%` : ''}
+          <p className="text-xs font-medium text-amber-600 dark:text-amber-400" role="status" aria-live="polite">
+            Counts are provisional — still loading{progress ? ` ${Math.round((progress.done / progress.total) * 100)}%` : ''}…
           </p>
         )}
 
@@ -440,7 +441,10 @@ export default function VehicleKpiDashboard({
           )}
         </FilterBar>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div
+          className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-5 ${refreshing ? 'opacity-60 transition-opacity' : ''}`}
+          aria-busy={refreshing}
+        >
           {VEHICLE_KPI_CATEGORIES.map((category) => {
             const count = totals[category.key];
             const grade = gradeForCount(count);
@@ -456,7 +460,10 @@ export default function VehicleKpiDashboard({
           })}
         </div>
 
-        <section className={dashboardSectionClass}>
+        <section
+          className={`${dashboardSectionClass} ${refreshing ? 'opacity-60 transition-opacity' : ''}`}
+          aria-busy={refreshing}
+        >
           <h2 className={heading2}>Fleet rollup</h2>
           <p className={`mt-1 ${textSecondary}`}>
             {fleetRows.length} fleet{fleetRows.length === 1 ? '' : 's'} in the selected range.
@@ -476,7 +483,10 @@ export default function VehicleKpiDashboard({
           </div>
         </section>
 
-        <section className={dashboardSectionClass}>
+        <section
+          className={`${dashboardSectionClass} ${refreshing ? 'opacity-60 transition-opacity' : ''}`}
+          aria-busy={refreshing}
+        >
           <h2 className={heading2}>Vehicle grades</h2>
           <p className={`mt-1 ${textSecondary}`}>
             {vehicleRows.length} vehicle{vehicleRows.length === 1 ? '' : 's'} in the selected range.
