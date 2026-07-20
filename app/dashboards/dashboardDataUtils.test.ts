@@ -116,6 +116,15 @@ describe('dashboardDataUtils', () => {
       expect(resolveTemplate('Driving')).toBe('Driving');
       expect(resolveTemplate('DynamicTrip')).toBe('DynamicTrip');
     });
+
+    it('maps Unit Device Status aliases without colliding with BIGTH unit status', () => {
+      expect(resolveTemplate('UnitDeviceStatus')).toBe('UnitDeviceStatus');
+      expect(resolveTemplate('unit device status')).toBe('UnitDeviceStatus');
+      expect(resolveTemplate('Unit Device Status Dashboard')).toBe('UnitDeviceStatus');
+      expect(resolveTemplate('alchem unit status')).toBe('UnitDeviceStatus');
+      expect(resolveTemplate('unit status')).toBe('BIGTHUnitStatus');
+      expect(resolveTemplate('BIGTHUnitStatus')).toBe('BIGTHUnitStatus');
+    });
   });
 
   describe('remarkMatchesAllowedTarget', () => {
