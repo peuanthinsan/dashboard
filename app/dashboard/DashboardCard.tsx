@@ -26,6 +26,8 @@ const templateIcons: Record<string, string> = {
   Detail: '📋',
   Simple: '📈',
   Driving: '🚗',
+  ALCHEMUnitStatus: '📡',
+  BIGTHUnitStatus: '📡',
 };
 
 const templateColors: Record<string, string> = {
@@ -33,6 +35,8 @@ const templateColors: Record<string, string> = {
   Detail: 'bg-blue-50 text-blue-700 ring-blue-200/50 dark:bg-blue-950/60 dark:text-blue-300 dark:ring-blue-800/30',
   Simple: 'bg-zinc-900 text-white ring-zinc-700/50 dark:bg-zinc-700 dark:text-zinc-100 dark:ring-zinc-600/30',
   Driving: 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30',
+  ALCHEMUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
+  BIGTHUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
 };
 
 const templateIconBg: Record<string, string> = {
@@ -40,6 +44,8 @@ const templateIconBg: Record<string, string> = {
   Detail: 'bg-blue-50 ring-blue-200/40 dark:bg-blue-950/40 dark:ring-blue-800/30',
   Simple: 'bg-zinc-100 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60',
   Driving: 'bg-emerald-50 ring-emerald-200/40 dark:bg-emerald-950/40 dark:ring-emerald-800/30',
+  ALCHEMUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
+  BIGTHUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
 };
 
 const templateDescriptions: Record<string, { en: string; th: string }> = {
@@ -47,6 +53,8 @@ const templateDescriptions: Record<string, { en: string; th: string }> = {
   Detail: { en: 'In-depth alert analysis', th: 'วิเคราะห์การแจ้งเตือนเชิงลึก' },
   Simple: { en: 'Minimal table view', th: 'มุมมองตารางอย่างง่าย' },
   Driving: { en: 'Driving hours & safety', th: 'ชั่วโมงขับขี่และความปลอดภัย' },
+  ALCHEMUnitStatus: { en: 'Fleet device health status', th: 'สถานะอุปกรณ์ยานพาหนะ' },
+  BIGTHUnitStatus: { en: 'Unit device status', th: 'สถานะอุปกรณ์หน่วย' },
 };
 
 export default function DashboardCard({ id, name, template, sheetUrl, lang }: DashboardCardProps) {
