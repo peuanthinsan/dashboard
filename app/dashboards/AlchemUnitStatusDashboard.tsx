@@ -129,7 +129,7 @@ function percent(part: number, total: number): string {
   return `${Math.round((part / total) * 100)}%`;
 }
 
-export default function UnitDeviceStatusDashboard({
+export default function AlchemUnitStatusDashboard({
   dashboardId,
   dashboardName,
   sheetId,

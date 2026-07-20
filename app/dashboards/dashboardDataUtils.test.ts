@@ -117,11 +117,11 @@ describe('dashboardDataUtils', () => {
       expect(resolveTemplate('DynamicTrip')).toBe('DynamicTrip');
     });
 
-    it('maps Unit Device Status aliases without colliding with BIGTH unit status', () => {
-      expect(resolveTemplate('UnitDeviceStatus')).toBe('UnitDeviceStatus');
-      expect(resolveTemplate('unit device status')).toBe('UnitDeviceStatus');
-      expect(resolveTemplate('Unit Device Status Dashboard')).toBe('UnitDeviceStatus');
-      expect(resolveTemplate('alchem unit status')).toBe('UnitDeviceStatus');
+    it('maps ALCHEMUnitStatus aliases without colliding with BIGTH unit status', () => {
+      expect(resolveTemplate('ALCHEMUnitStatus')).toBe('ALCHEMUnitStatus');
+      expect(resolveTemplate('alchem unit status')).toBe('ALCHEMUnitStatus');
+      expect(resolveTemplate('Unit Device Status')).toBe('ALCHEMUnitStatus');
+      expect(resolveTemplate('UnitDeviceStatus')).toBe('ALCHEMUnitStatus');
       expect(resolveTemplate('unit status')).toBe('BIGTHUnitStatus');
       expect(resolveTemplate('BIGTHUnitStatus')).toBe('BIGTHUnitStatus');
     });

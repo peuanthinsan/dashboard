@@ -20,7 +20,7 @@ import VehicleKpiDashboard from 'app/dashboards/VehicleKpiDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
 import BigthUnitStatusDashboard from 'app/dashboards/BigthUnitStatusDashboard';
-import UnitDeviceStatusDashboard from 'app/dashboards/UnitDeviceStatusDashboard';
+import AlchemUnitStatusDashboard from 'app/dashboards/AlchemUnitStatusDashboard';
 import LoadingState from 'app/dashboards/LoadingState';
 import { resolveTemplate as resolveTemplateName } from 'app/dashboards/dashboardDataUtils';
 import { normalizeDrivingThresholds, type DrivingThresholds } from 'app/dashboards/drivingThresholds';
@@ -124,8 +124,8 @@ function DashboardByTemplate({
       return <DynamicTripDashboard {...props} isAdmin={isAdmin} />;
     case 'BIGTHUnitStatus':
       return <BigthUnitStatusDashboard {...props} isAdmin={isAdmin} />;
-    case 'UnitDeviceStatus':
-      return <UnitDeviceStatusDashboard {...props} isAdmin={isAdmin} />;
+    case 'ALCHEMUnitStatus':
+      return <AlchemUnitStatusDashboard {...props} isAdmin={isAdmin} />;
     case 'Summary':
     default:
       return <SummaryDashboard {...props} isAdmin={isAdmin} />;

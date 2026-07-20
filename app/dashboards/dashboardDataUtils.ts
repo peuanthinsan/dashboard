@@ -443,13 +443,15 @@ export function resolveTemplate(template: string): string {
   const raw = (template ?? '').trim();
   const normalized = raw.toLowerCase().replace(/\s+/g, ' ');
   if (
+    normalized === 'alchemunitstatus' ||
+    normalized === 'alchem unit status' ||
+    normalized === 'alchem unit status dashboard' ||
     normalized === 'unitdevicestatus' ||
     normalized === 'unit device status' ||
     normalized === 'unit device status dashboard' ||
-    normalized === 'alchem unit status' ||
     normalized === 'alchem unit device status'
   ) {
-    return 'UnitDeviceStatus';
+    return 'ALCHEMUnitStatus';
   }
   if (
     normalized === 'bigthunitstatus' ||
