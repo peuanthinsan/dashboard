@@ -25,6 +25,8 @@ import {
   toMonthKey,
   toMonthLabel,
   previousMonthKey,
+  rejectFutureMonthKeys,
+  resolveDefaultMonthKey,
   withDerivedRemark,
   applyAlertRules,
   colorForRemark,
@@ -139,11 +141,12 @@ export default function SummaryDashboard({
     }>(storageKey);
     if (!stored) return;
     const frame = requestAnimationFrame(() => {
-      const storedMonths = Array.isArray(stored.monthFilters)
-        ? stored.monthFilters.filter((v) => typeof v === 'string')
-        : [];
-      // Empty stored months = pre-month-scope payload or "all"; let the default-month
-      // effect pick previousMonthKey once the catalogue arrives.
+      const storedMonths = rejectFutureMonthKeys(
+        Array.isArray(stored.monthFilters)
+          ? stored.monthFilters.filter((v) => typeof v === 'string')
+          : [],
+      );
+      // Empty / future-only stored months → let the default-month effect re-pick.
       if (storedMonths.length > 0) {
         didSetDefaultMonth.current = true;
         setMonthFilters(storedMonths);
@@ -160,7 +163,12 @@ export default function SummaryDashboard({
   }, [dayFilters, fleetFilters, monthFilters, storageKey]);
 
   const resetFilters = () => {
-    setMonthFilters(defaultMonthKey ? [defaultMonthKey] : []);
+    const nextMonth =
+      resolveDefaultMonthKey(
+        availableMonths.map((m) => m.key),
+        defaultMonthKey,
+      ) ?? defaultMonthKey;
+    setMonthFilters(nextMonth ? [nextMonth] : []);
     setDayFilters([]);
     setFleetFilters(scopeNames);
   };
@@ -211,7 +219,9 @@ export default function SummaryDashboard({
     }
     const unique = new Map<string, string>();
     alertRows.forEach((row) => { if (row.monthKey && row.monthLabel) unique.set(row.monthKey, row.monthLabel); });
-    return Array.from(unique.entries()).map(([key, label]) => ({ key, label })).sort((a, b) => b.key.localeCompare(a.key));
+    return rejectFutureMonthKeys(Array.from(unique.keys()))
+      .map((key) => ({ key, label: unique.get(key)! }))
+      .sort((a, b) => b.key.localeCompare(a.key));
   }, [alertRows, availableMonths]);
   // Months whose data is actually in `rows` (explicitly fetched, or present in
   // the legacy fallback window). Per-month aggregations must not read
@@ -230,8 +240,11 @@ export default function SummaryDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (monthOptions.some((o) => o.key === defaultMonthKey)) setMonthFilters([defaultMonthKey]);
-      else setMonthFilters([monthOptions[0]!.key]);
+      const next = resolveDefaultMonthKey(
+        monthOptions.map((o) => o.key),
+        defaultMonthKey,
+      );
+      if (next) setMonthFilters([next]);
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, monthFilters, monthOptions]);

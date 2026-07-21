@@ -18,6 +18,8 @@ import {
   toDayKey,
   toMonthKey,
   previousMonthKey,
+  rejectFutureMonthKeys,
+  resolveDefaultMonthKey,
   withDerivedRemark,
   applyAlertRules,
   resolveScopeFleetNames,
@@ -123,7 +125,10 @@ export default function SimpleDashboard({
     const stored = loadStoredFilters<SimpleFilterState>(storageKey);
     if (!stored) return;
     const frame = requestAnimationFrame(() => {
-      const storedMonth = typeof stored.month === 'string' ? stored.month : '';
+      const storedMonthRaw = typeof stored.month === 'string' ? stored.month : '';
+      const storedMonth = storedMonthRaw && rejectFutureMonthKeys([storedMonthRaw]).length > 0
+        ? storedMonthRaw
+        : '';
       if (storedMonth) didSetDefaultMonth.current = true;
       setFilters({
         month: storedMonth,
@@ -149,8 +154,14 @@ export default function SimpleDashboard({
     saveStoredFilters(storageKey, filters);
   }, [storageKey, filters]);
 
-  const resetFilters = () =>
-    setFilters({ ...defaultFilters, month: defaultMonthKey, fleetFilters: scopeNames });
+  const resetFilters = () => {
+    const nextMonth =
+      resolveDefaultMonthKey(
+        availableMonths.map((m) => m.key),
+        defaultMonthKey,
+      ) ?? defaultMonthKey;
+    setFilters({ ...defaultFilters, month: nextMonth ?? '', fleetFilters: scopeNames });
+  };
 
   const hasActiveFilters = useMemo(() => {
     return filters.month !== '' || filters.dayFilters.length > 0 || filters.fleetFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
@@ -211,7 +222,7 @@ export default function SimpleDashboard({
     baseAlerts.forEach((row) => {
       if (row.parsedDate) keys.add(toMonthKey(row.parsedDate));
     });
-    return Array.from(keys).sort();
+    return rejectFutureMonthKeys(Array.from(keys)).sort();
   }, [availableMonths, baseAlerts]);
 
   useEffect(() => {
@@ -223,8 +234,8 @@ export default function SimpleDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      const next = monthOptions.includes(defaultMonthKey) ? defaultMonthKey : monthOptions[0]!;
-      setFilters((f) => ({ ...f, month: next, dayFilters: [] }));
+      const next = resolveDefaultMonthKey(monthOptions, defaultMonthKey);
+      if (next) setFilters((f) => ({ ...f, month: next, dayFilters: [] }));
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, filters.month, monthOptions]);

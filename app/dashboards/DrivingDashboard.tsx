@@ -7,7 +7,7 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { findValue, parseDate, previousMonthKey, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
+import { findValue, parseDate, previousMonthKey, rejectFutureMonthKeys, resolveDefaultMonthKey, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
 import {
   computeDrivingScore,
@@ -243,13 +243,25 @@ export default function DrivingDashboard({
       tripPageSize?: number | 'all';
     }>(storageKey);
     if (!stored) return;
-    didSetDefaultMonth.current = true;
     const frame = requestAnimationFrame(() => {
+      let keptMonths = false;
       if (Array.isArray(stored.selectedMonths)) {
-        setSelectedMonths(stored.selectedMonths.filter((v): v is string => typeof v === 'string'));
+        const months = rejectFutureMonthKeys(
+          stored.selectedMonths.filter((v): v is string => typeof v === 'string'),
+        );
+        if (months.length > 0) {
+          setSelectedMonths(months);
+          keptMonths = true;
+        }
       } else if (typeof stored.selectedMonth === 'string' && stored.selectedMonth) {
-        setSelectedMonths([stored.selectedMonth]);
+        const months = rejectFutureMonthKeys([stored.selectedMonth]);
+        if (months.length > 0) {
+          setSelectedMonths(months);
+          keptMonths = true;
+        }
       }
+      // Only skip the default-month effect when we restored a real (non-future) month.
+      if (keptMonths) didSetDefaultMonth.current = true;
       if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
@@ -407,7 +419,7 @@ export default function DrivingDashboard({
     return Array.from(keys).sort();
   }, [cntDrvRows, shiftRows]);
 
-  // ── Default to current month when no stored filters ──────────────────────
+  // ── Default to previous/current month when no stored filters ─────────────
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       if (didSetDefaultMonth.current) return;
@@ -417,8 +429,9 @@ export default function DrivingDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      if (allMonthsFromData.includes(defaultMonthKey)) {
-        setSelectedMonths([defaultMonthKey]);
+      const next = resolveDefaultMonthKey(allMonthsFromData, defaultMonthKey);
+      if (next) {
+        setSelectedMonths([next]);
         setDayFilters([]);
       }
     });

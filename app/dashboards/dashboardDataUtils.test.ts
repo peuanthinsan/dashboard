@@ -10,6 +10,9 @@ import {
   remarkMatchesAllowedTarget,
   withDerivedRemark,
   previousMonthKey,
+  currentMonthKey,
+  resolveDefaultMonthKey,
+  rejectFutureMonthKeys,
 } from './dashboardDataUtils';
 
 describe('dashboardDataUtils', () => {
@@ -168,6 +171,48 @@ describe('dashboardDataUtils', () => {
     it('handles the year boundary in Bangkok time', () => {
       // 2025-12-31T18:00Z = 2026-01-01 01:00 Bangkok -> previous month is Dec 2025.
       expect(previousMonthKey(new Date('2025-12-31T18:00:00Z'))).toBe('2025-12');
+    });
+  });
+
+  describe('currentMonthKey', () => {
+    it('returns the Bangkok calendar month', () => {
+      expect(currentMonthKey(new Date('2026-07-09T12:00:00Z'))).toBe('2026-07');
+      // 2026-06-30T17:30Z = 2026-07-01 00:30 Bangkok
+      expect(currentMonthKey(new Date('2026-06-30T17:30:00Z'))).toBe('2026-07');
+    });
+  });
+
+  describe('resolveDefaultMonthKey', () => {
+    const now = new Date('2026-07-21T05:00:00Z'); // mid-day Bangkok July 21
+
+    it('prefers the previous month when present', () => {
+      expect(resolveDefaultMonthKey(['2026-07', '2026-06', '2026-05'], '2026-06', now)).toBe('2026-06');
+    });
+
+    it('falls back to the current month before any newer poison months', () => {
+      // AirliquideTH: June missing, July real, Sep–Nov poison — must open on July.
+      expect(
+        resolveDefaultMonthKey(['2026-11', '2026-10', '2026-09', '2026-07', '2026-03'], '2026-06', now),
+      ).toBe('2026-07');
+    });
+
+    it('falls back to the latest non-future month when current is also missing', () => {
+      expect(resolveDefaultMonthKey(['2026-11', '2026-05', '2026-03'], '2026-06', now)).toBe('2026-05');
+    });
+
+    it('returns null for an empty catalogue', () => {
+      expect(resolveDefaultMonthKey([], '2026-06', now)).toBeNull();
+    });
+  });
+
+  describe('rejectFutureMonthKeys', () => {
+    const now = new Date('2026-07-21T05:00:00Z');
+
+    it('drops months after the current Bangkok month', () => {
+      expect(rejectFutureMonthKeys(['2026-11', '2026-07', '2026-06'], now)).toEqual([
+        '2026-07',
+        '2026-06',
+      ]);
     });
   });
 });

@@ -24,6 +24,8 @@ import {
   toMonthKey,
   toMonthLabel,
   previousMonthKey,
+  rejectFutureMonthKeys,
+  resolveDefaultMonthKey,
   withDerivedRemark,
   applyAlertRules,
   colorForRemark,
@@ -222,9 +224,12 @@ export default function DetailDashboard({
     const stored = loadStoredFilters<DetailFilterState>(storageKey);
     if (!stored) return;
     const frame = requestAnimationFrame(() => {
-      const storedMonths = Array.isArray(stored.monthFilters)
-        ? stored.monthFilters.filter((v) => typeof v === 'string')
-        : [];
+      const storedMonths = rejectFutureMonthKeys(
+        Array.isArray(stored.monthFilters)
+          ? stored.monthFilters.filter((v) => typeof v === 'string')
+          : [],
+      );
+      // Future-only stored months (poison defaults) → let the default-month effect re-pick.
       if (storedMonths.length > 0) didSetDefaultMonth.current = true;
       setFilters((prev) => ({
         ...prev,
@@ -245,8 +250,13 @@ export default function DetailDashboard({
   }, [filters, storageKey]);
 
   const resetFilters = () => {
+    const nextMonth =
+      resolveDefaultMonthKey(
+        availableMonths.map((m) => m.key),
+        defaultMonthKey,
+      ) ?? defaultMonthKey;
     setFilters({
-      monthFilters: defaultMonthKey ? [defaultMonthKey] : [],
+      monthFilters: nextMonth ? [nextMonth] : [],
       dayFilters: [],
       fleetFilters: scopeNames,
       remarkFilters: [],
@@ -370,17 +380,19 @@ export default function DetailDashboard({
   }, [alertRows]);
 
   const monthOptions = useMemo(() => {
-    if (availableMonths.length > 0) {
-      return availableMonths.map((m) => ({ key: m.key, label: m.label }));
-    }
+    const fromCatalog =
+      availableMonths.length > 0
+        ? availableMonths.map((m) => ({ key: m.key, label: m.label }))
+        : null;
+    if (fromCatalog) return fromCatalog;
     const unique = new Map<string, string>();
     alertRows.forEach((row) => {
       if (row.monthKey && row.monthLabel) {
         unique.set(row.monthKey, row.monthLabel);
       }
     });
-    return Array.from(unique.entries())
-      .map(([key, label]) => ({ key, label }))
+    return rejectFutureMonthKeys(Array.from(unique.keys()))
+      .map((key) => ({ key, label: unique.get(key)! }))
       .sort((a, b) => b.key.localeCompare(a.key));
   }, [alertRows, availableMonths]);
 
@@ -393,10 +405,11 @@ export default function DetailDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      const next = monthOptions.some((option) => option.key === defaultMonthKey)
-        ? defaultMonthKey
-        : monthOptions[0]!.key;
-      setFilters((f) => ({ ...f, monthFilters: [next] }));
+      const next = resolveDefaultMonthKey(
+        monthOptions.map((option) => option.key),
+        defaultMonthKey,
+      );
+      if (next) setFilters((f) => ({ ...f, monthFilters: [next] }));
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, monthFilters, monthOptions]);

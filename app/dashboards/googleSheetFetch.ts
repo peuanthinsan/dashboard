@@ -15,6 +15,7 @@ import {
   type GoogleSheetRow,
   parseGoogleSheetGvizText,
 } from './googleSheetParse';
+import { currentMonthKey } from './dashboardDataUtils';
 
 const UA = { 'User-Agent': 'SongdeeGPS-Dashboard/1.0' } as const;
 
@@ -140,8 +141,15 @@ export function buildAlertColumnSelect(
 /**
  * List calendar months present in the sheet (non-null id rows only).
  * GViz month() is 0-based — we add 1 when building YYYY-MM keys.
+ * Months after the current Bangkok calendar month are dropped — a few sheets
+ * carry poison future-dated rows (e.g. AirliquideTH Sep–Nov 2026) that would
+ * otherwise become the default "newest" month in the picker.
  */
-export async function listSheetMonths(sheetId: string, gid: string): Promise<SheetMonthOption[]> {
+export async function listSheetMonths(
+  sheetId: string,
+  gid: string,
+  now: Date = new Date(),
+): Promise<SheetMonthOption[]> {
   const { orderColId, hasDateColumn } = await detectSheetDateColumn(sheetId, gid);
   if (!hasDateColumn) return [];
 
@@ -150,6 +158,7 @@ export async function listSheetMonths(sheetId: string, gid: string): Promise<She
   if (!res.ok) throw new Error('Unable to list sheet months.');
   const parsed = parseGoogleSheetGvizText(await res.text());
 
+  const maxKey = currentMonthKey(now);
   const months: SheetMonthOption[] = [];
   for (const row of parsed.rows) {
     // year()/month()/count() produce labeled cols like "year(Alert Date Time)".
@@ -161,6 +170,7 @@ export async function listSheetMonths(sheetId: string, gid: string): Promise<She
     const month = month0 + 1;
     if (month < 1 || month > 12) continue;
     const key = `${year}-${String(month).padStart(2, '0')}`;
+    if (key > maxKey) continue;
     const label = new Date(Date.UTC(year, month - 1, 1)).toLocaleString('en-GB', {
       month: 'short',
       year: 'numeric',

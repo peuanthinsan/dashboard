@@ -5,7 +5,7 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
-import { findValue, normalizeLabel, parseDate, previousMonthKey, resolveScopeFleetNames, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
+import { findValue, normalizeLabel, parseDate, previousMonthKey, rejectFutureMonthKeys, resolveDefaultMonthKey, resolveScopeFleetNames, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import ExportButton from 'app/ui/ExportButton';
 import EmptyState from 'app/ui/EmptyState';
@@ -130,9 +130,11 @@ export default function OverSpeedDashboard({
     }>(storageKey);
     if (!stored) return;
     const frame = requestAnimationFrame(() => {
-      const storedMonths = Array.isArray(stored.monthFilters)
-        ? stored.monthFilters.filter((v) => typeof v === 'string')
-        : [];
+      const storedMonths = rejectFutureMonthKeys(
+        Array.isArray(stored.monthFilters)
+          ? stored.monthFilters.filter((v) => typeof v === 'string')
+          : [],
+      );
       if (storedMonths.length > 0) {
         didSetDefaultMonth.current = true;
         setMonthFilters(storedMonths);
@@ -151,7 +153,12 @@ export default function OverSpeedDashboard({
   }, [storageKey, monthFilters, dayFilters, driverFilters, vehicleFilters, fleetFilters]);
 
   const resetFilters = () => {
-    setMonthFilters(defaultMonthKey ? [defaultMonthKey] : []);
+    const nextMonth =
+      resolveDefaultMonthKey(
+        availableMonths.map((m) => m.key),
+        defaultMonthKey,
+      ) ?? defaultMonthKey;
+    setMonthFilters(nextMonth ? [nextMonth] : []);
     setDayFilters([]);
     setDriverFilters([]);
     setVehicleFilters([]);
@@ -223,8 +230,8 @@ export default function OverSpeedDashboard({
     }
     const map = new Map<string, string>();
     overSpeedRows.forEach((row) => { if (row.monthKey) map.set(row.monthKey, row.monthLabel); });
-    return Array.from(map.entries())
-      .map(([key, label]) => ({ key, label }))
+    return rejectFutureMonthKeys(Array.from(map.keys()))
+      .map((key) => ({ key, label: map.get(key)! }))
       .sort((a, b) => b.key.localeCompare(a.key));
   }, [availableMonths, overSpeedRows]);
 
@@ -238,10 +245,11 @@ export default function OverSpeedDashboard({
         return;
       }
       didSetDefaultMonth.current = true;
-      const next = monthOptions.some((o) => o.key === defaultMonthKey)
-        ? defaultMonthKey
-        : monthOptions[0]!.key;
-      setMonthFilters([next]);
+      const next = resolveDefaultMonthKey(
+        monthOptions.map((o) => o.key),
+        defaultMonthKey,
+      );
+      if (next) setMonthFilters([next]);
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, monthFilters, monthOptions]);

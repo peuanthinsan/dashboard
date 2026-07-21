@@ -146,13 +146,50 @@ export const parseDate = (value: unknown) => {
 export const toMonthKey = (date: Date) =>
   `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 
-export const previousMonthKey = (now: Date = new Date()) => {
+/** Bangkok calendar date as a UTC-digit Date (year/month/day only). */
+const bangkokCalendarDate = (now: Date = new Date()) => {
   // Sheet month keys are Bangkok calendar months, but `now` is a real instant:
   // during 00:00–07:00 Bangkok on the 1st, UTC is still in the prior month and
-  // unshifted UTC getters would default the dashboards to TWO months back.
+  // unshifted UTC getters would resolve the wrong calendar month.
   // Shift +7h so the UTC getters read Bangkok's calendar (UTC+7, no DST).
   const bangkok = new Date(now.getTime() + 7 * 3_600_000);
+  return new Date(Date.UTC(bangkok.getUTCFullYear(), bangkok.getUTCMonth(), bangkok.getUTCDate()));
+};
+
+export const currentMonthKey = (now: Date = new Date()) => toMonthKey(bangkokCalendarDate(now));
+
+export const previousMonthKey = (now: Date = new Date()) => {
+  const bangkok = bangkokCalendarDate(now);
   return toMonthKey(new Date(Date.UTC(bangkok.getUTCFullYear(), bangkok.getUTCMonth() - 1, 1)));
+};
+
+/**
+ * Pick the month a dashboard should open on.
+ * Prefer `preferredKey` (usually previousMonthKey) when present; otherwise the
+ * current Bangkok month; otherwise the latest available month that is not in
+ * the future. Future-dated poison rows (AirliquideTH Sep–Nov 2026 junk) must
+ * not win via a naive `monthOptions[0]` (newest-first) fallback.
+ */
+export const resolveDefaultMonthKey = (
+  availableKeys: readonly string[],
+  preferredKey: string = previousMonthKey(),
+  now: Date = new Date(),
+): string | null => {
+  if (availableKeys.length === 0) return null;
+  if (availableKeys.includes(preferredKey)) return preferredKey;
+  const current = currentMonthKey(now);
+  if (availableKeys.includes(current)) return current;
+  const sortedDesc = [...availableKeys].sort((a, b) => b.localeCompare(a));
+  return sortedDesc.find((key) => key <= current) ?? sortedDesc[0] ?? null;
+};
+
+/** Drop YYYY-MM keys after the current Bangkok calendar month (poison / typo dates). */
+export const rejectFutureMonthKeys = <T extends string>(
+  keys: readonly T[],
+  now: Date = new Date(),
+): T[] => {
+  const current = currentMonthKey(now);
+  return keys.filter((key) => key <= current);
 };
 
 export const toMonthLabel = (date: Date) =>

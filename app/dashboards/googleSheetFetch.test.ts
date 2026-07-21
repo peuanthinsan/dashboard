@@ -167,10 +167,28 @@ describe('listSheetMonths', () => {
       ],
     );
     const calls = stubFetch([gvizPayload(header), monthsPayload]);
-    const months = await listSheetMonths('sheet-months-in-a', '0');
+    const months = await listSheetMonths('sheet-months-in-a', '0', new Date('2026-07-21T05:00:00Z'));
     expect(calls).toHaveLength(2);
     expect(months.map((m) => m.key)).toEqual(['2026-06', '2026-05']);
     expect(months.find((m) => m.key === '2026-05')?.count).toBe(120);
+  });
+
+  it('drops months after the current Bangkok calendar month', async () => {
+    const header = [{ label: 'Alert Date Time', type: 'datetime' }];
+    const monthsPayload = gvizPayload(
+      [
+        { label: 'year(Alert Date Time)', type: 'number' },
+        { label: 'month(Alert Date Time)', type: 'number' },
+        { label: 'count(id)', type: 'number' },
+      ],
+      [
+        [2026, 6, 2637], // July
+        [2026, 10, 4], // November poison
+      ],
+    );
+    stubFetch([gvizPayload(header), monthsPayload]);
+    const months = await listSheetMonths('sheet-poison-future', '0', new Date('2026-07-21T05:00:00Z'));
+    expect(months.map((m) => m.key)).toEqual(['2026-07']);
   });
 
   it('returns no months when the sheet has no date-typed column', async () => {
