@@ -87,7 +87,7 @@ describe('deriveUnitDeviceIndicators', () => {
     expect(ind.gps).toBe('not_installed');
   });
 
-  it('follows GPS for MCR/MDVR/IVMS and keeps Intercom always online', () => {
+  it('follows GPS for MCR/MDVR/IVMS/Intercom', () => {
     const online = deriveUnitDeviceIndicators({
       vehicleNo: 'R002',
       gps: true,
@@ -111,7 +111,7 @@ describe('deriveUnitDeviceIndicators', () => {
     expect(offline.mcr).toBe('offline');
     expect(offline.mdvr).toBe('offline');
     expect(offline.ivms).toBe('offline');
-    expect(offline.intercom).toBe('online');
+    expect(offline.intercom).toBe('offline');
     expect(offline.overall).toBe('offline');
   });
 
@@ -142,16 +142,27 @@ describe('buildAbnormalDetails', () => {
     expect(buildAbnormalDetails(ind, 'th')).toBe('ปกติ');
   });
 
-  it('lists offline cameras and Fatigue AI', () => {
+  it('groups offline cameras as Camera X and Y Blank', () => {
     const ind = deriveUnitDeviceIndicators({
       vehicleNo: 'R001',
       gps: true,
-      recording: 'Rear Right, Rear Left, AI, Front, Driver',
-      videoloss: 'AI',
+      recording: '1, 4, 5',
+      videoloss: '2, 3',
+    });
+    expect(buildAbnormalDetails(ind, 'en')).toBe('Camera 2 and 3 Blank');
+    expect(buildAbnormalDetails(ind, 'th')).toBe('กล้อง 2 และ 3 ว่าง');
+  });
+
+  it('lists GPS once when unit is offline and groups blank cameras', () => {
+    const ind = deriveUnitDeviceIndicators({
+      vehicleNo: 'R006',
+      gps: false,
+      recording: 'NotRecording',
+      videoloss: '1, 2, 3, 4, 5',
     });
     const en = buildAbnormalDetails(ind, 'en');
-    expect(en).toContain('Fatigue AI: Offline');
-    expect(en).toContain('Camera 3: Offline');
+    expect(en).toBe('GPS: Offline · Camera 1, 2, 3, 4 and 5 Blank');
+    expect(en).not.toContain('MCR');
     expect(en).not.toContain('Intercom');
   });
 });
@@ -167,6 +178,17 @@ describe('indicatorIsOffline', () => {
     expect(indicatorIsOffline(ind, 'c2')).toBe(true);
     expect(indicatorIsOffline(ind, 'c1')).toBe(false);
     expect(indicatorIsOffline(ind, 'intercom')).toBe(false);
+  });
+
+  it('marks intercom offline when GPS is offline', () => {
+    const ind = deriveUnitDeviceIndicators({
+      vehicleNo: 'R006',
+      gps: false,
+      recording: 'NotRecording',
+      videoloss: null,
+    });
+    expect(indicatorIsOffline(ind, 'intercom')).toBe(true);
+    expect(indicatorIsOffline(ind, 'gps')).toBe(true);
   });
 });
 

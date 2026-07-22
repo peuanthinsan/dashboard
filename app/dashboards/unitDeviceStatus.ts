@@ -130,7 +130,8 @@ export function deriveUnitDeviceIndicators(input: UnitDeviceRowInput): UnitDevic
   const gps: DeviceDotStatus = gpsOnline ? 'online' : 'offline';
   const cameras = parseCameraStatuses(input.recording, input.videoloss);
   const fatigueAi = cameras[3];
-  const intercom: DeviceDotStatus = 'online';
+  // Intercom follows GPS (rendered grey when offline in the dashboard UI).
+  const intercom: DeviceDotStatus = gps;
 
   let overall: OverallStatus;
   if (!gpsOnline) {
@@ -153,6 +154,23 @@ export function deriveUnitDeviceIndicators(input: UnitDeviceRowInput): UnitDevic
   };
 }
 
+function formatJoinedList(items: string[], lang: 'en' | 'th'): string {
+  if (items.length === 0) return '';
+  if (items.length === 1) return items[0];
+  const andWord = lang === 'th' ? 'และ' : 'and';
+  if (items.length === 2) return `${items[0]} ${andWord} ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')} ${andWord} ${items[items.length - 1]}`;
+}
+
+function formatCameraBlankDetails(
+  channels: CameraChannel[],
+  lang: 'en' | 'th',
+): string | null {
+  if (channels.length === 0) return null;
+  const list = formatJoinedList(channels.map(String), lang);
+  return lang === 'th' ? `กล้อง ${list} ว่าง` : `Camera ${list} Blank`;
+}
+
 export function buildAbnormalDetails(
   indicators: UnitDeviceIndicators,
   lang: 'en' | 'th' = 'en',
@@ -173,19 +191,17 @@ export function buildAbnormalDetails(
     }
   };
 
+  // MCR/MDVR/IVMS/Intercom mirror GPS — only report GPS once when the unit is offline.
   pushIfOffline('GPS', 'GPS', indicators.gps);
-  pushIfOffline('MCR', 'MCR', indicators.mcr);
-  pushIfOffline('MDVR', 'MDVR', indicators.mdvr);
-  pushIfOffline('IVMS', 'IVMS', indicators.ivms);
-  pushIfOffline('Fatigue AI', 'Fatigue AI', indicators.fatigueAi);
-  // Intercom is always online by design — never listed.
-  for (const ch of CAMERA_CHANNELS) {
-    if (indicators.cameras[ch] === 'offline') {
-      parts.push(
-        lang === 'th' ? `กล้องเบอร์ ${ch}: Offline` : `Camera ${ch}: Offline`,
-      );
-    }
+
+  const blankCams = CAMERA_CHANNELS.filter((ch) => indicators.cameras[ch] === 'offline');
+  // Fatigue AI tracks Camera 3 — omit when Camera 3 is already in the blank list.
+  if (indicators.fatigueAi === 'offline' && !blankCams.includes(3)) {
+    pushIfOffline('Fatigue AI', 'Fatigue AI', indicators.fatigueAi);
   }
+
+  const cameraDetails = formatCameraBlankDetails(blankCams, lang);
+  if (cameraDetails) parts.push(cameraDetails);
 
   if (parts.length === 0) {
     return lang === 'th' ? 'ปกติ' : 'Normal';

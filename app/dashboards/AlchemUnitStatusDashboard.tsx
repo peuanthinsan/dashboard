@@ -88,13 +88,24 @@ function toText(v: unknown): string {
   return String(v).trim();
 }
 
-function StatusDot({ status, title }: { status: DeviceDotStatus; title?: string }) {
+function StatusDot({
+  status,
+  title,
+  mutedOffline = false,
+}: {
+  status: DeviceDotStatus;
+  title?: string;
+  /** When true, offline renders grey (Intercom follows GPS visually). */
+  mutedOffline?: boolean;
+}) {
   const color =
     status === 'online'
       ? 'bg-emerald-500'
       : status === 'not_installed'
         ? 'bg-zinc-400'
-        : 'bg-red-500';
+        : mutedOffline
+          ? 'bg-zinc-400'
+          : 'bg-red-500';
   return (
     <span
       title={title ?? status}
@@ -162,17 +173,8 @@ export default function AlchemUnitStatusDashboard({
   const [statusChecks, setStatusChecks] = useState<Set<OverallStatus>>(
     () => new Set(OVERALL_STATUS_OPTIONS),
   );
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
-
-  const filterKey = `${vehicleSearch}|${regionFilter}|${deviceFilter}|${statusSelect}|${Array.from(statusChecks).sort().join(',')}|${pageSize}`;
-  const [pageFilterKey, setPageFilterKey] = useState(filterKey);
-  if (pageFilterKey !== filterKey) {
-    setPageFilterKey(filterKey);
-    setPage(1);
-  }
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -253,10 +255,6 @@ export default function AlchemUnitStatusDashboard({
     const notInstalled = base.filter((r) => r.indicators.overall === 'not_installed').length;
     return { total: base.length, healthy, warning, offline, notInstalled };
   }, [filteredRows]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
-  const safePage = Math.min(page, pageCount);
-  const pageRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const toggleStatusCheck = (status: OverallStatus) => {
     setStatusChecks((prev) => {
@@ -462,14 +460,14 @@ export default function AlchemUnitStatusDashboard({
                   </tr>
                 </thead>
                 <tbody>
-                  {pageRows.length === 0 ? (
+                  {filteredRows.length === 0 ? (
                     <tr>
                       <td colSpan={14} className={`${tableCell} text-center text-zinc-500`}>
                         {lang === 'th' ? 'ไม่พบข้อมูล' : 'No vehicles match the current filters.'}
                       </td>
                     </tr>
                   ) : (
-                    pageRows.map((row) => {
+                    filteredRows.map((row) => {
                       const ind = row.indicators;
                       const isOpen = expanded === row.vehicleNo;
                       return (
@@ -483,7 +481,9 @@ export default function AlchemUnitStatusDashboard({
                             <td className={`${tableCell} text-center`}><StatusDot status={ind.mdvr} title="MDVR" /></td>
                             <td className={`${tableCell} text-center`}><StatusDot status={ind.ivms} title="IVMS" /></td>
                             <td className={`${tableCell} text-center`}><StatusDot status={ind.fatigueAi} title="Fatigue AI" /></td>
-                            <td className={`${tableCell} text-center`}><StatusDot status={ind.intercom} title="Intercom" /></td>
+                            <td className={`${tableCell} text-center`}>
+                              <StatusDot status={ind.intercom} title="Intercom" mutedOffline />
+                            </td>
                             {([1, 2, 3, 4, 5] as const).map((ch) => (
                               <td key={ch} className={`${tableCell} text-center`}>
                                 <StatusDot status={ind.cameras[ch]} title={`C${ch}`} />
@@ -546,43 +546,11 @@ export default function AlchemUnitStatusDashboard({
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 text-sm">
-                <span className="text-xs text-zinc-500">
-                  {lang === 'th'
-                    ? `แสดง ${(safePage - 1) * pageSize + (pageRows.length ? 1 : 0)} ถึง ${Math.min(safePage * pageSize, filteredRows.length)} จาก ${filteredRows.length} คัน`
-                    : `Showing ${(safePage - 1) * pageSize + (pageRows.length ? 1 : 0)} to ${Math.min(safePage * pageSize, filteredRows.length)} of ${filteredRows.length} vehicles`}
-                </span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  className={`${selectBase} w-auto py-1.5 text-xs`}
-                >
-                  {[10, 25, 50].map((n) => (
-                    <option key={n} value={n}>{n} / page</option>
-                  ))}
-                </select>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    disabled={safePage <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className={`${btnSecondary} px-2 py-1.5 text-xs disabled:opacity-40`}
-                  >
-                    ‹
-                  </button>
-                  <span className="px-2 text-xs tabular-nums text-zinc-600">
-                    {safePage} / {pageCount}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={safePage >= pageCount}
-                    onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                    className={`${btnSecondary} px-2 py-1.5 text-xs disabled:opacity-40`}
-                  >
-                    ›
-                  </button>
-                </div>
-              </div>
+              <span className="text-xs text-zinc-500">
+                {lang === 'th'
+                  ? `แสดง ${filteredRows.length} คัน`
+                  : `Showing ${filteredRows.length} vehicles`}
+              </span>
             </div>
           </section>
         </div>
