@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
@@ -173,6 +173,7 @@ export default function AlchemUnitStatusDashboard({
   const [statusChecks, setStatusChecks] = useState<Set<OverallStatus>>(
     () => new Set(OVERALL_STATUS_OPTIONS),
   );
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -448,8 +449,8 @@ export default function AlchemUnitStatusDashboard({
                     <th className={tableHeadCell} rowSpan={2}>
                       {lang === 'th' ? 'อัปเดต' : 'Updated'}
                     </th>
-                    <th className={`${tableHeadCell} min-w-[180px]`} rowSpan={2}>
-                      {lang === 'th' ? 'รายละเอียด' : 'Details'}
+                    <th className={`${tableHeadCell} text-center`} rowSpan={2}>
+                      {lang === 'th' ? 'ดู' : 'Action'}
                     </th>
                   </tr>
                   <tr>
@@ -468,42 +469,74 @@ export default function AlchemUnitStatusDashboard({
                   ) : (
                     filteredRows.map((row) => {
                       const ind = row.indicators;
+                      const isOpen = expanded === row.vehicleNo;
                       const isIssue = ind.overall !== 'healthy' && ind.overall !== 'not_installed';
                       return (
-                        <tr key={row.vehicleNo} className={tableRow}>
-                          <td className={`${tableCell} font-semibold`} title={row.vehicleNo}>
-                            {row.truckCode}
-                          </td>
-                          <td className={`${tableCell} text-center`}><StatusDot status={ind.gps} title="GPS" /></td>
-                          <td className={`${tableCell} text-center`}><StatusDot status={ind.mcr} title="MCR" /></td>
-                          <td className={`${tableCell} text-center`}><StatusDot status={ind.mdvr} title="MDVR" /></td>
-                          <td className={`${tableCell} text-center`}><StatusDot status={ind.ivms} title="IVMS" /></td>
-                          <td className={`${tableCell} text-center`}><StatusDot status={ind.fatigueAi} title="Fatigue AI" /></td>
-                          <td className={`${tableCell} text-center`}>
-                            <StatusDot status={ind.intercom} title="Intercom" mutedOffline />
-                          </td>
-                          {([1, 2, 3, 4, 5] as const).map((ch) => (
-                            <td key={ch} className={`${tableCell} text-center`}>
-                              <StatusDot status={ind.cameras[ch]} title={`C${ch}`} />
+                        <Fragment key={row.vehicleNo}>
+                          <tr className={tableRow}>
+                            <td className={`${tableCell} font-semibold`} title={row.vehicleNo}>
+                              {row.truckCode}
                             </td>
-                          ))}
-                          <td className={tableCell}>
-                            <OverallBadge status={ind.overall} lang={lang} />
-                          </td>
-                          <td className={`${tableCell} whitespace-nowrap text-zinc-500`}>
-                            {formatRelativeUpdated(row.updatedAt, now, lang === 'th' ? 'th' : 'en')}
-                          </td>
-                          <td
-                            className={`${tableCell} max-w-[280px] ${
-                              isIssue
-                                ? 'font-medium text-amber-700 dark:text-amber-400'
-                                : 'text-zinc-600 dark:text-zinc-400'
-                            }`}
-                            title={row.location || undefined}
-                          >
-                            {row.details}
-                          </td>
-                        </tr>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.gps} title="GPS" /></td>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.mcr} title="MCR" /></td>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.mdvr} title="MDVR" /></td>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.ivms} title="IVMS" /></td>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.fatigueAi} title="Fatigue AI" /></td>
+                            <td className={`${tableCell} text-center`}>
+                              <StatusDot status={ind.intercom} title="Intercom" mutedOffline />
+                            </td>
+                            {([1, 2, 3, 4, 5] as const).map((ch) => (
+                              <td key={ch} className={`${tableCell} text-center`}>
+                                <StatusDot status={ind.cameras[ch]} title={`C${ch}`} />
+                              </td>
+                            ))}
+                            <td className={tableCell}>
+                              <OverallBadge status={ind.overall} lang={lang} />
+                            </td>
+                            <td className={`${tableCell} whitespace-nowrap text-zinc-500`}>
+                              {formatRelativeUpdated(row.updatedAt, now, lang === 'th' ? 'th' : 'en')}
+                            </td>
+                            <td className={`${tableCell} text-center`}>
+                              <button
+                                type="button"
+                                onClick={() => setExpanded(isOpen ? null : row.vehicleNo)}
+                                className={`inline-flex rounded-md p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+                                  isOpen
+                                    ? 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100'
+                                    : 'text-zinc-500 hover:text-zinc-800'
+                                }`}
+                                aria-expanded={isOpen}
+                                aria-label={lang === 'th' ? 'ดูรายละเอียด' : 'View details'}
+                              >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                          {isOpen ? (
+                            <tr className="bg-zinc-50/80 dark:bg-zinc-900/40">
+                              <td colSpan={14} className={`${tableCell} text-sm`}>
+                                <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                                  {lang === 'th' ? 'รายละเอียด: ' : 'Details: '}
+                                </span>
+                                <span
+                                  className={
+                                    isIssue
+                                      ? 'font-medium text-amber-700 dark:text-amber-400'
+                                      : 'text-zinc-600 dark:text-zinc-400'
+                                  }
+                                >
+                                  {row.details}
+                                </span>
+                                {row.location ? (
+                                  <span className="ml-3 text-xs text-zinc-400">· {row.location}</span>
+                                ) : null}
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
                       );
                     })
                   )}
