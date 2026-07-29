@@ -1,6 +1,9 @@
 'use client';
 
-import writeXlsxFile, { type Cell, type Columns, type SheetData } from 'write-excel-file';
+import writeXlsxFile, {
+  type Cell,
+  type SheetData,
+} from 'write-excel-file/browser';
 import {
   GRADE_COLORS,
   VEHICLE_KPI_CATEGORIES,
@@ -20,7 +23,7 @@ const headerCell = (value: string): Cell => ({
   type: String,
   fontWeight: 'bold',
   backgroundColor: '#1f2937',
-  color: '#ffffff',
+  textColor: '#ffffff',
   align: 'center',
   wrap: true,
 });
@@ -33,23 +36,23 @@ const gradeCell = (count: number): Cell => {
     value: count,
     type: Number,
     backgroundColor: GRADE_COLORS[grade],
-    color: '#ffffff',
+    textColor: '#ffffff',
     align: 'center',
   };
 };
 
-const byVehicleColumns: Columns = [
+const byVehicleColumns = [
   { width: 18 },
   { width: 20 },
   ...VEHICLE_KPI_CATEGORIES.map(() => ({ width: 20 })),
 ];
 
-const byFleetColumns: Columns = [
+const byFleetColumns = [
   { width: 22 },
   ...VEHICLE_KPI_CATEGORIES.map(() => ({ width: 20 })),
 ];
 
-const legendColumns: Columns = [{ width: 24 }, { width: 58 }, { width: 18 }];
+const legendColumns = [{ width: 24 }, { width: 58 }, { width: 18 }];
 
 const categoryConditions: Record<(typeof VEHICLE_KPI_CATEGORIES)[number]['key'], string> = {
   speeding: 'Alert Type = "OverSpeed"',
@@ -69,7 +72,14 @@ const buildLegendData = (): SheetData => {
   ];
 
   return [
-    [{ value: 'VehicleKPI parameters', type: String, fontWeight: 'bold', span: 3 }],
+    [
+      {
+        value: 'VehicleKPI parameters',
+        type: String,
+        fontWeight: 'bold',
+        columnSpan: 3,
+      },
+    ],
     [headerCell('Parameter'), headerCell('Condition'), headerCell('Source')],
     ...VEHICLE_KPI_CATEGORIES.map((category) => [
       textCell(category.label),
@@ -77,7 +87,7 @@ const buildLegendData = (): SheetData => {
       textCell(category.remarks ? 'Remarks' : 'Alert Type'),
     ]),
     [],
-    [{ value: 'Grade bands', type: String, fontWeight: 'bold', span: 3 }],
+    [{ value: 'Grade bands', type: String, fontWeight: 'bold', columnSpan: 3 }],
     [headerCell('Grade'), headerCell('Incident count'), headerCell('Color')],
     ...gradeBands.map(({ grade, condition }) => [
       {
@@ -85,7 +95,7 @@ const buildLegendData = (): SheetData => {
         type: String,
         fontWeight: 'bold' as const,
         backgroundColor: GRADE_COLORS[grade],
-        color: '#ffffff',
+        textColor: '#ffffff',
         align: 'center' as const,
       },
       textCell(condition),
@@ -93,7 +103,7 @@ const buildLegendData = (): SheetData => {
         value: GRADE_COLORS[grade],
         type: String,
         backgroundColor: GRADE_COLORS[grade],
-        color: '#ffffff',
+        textColor: '#ffffff',
         align: 'center' as const,
       },
     ]),
@@ -126,9 +136,9 @@ export async function exportVehicleKpiXlsx({
   const legendData = buildLegendData();
   const fileName = `DHL_VehicleKPI_${monthKeys.slice().sort().join('_') || 'all'}.xlsx`;
 
-  await writeXlsxFile([byVehicleData, byFleetData, legendData], {
-    sheets: ['By Vehicle', 'By Fleet', 'Legend'],
-    columns: [byVehicleColumns, byFleetColumns, legendColumns],
-    fileName,
-  });
+  await writeXlsxFile([
+    { data: byVehicleData, sheet: 'By Vehicle', columns: byVehicleColumns },
+    { data: byFleetData, sheet: 'By Fleet', columns: byFleetColumns },
+    { data: legendData, sheet: 'Legend', columns: legendColumns },
+  ]).toFile(fileName);
 }
