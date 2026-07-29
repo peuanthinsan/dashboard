@@ -145,9 +145,9 @@ export default async function LoginPage() {
             <div className="mb-4 flex items-center justify-center gap-2.5 lg:hidden">
               <SongdeeLogo height={28} />
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
               {copy.login.welcomeTitle}
-            </h2>
+            </h1>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{copy.login.welcomeSubtitle}</p>
           </div>
           <LoginForm action={login} copy={copy.login} />

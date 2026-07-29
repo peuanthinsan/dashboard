@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import { findValue, normalizeLabel, parseDate, resolveScopeFleetNames, scopeFleetSet } from './dashboardDataUtils';
+import { isCompleteDateTimeRange, isDateInDateTimeRange, type DateTimeRange } from './dateTimeRange';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import MultiSelect from 'app/ui/MultiSelect';
+import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 
 type DashboardProps = {
   dashboardId: string;
@@ -156,6 +158,7 @@ export default function BigthUnitStatusDashboard({
   );
 
   const [vehicleSearch, setVehicleSearch] = useState('');
+  const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
   const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
 
   const unitRows = useMemo<UnitRow[]>(
@@ -206,11 +209,15 @@ export default function BigthUnitStatusDashboard({
     const search = normalizeLabel(vehicleSearch);
     const fleetSet = new Set(fleetFilters.map(normalizeLabel));
     return unitRows.filter((row) => {
+      if (
+        isCompleteDateTimeRange(dateTimeRange) &&
+        !isDateInDateTimeRange(parseDate(row.dateTime), dateTimeRange)
+      ) return false;
       if (search && !normalizeLabel(row.vehicleNo).includes(search)) return false;
       if (fleetSet.size > 0 && !fleetSet.has(normalizeLabel(row.fleet))) return false;
       return true;
     });
-  }, [unitRows, vehicleSearch, fleetFilters]);
+  }, [unitRows, vehicleSearch, fleetFilters, dateTimeRange]);
 
   const byVehicleCamera = useMemo(() => {
     const map = new Map<string, number>();
@@ -299,7 +306,7 @@ export default function BigthUnitStatusDashboard({
       notes={dashboardNotes}
       dashboardId={dashboardId}
       isAdmin={isAdmin}
-      activeFilterCount={(vehicleSearch ? 1 : 0) + fleetFilters.length}
+      activeFilterCount={(vehicleSearch ? 1 : 0) + (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) + fleetFilters.length}
     >
       {loading || error ? (
         <LoadingState
@@ -363,6 +370,11 @@ export default function BigthUnitStatusDashboard({
 
           <section className={dashboardSectionClass}>
             <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <DateTimeRangePicker
+                value={dateTimeRange}
+                onChange={setDateTimeRange}
+                lang={lang}
+              />
               <input
                 value={vehicleSearch}
                 onChange={(e) => setVehicleSearch(e.target.value)}

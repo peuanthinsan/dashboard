@@ -74,6 +74,7 @@ function CompanyRow({
             type="checkbox"
             checked={checked}
             onChange={(e) => onCheck(company.id, e.target.checked)}
+            aria-label={`Select ${company.name ?? 'company'} (ID ${company.id})`}
             className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
           />
         </td>
@@ -174,11 +175,15 @@ export default function CompaniesClient({
   }
 
   function handleSelectAll(checked: boolean) {
-    if (checked) {
-      setSelectedIds(new Set(filteredCompanies.map((c) => c.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
+    const filteredIds = new Set(filteredCompanies.map((company) => company.id));
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      filteredIds.forEach((id) => {
+        if (checked) next.add(id);
+        else next.delete(id);
+      });
+      return next;
+    });
   }
 
   function handleBulkCreate() {
@@ -245,7 +250,9 @@ export default function CompaniesClient({
     });
   }
 
-  const allChecked = filteredCompanies.length > 0 && selectedIds.size === filteredCompanies.length;
+  const allChecked =
+    filteredCompanies.length > 0 &&
+    filteredCompanies.every((company) => selectedIds.has(company.id));
 
   return (
     <AdminSection>
@@ -381,6 +388,7 @@ export default function CompaniesClient({
                         type="checkbox"
                         checked={allChecked}
                         onChange={(e) => handleSelectAll(e.target.checked)}
+                        aria-label="Select all filtered companies"
                         className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
                       />
                     </th>

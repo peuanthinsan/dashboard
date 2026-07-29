@@ -11,7 +11,9 @@ import {
   resolveScopeFleetNames,
   scopeFleetSet,
 } from './dashboardDataUtils';
+import { isCompleteDateTimeRange, isDateInDateTimeRange, type DateTimeRange } from './dateTimeRange';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
+import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 import KpiCard from 'app/ui/KpiCard';
 import {
   badgeDanger,
@@ -167,6 +169,7 @@ export default function AlchemUnitStatusDashboard({
 
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [vehicleSearch, setVehicleSearch] = useState('');
+  const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
   const [regionFilter, setRegionFilter] = useState('');
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilterKey | ''>('');
   const [statusSelect, setStatusSelect] = useState<OverallStatus | ''>('');
@@ -235,6 +238,10 @@ export default function AlchemUnitStatusDashboard({
   const filteredRows = useMemo(() => {
     const search = normalizeLabel(vehicleSearch);
     return vehicleRows.filter((row) => {
+      if (
+        isCompleteDateTimeRange(dateTimeRange) &&
+        !isDateInDateTimeRange(row.updatedAt, dateTimeRange)
+      ) return false;
       if (search) {
         const hay = normalizeLabel(`${row.truckCode} ${row.vehicleNo}`);
         if (!hay.includes(search)) return false;
@@ -245,7 +252,7 @@ export default function AlchemUnitStatusDashboard({
       if (statusChecks.size > 0 && !statusChecks.has(row.indicators.overall)) return false;
       return true;
     });
-  }, [vehicleRows, vehicleSearch, regionFilter, deviceFilter, statusSelect, statusChecks]);
+  }, [vehicleRows, vehicleSearch, regionFilter, deviceFilter, statusSelect, statusChecks, dateTimeRange]);
 
   const totals = useMemo(() => {
     const base = filteredRows;
@@ -267,6 +274,7 @@ export default function AlchemUnitStatusDashboard({
 
   const activeFilterCount =
     (vehicleSearch ? 1 : 0) +
+    (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) +
     (regionFilter ? 1 : 0) +
     (deviceFilter ? 1 : 0) +
     (statusSelect ? 1 : 0) +
@@ -345,6 +353,11 @@ export default function AlchemUnitStatusDashboard({
 
           <section className={`${dashboardSectionClass} space-y-4`}>
             <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+              <DateTimeRangePicker
+                value={dateTimeRange}
+                onChange={setDateTimeRange}
+                lang={lang}
+              />
               <div className="min-w-[200px] flex-1">
                 <label className="mb-1 block text-xs font-medium text-zinc-500">
                   {lang === 'th' ? 'ค้นหารถ' : 'Search Truck'}

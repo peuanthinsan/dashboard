@@ -3,9 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import {
+  dateTimeRangeToMonthKeys,
+  isCompleteDateTimeRange,
+  isDateInDateTimeRange,
+  legacyDateFiltersToRange,
+  monthKeyToDateTimeRange,
+  type DateTimeRange,
+} from './dateTimeRange';
 import { saveDashboardScore } from './scoreCache';
-import InlineMonthPicker from 'app/ui/InlineMonthPicker';
-import InlineDayPicker from 'app/ui/InlineDayPicker';
+import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
@@ -111,16 +118,18 @@ export default function SummaryDashboard({
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [dayFilters, setDayFilters] = useState<string[]>([]);
+  const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
   // When exactly one month is selected, also fetch its prior month so the
   // "vs last month" KPI trend, highlight previous-counts, and the monthly
   // comparison cards compare against real data instead of an unfetched
   // month's implicit zero. currentRows still filters to monthFilters, so
   // KPIs and tables show only the selected month.
   const fetchMonthKeys = useMemo(() => {
-    if (monthFilters.length !== 1) return monthFilters;
-    const prior = priorMonthKeyOf(monthFilters[0]!);
-    return prior ? [monthFilters[0]!, prior] : monthFilters;
-  }, [monthFilters]);
+    const rangeMonths = dateTimeRangeToMonthKeys(dateTimeRange);
+    if (rangeMonths.length !== 1) return rangeMonths;
+    const prior = priorMonthKeyOf(rangeMonths[0]!);
+    return prior ? [rangeMonths[0]!, prior] : rangeMonths;
+  }, [dateTimeRange]);
   const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
@@ -138,6 +147,7 @@ export default function SummaryDashboard({
       monthFilters: string[];
       dayFilters?: string[];
       fleetFilters: string[];
+      dateTimeRange?: DateTimeRange;
     }>(storageKey);
     if (!stored) return;
     const frame = requestAnimationFrame(() => {
@@ -146,12 +156,19 @@ export default function SummaryDashboard({
           ? stored.monthFilters.filter((v) => typeof v === 'string')
           : [],
       );
+      const storedDays = Array.isArray(stored.dayFilters)
+        ? stored.dayFilters.filter((v) => typeof v === 'string')
+        : [];
+      const storedRange = stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)
+        ? stored.dateTimeRange
+        : legacyDateFiltersToRange(storedMonths, storedDays);
       // Empty / future-only stored months → let the default-month effect re-pick.
-      if (storedMonths.length > 0) {
+      if (isCompleteDateTimeRange(storedRange)) {
         didSetDefaultMonth.current = true;
-        setMonthFilters(storedMonths);
+        setDateTimeRange(storedRange);
+        setMonthFilters(dateTimeRangeToMonthKeys(storedRange));
       }
-      if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
+      setDayFilters([]);
       if (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
       else setFleetFilters(scopeNames);
     });
@@ -159,8 +176,8 @@ export default function SummaryDashboard({
   }, [storageKey]);
 
   useEffect(() => {
-    saveStoredFilters(storageKey, { monthFilters, dayFilters, fleetFilters });
-  }, [dayFilters, fleetFilters, monthFilters, storageKey]);
+    saveStoredFilters(storageKey, { monthFilters, dayFilters, fleetFilters, dateTimeRange });
+  }, [dateTimeRange, dayFilters, fleetFilters, monthFilters, storageKey]);
 
   const resetFilters = () => {
     const nextMonth =
@@ -169,6 +186,7 @@ export default function SummaryDashboard({
         defaultMonthKey,
       ) ?? defaultMonthKey;
     setMonthFilters(nextMonth ? [nextMonth] : []);
+    setDateTimeRange(nextMonth ? monthKeyToDateTimeRange(nextMonth) : { start: '', end: '' });
     setDayFilters([]);
     setFleetFilters(scopeNames);
   };
@@ -244,7 +262,10 @@ export default function SummaryDashboard({
         monthOptions.map((o) => o.key),
         defaultMonthKey,
       );
-      if (next) setMonthFilters([next]);
+      if (next) {
+        setMonthFilters([next]);
+        setDateTimeRange(monthKeyToDateTimeRange(next));
+      }
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, monthFilters, monthOptions]);
@@ -273,15 +294,9 @@ export default function SummaryDashboard({
     : monthFilters.length > 1 ? 'Selected months' : 'All months';
 
   const currentRows = useMemo(() => {
-    let rows = baseFilteredRows;
-    if (monthFilters.length > 0) {
-      rows = rows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
-    }
-    if (dayFilters.length > 0) {
-      rows = rows.filter((row) => row.parsedDate && dayFilters.includes(toDayKey(row.parsedDate)));
-    }
-    return rows;
-  }, [baseFilteredRows, dayFilters, monthFilters]);
+    if (!isCompleteDateTimeRange(dateTimeRange)) return baseFilteredRows;
+    return baseFilteredRows.filter((row) => isDateInDateTimeRange(row.parsedDate, dateTimeRange));
+  }, [baseFilteredRows, dateTimeRange]);
 
   // NOTE: was `new Date(y, m - 2, 1)` (local construction) read back with the
   // UTC-convention toMonthKey — for viewers east of UTC (Bangkok!) that named
@@ -484,7 +499,7 @@ export default function SummaryDashboard({
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
       isStale={lastUpdated ? nowTick - lastUpdated.getTime() > 5 * 60 * 1000 : false}
-      activeFilterCount={monthFilters.length + dayFilters.length + fleetFilters.length}
+      activeFilterCount={(isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) + fleetFilters.length}
       dashboardId={dashboardId}
       isAdmin={isAdmin}
       actions={
@@ -492,7 +507,7 @@ export default function SummaryDashboard({
           data={exportData}
           fullSheetExport={{ rows, filteredRows: currentRows.map((r) => r.sourceRow), columns: sheetColumns }}
           dashboardName={`${dashboardName}-summary`}
-          dateRange={activeMonthKey ?? undefined}
+          dateRange={isCompleteDateTimeRange(dateTimeRange) ? `${dateTimeRange.start}_${dateTimeRange.end}` : undefined}
           settingsStorageKey={`summary-${dashboardId}`}
           lang={lang}
           columns={exportColumns}
@@ -503,24 +518,15 @@ export default function SummaryDashboard({
       <div className="flex flex-col gap-6">
           {/* Filters stay mounted during month switches so the picker never disappears. */}
           <FilterBar>
-            <InlineMonthPicker
-              value={monthFilters}
-              onChange={(v) => {
-                setMonthFilters(v as string[]);
-                if (Array.isArray(v) && v.length !== 1) setDayFilters([]);
+            <DateTimeRangePicker
+              value={dateTimeRange}
+              onChange={(range) => {
+                setDateTimeRange(range);
+                setMonthFilters(dateTimeRangeToMonthKeys(range));
+                setDayFilters([]);
               }}
-              multi
               lang={lang}
             />
-            {monthFilters.length === 1 && (
-              <InlineDayPicker
-                monthKey={monthFilters[0]}
-                value={dayFilters}
-                onChange={(v) => setDayFilters(v as string[])}
-                multi
-                lang={lang}
-              />
-            )}
             {fleetOptions.length > 1 && (
               <MultiSelect
                 label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
@@ -530,7 +536,7 @@ export default function SummaryDashboard({
                 lang={lang}
               />
             )}
-            {(monthFilters.length + dayFilters.length + fleetFilters.length) > 0 && (
+            {(isCompleteDateTimeRange(dateTimeRange) || fleetFilters.length > 0) && (
               <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
                 {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
               </button>

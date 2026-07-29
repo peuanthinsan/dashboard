@@ -7,6 +7,14 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import {
+  dateTimeRangeToMonthKeys,
+  isCompleteDateTimeRange,
+  isDateInDateTimeRange,
+  legacyDateFiltersToRange,
+  monthKeyToDateTimeRange,
+  type DateTimeRange,
+} from './dateTimeRange';
 import { findValue, parseDate, previousMonthKey, rejectFutureMonthKeys, resolveDefaultMonthKey, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
 import { saveDashboardScore } from './scoreCache';
 import {
@@ -23,7 +31,7 @@ import TrendChart from 'app/ui/TrendChart';
 import HorizontalBarChart from 'app/ui/HorizontalBarChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import TrendIndicator from 'app/ui/TrendIndicator';
-import InlineDatePicker from 'app/ui/InlineDatePicker';
+import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import FilterBar from 'app/ui/FilterBar';
 import DonutChart from 'app/ui/DonutChart';
@@ -222,6 +230,7 @@ export default function DrivingDashboard({
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [dayFilters, setDayFilters] = useState<string[]>([]);
+  const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
   const [tripSearch, setTripSearch] = useState('');
   const [tripPageSize, setTripPageSize] = useState<number | 'all'>(25);
 
@@ -241,28 +250,37 @@ export default function DrivingDashboard({
       vehicleFilters?: string[];
       tripSearch?: string;
       tripPageSize?: number | 'all';
+      dateTimeRange?: DateTimeRange;
     }>(storageKey);
     if (!stored) return;
     const frame = requestAnimationFrame(() => {
-      let keptMonths = false;
+      let restoredMonths: string[] = [];
       if (Array.isArray(stored.selectedMonths)) {
         const months = rejectFutureMonthKeys(
           stored.selectedMonths.filter((v): v is string => typeof v === 'string'),
         );
         if (months.length > 0) {
-          setSelectedMonths(months);
-          keptMonths = true;
+          restoredMonths = months;
         }
       } else if (typeof stored.selectedMonth === 'string' && stored.selectedMonth) {
         const months = rejectFutureMonthKeys([stored.selectedMonth]);
         if (months.length > 0) {
-          setSelectedMonths(months);
-          keptMonths = true;
+          restoredMonths = months;
         }
       }
+      const storedDays = Array.isArray(stored.dayFilters)
+        ? stored.dayFilters.filter((v) => typeof v === 'string')
+        : [];
+      const storedRange = stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)
+        ? stored.dateTimeRange
+        : legacyDateFiltersToRange(restoredMonths, storedDays);
       // Only skip the default-month effect when we restored a real (non-future) month.
-      if (keptMonths) didSetDefaultMonth.current = true;
-      if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
+      if (isCompleteDateTimeRange(storedRange)) {
+        didSetDefaultMonth.current = true;
+        setDateTimeRange(storedRange);
+        setSelectedMonths(dateTimeRangeToMonthKeys(storedRange));
+      }
+      setDayFilters([]);
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
       if (typeof stored.tripSearch === 'string') setTripSearch(stored.tripSearch);
@@ -278,12 +296,13 @@ export default function DrivingDashboard({
     saveStoredFilters(storageKey, {
       selectedMonths,
       dayFilters,
+      dateTimeRange,
       driverFilters,
       vehicleFilters,
       tripSearch,
       tripPageSize,
     });
-  }, [storageKey, selectedMonths, dayFilters, driverFilters, vehicleFilters, tripSearch, tripPageSize]);
+  }, [storageKey, selectedMonths, dayFilters, dateTimeRange, driverFilters, vehicleFilters, tripSearch, tripPageSize]);
 
   const shiftRows = useMemo(
     () => mapShiftSheetRows(rows, scopeSet),
@@ -295,20 +314,20 @@ export default function DrivingDashboard({
   );
 
   const applyRowFilters = useCallback(
-    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[], opts?: { includeMonth?: boolean }) =>
+    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[], opts?: { includeDateTime?: boolean }) =>
       source.filter((row) => {
         if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
         if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
-        if ((opts?.includeMonth ?? true) && selectedMonths.length > 0) {
-          if (!row.date) return false;
-          if (!selectedMonths.includes(getMonthKey(row.date))) return false;
-        }
-        if (dayFilters.length > 0 && row.date && !dayFilters.includes(toDayKey(row.date))) {
+        if (
+          (opts?.includeDateTime ?? true) &&
+          isCompleteDateTimeRange(dateTimeRange) &&
+          !isDateInDateTimeRange(row.date, dateTimeRange)
+        ) {
           return false;
         }
         return true;
       }),
-    [dayFilters, driverFilters, selectedMonths, vehicleFilters],
+    [dateTimeRange, driverFilters, vehicleFilters],
   );
 
   const filteredShiftRows = useMemo(
@@ -318,7 +337,7 @@ export default function DrivingDashboard({
 
   // Trend rows ignore the month filter so the monthly trend chart always spans multiple months.
   const trendShiftRows = useMemo(
-    () => applyRowFilters(shiftRows, { includeMonth: false }),
+    () => applyRowFilters(shiftRows, { includeDateTime: false }),
     [applyRowFilters, shiftRows],
   );
 
@@ -359,9 +378,8 @@ export default function DrivingDashboard({
       { threshold: activeSubPage.threshold, label: activeSubPage.label },
       warningsMap,
     );
-    if (dayFilters.length === 0) return allRows;
-    return allRows.filter((v) => dayFilters.includes(v.dayKey));
-  }, [activeSubPage, completedShiftRows, warningsMap, dayFilters]);
+    return allRows;
+  }, [activeSubPage, completedShiftRows, warningsMap]);
 
   const restHrsViolations = useMemo(() => {
     if (activeSubPage.kind !== 'rest_hrs') return [];
@@ -393,15 +411,17 @@ export default function DrivingDashboard({
     () => [
       driverFilters.length > 0,
       vehicleFilters.length > 0,
-      selectedMonths.length > 0,
-      dayFilters.length > 0,
+      isCompleteDateTimeRange(dateTimeRange),
       tripSearch.trim().length > 0,
     ].filter(Boolean).length,
-    [dayFilters.length, driverFilters.length, selectedMonths.length, tripSearch, vehicleFilters.length],
+    [dateTimeRange, driverFilters.length, tripSearch, vehicleFilters.length],
   );
 
   // Date range string for ExportButton
-  const dateRange = useMemo(() => (selectedMonths.length > 0 ? selectedMonths.join('_') : undefined), [selectedMonths]);
+  const dateRange = useMemo(
+    () => isCompleteDateTimeRange(dateTimeRange) ? `${dateTimeRange.start}_${dateTimeRange.end}` : undefined,
+    [dateTimeRange],
+  );
 
   // All months in filtered data (sorted)
   const allMonthKeys = useMemo(() => {
@@ -424,7 +444,7 @@ export default function DrivingDashboard({
     const frame = requestAnimationFrame(() => {
       if (didSetDefaultMonth.current) return;
       if (allMonthsFromData.length === 0) return;
-      if (selectedMonths.length > 0) {
+      if (isCompleteDateTimeRange(dateTimeRange)) {
         didSetDefaultMonth.current = true;
         return;
       }
@@ -433,10 +453,11 @@ export default function DrivingDashboard({
       if (next) {
         setSelectedMonths([next]);
         setDayFilters([]);
+        setDateTimeRange(monthKeyToDateTimeRange(next));
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [allMonthsFromData, defaultMonthKey, selectedMonths]);
+  }, [allMonthsFromData, dateTimeRange, defaultMonthKey]);
 
   const aggregates = useMemo<DriverAggregate[]>(() => {
     const totals = new Map<string, { driver: string; tripCount: number; totalDistanceKm: number; totalCntDrvDurationHours: number; monthlyMap: Map<string, number> }>();
@@ -891,11 +912,13 @@ export default function DrivingDashboard({
 
       {/* Global filters — visible on all tabs */}
       <FilterBar>
-        <InlineDatePicker
-          monthKeys={selectedMonths}
-          dayKeys={dayFilters}
-          onMonthChange={(v) => { setSelectedMonths(v); setDayFilters([]); }}
-          onDayChange={setDayFilters}
+        <DateTimeRangePicker
+          value={dateTimeRange}
+          onChange={(range) => {
+            setDateTimeRange(range);
+            setSelectedMonths(dateTimeRangeToMonthKeys(range));
+            setDayFilters([]);
+          }}
           lang={lang}
         />
         <MultiSelect
@@ -912,10 +935,16 @@ export default function DrivingDashboard({
           onChange={setVehicleFilters}
           lang={lang}
         />
-        {(selectedMonths.length > 0 || dayFilters.length > 0 || driverFilters.length > 0 || vehicleFilters.length > 0) && (
+        {(isCompleteDateTimeRange(dateTimeRange) || driverFilters.length > 0 || vehicleFilters.length > 0) && (
           <button
             type="button"
-            onClick={() => { setSelectedMonths([]); setDayFilters([]); setDriverFilters([]); setVehicleFilters([]); }}
+            onClick={() => {
+              setDateTimeRange({ start: '', end: '' });
+              setSelectedMonths([]);
+              setDayFilters([]);
+              setDriverFilters([]);
+              setVehicleFilters([]);
+            }}
             className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           >
             {lang === 'th' ? 'รีเซ็ต' : 'Reset'}

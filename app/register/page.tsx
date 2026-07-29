@@ -73,7 +73,7 @@ export default async function RegisterPage() {
     <div className="flex min-h-[100dvh] min-h-screen">
       <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-red-600 via-red-700 to-violet-800 p-12 lg:flex">
         <div>
-          <h1 className="text-2xl font-bold text-white">{copy.register.brandTitle}</h1>
+          <p className="text-2xl font-bold text-white">{copy.register.brandTitle}</p>
           <p className="mt-1 text-sm text-red-200">{copy.fleetSafetyIntelligence}</p>
         </div>
         <div className="space-y-6">
@@ -116,7 +116,7 @@ export default async function RegisterPage() {
             <div className="mb-4 flex items-center justify-center gap-2.5 lg:hidden">
               <SongdeeLogo height={28} />
             </div>
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{copy.register.title}</h2>
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{copy.register.title}</h1>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{copy.register.subtitle}</p>
           </div>
           <RegisterForm action={register} copy={copy.register} />

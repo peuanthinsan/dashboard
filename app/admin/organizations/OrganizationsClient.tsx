@@ -10,6 +10,7 @@ import {
   useRefreshOnSuccess,
 } from '../admin-client-utils';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
+import ConfirmActionDialog from '../ConfirmActionDialog';
 import { AdminPanel, AdminSection, AdminSectionHeader, AdminStatCard } from '../admin-components';
 import {
   ADMIN_DELETE_BUTTON,
@@ -82,6 +83,7 @@ function OrganizationRow({
             type="checkbox"
             checked={checked}
             onChange={(e) => onCheck(organization.id, e.target.checked)}
+            aria-label={`Select ${organization.name ?? 'fleet'} (ID ${organization.id})`}
             className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
           />
         </td>
@@ -116,9 +118,18 @@ function OrganizationRow({
             <input
               name="organizationName"
               defaultValue={organization.name ?? ''}
+              required
+              aria-describedby={`fleet-rename-warning-${organization.id}`}
               className={ADMIN_INPUT}
             />
           </label>
+          <p
+            id={`fleet-rename-warning-${organization.id}`}
+            className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100"
+          >
+            Fleet names must exactly match the Fleet values in connected sheets. If you rename this fleet,
+            update those sheet values at the same time or dashboard rows may stop matching.
+          </p>
           <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
             Company
             <select
@@ -192,6 +203,7 @@ export default function OrganizationsClient({
   const [reassignCompanyId, setReassignCompanyId] = useState('');
   const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
   const [isReassignOpen, setIsReassignOpen] = useState(false);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [isPending, startTransition] = useTransition();
 
@@ -205,11 +217,15 @@ export default function OrganizationsClient({
   }
 
   function handleSelectAll(checked: boolean) {
-    if (checked) {
-      setSelectedIds(new Set(filteredOrganizations.map((o) => o.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
+    const filteredIds = new Set(filteredOrganizations.map((organization) => organization.id));
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      filteredIds.forEach((id) => {
+        if (checked) next.add(id);
+        else next.delete(id);
+      });
+      return next;
+    });
   }
 
   function handleBulkCreate() {
@@ -225,6 +241,11 @@ export default function OrganizationsClient({
   }
 
   function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleteConfirmOpen(true);
+  }
+
+  function runBulkDelete() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     startTransition(async () => {
@@ -247,7 +268,8 @@ export default function OrganizationsClient({
   }
 
   const allChecked =
-    filteredOrganizations.length > 0 && selectedIds.size === filteredOrganizations.length;
+    filteredOrganizations.length > 0 &&
+    filteredOrganizations.every((organization) => selectedIds.has(organization.id));
 
   return (
     <AdminSection>
@@ -441,6 +463,7 @@ export default function OrganizationsClient({
                         type="checkbox"
                         checked={allChecked}
                         onChange={(e) => handleSelectAll(e.target.checked)}
+                        aria-label="Select all filtered fleets"
                         className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
                       />
                     </th>
@@ -511,6 +534,15 @@ export default function OrganizationsClient({
           <StatusMessage state={organizationCreateState} />
         </form>
       </AdminModal>
+      <ConfirmActionDialog
+        isOpen={isBulkDeleteConfirmOpen}
+        title="Delete fleets"
+        description={`Permanently delete ${selectedIds.size} selected fleet${selectedIds.size === 1 ? '' : 's'}? Dashboard and user access assignments may be affected.`}
+        confirmLabel="Delete"
+        destructive
+        onClose={() => setIsBulkDeleteConfirmOpen(false)}
+        onConfirm={runBulkDelete}
+      />
     </AdminSection>
   );
 }

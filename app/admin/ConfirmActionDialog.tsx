@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId } from 'react';
+import { useId } from 'react';
 import { useFocusTrap } from 'app/hooks/useFocusTrap';
 
 type Props = {
@@ -34,15 +34,6 @@ export default function ConfirmActionDialog({
   const titleId = useId();
   const descId = useId();
   const trapRef = useFocusTrap(isOpen, onClose);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

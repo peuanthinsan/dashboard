@@ -89,7 +89,10 @@ export default function QuickSetupClient({
   );
   const [fleetNamesText, setFleetNamesText] = useState('');
   const [existingFleetSelection, setExistingFleetSelection] = useState<Set<number>>(() => new Set());
+  const [userEmail, setUserEmail] = useState('');
+  const [userPassword, setUserPassword] = useState('');
   const companyNameRef = useRef<HTMLInputElement>(null);
+  const credentialsStarted = Boolean(userEmail || userPassword);
 
   const fleetNameOptions = fleetNamesText
     .split(/\r?\n/)
@@ -206,7 +209,14 @@ export default function QuickSetupClient({
             {STEPS[step - 1]?.label}
           </p>
         </div>
-        <div className="flex h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+        <div
+          role="progressbar"
+          aria-label="Quick setup progress"
+          aria-valuemin={1}
+          aria-valuemax={STEPS.length}
+          aria-valuenow={step}
+          className="flex h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
+        >
           <div
             className="bg-red-600 transition-all duration-300 dark:bg-red-500"
             style={{ width: `${(step / STEPS.length) * 100}%` }}
@@ -217,13 +227,18 @@ export default function QuickSetupClient({
             <button
               key={s.id}
               type="button"
-              onClick={() => setStep(s.id)}
+              onClick={() => {
+                if (s.id <= step) setStep(s.id);
+              }}
+              disabled={s.id > step}
+              aria-current={step === s.id ? 'step' : undefined}
+              aria-label={`${s.label}${s.id > step ? ' (complete earlier steps first)' : ''}`}
               className={
                 step === s.id
                   ? 'font-medium text-red-600 dark:text-red-400'
                   : step > s.id
                     ? 'text-emerald-600 dark:text-emerald-500'
-                    : ''
+                    : 'cursor-not-allowed opacity-50'
               }
             >
               {s.short}
@@ -501,7 +516,7 @@ export default function QuickSetupClient({
                 </legend>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
-                    All four are selected by default — uncheck what you don&apos;t need.
+                    All {QUICK_TEMPLATES.length} are selected by default — uncheck what you don&apos;t need.
                   </p>
                   <div className="flex gap-2 text-xs">
                     <button
@@ -643,15 +658,37 @@ export default function QuickSetupClient({
                 <div className="grid gap-4 border-t border-zinc-200 px-4 py-4 dark:border-zinc-700 sm:grid-cols-2">
                   <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                     Email
-                    <input name="userEmail" type="email" autoComplete="off" placeholder="user@company.com" className={ADMIN_INPUT} />
+                    <input
+                      name="userEmail"
+                      type="email"
+                      value={userEmail}
+                      onChange={(event) => setUserEmail(event.target.value)}
+                      autoComplete="email"
+                      placeholder="user@company.com"
+                      required={credentialsStarted}
+                      aria-describedby="quick-setup-login-hint"
+                      className={ADMIN_INPUT}
+                    />
                   </label>
                   <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                     Initial password
-                    <input type="password" name="userPassword" autoComplete="new-password" placeholder="••••••••" className={ADMIN_INPUT} />
+                    <input
+                      type="password"
+                      name="userPassword"
+                      value={userPassword}
+                      onChange={(event) => setUserPassword(event.target.value)}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      required={credentialsStarted}
+                      minLength={8}
+                      maxLength={72}
+                      aria-describedby="quick-setup-login-hint"
+                      className={ADMIN_INPUT}
+                    />
                   </label>
-                  <p className={`sm:col-span-2 text-xs ${ADMIN_TEXT_SUBTLE}`}>
-                    Both fields required if you add a user. They get access to this company and every fleet you
-                    set up above.
+                  <p id="quick-setup-login-hint" className={`sm:col-span-2 text-xs ${ADMIN_TEXT_SUBTLE}`}>
+                    Both fields are required if you add a user; passwords must be 8–72 characters. The user gets
+                    access to this company and every fleet you set up above.
                   </p>
                 </div>
               </details>

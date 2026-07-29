@@ -5,7 +5,7 @@ import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import EmptyState from 'app/ui/EmptyState';
 import FilterBar from 'app/ui/FilterBar';
 import GradeBadge from 'app/ui/GradeBadge';
-import InlineMonthPicker from 'app/ui/InlineMonthPicker';
+import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 import KpiCard from 'app/ui/KpiCard';
 import MultiSelect from 'app/ui/MultiSelect';
 import { DataTable, type Column } from 'app/ui/DataTable';
@@ -15,6 +15,13 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import {
+  dateTimeRangeToMonthKeys,
+  isCompleteDateTimeRange,
+  isDateInDateTimeRange,
+  legacyDateFiltersToRange,
+  type DateTimeRange,
+} from './dateTimeRange';
 import {
   ALERT_TIME_ALIASES,
   findValue,
@@ -90,6 +97,7 @@ export default function VehicleKpiDashboard({
   }, []);
 
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
+  const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const scopeNames = useMemo(
     () => resolveScopeFleetNames(organizationName, organizationNames),
@@ -116,7 +124,7 @@ export default function VehicleKpiDashboard({
   } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
-    monthKeys: monthFilters,
+    monthKeys: dateTimeRangeToMonthKeys(dateTimeRange),
     loadMonthCatalog: true,
   });
 
@@ -125,6 +133,7 @@ export default function VehicleKpiDashboard({
       monthFilters?: string[];
       vehicleFilters?: string[];
       fleetFilters?: string[];
+      dateTimeRange?: DateTimeRange;
     }>(storageKey);
     if (!stored) return;
 
@@ -132,9 +141,13 @@ export default function VehicleKpiDashboard({
       const storedMonths = Array.isArray(stored.monthFilters)
         ? stored.monthFilters.filter((value) => typeof value === 'string')
         : [];
-      if (storedMonths.length > 0) {
+      const storedRange = stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)
+        ? stored.dateTimeRange
+        : legacyDateFiltersToRange(storedMonths);
+      if (isCompleteDateTimeRange(storedRange)) {
         didSetDefaultMonth.current = true;
-        setMonthFilters(storedMonths);
+        setDateTimeRange(storedRange);
+        setMonthFilters(dateTimeRangeToMonthKeys(storedRange));
       }
 
       const storedVehicles = Array.isArray(stored.vehicleFilters)
@@ -152,8 +165,8 @@ export default function VehicleKpiDashboard({
   }, [scopeNames, storageKey]);
 
   useEffect(() => {
-    saveStoredFilters(storageKey, { monthFilters, vehicleFilters, fleetFilters });
-  }, [storageKey, monthFilters, vehicleFilters, fleetFilters]);
+    saveStoredFilters(storageKey, { monthFilters, dateTimeRange, vehicleFilters, fleetFilters });
+  }, [storageKey, monthFilters, dateTimeRange, vehicleFilters, fleetFilters]);
 
   const parsedRows = useMemo<ParsedVehicleKpiRow[]>(() => {
     return rows
@@ -228,24 +241,26 @@ export default function VehicleKpiDashboard({
       }
       didSetDefaultMonth.current = true;
       setMonthFilters(defaultMonthKeys);
+      setDateTimeRange(legacyDateFiltersToRange(defaultMonthKeys));
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKeys, monthFilters]);
 
   const resetFilters = () => {
     setMonthFilters(defaultMonthKeys);
+    setDateTimeRange(legacyDateFiltersToRange(defaultMonthKeys));
     setVehicleFilters([]);
     setFleetFilters(scopeNames);
   };
 
   const filteredRows = useMemo(() => {
     return parsedRows.filter((row) => {
-      if (monthFilters.length > 0 && (!row.monthKey || !monthFilters.includes(row.monthKey))) return false;
+      if (isCompleteDateTimeRange(dateTimeRange) && !isDateInDateTimeRange(row.date, dateTimeRange)) return false;
       if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
       if (fleetFilters.length > 0 && !fleetFilters.includes(row.fleet)) return false;
       return true;
     });
-  }, [parsedRows, monthFilters, vehicleFilters, fleetFilters]);
+  }, [parsedRows, dateTimeRange, vehicleFilters, fleetFilters]);
 
   const vehicleRows = useMemo<VehicleKpiRow[]>(() => {
     return Array.from(aggregateVehicleKpi(filteredRows).values()).sort((a, b) => {
@@ -319,8 +334,8 @@ export default function VehicleKpiDashboard({
   );
 
   const activeFilterCount = useMemo(
-    () => [monthFilters.length > 0, vehicleFilters.length > 0, fleetFilters.length > 0].filter(Boolean).length,
-    [monthFilters, vehicleFilters, fleetFilters],
+    () => [isCompleteDateTimeRange(dateTimeRange), vehicleFilters.length > 0, fleetFilters.length > 0].filter(Boolean).length,
+    [dateTimeRange, vehicleFilters, fleetFilters],
   );
 
   const handleExport = async () => {
@@ -347,7 +362,14 @@ export default function VehicleKpiDashboard({
       >
         <div className="flex flex-col gap-6">
           <FilterBar>
-            <InlineMonthPicker value={monthFilters} onChange={(value) => setMonthFilters(value as string[])} multi lang={lang} />
+            <DateTimeRangePicker
+              value={dateTimeRange}
+              onChange={(range) => {
+                setDateTimeRange(range);
+                setMonthFilters(dateTimeRangeToMonthKeys(range));
+              }}
+              lang={lang}
+            />
           </FilterBar>
           <LoadingState
             lang={lang}
@@ -417,7 +439,14 @@ export default function VehicleKpiDashboard({
         )}
 
         <FilterBar>
-          <InlineMonthPicker value={monthFilters} onChange={(value) => setMonthFilters(value as string[])} multi lang={lang} />
+          <DateTimeRangePicker
+            value={dateTimeRange}
+            onChange={(range) => {
+              setDateTimeRange(range);
+              setMonthFilters(dateTimeRangeToMonthKeys(range));
+            }}
+            lang={lang}
+          />
           <MultiSelect
             label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'}
             options={vehicleOptions}

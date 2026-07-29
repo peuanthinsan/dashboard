@@ -59,7 +59,7 @@ export function AdminSectionHeader({
         <h2 className={`mt-2 ${heading2}`}>{title}</h2>
         <p className={`mt-1 ${textSecondary}`}>{description}</p>
       </div>
-      <span className={ADMIN_PILL}>
+      <span className={`${ADMIN_PILL} tabular-nums`}>
         {count} {countLabel}
       </span>
     </header>
@@ -83,7 +83,7 @@ export function AdminStatCard({
         {label}
       </p>
       {value !== undefined ? (
-        <p className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-white">{value}</p>
+        <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-zinc-950 dark:text-white">{value}</p>
       ) : null}
       {description ? <p className={`mt-1 text-xs ${descriptionClassName}`}>{description}</p> : null}
       {children ? <div className="mt-2">{children}</div> : null}

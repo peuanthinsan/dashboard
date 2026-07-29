@@ -6,9 +6,11 @@ import {
   createOrganization,
   createUserWithRole,
   deleteCompany,
+  deleteDashboard,
   deleteOrganization,
   deleteUser,
   getCompanies,
+  getCompanyById,
   getOrganizations,
   getOrganizationById,
   getUser,
@@ -24,6 +26,8 @@ import { getDashboardLang } from 'app/dashboard/i18n';
 import { getAdminCopy } from '../i18n-copy';
 import QuickSetupClient from './QuickSetupClient';
 import type { ActionState } from '../types';
+import { buildRegisterSchema } from 'app/lib/site-auth-schemas';
+import { getSiteCopy } from 'app/site-i18n-copy';
 
 const TEMPLATE_ORDER = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed', 'DynamicTrip'] as const;
 const ALLOWED_TEMPLATES = new Set<string>(TEMPLATE_ORDER);
@@ -36,6 +40,8 @@ type QuickSetupState = ActionState & {
   createdDashboardId?: number;
   createdDashboardCount?: number;
 };
+
+class QuickSetupValidationError extends Error {}
 
 export default async function QuickSetupPage() {
   await requireAdmin();
@@ -57,7 +63,7 @@ export default async function QuickSetupPage() {
       .map((l) => l.trim())
       .filter(Boolean);
     const userEmail = (formData.get('userEmail') as string)?.trim();
-    const userPassword = (formData.get('userPassword') as string)?.trim();
+    const userPassword = (formData.get('userPassword') as string) ?? '';
     const dashboardName = (formData.get('dashboardName') as string)?.trim();
     const sheetUrl = (formData.get('sheetUrl') as string)?.trim();
     const drivingSheetUrlOptional = (formData.get('drivingSheetUrl') as string)?.trim();
@@ -82,11 +88,87 @@ export default async function QuickSetupPage() {
     if (!useExistingCompany && !companyName) {
       return { status: 'error', message: 'Enter a company name or select an existing one.' };
     }
+    if (useExistingCompany && (!Number.isSafeInteger(existingCompanyId) || existingCompanyId <= 0)) {
+      return { status: 'error', message: 'Select a valid existing company.' };
+    }
+    if (useExistingFleet && !useExistingCompany) {
+      return {
+        status: 'error',
+        message: 'Existing fleets can only be selected with an existing company.',
+      };
+    }
     if (!dashboardName || !sheetUrl) {
       return { status: 'error', message: 'Dashboard name and sheet link are required.' };
     }
     if (selectedTemplates.length === 0) {
       return { status: 'error', message: 'Select at least one dashboard template.' };
+    }
+
+    let validatedUser: { email: string; password: string } | null = null;
+    if (Boolean(userEmail) !== Boolean(userPassword)) {
+      return {
+        status: 'error',
+        message: 'Enter both a customer email and password, or leave both fields empty.',
+      };
+    }
+    if (userEmail && userPassword) {
+      const pageLang = await getDashboardLang();
+      const authSchema = buildRegisterSchema(getSiteCopy(pageLang).validation);
+      const parsedUser = authSchema.safeParse({ email: userEmail, password: userPassword });
+      if (!parsedUser.success) {
+        return {
+          status: 'error',
+          message: parsedUser.error.issues[0]?.message ?? 'Enter valid customer login details.',
+        };
+      }
+      if ((await getUser(parsedUser.data.email)).length > 0) {
+        return { status: 'error', message: `User ${parsedUser.data.email} already exists.` };
+      }
+      validatedUser = parsedUser.data;
+    }
+
+    let verifiedExistingCompanyId: number | null = null;
+    let originalExistingCompanyAlertRules: AlertRule[] | null = null;
+    if (useExistingCompany) {
+      const existingCompany = await getCompanyById(existingCompanyId);
+      if (!existingCompany[0]) {
+        return { status: 'error', message: 'The selected company no longer exists.' };
+      }
+      verifiedExistingCompanyId = existingCompanyId;
+      originalExistingCompanyAlertRules = existingCompany[0].alertRules ?? null;
+    }
+
+    const verifiedExistingFleetPairs: { name: string; id: number }[] = [];
+    if (useExistingFleet) {
+      for (const fleetId of existingFleetIds) {
+        const fleetRows = await getOrganizationById(fleetId);
+        const fleet = fleetRows[0];
+        if (!fleet) {
+          return { status: 'error', message: 'One or more selected fleets were not found.' };
+        }
+        if (fleet.companyId !== verifiedExistingCompanyId) {
+          return {
+            status: 'error',
+            message: 'Every selected fleet must belong to the company you chose.',
+          };
+        }
+        verifiedExistingFleetPairs.push({
+          name: fleet.name?.trim() ? fleet.name.trim() : `Fleet #${fleetId}`,
+          id: fleetId,
+        });
+      }
+    }
+
+    const preflightFleetNames = useExistingFleet
+      ? verifiedExistingFleetPairs.map((fleet) => fleet.name)
+      : fleetNameLines;
+    if (
+      dashboardFleetTarget !== '__all__' &&
+      dashboardFleetTarget !== '__none__' &&
+      dashboardFleetTarget !== '' &&
+      !preflightFleetNames.includes(dashboardFleetTarget)
+    ) {
+      return { status: 'error', message: 'Select a valid fleet scope for the dashboards.' };
     }
 
     const mainSheet = parseSheetLink(sheetUrl);
@@ -140,14 +222,16 @@ export default async function QuickSetupPage() {
     let createdCompanyId: number | null = null;
     const createdFleetIds: number[] = [];
     let createdUserId: number | null = null;
+    const createdDashboardIds: number[] = [];
+    let existingCompanyRulesChanged = false;
 
     try {
       // Step 1: Company
       let companyId: number;
-      if (useExistingCompany && existingCompanyId) {
-        companyId = existingCompanyId;
+      if (verifiedExistingCompanyId != null) {
+        companyId = verifiedExistingCompanyId;
       } else {
-        const result = await createCompany(companyName);
+        const result = await createCompany(companyName!);
         companyId = result.id;
         createdCompanyId = companyId;
       }
@@ -163,6 +247,7 @@ export default async function QuickSetupPage() {
               parsed as AlertRule[],
               useExistingCompany ? 'append' : 'replace',
             );
+            existingCompanyRulesChanged = useExistingCompany;
           }
         } catch {
           // ignore malformed rule JSON — non-fatal
@@ -174,19 +259,8 @@ export default async function QuickSetupPage() {
       let fleetPairs: { name: string; id: number }[] = [];
 
       if (useExistingFleet) {
-        for (const fid of existingFleetIds) {
-          const fleetRows = await getOrganizationById(fid);
-          const fleet = fleetRows[0];
-          if (!fleet) {
-            return { status: 'error', message: 'One or more selected fleets were not found.' };
-          }
-          if (fleet.companyId != null && fleet.companyId !== companyId) {
-            return { status: 'error', message: 'Every selected fleet must belong to the company you chose.' };
-          }
-          organizationIdsForUser.push(fid);
-          const fleetLabel = fleet.name?.trim() ? fleet.name.trim() : `Fleet #${fid}`;
-          fleetPairs.push({ name: fleetLabel, id: fid });
-        }
+        fleetPairs = verifiedExistingFleetPairs;
+        organizationIdsForUser.push(...verifiedExistingFleetPairs.map((fleet) => fleet.id));
       } else if (fleetNameLines.length > 0) {
         for (const name of fleetNameLines) {
           try {
@@ -201,11 +275,9 @@ export default async function QuickSetupPage() {
           }
         }
         if (fleetPairs.length === 0) {
-          return {
-            status: 'error',
-            message:
-              'No fleets could be created. Each fleet name must be unique across the whole system. Check for duplicates and try again.',
-          };
+          throw new QuickSetupValidationError(
+            'No fleets could be created. Each fleet name must be unique across the whole system. Check for duplicates and try again.',
+          );
         }
         organizationIdsForUser.push(...fleetPairs.map((p) => p.id));
       }
@@ -227,12 +299,12 @@ export default async function QuickSetupPage() {
 
       // Step 3: User (optional)
       let userId: number | undefined;
-      if (userEmail && userPassword) {
-        const existing = await getUser(userEmail);
-        if (existing.length > 0) {
-          return { status: 'error', message: `User ${userEmail} already exists.` };
-        }
-        const result = await createUserWithRole({ email: userEmail, password: userPassword, isAdmin: false });
+      if (validatedUser) {
+        const result = await createUserWithRole({
+          email: validatedUser.email,
+          password: validatedUser.password,
+          isAdmin: false,
+        });
         userId = result.id;
         createdUserId = result.id;
         await updateUserAssignments(userId, {
@@ -274,8 +346,15 @@ export default async function QuickSetupPage() {
         }
       }
       const result = await bulkCreateDashboards(items);
+      createdDashboardIds.push(...result.createdIds);
+      if (result.created !== items.length) {
+        throw new QuickSetupValidationError(
+          `Only ${result.created} of ${items.length} dashboards could be created.`,
+        );
+      }
       const createdDashboardCount = result.created;
-      const createdDashboardId = undefined;
+      const createdDashboardId =
+        result.createdIds.length === 1 ? result.createdIds[0] : undefined;
 
       revalidatePath('/admin');
       revalidatePath('/admin/companies');
@@ -319,20 +398,60 @@ export default async function QuickSetupPage() {
     } catch (error) {
       console.error('Quick setup failed', error);
       // Compensating rollback — delete anything WE created. Deletes in reverse order
-      // so FKs don't block: user → fleets → company. Failures here are logged but
-      // don't override the original error message.
+      // so FKs don't block: dashboards → user → fleets → company. Cleanup failures are
+      // logged and surfaced as an explicit warning so admins know to audit partial records.
+      let rollbackFailed = false;
+      for (const dashboardId of createdDashboardIds) {
+        try {
+          await deleteDashboard(dashboardId);
+        } catch (e) {
+          rollbackFailed = true;
+          console.error('Rollback: deleteDashboard failed', e);
+        }
+      }
       if (createdUserId != null) {
-        try { await deleteUser(createdUserId); } catch (e) { console.error('Rollback: deleteUser failed', e); }
+        try {
+          await deleteUser(createdUserId);
+        } catch (e) {
+          rollbackFailed = true;
+          console.error('Rollback: deleteUser failed', e);
+        }
       }
       for (const fid of createdFleetIds) {
-        try { await deleteOrganization(fid); } catch (e) { console.error('Rollback: deleteOrganization failed', e); }
+        try {
+          await deleteOrganization(fid);
+        } catch (e) {
+          rollbackFailed = true;
+          console.error('Rollback: deleteOrganization failed', e);
+        }
       }
       if (createdCompanyId != null) {
-        try { await deleteCompany(createdCompanyId); } catch (e) { console.error('Rollback: deleteCompany failed', e); }
+        try {
+          await deleteCompany(createdCompanyId);
+        } catch (e) {
+          rollbackFailed = true;
+          console.error('Rollback: deleteCompany failed', e);
+        }
+      }
+      if (existingCompanyRulesChanged && verifiedExistingCompanyId != null) {
+        try {
+          await setCompanyAlertRules(
+            verifiedExistingCompanyId,
+            originalExistingCompanyAlertRules,
+            'replace',
+          );
+        } catch (e) {
+          rollbackFailed = true;
+          console.error('Rollback: restore company alert rules failed', e);
+        }
       }
       return {
         status: 'error',
-        message: 'Setup failed and was rolled back. Check the server logs for details.',
+        message: rollbackFailed
+          ? 'Setup failed and automatic cleanup was incomplete. Review the admin lists for partial records before retrying.'
+          : error instanceof QuickSetupValidationError
+            ? `${error.message} No partial setup was kept.`
+            : 'Setup failed and was rolled back. Check the server logs for details.',
       };
     }
   }

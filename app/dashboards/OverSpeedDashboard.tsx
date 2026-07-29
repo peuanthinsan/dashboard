@@ -5,6 +5,14 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import {
+  dateTimeRangeToMonthKeys,
+  isCompleteDateTimeRange,
+  isDateInDateTimeRange,
+  legacyDateFiltersToRange,
+  monthKeyToDateTimeRange,
+  type DateTimeRange,
+} from './dateTimeRange';
 import { findValue, normalizeLabel, parseDate, previousMonthKey, rejectFutureMonthKeys, resolveDefaultMonthKey, resolveScopeFleetNames, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import ExportButton from 'app/ui/ExportButton';
@@ -12,8 +20,7 @@ import EmptyState from 'app/ui/EmptyState';
 import HorizontalBarChart from 'app/ui/HorizontalBarChart';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
 import { DataTable, type Column } from 'app/ui/DataTable';
-import InlineMonthPicker from 'app/ui/InlineMonthPicker';
-import InlineDayPicker from 'app/ui/InlineDayPicker';
+import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import FilterBar from 'app/ui/FilterBar';
 import { heading2, textSecondary, CHART_COLORS } from 'app/ui/design-tokens';
@@ -98,6 +105,7 @@ export default function OverSpeedDashboard({
 
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [dayFilters, setDayFilters] = useState<string[]>([]);
+  const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const scopeNames = useMemo(
@@ -115,7 +123,7 @@ export default function OverSpeedDashboard({
   const { rows, columns: sheetColumns, loading, refreshing, progress, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
-    monthKeys: monthFilters,
+    monthKeys: dateTimeRangeToMonthKeys(dateTimeRange),
     loadMonthCatalog: true,
   });
 
@@ -127,6 +135,7 @@ export default function OverSpeedDashboard({
       driverFilters?: string[];
       vehicleFilters?: string[];
       fleetFilters?: string[];
+      dateTimeRange?: DateTimeRange;
     }>(storageKey);
     if (!stored) return;
     const frame = requestAnimationFrame(() => {
@@ -135,11 +144,18 @@ export default function OverSpeedDashboard({
           ? stored.monthFilters.filter((v) => typeof v === 'string')
           : [],
       );
-      if (storedMonths.length > 0) {
+      const storedDays = Array.isArray(stored.dayFilters)
+        ? stored.dayFilters.filter((v) => typeof v === 'string')
+        : [];
+      const storedRange = stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)
+        ? stored.dateTimeRange
+        : legacyDateFiltersToRange(storedMonths, storedDays);
+      if (isCompleteDateTimeRange(storedRange)) {
         didSetDefaultMonth.current = true;
-        setMonthFilters(storedMonths);
+        setDateTimeRange(storedRange);
+        setMonthFilters(dateTimeRangeToMonthKeys(storedRange));
       }
-      if (Array.isArray(stored.dayFilters)) setDayFilters(stored.dayFilters.filter((v) => typeof v === 'string'));
+      setDayFilters([]);
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
@@ -149,8 +165,8 @@ export default function OverSpeedDashboard({
   }, [storageKey]);
 
   useEffect(() => {
-    saveStoredFilters(storageKey, { monthFilters, dayFilters, driverFilters, vehicleFilters, fleetFilters });
-  }, [storageKey, monthFilters, dayFilters, driverFilters, vehicleFilters, fleetFilters]);
+    saveStoredFilters(storageKey, { monthFilters, dayFilters, dateTimeRange, driverFilters, vehicleFilters, fleetFilters });
+  }, [storageKey, monthFilters, dayFilters, dateTimeRange, driverFilters, vehicleFilters, fleetFilters]);
 
   const resetFilters = () => {
     const nextMonth =
@@ -159,6 +175,7 @@ export default function OverSpeedDashboard({
         defaultMonthKey,
       ) ?? defaultMonthKey;
     setMonthFilters(nextMonth ? [nextMonth] : []);
+    setDateTimeRange(nextMonth ? monthKeyToDateTimeRange(nextMonth) : { start: '', end: '' });
     setDayFilters([]);
     setDriverFilters([]);
     setVehicleFilters([]);
@@ -249,7 +266,10 @@ export default function OverSpeedDashboard({
         monthOptions.map((o) => o.key),
         defaultMonthKey,
       );
-      if (next) setMonthFilters([next]);
+      if (next) {
+        setMonthFilters([next]);
+        setDateTimeRange(monthKeyToDateTimeRange(next));
+      }
     });
     return () => cancelAnimationFrame(frame);
   }, [defaultMonthKey, monthFilters, monthOptions]);
@@ -257,20 +277,19 @@ export default function OverSpeedDashboard({
   // ── Apply filters ──
   const filteredRows = useMemo(() => {
     return overSpeedRows.filter((row) => {
-      if (monthFilters.length > 0 && (!row.monthKey || !monthFilters.includes(row.monthKey))) return false;
-      if (dayFilters.length > 0 && row.date && !dayFilters.includes(toDayKey(row.date))) return false;
+      if (isCompleteDateTimeRange(dateTimeRange) && !isDateInDateTimeRange(row.date, dateTimeRange)) return false;
       if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
       if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
       if (fleetFilters.length > 0 && !fleetFilters.includes(row.fleet)) return false;
       return true;
     });
-  }, [overSpeedRows, monthFilters, dayFilters, driverFilters, vehicleFilters, fleetFilters]);
+  }, [overSpeedRows, dateTimeRange, driverFilters, vehicleFilters, fleetFilters]);
 
   const activeMonthKey = monthFilters.length === 1 ? monthFilters[0] : null;
 
   const activeFilterCount = useMemo(
-    () => [monthFilters.length > 0, dayFilters.length > 0, driverFilters.length > 0, vehicleFilters.length > 0, fleetFilters.length > 0].filter(Boolean).length,
-    [monthFilters, dayFilters, driverFilters, vehicleFilters, fleetFilters],
+    () => [isCompleteDateTimeRange(dateTimeRange), driverFilters.length > 0, vehicleFilters.length > 0, fleetFilters.length > 0].filter(Boolean).length,
+    [dateTimeRange, driverFilters, vehicleFilters, fleetFilters],
   );
 
   // ── Vehicle summary (matches screenshot table) ──
@@ -502,13 +521,13 @@ export default function OverSpeedDashboard({
       <DashboardShell title={dashboardName} subtitle={lang === 'th' ? 'แดชบอร์ดความเร็วเกินกำหนด' : 'OverSpeed dashboard'} lang={lang} lastUpdated={lastUpdated} notes={dashboardNotes}>
         <div className="flex flex-col gap-6">
           <FilterBar>
-            <InlineMonthPicker
-              value={monthFilters}
-              onChange={(v) => {
-                setMonthFilters(v as string[]);
-                if (Array.isArray(v) && v.length !== 1) setDayFilters([]);
+            <DateTimeRangePicker
+              value={dateTimeRange}
+              onChange={(range) => {
+                setDateTimeRange(range);
+                setMonthFilters(dateTimeRangeToMonthKeys(range));
+                setDayFilters([]);
               }}
-              multi
               lang={lang}
             />
           </FilterBar>
@@ -552,7 +571,7 @@ export default function OverSpeedDashboard({
           data={exportData}
           fullSheetExport={{ rows, filteredRows: filteredRows.map((r) => r.sourceRow), columns: sheetColumns }}
           dashboardName={`${dashboardName}-overspeed`}
-          dateRange={activeMonthKey ?? undefined}
+          dateRange={isCompleteDateTimeRange(dateTimeRange) ? `${dateTimeRange.start}_${dateTimeRange.end}` : undefined}
           settingsStorageKey={`overspeed-${dashboardId}`}
           lang={lang}
           columns={exportColumns}
@@ -570,24 +589,15 @@ export default function OverSpeedDashboard({
 
         {/* ① Filters */}
         <FilterBar>
-          <InlineMonthPicker
-            value={monthFilters}
-            onChange={(v) => {
-              setMonthFilters(v as string[]);
-              if (Array.isArray(v) && v.length !== 1) setDayFilters([]);
+          <DateTimeRangePicker
+            value={dateTimeRange}
+            onChange={(range) => {
+              setDateTimeRange(range);
+              setMonthFilters(dateTimeRangeToMonthKeys(range));
+              setDayFilters([]);
             }}
-            multi
             lang={lang}
           />
-          {monthFilters.length === 1 && (
-            <InlineDayPicker
-              monthKey={monthFilters[0]}
-              value={dayFilters}
-              onChange={(v) => setDayFilters(v as string[])}
-              multi
-              lang={lang}
-            />
-          )}
           <MultiSelect
             label={lang === 'th' ? 'คนขับ' : 'drivers'}
             options={driverOptions}

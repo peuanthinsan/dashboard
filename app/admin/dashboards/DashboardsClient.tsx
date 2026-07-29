@@ -308,6 +308,7 @@ function DashboardRow({
             type="checkbox"
             checked={checked}
             onChange={(e) => onCheck(dashboard.id, e.target.checked)}
+            aria-label={`Select ${dashboard.name ?? 'dashboard'} (ID ${dashboard.id})`}
             className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
           />
         </td>
@@ -595,6 +596,7 @@ export default function DashboardsClient({
   const [isBulkRulesOpen, setIsBulkRulesOpen] = useState(false);
   const [bulkRulesMode, setBulkRulesMode] = useState<'append' | 'replace'>('append');
   const [isBulkClearConfirmOpen, setIsBulkClearConfirmOpen] = useState(false);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [isPending, startTransition] = useTransition();
 
@@ -781,6 +783,11 @@ export default function DashboardsClient({
   }
 
   function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setIsBulkDeleteConfirmOpen(true);
+  }
+
+  function runBulkDelete() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     startTransition(async () => {
@@ -1003,6 +1010,15 @@ export default function DashboardsClient({
         destructive
         onClose={() => setIsBulkClearConfirmOpen(false)}
         onConfirm={runBulkClearRules}
+      />
+      <ConfirmActionDialog
+        isOpen={isBulkDeleteConfirmOpen}
+        title="Delete dashboards"
+        description={`Permanently delete ${selectedIds.size} selected dashboard${selectedIds.size === 1 ? '' : 's'}? Their public links will stop working immediately.`}
+        confirmLabel="Delete"
+        destructive
+        onClose={() => setIsBulkDeleteConfirmOpen(false)}
+        onConfirm={runBulkDelete}
       />
 
       {/* Bulk apply alert rules modal */}
@@ -1405,6 +1421,7 @@ export default function DashboardsClient({
                         type="checkbox"
                         checked={allChecked}
                         onChange={(e) => handleSelectAll(e.target.checked)}
+                        aria-label="Select all dashboards on this page"
                         className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
                       />
                     </th>

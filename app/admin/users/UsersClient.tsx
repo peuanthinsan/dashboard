@@ -39,7 +39,6 @@ import {
 } from 'app/ui/design-tokens';
 import type { ActionState, Company, Organization, User } from '../types';
 import type {
-  bulkCreateUsers,
   bulkAssignUsersToCompany,
   bulkAssignUsersToOrganization,
   bulkSetAdmin,
@@ -47,7 +46,10 @@ import type {
 } from 'app/db-bulk';
 
 type FormAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
-type BulkCreateFn = typeof bulkCreateUsers;
+type BulkCreateFn = (
+  emails: string[],
+  password: string,
+) => Promise<{ created: number; skipped: number; error?: string }>;
 type BulkAssignCompanyFn = typeof bulkAssignUsersToCompany;
 type BulkAssignOrgFn = typeof bulkAssignUsersToOrganization;
 type BulkSetAdminFn = typeof bulkSetAdmin;
@@ -119,6 +121,7 @@ function UserRow({
             type="checkbox"
             checked={checked}
             onChange={(e) => onCheck(user.id, e.target.checked)}
+            aria-label={`Select ${user.email ?? 'user'} (ID ${user.id})`}
             className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
           />
         </td>
@@ -166,8 +169,11 @@ function UserRow({
             <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
               Email
               <input
+                type="email"
                 name="userEmail"
                 defaultValue={user.email ?? ''}
+                required
+                autoComplete="email"
                 className={ADMIN_INPUT}
               />
             </label>
@@ -177,6 +183,9 @@ function UserRow({
                 type="password"
                 name="userPassword"
                 placeholder="Leave blank to keep"
+                minLength={8}
+                maxLength={72}
+                autoComplete="new-password"
                 className={ADMIN_INPUT}
               />
             </label>
@@ -329,7 +338,7 @@ export default function UsersClient({
   const [bulkEmails, setBulkEmails] = useState('');
   const [bulkPassword, setBulkPassword] = useState('');
   const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
-  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulkStatus, setBulkStatus] = useState<{ message: string; error: boolean } | null>(null);
   const [isAssignCompanyOpen, setIsAssignCompanyOpen] = useState(false);
   const [isAssignOrgOpen, setIsAssignOrgOpen] = useState(false);
   const [assignCompanyId, setAssignCompanyId] = useState('');
@@ -346,22 +355,40 @@ export default function UsersClient({
   }
 
   function handleSelectAll(checked: boolean) {
-    if (checked) {
-      setSelectedIds(new Set(paginatedUsers.map((u) => u.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
+    const pageIds = new Set(paginatedUsers.map((user) => user.id));
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      pageIds.forEach((id) => {
+        if (checked) next.add(id);
+        else next.delete(id);
+      });
+      return next;
+    });
   }
 
   function handleBulkCreate() {
     const emails = bulkEmails.split('\n').map((e) => e.trim()).filter(Boolean);
     if (emails.length === 0 || !bulkPassword) return;
     startTransition(async () => {
-      const result = await bulkCreateAction(emails, bulkPassword);
-      setBulkStatus(`Created ${result.created}, skipped ${result.skipped} duplicates.`);
-      setBulkEmails('');
-      setBulkPassword('');
-      router.refresh();
+      try {
+        const result = await bulkCreateAction(emails, bulkPassword);
+        if (result.error) {
+          setBulkStatus({ message: result.error, error: true });
+          return;
+        }
+        setBulkStatus({
+          message: `Created ${result.created}, skipped ${result.skipped} duplicates.`,
+          error: false,
+        });
+        setBulkEmails('');
+        setBulkPassword('');
+        router.refresh();
+      } catch (error) {
+        setBulkStatus({
+          message: error instanceof Error ? error.message : 'Unable to create users.',
+          error: true,
+        });
+      }
     });
   }
 
@@ -413,7 +440,8 @@ export default function UsersClient({
     });
   }
 
-  const allChecked = paginatedUsers.length > 0 && selectedIds.size === paginatedUsers.length;
+  const allChecked =
+    paginatedUsers.length > 0 && paginatedUsers.every((user) => selectedIds.has(user.id));
 
   return (
     <AdminSection>
@@ -548,6 +576,9 @@ export default function UsersClient({
                   value={bulkPassword}
                   onChange={(e) => setBulkPassword(e.target.value)}
                   placeholder="Temp password for all new accounts"
+                  minLength={8}
+                  maxLength={72}
+                  autoComplete="new-password"
                   className={ADMIN_INPUT}
                 />
               </label>
@@ -561,7 +592,17 @@ export default function UsersClient({
                   {isPending ? 'Creating…' : 'Create all'}
                 </button>
                 {bulkStatus && (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400">{bulkStatus}</p>
+                  <p
+                    role={bulkStatus.error ? 'alert' : 'status'}
+                    aria-live={bulkStatus.error ? 'assertive' : 'polite'}
+                    className={
+                      bulkStatus.error
+                        ? 'text-xs text-red-600 dark:text-red-400'
+                        : 'text-xs text-emerald-600 dark:text-emerald-400'
+                    }
+                  >
+                    {bulkStatus.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -676,6 +717,7 @@ export default function UsersClient({
                         type="checkbox"
                         checked={allChecked}
                         onChange={(e) => handleSelectAll(e.target.checked)}
+                        aria-label="Select all users on this page"
                         className="h-4 w-4 rounded border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"
                       />
                     </th>
@@ -739,8 +781,11 @@ export default function UsersClient({
               <label className={`flex flex-col gap-2 ${ADMIN_LABEL}`}>
                 Email *
                 <input
+                  type="email"
                   name="userEmail"
                   placeholder="user@acme.com"
+                  required
+                  autoComplete="email"
                   className={ADMIN_INPUT}
                 />
               </label>
@@ -750,6 +795,10 @@ export default function UsersClient({
                   type="password"
                   name="userPassword"
                   placeholder="Create a password"
+                  required
+                  minLength={8}
+                  maxLength={72}
+                  autoComplete="new-password"
                   className={ADMIN_INPUT}
                 />
               </label>

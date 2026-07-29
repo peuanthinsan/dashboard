@@ -4,6 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import useGoogleSheet from './useGoogleSheet';
 import { formatDateTimeGB } from './dateFormat';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import {
+  dateTimeRangeToMonthKeys,
+  isCompleteDateTimeRange,
+  isDateInDateTimeRange,
+  legacyDateFiltersToRange,
+  monthKeyToDateTimeRange,
+  type DateTimeRange,
+} from './dateTimeRange';
 import { saveDashboardScore } from './scoreCache';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
@@ -44,8 +52,7 @@ import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import AlertHeatmap from 'app/ui/AlertHeatmap';
 import DonutChart from 'app/ui/DonutChart';
-import InlineMonthPicker from 'app/ui/InlineMonthPicker';
-import InlineDayPicker from 'app/ui/InlineDayPicker';
+import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 import MultiSelect from 'app/ui/MultiSelect';
 import {
   heading2,
@@ -105,7 +112,10 @@ type AlertRow = {
 };
 
 type DetailFilterState = {
+  dateTimeRange: DateTimeRange;
+  /** @deprecated Kept only to migrate previously saved filter state. */
   monthFilters: string[];
+  /** @deprecated Kept only to migrate previously saved filter state. */
   dayFilters: string[];
   fleetFilters: string[];
   remarkFilters: string[];
@@ -172,6 +182,7 @@ export default function DetailDashboard({
   );
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
   const [filters, setFilters] = useState<DetailFilterState>({
+    dateTimeRange: { start: '', end: '' },
     monthFilters: [],
     dayFilters: [],
     fleetFilters: scopeNames,
@@ -180,7 +191,7 @@ export default function DetailDashboard({
     driverFilters: [],
     trendRemarkFilter: 'all',
   });
-  const { monthFilters, dayFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter } = filters;
+  const { dateTimeRange, monthFilters, fleetFilters, remarkFilters, vehicleFilters, driverFilters, trendRemarkFilter } = filters;
   const { rows, columns: sheetColumns, loading, refreshing, progress, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
@@ -229,12 +240,19 @@ export default function DetailDashboard({
           ? stored.monthFilters.filter((v) => typeof v === 'string')
           : [],
       );
+      const storedDays = Array.isArray(stored.dayFilters)
+        ? stored.dayFilters.filter((v) => typeof v === 'string')
+        : [];
+      const storedRange = isCompleteDateTimeRange(stored.dateTimeRange)
+        ? stored.dateTimeRange
+        : legacyDateFiltersToRange(storedMonths, storedDays);
       // Future-only stored months (poison defaults) → let the default-month effect re-pick.
-      if (storedMonths.length > 0) didSetDefaultMonth.current = true;
+      if (isCompleteDateTimeRange(storedRange)) didSetDefaultMonth.current = true;
       setFilters((prev) => ({
         ...prev,
-        monthFilters: storedMonths.length > 0 ? storedMonths : prev.monthFilters,
-        dayFilters: Array.isArray(stored.dayFilters) ? stored.dayFilters.filter((v) => typeof v === 'string') : prev.dayFilters,
+        dateTimeRange: storedRange,
+        monthFilters: dateTimeRangeToMonthKeys(storedRange),
+        dayFilters: [],
         fleetFilters: (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) ? stored.fleetFilters.filter((v) => typeof v === 'string') : (scopeNames.length > 0 ? scopeNames : prev.fleetFilters),
         remarkFilters: Array.isArray(stored.remarkFilters) ? stored.remarkFilters.filter((v) => typeof v === 'string') : prev.remarkFilters,
         vehicleFilters: Array.isArray(stored.vehicleFilters) ? stored.vehicleFilters.filter((v) => typeof v === 'string') : prev.vehicleFilters,
@@ -256,6 +274,7 @@ export default function DetailDashboard({
         defaultMonthKey,
       ) ?? defaultMonthKey;
     setFilters({
+      dateTimeRange: nextMonth ? monthKeyToDateTimeRange(nextMonth) : { start: '', end: '' },
       monthFilters: nextMonth ? [nextMonth] : [],
       dayFilters: [],
       fleetFilters: scopeNames,
@@ -267,8 +286,7 @@ export default function DetailDashboard({
   };
 
   const hasActiveFilters =
-    monthFilters.length > 0 ||
-    dayFilters.length > 0 ||
+    isCompleteDateTimeRange(dateTimeRange) ||
     fleetFilters.length > 0 ||
     remarkFilters.length > 0 ||
     vehicleFilters.length > 0 ||
@@ -400,7 +418,7 @@ export default function DetailDashboard({
     const frame = requestAnimationFrame(() => {
       if (didSetDefaultMonth.current) return;
       if (monthOptions.length === 0) return;
-      if (monthFilters.length > 0) {
+      if (isCompleteDateTimeRange(dateTimeRange)) {
         didSetDefaultMonth.current = true;
         return;
       }
@@ -409,10 +427,17 @@ export default function DetailDashboard({
         monthOptions.map((option) => option.key),
         defaultMonthKey,
       );
-      if (next) setFilters((f) => ({ ...f, monthFilters: [next] }));
+      if (next) {
+        setFilters((current) => ({
+          ...current,
+          dateTimeRange: monthKeyToDateTimeRange(next),
+          monthFilters: [next],
+          dayFilters: [],
+        }));
+      }
     });
     return () => cancelAnimationFrame(frame);
-  }, [defaultMonthKey, monthFilters, monthOptions]);
+  }, [dateTimeRange, defaultMonthKey, monthOptions]);
 
   const baseFilteredRows = useMemo(() => {
     const normalizedAllowedAlertTypes = allowedAlertTypes?.map((alert) => normalizeLabel(alert)) ?? null;
@@ -454,15 +479,9 @@ export default function DetailDashboard({
   }, [alertRows, allowedAlertTypes, allowedRemarkTargets, fleetFilters, remarkFilters, vehicleFilters, driverFilters]);
 
   const filteredAlerts = useMemo(() => {
-    let rows = baseFilteredRows;
-    if (monthFilters.length > 0) {
-      rows = rows.filter((row) => row.monthKey && monthFilters.includes(row.monthKey));
-    }
-    if (dayFilters.length > 0) {
-      rows = rows.filter((row) => row.parsedDate && dayFilters.includes(toDayKey(row.parsedDate)));
-    }
-    return rows;
-  }, [baseFilteredRows, dayFilters, monthFilters]);
+    if (!isCompleteDateTimeRange(dateTimeRange)) return baseFilteredRows;
+    return baseFilteredRows.filter((row) => isDateInDateTimeRange(row.parsedDate, dateTimeRange));
+  }, [baseFilteredRows, dateTimeRange]);
 
   // Selection restricted to rows that are currently visible under the active
   // filters, so bulk edits never touch rows the user can't see.
@@ -910,9 +929,9 @@ export default function DetailDashboard({
 
   // Date range string for export filename
   const dateRangeLabel = useMemo(() => {
-    if (monthFilters.length === 0) return undefined;
-    return monthFilters.sort().join('_');
-  }, [monthFilters]);
+    if (!isCompleteDateTimeRange(dateTimeRange)) return undefined;
+    return `${dateTimeRange.start}_${dateTimeRange.end}`;
+  }, [dateTimeRange]);
 
   const detailExportColumns = useMemo(
     () =>
@@ -942,8 +961,7 @@ export default function DetailDashboard({
 
   // Active filter count for DashboardShell
   const activeFilterCount =
-    monthFilters.length +
-    dayFilters.length +
+    (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) +
     fleetFilters.length +
     remarkFilters.length +
     vehicleFilters.length +
@@ -979,24 +997,16 @@ export default function DetailDashboard({
         <div className="flex flex-col gap-6">
           {/* Keep month picker usable while a month fetch is in flight. */}
           <FilterBar>
-            <InlineMonthPicker
-              value={filters.monthFilters}
-              onChange={(v) => {
-                const arr = v as string[];
-                setFilters((f) => ({ ...f, monthFilters: arr, dayFilters: arr.length === 1 ? f.dayFilters : [] }));
-              }}
-              multi
+            <DateTimeRangePicker
+              value={dateTimeRange}
+              onChange={(range) => setFilters((current) => ({
+                ...current,
+                dateTimeRange: range,
+                monthFilters: dateTimeRangeToMonthKeys(range),
+                dayFilters: [],
+              }))}
               lang={lang}
             />
-            {monthFilters.length === 1 && (
-              <InlineDayPicker
-                monthKey={monthFilters[0]}
-                value={filters.dayFilters}
-                onChange={(v) => setFilters((f) => ({ ...f, dayFilters: v as string[] }))}
-                multi
-                lang={lang}
-              />
-            )}
             {hasActiveFilters && (
               <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">{lang === 'th' ? 'รีเซ็ต' : 'Reset'}</button>
             )}
@@ -1026,24 +1036,16 @@ export default function DetailDashboard({
           )}
           {/* ── Filters ── */}
           <FilterBar>
-            <InlineMonthPicker
-              value={filters.monthFilters}
-              onChange={(v) => {
-                const arr = v as string[];
-                setFilters((f) => ({ ...f, monthFilters: arr, dayFilters: arr.length === 1 ? f.dayFilters : [] }));
-              }}
-              multi
+            <DateTimeRangePicker
+              value={dateTimeRange}
+              onChange={(range) => setFilters((current) => ({
+                ...current,
+                dateTimeRange: range,
+                monthFilters: dateTimeRangeToMonthKeys(range),
+                dayFilters: [],
+              }))}
               lang={lang}
             />
-            {monthFilters.length === 1 && (
-              <InlineDayPicker
-                monthKey={monthFilters[0]}
-                value={filters.dayFilters}
-                onChange={(v) => setFilters((f) => ({ ...f, dayFilters: v as string[] }))}
-                multi
-                lang={lang}
-              />
-            )}
             {fleetOptions.length > 1 && (
               <MultiSelect label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'} options={fleetOptions} selected={filters.fleetFilters} onChange={(v) => setFilters(f => ({ ...f, fleetFilters: v }))} lang={lang} />
             )}

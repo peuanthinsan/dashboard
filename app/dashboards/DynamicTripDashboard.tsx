@@ -6,9 +6,16 @@ import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import { findValue, normalizeLabel, parseDate } from './dashboardDataUtils';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import {
+  isCompleteDateTimeRange,
+  isDateInDateTimeRange,
+  type DateTimeRange,
+} from './dateTimeRange';
 import type { DashboardLang } from 'app/dashboard/i18n-copy';
 import type { AlertRule } from './dashboardDataUtils';
 import { DataTable, type Column } from 'app/ui/DataTable';
+import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
+import FilterBar from 'app/ui/FilterBar';
 import {
   badgeDefault,
   btnSecondary,
@@ -241,6 +248,7 @@ type PersistedState = {
   pageSize?: number | 'all';
   visibleCols?: Partial<Record<TripKey, boolean>>;
   search?: string;
+  dateTimeRange?: DateTimeRange;
 };
 
 export default function DynamicTripDashboard({
@@ -258,6 +266,7 @@ export default function DynamicTripDashboard({
 
   const [pageSize, setPageSize] = useState<number | 'all'>(100);
   const [search, setSearch] = useState('');
+  const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
   const [visibleCols, setVisibleCols] = useState<Record<TripKey, boolean>>(DEFAULT_VISIBLE);
   const [columnsOpen, setColumnsOpen] = useState(false);
 
@@ -267,17 +276,23 @@ export default function DynamicTripDashboard({
     didLoad.current = true;
     const stored = loadStoredFilters<PersistedState>(storageKey);
     if (!stored) return;
-    if (stored.pageSize === 'all' || typeof stored.pageSize === 'number') setPageSize(stored.pageSize);
-    if (typeof stored.search === 'string') setSearch(stored.search);
-    if (stored.visibleCols && typeof stored.visibleCols === 'object') {
-      setVisibleCols({ ...DEFAULT_VISIBLE, ...stored.visibleCols });
-    }
+    const frame = requestAnimationFrame(() => {
+      if (stored.pageSize === 'all' || typeof stored.pageSize === 'number') setPageSize(stored.pageSize);
+      if (typeof stored.search === 'string') setSearch(stored.search);
+      if (stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)) {
+        setDateTimeRange(stored.dateTimeRange);
+      }
+      if (stored.visibleCols && typeof stored.visibleCols === 'object') {
+        setVisibleCols({ ...DEFAULT_VISIBLE, ...stored.visibleCols });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [storageKey]);
 
   useEffect(() => {
     if (!didLoad.current) return;
-    saveStoredFilters(storageKey, { pageSize, visibleCols, search });
-  }, [pageSize, visibleCols, search, storageKey]);
+    saveStoredFilters(storageKey, { pageSize, visibleCols, search, dateTimeRange });
+  }, [pageSize, visibleCols, search, dateTimeRange, storageKey]);
 
   const tripRows: TripRow[] = useMemo(() => {
     return rows.map((row, index) => {
@@ -330,8 +345,15 @@ export default function DynamicTripDashboard({
 
   const filteredRows = useMemo(() => {
     const term = normalizeLabel(search);
-    if (!term) return tripRows;
     return tripRows.filter((row) => {
+      if (
+        isCompleteDateTimeRange(dateTimeRange) &&
+        (typeof row.startTime !== 'number' ||
+          !isDateInDateTimeRange(new Date(row.startTime), dateTimeRange))
+      ) {
+        return false;
+      }
+      if (!term) return true;
       const haystack = [
         String(row.slNo),
         row.vehicleNo,
@@ -353,11 +375,11 @@ export default function DynamicTripDashboard({
       ].join(' ');
       return normalizeLabel(haystack).includes(term);
     });
-  }, [tripRows, search]);
+  }, [tripRows, search, dateTimeRange]);
 
   const labels = lang === 'th' ? TH_LABELS : EN_LABELS;
 
-  const activeFilterCount = search ? 1 : 0;
+  const activeFilterCount = (search ? 1 : 0) + (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0);
   const hiddenCount = TRIP_COLUMNS.length - TRIP_COLUMNS.filter((c) => visibleCols[c.key]).length;
 
   const columns: Column<TripRow>[] = useMemo(() => {
@@ -677,8 +699,13 @@ export default function DynamicTripDashboard({
             </div>
           </div>
 
-          <div className="mb-3">
-            <label className="block">
+          <FilterBar className="mb-3">
+            <DateTimeRangePicker
+              value={dateTimeRange}
+              onChange={setDateTimeRange}
+              lang={lang}
+            />
+            <label className="min-w-[16rem] flex-1">
               <span className="sr-only">{lang === 'th' ? 'ค้นหา' : 'Search'}</span>
               <div className="relative">
                 <svg
@@ -704,7 +731,19 @@ export default function DynamicTripDashboard({
                 />
               </div>
             </label>
-          </div>
+            {(search || isCompleteDateTimeRange(dateTimeRange)) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setDateTimeRange({ start: '', end: '' });
+                }}
+                className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              >
+                {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
+              </button>
+            ) : null}
+          </FilterBar>
 
           {columnsOpen ? (
             <div className="mb-4 rounded-lg border border-zinc-200/80 bg-zinc-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">

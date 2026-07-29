@@ -4,6 +4,7 @@ import { useState, useActionState } from 'react';
 import { btnPrimary, btnDanger, btnSecondary, btnSmall, heading3, textSecondary } from 'app/ui/design-tokens';
 import { LineChannelForm } from './LineChannelForm';
 import type { LineChannelActionState } from './lineChannelActions';
+import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 
 type Organization = { id: number; name: string };
 type Channel = { id: number; organizationId: number; name: string; groupId: string; createdAt: Date };
@@ -42,20 +43,38 @@ export function LineChannelsClient({
   return (
     <div className="flex flex-col gap-8">
       {(delState.status === 'error' || testState.status === 'error') && (
-        <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div
+          role="alert"
+          className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+        >
           {delState.status === 'error' ? delState.message : ''}
           {testState.status === 'error' ? ` ${testState.message}` : ''}
         </div>
       )}
       {testState.status === 'success' && (
-        <div className="rounded-md bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{testState.message}</div>
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-md bg-emerald-50 px-4 py-2 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+        >
+          {testState.message}
+        </div>
+      )}
+      {delState.status === 'success' && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-md bg-emerald-50 px-4 py-2 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+        >
+          {delState.message}
+        </div>
       )}
 
       {organizations.map((org) => (
         <section key={org.id} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-card dark:border-zinc-800 dark:bg-zinc-900">
           <header className="mb-4 flex items-center justify-between">
             <h2 className={heading3}>{org.name}</h2>
-            <button className={`${btnPrimary} ${btnSmall}`} onClick={() => setCreatingForOrg(org.id)}>
+            <button type="button" className={`${btnPrimary} ${btnSmall}`} onClick={() => setCreatingForOrg(org.id)}>
               + Add channel
             </button>
           </header>
@@ -68,14 +87,19 @@ export function LineChannelsClient({
                   <div className={`text-xs ${textSecondary}`}>group: <code>{c.groupId}</code></div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className={`${btnSecondary} ${btnSmall}`} onClick={() => setEditingId(c.id)}>Edit</button>
+                  <button type="button" className={`${btnSecondary} ${btnSmall}`} onClick={() => setEditingId(c.id)}>Edit</button>
                   <form action={testActionState}>
                     <input type="hidden" name="id" value={c.id} />
                     <button type="submit" className={`${btnSecondary} ${btnSmall}`}>Test send</button>
                   </form>
                   <form action={delAction}>
                     <input type="hidden" name="id" value={c.id} />
-                    <button type="submit" className={`${btnDanger} ${btnSmall}`}>Delete</button>
+                    <ConfirmDeleteDialog
+                      title={`Delete ${c.name}`}
+                      description="This permanently removes the LINE channel. Dashboards using it will no longer be able to send notifications through this channel."
+                      triggerClassName={`${btnDanger} ${btnSmall}`}
+                      confirmClassName={`${btnDanger} ${btnSmall}`}
+                    />
                   </form>
                 </div>
               </li>

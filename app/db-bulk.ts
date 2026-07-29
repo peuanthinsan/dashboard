@@ -300,30 +300,35 @@ export async function bulkCreateDashboards(
   }[],
 ) {
   await requireAdmin();
-  if (items.length === 0) return { created: 0 };
+  if (items.length === 0) return { created: 0, createdIds: [] as number[] };
 
   let created = 0;
+  const createdIds: number[] = [];
 
   for (const item of items) {
     try {
       const { alertTypes, remarks, ...rest } = item;
-      await db.insert(dashboards).values({
-        ...rest,
-        organizationId: item.organizationId ?? null,
-        organizationIds: item.organizationId != null ? [item.organizationId] : null,
-        notes: item.notes ?? null,
-        alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
-        remarks: remarks && remarks.length > 0 ? remarks : null,
-        publicId: randomUUID(),
-      });
+      const [inserted] = await db
+        .insert(dashboards)
+        .values({
+          ...rest,
+          organizationId: item.organizationId ?? null,
+          organizationIds: item.organizationId != null ? [item.organizationId] : null,
+          notes: item.notes ?? null,
+          alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
+          remarks: remarks && remarks.length > 0 ? remarks : null,
+          publicId: randomUUID(),
+        })
+        .returning({ id: dashboards.id });
       created++;
+      if (inserted) createdIds.push(inserted.id);
     } catch (err) {
       console.error('bulkCreateDashboards: insert failed:', err);
     }
   }
 
   revalidatePath('/admin');
-  return { created };
+  return { created, createdIds };
 }
 
 export async function bulkReassignDashboards(ids: number[], organizationId: number) {

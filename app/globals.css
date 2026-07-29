@@ -48,8 +48,22 @@
   }
 
   body {
-    @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-50;
+    @apply bg-zinc-50 text-zinc-900 antialiased selection:bg-red-200 selection:text-red-950 dark:bg-zinc-950 dark:text-zinc-50 dark:selection:bg-red-900 dark:selection:text-red-50;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    min-width: 320px;
+  }
+
+  :focus-visible {
+    scroll-margin-block: 6rem;
+  }
+
+  summary {
+    user-select: none;
+  }
+
+  :lang(en) .lang-th,
+  :lang(th) .lang-en {
+    display: none;
   }
 
   /* Skip link: off-screen until keyboard focus (Nielsen #7, WCAG 2.4.1) */
@@ -93,6 +107,45 @@
 
 /* ── Utility classes ─────────────────────────── */
 @layer utilities {
+  .app-shell {
+    position: relative;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 12% -4%, rgba(239, 68, 68, 0.08), transparent 28rem),
+      radial-gradient(circle at 92% 18%, rgba(59, 130, 246, 0.045), transparent 30rem),
+      rgb(250 250 250);
+  }
+
+  .app-shell::before {
+    position: fixed;
+    z-index: -1;
+    inset: 0;
+    content: '';
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(24, 24, 27, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(24, 24, 27, 0.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(to bottom, black, transparent 72%);
+  }
+
+  .dark .app-shell {
+    background:
+      radial-gradient(circle at 12% -4%, rgba(239, 68, 68, 0.1), transparent 28rem),
+      radial-gradient(circle at 92% 18%, rgba(59, 130, 246, 0.045), transparent 30rem),
+      rgb(9 9 11);
+  }
+
+  .dark .app-shell::before {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  }
+
+  .tabular-data {
+    font-variant-numeric: tabular-nums;
+  }
+
   .animate-fade-in {
     animation: fade-in 0.4s ease-out both;
   }
@@ -191,6 +244,15 @@
   .stagger-children > *:nth-child(6) { --stagger: 5; }
   .stagger-children > *:nth-child(7) { --stagger: 6; }
   .stagger-children > *:nth-child(8) { --stagger: 7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ── Scrollbar styling ───────────────────────── */

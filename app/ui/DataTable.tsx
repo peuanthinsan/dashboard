@@ -98,16 +98,6 @@ export function DataTable<T extends object>({
     });
   }, []);
 
-  const handleHeaderKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTableCellElement>, col: Column<T>) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        handleSort(col);
-      }
-    },
-    [handleSort],
-  );
-
   // Memoized: parent dashboards re-render on a 60s tick (and hover/filter state), and an
   // active sort copies + sorts the full (multi-thousand-row) dataset on every render.
   const sortedData = useMemo(() => getSortedData(data, sort, columns), [data, sort, columns]);
@@ -117,7 +107,12 @@ export function DataTable<T extends object>({
 
   return (
     <div className="w-full min-w-0">
-      <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-lg [-webkit-overflow-scrolling:touch]">
+      <div
+        className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 [-webkit-overflow-scrolling:touch]"
+        role="region"
+        aria-label={ariaLabel ? `${ariaLabel} table` : 'Scrollable data table'}
+        tabIndex={0}
+      >
         <table
           className="w-max min-w-full border-collapse"
           aria-label={ariaLabel}
@@ -134,18 +129,13 @@ export function DataTable<T extends object>({
                   className={[
                     tableHeadCell,
                     'whitespace-nowrap',
-                    col.sortable
-                      ? 'cursor-pointer select-none transition-colors duration-150 hover:text-zinc-900 dark:hover:text-zinc-100'
-                      : '',
+                    col.sortable ? 'select-none' : '',
                     col.stickyLeft
                       ? 'sticky left-0 z-10 border-r border-zinc-200/80 bg-zinc-50/95 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)] backdrop-blur-sm dark:border-zinc-700/80 dark:bg-zinc-900/95 dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.35)]'
                       : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  onClick={col.sortable ? () => handleSort(col) : undefined}
-                  onKeyDown={col.sortable ? (e) => handleHeaderKeyDown(e, col) : undefined}
-                  tabIndex={col.sortable ? 0 : undefined}
                   aria-sort={
                     isActive
                       ? sort.direction === 'asc'
@@ -156,14 +146,20 @@ export function DataTable<T extends object>({
                       : undefined
                   }
                 >
-                  <span className="inline-flex items-center gap-1">
-                    {col.label}
-                    {isActive && (
-                      <span aria-hidden="true" className="text-red-500">
-                        {sort.direction === 'asc' ? '▲' : '▼'}
+                  {col.sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(col)}
+                      className="-mx-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-left transition-colors hover:bg-white hover:text-zinc-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 dark:hover:bg-zinc-800 dark:hover:text-white"
+                    >
+                      {col.label}
+                      <span aria-hidden="true" className={isActive ? 'text-red-500' : 'text-zinc-300 dark:text-zinc-600'}>
+                        {isActive ? (sort.direction === 'asc' ? '▲' : '▼') : '↕'}
                       </span>
-                    )}
-                  </span>
+                    </button>
+                  ) : (
+                    <span>{col.label}</span>
+                  )}
                 </th>
               );
             })}
@@ -256,6 +252,8 @@ export function DataTable<T extends object>({
                   key={pageNum}
                   type="button"
                   onClick={() => setPage(pageNum)}
+                  aria-current={pageNum === clampedPage ? 'page' : undefined}
+                  aria-label={`Page ${pageNum + 1}`}
                   className={[
                     'h-7 min-w-[28px] rounded-md px-1.5 text-xs font-medium tabular-nums transition-all duration-150',
                     pageNum === clampedPage

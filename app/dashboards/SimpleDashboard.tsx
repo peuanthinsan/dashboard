@@ -3,6 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
+import {
+  dateTimeRangeToMonthKeys,
+  isCompleteDateTimeRange,
+  isDateInDateTimeRange,
+  legacyDateFiltersToRange,
+  monthKeyToDateTimeRange,
+  type DateTimeRange,
+} from './dateTimeRange';
 import { saveDashboardScore } from './scoreCache';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
@@ -33,8 +41,7 @@ import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import { heading2 } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
-import InlineMonthPicker from 'app/ui/InlineMonthPicker';
-import InlineDayPicker from 'app/ui/InlineDayPicker';
+import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 import MultiSelect from 'app/ui/MultiSelect';
 
 const DEFAULT_SIMPLE_ALERT_TYPES = [...STANDARD_ALERT_TYPES];
@@ -56,7 +63,10 @@ type DashboardProps = {
 };
 
 type SimpleFilterState = {
+  dateTimeRange: DateTimeRange;
+  /** @deprecated Kept only to migrate previously saved filter state. */
   month: string;
+  /** @deprecated Kept only to migrate previously saved filter state. */
   dayFilters: string[];
   fleetFilters: string[];
   vehicleFilters: string[];
@@ -64,6 +74,7 @@ type SimpleFilterState = {
 };
 
 const defaultFilters: SimpleFilterState = {
+  dateTimeRange: { start: '', end: '' },
   month: '',
   dayFilters: [],
   fleetFilters: [],
@@ -110,8 +121,8 @@ export default function SimpleDashboard({
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
   const monthKeysForFetch = useMemo(
-    () => (filters.month ? [filters.month] : []),
-    [filters.month],
+    () => dateTimeRangeToMonthKeys(filters.dateTimeRange),
+    [filters.dateTimeRange],
   );
   const { rows, columns: sheetColumns, loading, refreshing, progress, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
@@ -129,12 +140,17 @@ export default function SimpleDashboard({
       const storedMonth = storedMonthRaw && rejectFutureMonthKeys([storedMonthRaw]).length > 0
         ? storedMonthRaw
         : '';
-      if (storedMonth) didSetDefaultMonth.current = true;
+      const storedDays = Array.isArray(stored.dayFilters)
+        ? stored.dayFilters.filter((v) => typeof v === 'string')
+        : [];
+      const storedRange = isCompleteDateTimeRange(stored.dateTimeRange)
+        ? stored.dateTimeRange
+        : legacyDateFiltersToRange(storedMonth ? [storedMonth] : [], storedDays);
+      if (isCompleteDateTimeRange(storedRange)) didSetDefaultMonth.current = true;
       setFilters({
+        dateTimeRange: storedRange,
         month: storedMonth,
-        dayFilters: Array.isArray(stored.dayFilters)
-          ? stored.dayFilters.filter((v) => typeof v === 'string')
-          : [],
+        dayFilters: storedDays,
         fleetFilters: (Array.isArray((stored as SimpleFilterState).fleetFilters) && (stored as SimpleFilterState).fleetFilters.length > 0)
           ? (stored as SimpleFilterState).fleetFilters.filter((v) => typeof v === 'string')
           : scopeNames,
@@ -160,11 +176,15 @@ export default function SimpleDashboard({
         availableMonths.map((m) => m.key),
         defaultMonthKey,
       ) ?? defaultMonthKey;
-    setFilters({ ...defaultFilters, month: nextMonth ?? '', fleetFilters: scopeNames });
+    setFilters({
+      ...defaultFilters,
+      dateTimeRange: nextMonth ? monthKeyToDateTimeRange(nextMonth) : { start: '', end: '' },
+      fleetFilters: scopeNames,
+    });
   };
 
   const hasActiveFilters = useMemo(() => {
-    return filters.month !== '' || filters.dayFilters.length > 0 || filters.fleetFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
+    return isCompleteDateTimeRange(filters.dateTimeRange) || filters.fleetFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
   }, [filters]);
 
   // null = allow-all; only restrict if admin explicitly set an allow-list.
@@ -229,28 +249,29 @@ export default function SimpleDashboard({
     const frame = requestAnimationFrame(() => {
       if (didSetDefaultMonth.current) return;
       if (monthOptions.length === 0) return;
-      if (filters.month !== '') {
+      if (isCompleteDateTimeRange(filters.dateTimeRange)) {
         didSetDefaultMonth.current = true;
         return;
       }
       didSetDefaultMonth.current = true;
       const next = resolveDefaultMonthKey(monthOptions, defaultMonthKey);
-      if (next) setFilters((f) => ({ ...f, month: next, dayFilters: [] }));
+      if (next) {
+        setFilters((current) => ({
+          ...current,
+          dateTimeRange: monthKeyToDateTimeRange(next),
+          month: '',
+          dayFilters: [],
+        }));
+      }
     });
     return () => cancelAnimationFrame(frame);
-  }, [defaultMonthKey, filters.month, monthOptions]);
+  }, [defaultMonthKey, filters.dateTimeRange, monthOptions]);
 
-  // ── Month-filtered alerts ───────────────────────────────────────────────
+  // ── Date/time-filtered alerts ───────────────────────────────────────────
   const monthFilteredAlerts = useMemo(() => {
-    let alerts = baseAlerts;
-    if (filters.month) {
-      alerts = alerts.filter((row) => row.parsedDate && toMonthKey(row.parsedDate) === filters.month);
-    }
-    if (filters.dayFilters.length > 0) {
-      alerts = alerts.filter((row) => row.parsedDate && filters.dayFilters.includes(toDayKey(row.parsedDate)));
-    }
-    return alerts;
-  }, [baseAlerts, filters.month, filters.dayFilters]);
+    if (!isCompleteDateTimeRange(filters.dateTimeRange)) return baseAlerts;
+    return baseAlerts.filter((row) => isDateInDateTimeRange(row.parsedDate, filters.dateTimeRange));
+  }, [baseAlerts, filters.dateTimeRange]);
 
   // ── Fleet options (from all data, not month-filtered) ──────────────────
   const fleetOptions = useMemo(() => {
@@ -399,12 +420,11 @@ export default function SimpleDashboard({
   // ── Active filter count for DashboardShell badge ───────────────────────
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (filters.month) count += 1;
-    count += filters.dayFilters.length;
+    if (isCompleteDateTimeRange(filters.dateTimeRange)) count += 1;
     count += filters.vehicleFilters.length;
     count += filters.driverFilters.length;
     return count;
-  }, [filters.month, filters.dayFilters.length, filters.vehicleFilters.length, filters.driverFilters.length]);
+  }, [filters.dateTimeRange, filters.vehicleFilters.length, filters.driverFilters.length]);
 
   // ── Trend chart data (TrendChart format) ───────────────────────────────
   const trendChartData = useMemo(() => {
@@ -529,8 +549,10 @@ export default function SimpleDashboard({
   [tableRows]);
 
   const exportDateRange = useMemo(() => {
-    return filters.month || undefined;
-  }, [filters.month]);
+    return isCompleteDateTimeRange(filters.dateTimeRange)
+      ? `${filters.dateTimeRange.start}_${filters.dateTimeRange.end}`
+      : undefined;
+  }, [filters.dateTimeRange]);
 
   return (
     <DashboardShell
@@ -570,20 +592,16 @@ export default function SimpleDashboard({
     >
       <div className="flex flex-col gap-6">
           <FilterBar>
-            <InlineMonthPicker
-              value={filters.month}
-              onChange={(v) => setFilters((f) => ({ ...f, month: v as string, dayFilters: [] }))}
+            <DateTimeRangePicker
+              value={filters.dateTimeRange}
+              onChange={(dateTimeRange) => setFilters((current) => ({
+                ...current,
+                dateTimeRange,
+                month: '',
+                dayFilters: [],
+              }))}
               lang={lang}
             />
-            {filters.month && (
-              <InlineDayPicker
-                monthKey={filters.month}
-                value={filters.dayFilters}
-                onChange={(v) => setFilters((f) => ({ ...f, dayFilters: v as string[] }))}
-                multi
-                lang={lang}
-              />
-            )}
             {fleetOptions.length > 1 && (
               <MultiSelect
                 label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}

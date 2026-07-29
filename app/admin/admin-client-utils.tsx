@@ -21,7 +21,15 @@ export function StatusMessage({
     state.status === 'success'
       ? 'text-emerald-600 dark:text-emerald-400'
       : 'text-red-600 dark:text-red-400';
-  return <p className={`text-xs ${colorClass} ${className}`}>{state.message}</p>;
+  return (
+    <p
+      className={`text-xs ${colorClass} ${className}`}
+      role={state.status === 'error' ? 'alert' : 'status'}
+      aria-live={state.status === 'error' ? 'assertive' : 'polite'}
+    >
+      {state.message}
+    </p>
+  );
 }
 
 export function useRefreshOnSuccess(state: ActionState) {

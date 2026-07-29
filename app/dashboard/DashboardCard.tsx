@@ -26,6 +26,10 @@ const templateIcons: Record<string, string> = {
   Detail: '📋',
   Simple: '📈',
   Driving: '🚗',
+  OverSpeed: '⚡',
+  VehicleKPI: '🧭',
+  DynamicTrip: '🛣️',
+  Video: '🎥',
   ALCHEMUnitStatus: '📡',
   BIGTHUnitStatus: '📡',
 };
@@ -35,6 +39,10 @@ const templateColors: Record<string, string> = {
   Detail: 'bg-blue-50 text-blue-700 ring-blue-200/50 dark:bg-blue-950/60 dark:text-blue-300 dark:ring-blue-800/30',
   Simple: 'bg-zinc-900 text-white ring-zinc-700/50 dark:bg-zinc-700 dark:text-zinc-100 dark:ring-zinc-600/30',
   Driving: 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30',
+  OverSpeed: 'bg-orange-50 text-orange-700 ring-orange-200/50 dark:bg-orange-950/60 dark:text-orange-300 dark:ring-orange-800/30',
+  VehicleKPI: 'bg-cyan-50 text-cyan-700 ring-cyan-200/50 dark:bg-cyan-950/60 dark:text-cyan-300 dark:ring-cyan-800/30',
+  DynamicTrip: 'bg-violet-50 text-violet-700 ring-violet-200/50 dark:bg-violet-950/60 dark:text-violet-300 dark:ring-violet-800/30',
+  Video: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200/50 dark:bg-fuchsia-950/60 dark:text-fuchsia-300 dark:ring-fuchsia-800/30',
   ALCHEMUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
   BIGTHUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
 };
@@ -44,6 +52,10 @@ const templateIconBg: Record<string, string> = {
   Detail: 'bg-blue-50 ring-blue-200/40 dark:bg-blue-950/40 dark:ring-blue-800/30',
   Simple: 'bg-zinc-100 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60',
   Driving: 'bg-emerald-50 ring-emerald-200/40 dark:bg-emerald-950/40 dark:ring-emerald-800/30',
+  OverSpeed: 'bg-orange-50 ring-orange-200/40 dark:bg-orange-950/40 dark:ring-orange-800/30',
+  VehicleKPI: 'bg-cyan-50 ring-cyan-200/40 dark:bg-cyan-950/40 dark:ring-cyan-800/30',
+  DynamicTrip: 'bg-violet-50 ring-violet-200/40 dark:bg-violet-950/40 dark:ring-violet-800/30',
+  Video: 'bg-fuchsia-50 ring-fuchsia-200/40 dark:bg-fuchsia-950/40 dark:ring-fuchsia-800/30',
   ALCHEMUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
   BIGTHUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
 };
@@ -53,6 +65,10 @@ const templateDescriptions: Record<string, { en: string; th: string }> = {
   Detail: { en: 'In-depth alert analysis', th: 'วิเคราะห์การแจ้งเตือนเชิงลึก' },
   Simple: { en: 'Minimal table view', th: 'มุมมองตารางอย่างง่าย' },
   Driving: { en: 'Driving hours & safety', th: 'ชั่วโมงขับขี่และความปลอดภัย' },
+  OverSpeed: { en: 'Speed policy and event review', th: 'ตรวจสอบความเร็วและเหตุการณ์' },
+  VehicleKPI: { en: 'Vehicle performance indicators', th: 'ตัวชี้วัดประสิทธิภาพรถ' },
+  DynamicTrip: { en: 'Trip activity and movement', th: 'กิจกรรมและการเดินทาง' },
+  Video: { en: 'Video evidence review', th: 'ตรวจสอบหลักฐานวิดีโอ' },
   ALCHEMUnitStatus: { en: 'Fleet device health status', th: 'สถานะอุปกรณ์ยานพาหนะ' },
   BIGTHUnitStatus: { en: 'Unit device status', th: 'สถานะอุปกรณ์หน่วย' },
 };
@@ -119,10 +135,17 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
   }
 
   return (
-    <Link
-      href={`/dashboard/${id}`}
+    <article
       className="group relative flex flex-col gap-4 overflow-hidden rounded-xl border border-zinc-200/60 bg-white/80 p-5 shadow-card backdrop-blur-sm transition-all duration-200 hover:border-red-300/60 hover:shadow-card-hover hover:translate-y-[-2px] dark:border-zinc-800/60 dark:bg-zinc-900/80 dark:hover:border-red-800/60 animate-slide-up"
     >
+      <Link
+        href={`/dashboard/${id}`}
+        className="absolute inset-0 z-10 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500"
+      >
+        <span className="sr-only">
+          {lang === 'th' ? `เปิดแดชบอร์ด ${name}` : `Open ${name} dashboard`}
+        </span>
+      </Link>
       {/* Red accent top trim */}
       <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/30 to-transparent transition-all duration-300 group-hover:via-red-500/60" />
 
@@ -168,19 +191,18 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
       <div className="relative flex items-center justify-between border-t border-zinc-100/80 pt-3 dark:border-zinc-800/60">
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex shrink-0 items-center gap-1.5">
-            <div className="relative">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <div className="absolute inset-0 animate-ping rounded-full bg-emerald-500/40" style={{ animationDuration: '3s' }} />
-            </div>
+            <div className={`h-1.5 w-1.5 rounded-full ${sheetUrl ? 'bg-emerald-500' : 'bg-amber-500'}`} />
             <span className="whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
-              {lang === 'th' ? 'เชื่อมต่อแล้ว' : 'Connected'}
+              {sheetUrl
+                ? (lang === 'th' ? 'ตั้งค่าแหล่งข้อมูลแล้ว' : 'Source configured')
+                : (lang === 'th' ? 'ต้องตั้งค่าแหล่งข้อมูล' : 'Source needed')}
             </span>
           </div>
           {/* Copy sheet link button */}
           <button
             type="button"
             onClick={handleCopyLink}
-            className="inline-flex items-center justify-center rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="relative z-20 inline-flex items-center justify-center rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
             title={copied ? (lang === 'th' ? 'คัดลอกแล้ว' : 'Copied!') : (lang === 'th' ? 'คัดลอกลิงก์' : 'Copy link')}
             aria-label={copied ? (lang === 'th' ? 'คัดลอกลิงก์ชีตแล้ว' : 'Sheet link copied') : (lang === 'th' ? 'คัดลอกลิงก์ชีต' : 'Copy sheet link')}
           >
@@ -195,6 +217,6 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
           {lang === 'th' ? 'เปิดแดชบอร์ด →' : 'Open dashboard →'}
         </span>
       </div>
-    </Link>
+    </article>
   );
 }
