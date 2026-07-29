@@ -131,6 +131,9 @@ export default function SummaryDashboard({
     return prior ? [rangeMonths[0]!, prior] : rangeMonths;
   }, [dateTimeRange]);
   const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
+  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [driverFilters, setDriverFilters] = useState<string[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const didSetDefaultMonth = useRef(false);
   const storageKey = useMemo(() => dashboardId, [dashboardId]);
   // Month-scoped fetch: selected months load in week chunks so large sheets
@@ -148,6 +151,9 @@ export default function SummaryDashboard({
       dayFilters?: string[];
       fleetFilters: string[];
       dateTimeRange?: DateTimeRange;
+      vehicleFilters?: string[];
+      driverFilters?: string[];
+      typeFilters?: string[];
     }>(storageKey);
     if (!stored) return;
     const frame = requestAnimationFrame(() => {
@@ -171,13 +177,16 @@ export default function SummaryDashboard({
       setDayFilters([]);
       if (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
       else setFleetFilters(scopeNames);
+      if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.typeFilters)) setTypeFilters(stored.typeFilters.filter((v) => typeof v === 'string'));
     });
     return () => cancelAnimationFrame(frame);
   }, [storageKey]);
 
   useEffect(() => {
-    saveStoredFilters(storageKey, { monthFilters, dayFilters, fleetFilters, dateTimeRange });
-  }, [dateTimeRange, dayFilters, fleetFilters, monthFilters, storageKey]);
+    saveStoredFilters(storageKey, { monthFilters, dayFilters, fleetFilters, vehicleFilters, driverFilters, typeFilters, dateTimeRange });
+  }, [dateTimeRange, dayFilters, fleetFilters, vehicleFilters, driverFilters, typeFilters, monthFilters, storageKey]);
 
   const resetFilters = () => {
     const nextMonth =
@@ -189,6 +198,9 @@ export default function SummaryDashboard({
     setDateTimeRange(nextMonth ? monthKeyToDateTimeRange(nextMonth) : { start: '', end: '' });
     setDayFilters([]);
     setFleetFilters(scopeNames);
+    setVehicleFilters([]);
+    setDriverFilters([]);
+    setTypeFilters([]);
   };
 
   // null = no filter; only restrict when the admin explicitly configured an allow-list.
@@ -229,6 +241,18 @@ export default function SummaryDashboard({
     alertRows.forEach((row) => { if (row.fleet && row.fleet !== '—') unique.add(row.fleet); });
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [alertRows]);
+  const vehicleOptions = useMemo(
+    () => Array.from(new Set(alertRows.map((row) => row.vehicle).filter((value) => value && value !== '—'))).sort(),
+    [alertRows],
+  );
+  const driverOptions = useMemo(
+    () => Array.from(new Set(alertRows.map((row) => row.driver).filter((value) => value && value !== '—'))).sort(),
+    [alertRows],
+  );
+  const typeOptions = useMemo(
+    () => Array.from(new Set(alertRows.map((row) => row.alertType).filter((value) => value && value !== '—'))).sort(),
+    [alertRows],
+  );
   const monthOptions = useMemo(() => {
     // Prefer the sheet-wide catalog so months outside the current 25k window
     // (e.g. April on a 245k-row sheet) still appear in the picker.
@@ -275,6 +299,9 @@ export default function SummaryDashboard({
     const nAllowed = allowedAlertTypes?.map((a) => normalizeLabel(a)) ?? null;
     const nAllowedRemarks = allowedRemarkTargets?.map((r) => normalizeLabel(r)) ?? null;
     const nFleet = fleetFilters.map((f) => normalizeLabel(f));
+    const nVehicles = new Set(vehicleFilters.map(normalizeLabel));
+    const nDrivers = new Set(driverFilters.map(normalizeLabel));
+    const nTypes = new Set(typeFilters.map(normalizeLabel));
     return alertRows.filter((row) => {
       if (!row.alertType || row.alertType === '—') return false;
       if (nAllowed && !nAllowed.includes(normalizeLabel(row.alertType))) return false;
@@ -284,9 +311,12 @@ export default function SummaryDashboard({
         if (!matchesRemark) return false;
       }
       if (nFleet.length > 0 && !nFleet.includes(normalizeLabel(row.fleet))) return false;
+      if (nVehicles.size > 0 && !nVehicles.has(normalizeLabel(row.vehicle))) return false;
+      if (nDrivers.size > 0 && !nDrivers.has(normalizeLabel(row.driver))) return false;
+      if (nTypes.size > 0 && !nTypes.has(normalizeLabel(row.alertType))) return false;
       return true;
     });
-  }, [alertRows, allowedAlertTypes, allowedRemarkTargets, fleetFilters]);
+  }, [alertRows, allowedAlertTypes, allowedRemarkTargets, fleetFilters, vehicleFilters, driverFilters, typeFilters]);
 
   const activeMonthKey = monthFilters.length === 1 ? monthFilters[0] : null;
   const activeMonthLabel = activeMonthKey
@@ -499,7 +529,7 @@ export default function SummaryDashboard({
       lastUpdated={lastUpdated}
       notes={dashboardNotes}
       isStale={lastUpdated ? nowTick - lastUpdated.getTime() > 5 * 60 * 1000 : false}
-      activeFilterCount={(isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) + fleetFilters.length}
+      activeFilterCount={(isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) + fleetFilters.length + vehicleFilters.length + driverFilters.length + typeFilters.length}
       dashboardId={dashboardId}
       isAdmin={isAdmin}
       actions={
@@ -527,16 +557,17 @@ export default function SummaryDashboard({
               }}
               lang={lang}
             />
-            {fleetOptions.length > 1 && (
-              <MultiSelect
-                label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
-                options={fleetOptions}
-                selected={fleetFilters}
-                onChange={setFleetFilters}
-                lang={lang}
-              />
-            )}
-            {(isCompleteDateTimeRange(dateTimeRange) || fleetFilters.length > 0) && (
+            <MultiSelect
+              label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
+              options={fleetOptions}
+              selected={fleetFilters}
+              onChange={setFleetFilters}
+              lang={lang}
+            />
+            <MultiSelect label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'} options={vehicleOptions} selected={vehicleFilters} onChange={setVehicleFilters} lang={lang} />
+            <MultiSelect label={lang === 'th' ? 'คนขับ' : 'drivers'} options={driverOptions} selected={driverFilters} onChange={setDriverFilters} lang={lang} />
+            <MultiSelect label={lang === 'th' ? 'ประเภท' : 'types'} options={typeOptions} selected={typeFilters} onChange={setTypeFilters} lang={lang} />
+            {(isCompleteDateTimeRange(dateTimeRange) || fleetFilters.length > 0 || vehicleFilters.length > 0 || driverFilters.length > 0 || typeFilters.length > 0) && (
               <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
                 {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
               </button>

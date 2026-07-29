@@ -228,6 +228,8 @@ export default function DrivingDashboard({
   }, []);
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [fleetFilters, setFleetFilters] = useState<string[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [dayFilters, setDayFilters] = useState<string[]>([]);
   const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
@@ -248,6 +250,8 @@ export default function DrivingDashboard({
       dayFilters?: string[];
       driverFilters?: string[];
       vehicleFilters?: string[];
+      fleetFilters?: string[];
+      typeFilters?: string[];
       tripSearch?: string;
       tripPageSize?: number | 'all';
       dateTimeRange?: DateTimeRange;
@@ -283,6 +287,8 @@ export default function DrivingDashboard({
       setDayFilters([]);
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.fleetFilters)) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
+      if (Array.isArray(stored.typeFilters)) setTypeFilters(stored.typeFilters.filter((v) => typeof v === 'string'));
       if (typeof stored.tripSearch === 'string') setTripSearch(stored.tripSearch);
       if (stored.tripPageSize === 'all' || typeof stored.tripPageSize === 'number') {
         setTripPageSize(stored.tripPageSize);
@@ -299,10 +305,12 @@ export default function DrivingDashboard({
       dateTimeRange,
       driverFilters,
       vehicleFilters,
+      fleetFilters,
+      typeFilters,
       tripSearch,
       tripPageSize,
     });
-  }, [storageKey, selectedMonths, dayFilters, dateTimeRange, driverFilters, vehicleFilters, tripSearch, tripPageSize]);
+  }, [storageKey, selectedMonths, dayFilters, dateTimeRange, driverFilters, vehicleFilters, fleetFilters, typeFilters, tripSearch, tripPageSize]);
 
   const shiftRows = useMemo(
     () => mapShiftSheetRows(rows, scopeSet),
@@ -314,10 +322,17 @@ export default function DrivingDashboard({
   );
 
   const applyRowFilters = useCallback(
-    <T extends { driver: string; vehicle: string; date: Date | null }>(source: T[], opts?: { includeDateTime?: boolean }) =>
+    <T extends { driver: string; vehicle: string; date: Date | null; fleet?: string; sourceRow: Record<string, unknown> }>(source: T[], opts?: { includeDateTime?: boolean }) =>
       source.filter((row) => {
         if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
         if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
+        if (fleetFilters.length > 0 && !fleetFilters.includes(row.fleet ?? '')) return false;
+        if (typeFilters.length > 0) {
+          const rowType = 'status' in row && typeof row.status === 'string'
+            ? row.status
+            : toDisplayString(findValue(row.sourceRow, ['Type', 'Trip Type', 'Status']));
+          if (!typeFilters.includes(rowType)) return false;
+        }
         if (
           (opts?.includeDateTime ?? true) &&
           isCompleteDateTimeRange(dateTimeRange) &&
@@ -327,7 +342,7 @@ export default function DrivingDashboard({
         }
         return true;
       }),
-    [dateTimeRange, driverFilters, vehicleFilters],
+    [dateTimeRange, driverFilters, vehicleFilters, fleetFilters, typeFilters],
   );
 
   const filteredShiftRows = useMemo(
@@ -361,6 +376,23 @@ export default function DrivingDashboard({
     shiftRows.forEach((r) => { if (r.vehicle !== '—') ids.add(r.vehicle); });
     cntDrvRows.forEach((r) => { if (r.vehicle !== '—') ids.add(r.vehicle); });
     return Array.from(ids).sort();
+  }, [cntDrvRows, shiftRows]);
+
+  const fleetOptions = useMemo(
+    () => Array.from(new Set([...shiftRows, ...cntDrvRows].map((row) => row.fleet).filter((value): value is string => Boolean(value && value !== '—')))).sort(),
+    [cntDrvRows, shiftRows],
+  );
+
+  const typeOptions = useMemo(() => {
+    const values = new Set<string>();
+    shiftRows.forEach((row) => {
+      if (row.status && row.status !== '—') values.add(row.status);
+    });
+    cntDrvRows.forEach((row) => {
+      const value = toDisplayString(findValue(row.sourceRow, ['Type', 'Trip Type', 'Status']));
+      if (value && value !== '—') values.add(value);
+    });
+    return Array.from(values).sort();
   }, [cntDrvRows, shiftRows]);
 
   const warningsMap = useMemo(() => {
@@ -412,9 +444,11 @@ export default function DrivingDashboard({
       driverFilters.length > 0,
       vehicleFilters.length > 0,
       isCompleteDateTimeRange(dateTimeRange),
+      fleetFilters.length > 0,
+      typeFilters.length > 0,
       tripSearch.trim().length > 0,
     ].filter(Boolean).length,
-    [dateTimeRange, driverFilters.length, tripSearch, vehicleFilters.length],
+    [dateTimeRange, driverFilters.length, fleetFilters.length, typeFilters.length, tripSearch, vehicleFilters.length],
   );
 
   // Date range string for ExportButton
@@ -935,7 +969,21 @@ export default function DrivingDashboard({
           onChange={setVehicleFilters}
           lang={lang}
         />
-        {(isCompleteDateTimeRange(dateTimeRange) || driverFilters.length > 0 || vehicleFilters.length > 0) && (
+        <MultiSelect
+          label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
+          options={fleetOptions}
+          selected={fleetFilters}
+          onChange={setFleetFilters}
+          lang={lang}
+        />
+        <MultiSelect
+          label={lang === 'th' ? 'ประเภท' : 'types'}
+          options={typeOptions}
+          selected={typeFilters}
+          onChange={setTypeFilters}
+          lang={lang}
+        />
+        {(isCompleteDateTimeRange(dateTimeRange) || driverFilters.length > 0 || vehicleFilters.length > 0 || fleetFilters.length > 0 || typeFilters.length > 0) && (
           <button
             type="button"
             onClick={() => {
@@ -944,6 +992,8 @@ export default function DrivingDashboard({
               setDayFilters([]);
               setDriverFilters([]);
               setVehicleFilters([]);
+              setFleetFilters([]);
+              setTypeFilters([]);
             }}
             className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           >

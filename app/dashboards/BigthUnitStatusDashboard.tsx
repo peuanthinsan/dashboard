@@ -30,6 +30,8 @@ type SheetPayload = {
 
 type UnitRow = {
   vehicleNo: string;
+  driver: string;
+  type: string;
   dateTime: string;
   gpsStatus: string;
   statusAi: string;
@@ -160,15 +162,20 @@ export default function BigthUnitStatusDashboard({
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
   const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
+  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [driverFilters, setDriverFilters] = useState<string[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
 
   const unitRows = useMemo<UnitRow[]>(
     () =>
       unitSheet.rows.map((row) => ({
         vehicleNo: toText(findValue(row, ['Vehicle No'])),
+        driver: toText(findValue(row, ['Driver Name', 'Driver'])),
         dateTime: toText(findValue(row, ['Date & time', 'Date & time 2'])),
         gpsStatus: toText(findValue(row, ['GPS Status'])),
         statusAi: toText(findValue(row, ['Status AI'])),
         deviceStatus: toText(findValue(row, ['Device Status'])),
+        type: toText(findValue(row, ['Type', 'Device Type', 'Status Type'])) || toText(findValue(row, ['Device Status'])),
         fleet: toText(findValue(row, ['Fleet'])),
         damageStatus: toText(findValue(row, ['Damage Status'])),
         reverseBsd: toText(findValue(row, ['Reverse BSD'])),
@@ -204,6 +211,9 @@ export default function BigthUnitStatusDashboard({
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [unitRows]);
+  const vehicleOptions = useMemo(() => Array.from(new Set(unitRows.map((row) => row.vehicleNo).filter(Boolean))).sort(), [unitRows]);
+  const driverOptions = useMemo(() => Array.from(new Set(unitRows.map((row) => row.driver).filter(Boolean))).sort(), [unitRows]);
+  const typeOptions = useMemo(() => Array.from(new Set(unitRows.map((row) => row.type).filter(Boolean))).sort(), [unitRows]);
 
   const filteredRows = useMemo(() => {
     const search = normalizeLabel(vehicleSearch);
@@ -214,10 +224,13 @@ export default function BigthUnitStatusDashboard({
         !isDateInDateTimeRange(parseDate(row.dateTime), dateTimeRange)
       ) return false;
       if (search && !normalizeLabel(row.vehicleNo).includes(search)) return false;
+      if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicleNo)) return false;
+      if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
       if (fleetSet.size > 0 && !fleetSet.has(normalizeLabel(row.fleet))) return false;
+      if (typeFilters.length > 0 && !typeFilters.includes(row.type)) return false;
       return true;
     });
-  }, [unitRows, vehicleSearch, fleetFilters, dateTimeRange]);
+  }, [unitRows, vehicleSearch, vehicleFilters, driverFilters, fleetFilters, typeFilters, dateTimeRange]);
 
   const byVehicleCamera = useMemo(() => {
     const map = new Map<string, number>();
@@ -306,7 +319,7 @@ export default function BigthUnitStatusDashboard({
       notes={dashboardNotes}
       dashboardId={dashboardId}
       isAdmin={isAdmin}
-      activeFilterCount={(vehicleSearch ? 1 : 0) + (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) + fleetFilters.length}
+      activeFilterCount={(vehicleSearch ? 1 : 0) + (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) + vehicleFilters.length + driverFilters.length + fleetFilters.length + typeFilters.length}
     >
       {loading || error ? (
         <LoadingState
@@ -375,6 +388,8 @@ export default function BigthUnitStatusDashboard({
                 onChange={setDateTimeRange}
                 lang={lang}
               />
+              <MultiSelect label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'} options={vehicleOptions} selected={vehicleFilters} onChange={setVehicleFilters} lang={lang} />
+              <MultiSelect label={lang === 'th' ? 'คนขับ' : 'drivers'} options={driverOptions} selected={driverFilters} onChange={setDriverFilters} lang={lang} />
               <input
                 value={vehicleSearch}
                 onChange={(e) => setVehicleSearch(e.target.value)}
@@ -383,13 +398,14 @@ export default function BigthUnitStatusDashboard({
               />
               <div className="md:min-w-[280px]">
                 <MultiSelect
-                  label="Fleet"
+                  label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
                   options={fleetOptions}
                   selected={fleetFilters}
                   onChange={setFleetFilters}
                   lang={lang}
                 />
               </div>
+              <MultiSelect label={lang === 'th' ? 'ประเภท' : 'types'} options={typeOptions} selected={typeFilters} onChange={setTypeFilters} lang={lang} />
             </div>
 
             <div className="overflow-x-auto">

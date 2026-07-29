@@ -16,6 +16,7 @@ import type { AlertRule } from './dashboardDataUtils';
 import { DataTable, type Column } from 'app/ui/DataTable';
 import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 import FilterBar from 'app/ui/FilterBar';
+import MultiSelect from 'app/ui/MultiSelect';
 import {
   badgeDefault,
   btnSecondary,
@@ -68,6 +69,9 @@ type TripRow = {
   _id: number;
   slNo: number | '';
   vehicleNo: string;
+  driver: string;
+  fleet: string;
+  type: string;
   startTime: number | '';
   endTime: number | '';
   startTimeDisplay: string;
@@ -249,6 +253,10 @@ type PersistedState = {
   visibleCols?: Partial<Record<TripKey, boolean>>;
   search?: string;
   dateTimeRange?: DateTimeRange;
+  vehicleFilters?: string[];
+  driverFilters?: string[];
+  fleetFilters?: string[];
+  typeFilters?: string[];
 };
 
 export default function DynamicTripDashboard({
@@ -267,6 +275,10 @@ export default function DynamicTripDashboard({
   const [pageSize, setPageSize] = useState<number | 'all'>(100);
   const [search, setSearch] = useState('');
   const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
+  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [driverFilters, setDriverFilters] = useState<string[]>([]);
+  const [fleetFilters, setFleetFilters] = useState<string[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [visibleCols, setVisibleCols] = useState<Record<TripKey, boolean>>(DEFAULT_VISIBLE);
   const [columnsOpen, setColumnsOpen] = useState(false);
 
@@ -282,6 +294,10 @@ export default function DynamicTripDashboard({
       if (stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)) {
         setDateTimeRange(stored.dateTimeRange);
       }
+      if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((value) => typeof value === 'string'));
+      if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((value) => typeof value === 'string'));
+      if (Array.isArray(stored.fleetFilters)) setFleetFilters(stored.fleetFilters.filter((value) => typeof value === 'string'));
+      if (Array.isArray(stored.typeFilters)) setTypeFilters(stored.typeFilters.filter((value) => typeof value === 'string'));
       if (stored.visibleCols && typeof stored.visibleCols === 'object') {
         setVisibleCols({ ...DEFAULT_VISIBLE, ...stored.visibleCols });
       }
@@ -291,8 +307,8 @@ export default function DynamicTripDashboard({
 
   useEffect(() => {
     if (!didLoad.current) return;
-    saveStoredFilters(storageKey, { pageSize, visibleCols, search, dateTimeRange });
-  }, [pageSize, visibleCols, search, dateTimeRange, storageKey]);
+    saveStoredFilters(storageKey, { pageSize, visibleCols, search, dateTimeRange, vehicleFilters, driverFilters, fleetFilters, typeFilters });
+  }, [pageSize, visibleCols, search, dateTimeRange, vehicleFilters, driverFilters, fleetFilters, typeFilters, storageKey]);
 
   const tripRows: TripRow[] = useMemo(() => {
     return rows.map((row, index) => {
@@ -310,6 +326,9 @@ export default function DynamicTripDashboard({
         _id: index,
         slNo: toNumberOrEmpty(fields.slNo ?? ''),
         vehicleNo: fields.vehicleNo ?? '',
+        driver: String(findValue(row, ['Driver Name', 'Driver']) ?? '').trim(),
+        fleet: String(findValue(row, ['Fleet', 'Fleet Name']) ?? '').trim(),
+        type: String(findValue(row, ['Trip Type', 'Type', 'Route Type']) ?? fields.startGeofenceType ?? fields.endGeofenceType ?? '').trim(),
         startTime: startDate ? startDate.getTime() : '',
         endTime: endDate ? endDate.getTime() : '',
         startTimeDisplay: fields.startTime ?? '',
@@ -343,6 +362,11 @@ export default function DynamicTripDashboard({
     });
   }, [rows]);
 
+  const vehicleOptions = useMemo(() => Array.from(new Set(tripRows.map((row) => row.vehicleNo).filter(Boolean))).sort(), [tripRows]);
+  const driverOptions = useMemo(() => Array.from(new Set(tripRows.map((row) => row.driver).filter(Boolean))).sort(), [tripRows]);
+  const fleetOptions = useMemo(() => Array.from(new Set(tripRows.map((row) => row.fleet).filter(Boolean))).sort(), [tripRows]);
+  const typeOptions = useMemo(() => Array.from(new Set(tripRows.map((row) => row.type).filter(Boolean))).sort(), [tripRows]);
+
   const filteredRows = useMemo(() => {
     const term = normalizeLabel(search);
     return tripRows.filter((row) => {
@@ -353,6 +377,10 @@ export default function DynamicTripDashboard({
       ) {
         return false;
       }
+      if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicleNo)) return false;
+      if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
+      if (fleetFilters.length > 0 && !fleetFilters.includes(row.fleet)) return false;
+      if (typeFilters.length > 0 && !typeFilters.includes(row.type)) return false;
       if (!term) return true;
       const haystack = [
         String(row.slNo),
@@ -375,11 +403,11 @@ export default function DynamicTripDashboard({
       ].join(' ');
       return normalizeLabel(haystack).includes(term);
     });
-  }, [tripRows, search, dateTimeRange]);
+  }, [tripRows, search, dateTimeRange, vehicleFilters, driverFilters, fleetFilters, typeFilters]);
 
   const labels = lang === 'th' ? TH_LABELS : EN_LABELS;
 
-  const activeFilterCount = (search ? 1 : 0) + (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0);
+  const activeFilterCount = (search ? 1 : 0) + (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) + vehicleFilters.length + driverFilters.length + fleetFilters.length + typeFilters.length;
   const hiddenCount = TRIP_COLUMNS.length - TRIP_COLUMNS.filter((c) => visibleCols[c.key]).length;
 
   const columns: Column<TripRow>[] = useMemo(() => {
@@ -705,6 +733,10 @@ export default function DynamicTripDashboard({
               onChange={setDateTimeRange}
               lang={lang}
             />
+            <MultiSelect label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'} options={vehicleOptions} selected={vehicleFilters} onChange={setVehicleFilters} lang={lang} />
+            <MultiSelect label={lang === 'th' ? 'คนขับ' : 'drivers'} options={driverOptions} selected={driverFilters} onChange={setDriverFilters} lang={lang} />
+            <MultiSelect label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'} options={fleetOptions} selected={fleetFilters} onChange={setFleetFilters} lang={lang} />
+            <MultiSelect label={lang === 'th' ? 'ประเภท' : 'types'} options={typeOptions} selected={typeFilters} onChange={setTypeFilters} lang={lang} />
             <label className="min-w-[16rem] flex-1">
               <span className="sr-only">{lang === 'th' ? 'ค้นหา' : 'Search'}</span>
               <div className="relative">
@@ -731,12 +763,16 @@ export default function DynamicTripDashboard({
                 />
               </div>
             </label>
-            {(search || isCompleteDateTimeRange(dateTimeRange)) ? (
+            {(search || isCompleteDateTimeRange(dateTimeRange) || vehicleFilters.length > 0 || driverFilters.length > 0 || fleetFilters.length > 0 || typeFilters.length > 0) ? (
               <button
                 type="button"
                 onClick={() => {
                   setSearch('');
                   setDateTimeRange({ start: '', end: '' });
+                  setVehicleFilters([]);
+                  setDriverFilters([]);
+                  setFleetFilters([]);
+                  setTypeFilters([]);
                 }}
                 className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
               >

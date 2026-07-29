@@ -71,6 +71,7 @@ type SimpleFilterState = {
   fleetFilters: string[];
   vehicleFilters: string[];
   driverFilters: string[];
+  typeFilters: string[];
 };
 
 const defaultFilters: SimpleFilterState = {
@@ -80,6 +81,7 @@ const defaultFilters: SimpleFilterState = {
   fleetFilters: [],
   vehicleFilters: [],
   driverFilters: [],
+  typeFilters: [],
 };
 
 type TableRow = {
@@ -160,6 +162,9 @@ export default function SimpleDashboard({
         driverFilters: Array.isArray(stored.driverFilters)
           ? stored.driverFilters.filter((v) => typeof v === 'string')
           : [],
+        typeFilters: Array.isArray(stored.typeFilters)
+          ? stored.typeFilters.filter((v) => typeof v === 'string')
+          : [],
       });
     });
     return () => cancelAnimationFrame(frame);
@@ -184,7 +189,7 @@ export default function SimpleDashboard({
   };
 
   const hasActiveFilters = useMemo(() => {
-    return isCompleteDateTimeRange(filters.dateTimeRange) || filters.fleetFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0;
+    return isCompleteDateTimeRange(filters.dateTimeRange) || filters.fleetFilters.length > 0 || filters.vehicleFilters.length > 0 || filters.driverFilters.length > 0 || filters.typeFilters.length > 0;
   }, [filters]);
 
   // null = allow-all; only restrict if admin explicitly set an allow-list.
@@ -308,6 +313,11 @@ export default function SimpleDashboard({
     return Array.from(drivers).sort((a, b) => a.localeCompare(b));
   }, [monthFilteredAlerts]);
 
+  const typeOptions = useMemo(
+    () => Array.from(new Set(monthFilteredAlerts.map((row) => row.alertType).filter(Boolean))).sort(),
+    [monthFilteredAlerts],
+  );
+
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       setFilters((current) => {
@@ -334,8 +344,12 @@ export default function SimpleDashboard({
       const activeDrivers = new Set(filters.driverFilters);
       alerts = alerts.filter((row) => activeDrivers.has(row.driver));
     }
+    if (filters.typeFilters.length > 0) {
+      const activeTypes = new Set(filters.typeFilters.map(normalizeLabel));
+      alerts = alerts.filter((row) => activeTypes.has(normalizeLabel(row.alertType)));
+    }
     return alerts;
-  }, [monthFilteredAlerts, filters.fleetFilters, filters.vehicleFilters, filters.driverFilters]);
+  }, [monthFilteredAlerts, filters.fleetFilters, filters.vehicleFilters, filters.driverFilters, filters.typeFilters]);
 
   const uniqueVehiclesForScore = useMemo(
     () => new Set(filteredAlerts.map((r) => r.vehicle).filter((v) => v && v !== '—')).size,
@@ -423,8 +437,9 @@ export default function SimpleDashboard({
     if (isCompleteDateTimeRange(filters.dateTimeRange)) count += 1;
     count += filters.vehicleFilters.length;
     count += filters.driverFilters.length;
+    count += filters.typeFilters.length;
     return count;
-  }, [filters.dateTimeRange, filters.vehicleFilters.length, filters.driverFilters.length]);
+  }, [filters.dateTimeRange, filters.vehicleFilters.length, filters.driverFilters.length, filters.typeFilters.length]);
 
   // ── Trend chart data (TrendChart format) ───────────────────────────────
   const trendChartData = useMemo(() => {
@@ -602,15 +617,13 @@ export default function SimpleDashboard({
               }))}
               lang={lang}
             />
-            {fleetOptions.length > 1 && (
-              <MultiSelect
-                label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
-                options={fleetOptions}
-                selected={filters.fleetFilters}
-                onChange={(v) => setFilters((f) => ({ ...f, fleetFilters: v }))}
-                lang={lang}
-              />
-            )}
+            <MultiSelect
+              label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
+              options={fleetOptions}
+              selected={filters.fleetFilters}
+              onChange={(v) => setFilters((f) => ({ ...f, fleetFilters: v }))}
+              lang={lang}
+            />
             <MultiSelect
               label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'}
               options={vehicleOptions}
@@ -623,6 +636,13 @@ export default function SimpleDashboard({
               options={driverOptions}
               selected={filters.driverFilters}
               onChange={(v) => setFilters((f) => ({ ...f, driverFilters: v }))}
+              lang={lang}
+            />
+            <MultiSelect
+              label={lang === 'th' ? 'ประเภท' : 'types'}
+              options={typeOptions}
+              selected={filters.typeFilters}
+              onChange={(v) => setFilters((f) => ({ ...f, typeFilters: v }))}
               lang={lang}
             />
             {hasActiveFilters && (

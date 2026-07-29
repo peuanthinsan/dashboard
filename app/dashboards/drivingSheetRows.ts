@@ -171,6 +171,7 @@ export function mapShiftSheetRows(
     workingHours: row.workingHours,
     distanceKm: row.distanceKm,
     status: row.status,
+    fleet: row.fleet,
   }));
 }
 

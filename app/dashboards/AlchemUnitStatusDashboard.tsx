@@ -14,6 +14,7 @@ import {
 import { isCompleteDateTimeRange, isDateInDateTimeRange, type DateTimeRange } from './dateTimeRange';
 import { type DashboardLang } from 'app/dashboard/i18n-copy';
 import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
+import MultiSelect from 'app/ui/MultiSelect';
 import KpiCard from 'app/ui/KpiCard';
 import {
   badgeDanger,
@@ -54,6 +55,8 @@ type DashboardProps = {
 
 type VehicleRow = {
   vehicleNo: string;
+  driver: string;
+  type: string;
   truckCode: string;
   location: string;
   fleet: string;
@@ -170,6 +173,10 @@ export default function AlchemUnitStatusDashboard({
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
+  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [driverFilters, setDriverFilters] = useState<string[]>([]);
+  const [fleetFilters, setFleetFilters] = useState<string[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [regionFilter, setRegionFilter] = useState('');
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilterKey | ''>('');
   const [statusSelect, setStatusSelect] = useState<OverallStatus | ''>('');
@@ -193,6 +200,7 @@ export default function AlchemUnitStatusDashboard({
       .map((row) => {
         const vehicleNo = toText(findValue(row, ['vehicleno', 'Vehicle No', 'Vehicle', 'Truck']));
         const fleet = toText(findValue(row, ['Fleet', 'fleet']));
+        const driver = toText(findValue(row, ['Driver Name', 'Driver']));
         const location = toText(findValue(row, ['location', 'Location', 'Region']));
         const recording = toText(findValue(row, ['recording', 'Recording']));
         const videoloss = toText(findValue(row, ['videoloss', 'Video Loss', 'Videoloss']));
@@ -200,6 +208,7 @@ export default function AlchemUnitStatusDashboard({
         const updatedRaw = toText(
           findValue(row, ['lastupdatedtime', 'Last Updated Time', 'datatime', 'Date & time', 'DateTime']),
         );
+        const rawType = toText(findValue(row, ['Type', 'Device Type', 'Status Type']));
         const indicators = deriveUnitDeviceIndicators({
           vehicleNo,
           gps: gpsRaw,
@@ -208,6 +217,8 @@ export default function AlchemUnitStatusDashboard({
         });
         return {
           vehicleNo,
+          driver,
+          type: rawType || indicators.overall,
           truckCode: extractTruckCode(vehicleNo) || vehicleNo,
           location,
           fleet,
@@ -224,6 +235,11 @@ export default function AlchemUnitStatusDashboard({
         return scopeSet.has(normalizeLabel(row.fleet));
       });
   }, [rows, scopeSet, lang]);
+
+  const vehicleOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.vehicleNo).filter(Boolean))).sort(), [vehicleRows]);
+  const driverOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.driver).filter(Boolean))).sort(), [vehicleRows]);
+  const fleetOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.fleet).filter(Boolean))).sort(), [vehicleRows]);
+  const typeOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.type).filter(Boolean))).sort(), [vehicleRows]);
 
   const regionOptions = useMemo(() => {
     const set = new Set<string>();
@@ -246,13 +262,17 @@ export default function AlchemUnitStatusDashboard({
         const hay = normalizeLabel(`${row.truckCode} ${row.vehicleNo}`);
         if (!hay.includes(search)) return false;
       }
+      if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicleNo)) return false;
+      if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
+      if (fleetFilters.length > 0 && !fleetFilters.includes(row.fleet)) return false;
+      if (typeFilters.length > 0 && !typeFilters.includes(row.type)) return false;
       if (regionFilter && row.location !== regionFilter) return false;
       if (deviceFilter && !indicatorIsOffline(row.indicators, deviceFilter)) return false;
       if (statusSelect && row.indicators.overall !== statusSelect) return false;
       if (statusChecks.size > 0 && !statusChecks.has(row.indicators.overall)) return false;
       return true;
     });
-  }, [vehicleRows, vehicleSearch, regionFilter, deviceFilter, statusSelect, statusChecks, dateTimeRange]);
+  }, [vehicleRows, vehicleSearch, vehicleFilters, driverFilters, fleetFilters, typeFilters, regionFilter, deviceFilter, statusSelect, statusChecks, dateTimeRange]);
 
   const totals = useMemo(() => {
     const base = filteredRows;
@@ -275,6 +295,10 @@ export default function AlchemUnitStatusDashboard({
   const activeFilterCount =
     (vehicleSearch ? 1 : 0) +
     (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) +
+    vehicleFilters.length +
+    driverFilters.length +
+    fleetFilters.length +
+    typeFilters.length +
     (regionFilter ? 1 : 0) +
     (deviceFilter ? 1 : 0) +
     (statusSelect ? 1 : 0) +
@@ -358,6 +382,10 @@ export default function AlchemUnitStatusDashboard({
                 onChange={setDateTimeRange}
                 lang={lang}
               />
+              <MultiSelect label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'} options={vehicleOptions} selected={vehicleFilters} onChange={setVehicleFilters} lang={lang} />
+              <MultiSelect label={lang === 'th' ? 'คนขับ' : 'drivers'} options={driverOptions} selected={driverFilters} onChange={setDriverFilters} lang={lang} />
+              <MultiSelect label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'} options={fleetOptions} selected={fleetFilters} onChange={setFleetFilters} lang={lang} />
+              <MultiSelect label={lang === 'th' ? 'ประเภท' : 'types'} options={typeOptions} selected={typeFilters} onChange={setTypeFilters} lang={lang} />
               <div className="min-w-[200px] flex-1">
                 <label className="mb-1 block text-xs font-medium text-zinc-500">
                   {lang === 'th' ? 'ค้นหารถ' : 'Search Truck'}

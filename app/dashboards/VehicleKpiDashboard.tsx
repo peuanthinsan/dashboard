@@ -59,6 +59,8 @@ type DashboardProps = {
 };
 
 type ParsedVehicleKpiRow = VehicleKpiInputRow & {
+  driver: string;
+  type: string;
   date: Date | null;
   monthKey: string | null;
   monthLabel: string;
@@ -99,6 +101,8 @@ export default function VehicleKpiDashboard({
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>({ start: '', end: '' });
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [driverFilters, setDriverFilters] = useState<string[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const scopeNames = useMemo(
     () => resolveScopeFleetNames(organizationName, organizationNames),
     [organizationName, organizationNames],
@@ -134,6 +138,8 @@ export default function VehicleKpiDashboard({
       vehicleFilters?: string[];
       fleetFilters?: string[];
       dateTimeRange?: DateTimeRange;
+      driverFilters?: string[];
+      typeFilters?: string[];
     }>(storageKey);
     if (!stored) return;
 
@@ -154,6 +160,8 @@ export default function VehicleKpiDashboard({
         ? stored.vehicleFilters.filter((value) => typeof value === 'string')
         : [];
       setVehicleFilters(storedVehicles);
+      if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((value) => typeof value === 'string'));
+      if (Array.isArray(stored.typeFilters)) setTypeFilters(stored.typeFilters.filter((value) => typeof value === 'string'));
 
       const storedFleets = Array.isArray(stored.fleetFilters)
         ? stored.fleetFilters.filter((value) => typeof value === 'string')
@@ -165,8 +173,8 @@ export default function VehicleKpiDashboard({
   }, [scopeNames, storageKey]);
 
   useEffect(() => {
-    saveStoredFilters(storageKey, { monthFilters, dateTimeRange, vehicleFilters, fleetFilters });
-  }, [storageKey, monthFilters, dateTimeRange, vehicleFilters, fleetFilters]);
+    saveStoredFilters(storageKey, { monthFilters, dateTimeRange, vehicleFilters, driverFilters, typeFilters, fleetFilters });
+  }, [storageKey, monthFilters, dateTimeRange, vehicleFilters, driverFilters, typeFilters, fleetFilters]);
 
   const parsedRows = useMemo<ParsedVehicleKpiRow[]>(() => {
     return rows
@@ -175,12 +183,15 @@ export default function VehicleKpiDashboard({
         const fleet = toTrimmedString(findValue(row, ['Fleet']));
         const alertType = toNullableString(findValue(row, ['Alert Type']));
         const remark = toNullableString(findValue(row, ['Remarks']));
+        const driver = toTrimmedString(findValue(row, ['Driver Name', 'Driver']));
         const date = parseDate(findValue(row, ALERT_TIME_ALIASES));
         return {
           vehicle,
           fleet,
           alertType,
           remark,
+          driver,
+          type: alertType ?? remark ?? '',
           date,
           monthKey: date ? toMonthKey(date) : null,
           monthLabel: date
@@ -209,6 +220,14 @@ export default function VehicleKpiDashboard({
     });
     return Array.from(fleets).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [parsedRows]);
+  const driverOptions = useMemo(
+    () => Array.from(new Set(parsedRows.map((row) => row.driver).filter(Boolean))).sort(),
+    [parsedRows],
+  );
+  const typeOptions = useMemo(
+    () => Array.from(new Set(parsedRows.map((row) => row.type).filter(Boolean))).sort(),
+    [parsedRows],
+  );
 
   const monthOptions = useMemo(() => {
     if (availableMonths.length > 0) {
@@ -250,6 +269,8 @@ export default function VehicleKpiDashboard({
     setMonthFilters(defaultMonthKeys);
     setDateTimeRange(legacyDateFiltersToRange(defaultMonthKeys));
     setVehicleFilters([]);
+    setDriverFilters([]);
+    setTypeFilters([]);
     setFleetFilters(scopeNames);
   };
 
@@ -257,10 +278,12 @@ export default function VehicleKpiDashboard({
     return parsedRows.filter((row) => {
       if (isCompleteDateTimeRange(dateTimeRange) && !isDateInDateTimeRange(row.date, dateTimeRange)) return false;
       if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
+      if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
+      if (typeFilters.length > 0 && !typeFilters.includes(row.type)) return false;
       if (fleetFilters.length > 0 && !fleetFilters.includes(row.fleet)) return false;
       return true;
     });
-  }, [parsedRows, dateTimeRange, vehicleFilters, fleetFilters]);
+  }, [parsedRows, dateTimeRange, vehicleFilters, driverFilters, typeFilters, fleetFilters]);
 
   const vehicleRows = useMemo<VehicleKpiRow[]>(() => {
     return Array.from(aggregateVehicleKpi(filteredRows).values()).sort((a, b) => {
@@ -334,8 +357,8 @@ export default function VehicleKpiDashboard({
   );
 
   const activeFilterCount = useMemo(
-    () => [isCompleteDateTimeRange(dateTimeRange), vehicleFilters.length > 0, fleetFilters.length > 0].filter(Boolean).length,
-    [dateTimeRange, vehicleFilters, fleetFilters],
+    () => [isCompleteDateTimeRange(dateTimeRange), vehicleFilters.length > 0, driverFilters.length > 0, fleetFilters.length > 0, typeFilters.length > 0].filter(Boolean).length,
+    [dateTimeRange, vehicleFilters, driverFilters, fleetFilters, typeFilters],
   );
 
   const handleExport = async () => {
@@ -454,15 +477,27 @@ export default function VehicleKpiDashboard({
             onChange={setVehicleFilters}
             lang={lang}
           />
-          {fleetOptions.length > 1 && (
-            <MultiSelect
-              label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
-              options={fleetOptions}
-              selected={fleetFilters}
-              onChange={setFleetFilters}
-              lang={lang}
-            />
-          )}
+          <MultiSelect
+            label={lang === 'th' ? 'คนขับ' : 'drivers'}
+            options={driverOptions}
+            selected={driverFilters}
+            onChange={setDriverFilters}
+            lang={lang}
+          />
+          <MultiSelect
+            label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
+            options={fleetOptions}
+            selected={fleetFilters}
+            onChange={setFleetFilters}
+            lang={lang}
+          />
+          <MultiSelect
+            label={lang === 'th' ? 'ประเภท' : 'types'}
+            options={typeOptions}
+            selected={typeFilters}
+            onChange={setTypeFilters}
+            lang={lang}
+          />
           {activeFilterCount > 0 && (
             <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
               {lang === 'th' ? 'รีเซ็ต' : 'Reset'}

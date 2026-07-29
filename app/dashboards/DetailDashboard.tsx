@@ -1046,9 +1046,7 @@ export default function DetailDashboard({
               }))}
               lang={lang}
             />
-            {fleetOptions.length > 1 && (
-              <MultiSelect label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'} options={fleetOptions} selected={filters.fleetFilters} onChange={(v) => setFilters(f => ({ ...f, fleetFilters: v }))} lang={lang} />
-            )}
+            <MultiSelect label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'} options={fleetOptions} selected={filters.fleetFilters} onChange={(v) => setFilters(f => ({ ...f, fleetFilters: v }))} lang={lang} />
             <MultiSelect label={lang === 'th' ? 'ประเภท' : 'types'} options={remarkOptions} selected={filters.remarkFilters} onChange={(v) => setFilters(f => ({ ...f, remarkFilters: v }))} lang={lang} />
             <MultiSelect label={lang === 'th' ? 'ยานพาหนะ' : 'vehicles'} options={vehicleOptions} selected={filters.vehicleFilters} onChange={(v) => setFilters(f => ({ ...f, vehicleFilters: v }))} lang={lang} />
             <MultiSelect label={lang === 'th' ? 'คนขับ' : 'drivers'} options={driverOptions} selected={filters.driverFilters} onChange={(v) => setFilters(f => ({ ...f, driverFilters: v }))} lang={lang} />

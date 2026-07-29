@@ -45,6 +45,7 @@ type OverSpeedRow = {
   driver: string;
   vehicle: string;
   fleet: string;
+  type: string;
   date: Date | null;
   speed: number;
   overSpeed: number;
@@ -117,6 +118,7 @@ export default function OverSpeedDashboard({
     [organizationName, organizationNames],
   );
   const [fleetFilters, setFleetFilters] = useState<string[]>(() => scopeNames);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const storageKey = useMemo(() => `${dashboardId}-overspeed`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
@@ -136,6 +138,7 @@ export default function OverSpeedDashboard({
       vehicleFilters?: string[];
       fleetFilters?: string[];
       dateTimeRange?: DateTimeRange;
+      typeFilters?: string[];
     }>(storageKey);
     if (!stored) return;
     const frame = requestAnimationFrame(() => {
@@ -160,13 +163,14 @@ export default function OverSpeedDashboard({
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((v) => typeof v === 'string'));
       if (Array.isArray(stored.fleetFilters) && stored.fleetFilters.length > 0) setFleetFilters(stored.fleetFilters.filter((v) => typeof v === 'string'));
       else setFleetFilters(scopeNames);
+      if (Array.isArray(stored.typeFilters)) setTypeFilters(stored.typeFilters.filter((v) => typeof v === 'string'));
     });
     return () => cancelAnimationFrame(frame);
   }, [storageKey]);
 
   useEffect(() => {
-    saveStoredFilters(storageKey, { monthFilters, dayFilters, dateTimeRange, driverFilters, vehicleFilters, fleetFilters });
-  }, [storageKey, monthFilters, dayFilters, dateTimeRange, driverFilters, vehicleFilters, fleetFilters]);
+    saveStoredFilters(storageKey, { monthFilters, dayFilters, dateTimeRange, driverFilters, vehicleFilters, fleetFilters, typeFilters });
+  }, [storageKey, monthFilters, dayFilters, dateTimeRange, driverFilters, vehicleFilters, fleetFilters, typeFilters]);
 
   const resetFilters = () => {
     const nextMonth =
@@ -180,6 +184,7 @@ export default function OverSpeedDashboard({
     setDriverFilters([]);
     setVehicleFilters([]);
     setFleetFilters(scopeNames);
+    setTypeFilters([]);
   };
 
   // ── Parse rows ──
@@ -196,11 +201,12 @@ export default function OverSpeedDashboard({
       const rawGt1 = findValue(row, ['>1minutes', '>1min', '>1 min', '>1 minutes', 'GT1min', 'Over 1 min', '1 Minutes', '1 Minute', '1 Min', '1minutes', '1minute']);
       const rawLt1 = findValue(row, ['Less than 1minutes', 'Less than 1min', '<1minutes', '<1min', '<1 min', 'LT1min', 'Under 1 min']);
       const location = toDisplayString(findValue(row, ['Location', 'Address', 'Landmark']));
+      const type = toDisplayString(findValue(row, ['Alert Type', 'Type', 'Event Type']));
       const monthKey = parsedDate ? getMonthKey(parsedDate) : null;
       const monthLabel = parsedDate
         ? parsedDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' })
         : 'Unknown';
-      return { sourceRow: row, driver, vehicle, fleet, date: parsedDate, speed, overSpeed, rawGt1, rawLt1, location, monthKey, monthLabel };
+      return { sourceRow: row, driver, vehicle, fleet, type, date: parsedDate, speed, overSpeed, rawGt1, rawLt1, location, monthKey, monthLabel };
     }).filter((r) => scopeSet.size === 0 || scopeSet.has(normalizeLabel(r.fleet)));
 
     // Check if any row has explicit duration columns
@@ -211,7 +217,8 @@ export default function OverSpeedDashboard({
       return parsed.map((r) => {
         const gt1minVal = parseNumber(r.rawGt1);
         const lt1min = r.rawLt1 != null ? parseNumber(r.rawLt1) : Math.max(0, r.overSpeed - gt1minVal);
-        return { sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date, speed: r.speed, overSpeed: r.overSpeed, gt1min: gt1minVal, lt1min, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel };
+        const type = r.type !== '—' ? r.type : gt1minVal > 0 && lt1min > 0 ? 'Mixed' : gt1minVal > 0 ? '> 1 min' : '< 1 min';
+        return { sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, type, date: r.date, speed: r.speed, overSpeed: r.overSpeed, gt1min: gt1minVal, lt1min, location: r.location, monthKey: r.monthKey, monthLabel: r.monthLabel };
       });
     }
 
@@ -220,6 +227,7 @@ export default function OverSpeedDashboard({
     // OverSpeed > 0  → brief overspeed (<1 min)
     return parsed.map((r) => ({
       sourceRow: r.sourceRow, driver: r.driver, vehicle: r.vehicle, fleet: r.fleet, date: r.date,
+      type: r.type !== '—' ? r.type : r.overSpeed === 0 ? '> 1 min' : '< 1 min',
       speed: r.speed, overSpeed: r.overSpeed,
       gt1min: r.overSpeed === 0 ? 1 : 0,
       lt1min: r.overSpeed === 0 ? 0 : 1,
@@ -241,6 +249,10 @@ export default function OverSpeedDashboard({
     overSpeedRows.forEach((row) => { if (row.fleet && row.fleet !== '—') unique.add(row.fleet); });
     return Array.from(unique).sort();
   }, [overSpeedRows]);
+  const typeOptions = useMemo(
+    () => Array.from(new Set(overSpeedRows.map((row) => row.type).filter((value) => value && value !== '—'))).sort(),
+    [overSpeedRows],
+  );
   const monthOptions = useMemo(() => {
     if (availableMonths.length > 0) {
       return availableMonths.map((m) => ({ key: m.key, label: m.label }));
@@ -281,15 +293,16 @@ export default function OverSpeedDashboard({
       if (driverFilters.length > 0 && !driverFilters.includes(row.driver)) return false;
       if (vehicleFilters.length > 0 && !vehicleFilters.includes(row.vehicle)) return false;
       if (fleetFilters.length > 0 && !fleetFilters.includes(row.fleet)) return false;
+      if (typeFilters.length > 0 && !typeFilters.includes(row.type)) return false;
       return true;
     });
-  }, [overSpeedRows, dateTimeRange, driverFilters, vehicleFilters, fleetFilters]);
+  }, [overSpeedRows, dateTimeRange, driverFilters, vehicleFilters, fleetFilters, typeFilters]);
 
   const activeMonthKey = monthFilters.length === 1 ? monthFilters[0] : null;
 
   const activeFilterCount = useMemo(
-    () => [isCompleteDateTimeRange(dateTimeRange), driverFilters.length > 0, vehicleFilters.length > 0, fleetFilters.length > 0].filter(Boolean).length,
-    [dateTimeRange, driverFilters, vehicleFilters, fleetFilters],
+    () => [isCompleteDateTimeRange(dateTimeRange), driverFilters.length > 0, vehicleFilters.length > 0, fleetFilters.length > 0, typeFilters.length > 0].filter(Boolean).length,
+    [dateTimeRange, driverFilters, vehicleFilters, fleetFilters, typeFilters],
   );
 
   // ── Vehicle summary (matches screenshot table) ──
@@ -612,15 +625,20 @@ export default function OverSpeedDashboard({
             onChange={setVehicleFilters}
             lang={lang}
           />
-          {fleetOptions.length > 1 && (
-            <MultiSelect
-              label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
-              options={fleetOptions}
-              selected={fleetFilters}
-              onChange={setFleetFilters}
-              lang={lang}
-            />
-          )}
+          <MultiSelect
+            label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'}
+            options={fleetOptions}
+            selected={fleetFilters}
+            onChange={setFleetFilters}
+            lang={lang}
+          />
+          <MultiSelect
+            label={lang === 'th' ? 'ประเภท' : 'types'}
+            options={typeOptions}
+            selected={typeFilters}
+            onChange={setTypeFilters}
+            lang={lang}
+          />
           {activeFilterCount > 0 && (
             <button type="button" onClick={resetFilters} className="ml-auto text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
               {lang === 'th' ? 'รีเซ็ต' : 'Reset'}
