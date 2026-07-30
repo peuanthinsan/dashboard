@@ -30,13 +30,11 @@ import {
   tableRow,
 } from 'app/ui/design-tokens';
 import {
-  bangkokAsUtcNow,
   buildAbnormalDetails,
   deriveUnitDeviceIndicators,
   extractTruckCode,
   formatRelativeUpdated,
   indicatorIsOffline,
-  isUpdateStale,
   type DeviceDotStatus,
   type DeviceFilterKey,
   type OverallStatus,
@@ -217,7 +215,8 @@ export default function AlchemUnitStatusDashboard({
           gps: gpsRaw,
           recording,
           videoloss,
-          stale: isUpdateStale(updatedAt, now),
+          updatedAt,
+          now,
         });
         return {
           vehicleNo,
@@ -539,7 +538,7 @@ export default function AlchemUnitStatusDashboard({
                               <OverallBadge status={ind.overall} lang={lang} />
                             </td>
                             <td className={`${tableCell} whitespace-nowrap text-zinc-500`}>
-                              {formatRelativeUpdated(row.updatedAt, bangkokAsUtcNow(now), lang === 'th' ? 'th' : 'en')}
+                              {formatRelativeUpdated(row.updatedAt, now, lang === 'th' ? 'th' : 'en')}
                             </td>
                             <td className={`${tableCell} text-center`}>
                               <button
