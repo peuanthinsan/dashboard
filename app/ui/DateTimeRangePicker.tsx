@@ -1,12 +1,32 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
+import { createPortal } from 'react-dom';
 import {
   EMPTY_DATE_TIME_RANGE,
   isCompleteDateTimeRange,
   type DateTimeRange,
 } from 'app/dashboards/dateTimeRange';
 import { useFocusTrap } from 'app/hooks/useFocusTrap';
+
+/** Computed screen position for the portaled popover, derived from the trigger's
+ * bounding rect. Values are viewport-relative (used with `position: fixed`), so no
+ * scroll offset is added — `getBoundingClientRect()` already reflects the trigger's
+ * current on-screen position, and the position is recomputed on scroll/resize. */
+type PopoverAnchor = {
+  top: number;
+  left: number;
+  width: number;
+};
 
 type DateTimeRangePickerProps = {
   value: DateTimeRange;
@@ -215,6 +235,7 @@ export default function DateTimeRangePicker({
     return monthCursor(value.end, startFallback);
   });
   const rootRef = useRef<HTMLDivElement>(null);
+  const [anchor, setAnchor] = useState<PopoverAnchor | null>(null);
   const dialogId = useId();
   const invalidMessageId = useId();
   const closePicker = useCallback(() => {
@@ -223,18 +244,59 @@ export default function DateTimeRangePicker({
   }, [value]);
   const dialogRef = useFocusTrap(open, closePicker);
 
+  // The popover is portaled to document.body (see the render below) so its stacking
+  // context is no longer trapped inside the filter section's backdrop-blur stacking
+  // context. Because it's no longer a DOM descendant of rootRef, it must be positioned
+  // manually from the trigger's on-screen rect instead of relying on `position: absolute`.
+  const computeAnchor = useCallback(() => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const rootFontSize =
+      parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+    const gap = rootFontSize * 0.5; // 0.5rem gap below the trigger, matching the previous CSS.
+    const margin = rootFontSize * 1; // 1rem viewport margin, matching the previous `calc(100vw-2rem)` allowance.
+    const maxWidth = Math.min(rootFontSize * 42, window.innerWidth - margin * 2);
+    const left = Math.min(
+      Math.max(rect.left, margin),
+      window.innerWidth - margin - maxWidth
+    );
+    setAnchor({ top: rect.bottom + gap, left, width: maxWidth });
+  }, []);
+
+  // Recompute the anchor as soon as the popover opens, before paint, so it never
+  // flashes at a stale position.
+  useLayoutEffect(() => {
+    if (!open) return;
+    // Synchronizing popover position from the trigger's DOM rect (an external system)
+    // before first paint; there is no non-effect way to read layout for a portaled
+    // element.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- see comment above
+    computeAnchor();
+  }, [computeAnchor, open]);
+
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        closePicker();
-      }
+      const target = event.target as Node;
+      // The dialog is portaled to document.body, so it's no longer a descendant of
+      // rootRef — an outside click must miss both the trigger AND the portaled dialog.
+      if (rootRef.current?.contains(target)) return;
+      if (dialogRef.current?.contains(target)) return;
+      closePicker();
     };
+    const onViewportChange = () => computeAnchor();
     document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('resize', onViewportChange);
+    // Capture phase: scroll events don't bubble, so a listener on `window` in the
+    // default (bubble) phase only ever sees the document itself scrolling. Capture
+    // phase also observes scroll on any nested `overflow-auto` ancestor of the trigger.
+    window.addEventListener('scroll', onViewportChange, true);
     return () => {
       document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('resize', onViewportChange);
+      window.removeEventListener('scroll', onViewportChange, true);
     };
-  }, [closePicker, open]);
+  }, [closePicker, computeAnchor, dialogRef, open]);
 
   const label = useMemo(() => formatButtonLabel(value, locale), [locale, value]);
   const validDraft = isCompleteDateTimeRange(draft);
@@ -318,97 +380,114 @@ export default function DateTimeRangePicker({
         ) : null}
       </div>
 
-      {open ? (
-        <div
-          ref={dialogRef}
-          id={dialogId}
-          role="dialog"
-          aria-modal="true"
-          aria-label={copy.select}
-          aria-describedby={
-            !validDraft && (draft.start || draft.end) ? invalidMessageId : undefined
-          }
-          className="fixed inset-x-3 bottom-3 top-3 z-50 overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 sm:absolute sm:bottom-auto sm:left-0 sm:right-auto sm:top-[calc(100%+0.5rem)] sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-[min(42rem,calc(100vw-2rem))] sm:p-5"
-        >
-          <div className="grid gap-6 sm:grid-cols-2 sm:divide-x sm:divide-zinc-200 dark:sm:divide-zinc-700">
-            <CalendarPanel
-              title={copy.start}
-              value={draft.start}
-              range={draft}
-              cursor={startCursor}
-              onCursorChange={setStartCursor}
-              onDateChange={(date) => setDraftDate('start', date)}
-              onTimeChange={(time) => setDraftTime('start', time)}
-              locale={locale}
-              previousLabel={copy.previous}
-              nextLabel={copy.next}
-              timeLabel={copy.time}
-              defaultTime="00:00"
-            />
-            <div className="sm:pl-6">
-              <CalendarPanel
-                title={copy.end}
-                value={draft.end}
-                range={draft}
-                cursor={endCursor}
-                onCursorChange={setEndCursor}
-                onDateChange={(date) => setDraftDate('end', date)}
-                onTimeChange={(time) => setDraftTime('end', time)}
-                locale={locale}
-                previousLabel={copy.previous}
-                nextLabel={copy.next}
-                timeLabel={copy.time}
-                defaultTime="23:59"
-              />
-            </div>
-          </div>
-          {!validDraft && (draft.start || draft.end) ? (
-            <p
-              id={invalidMessageId}
-              className="mt-3 text-xs font-medium text-red-600 dark:text-red-400"
+      {open
+        ? createPortal(
+            <div
+              ref={dialogRef}
+              id={dialogId}
+              role="dialog"
+              aria-modal="true"
+              aria-label={copy.select}
+              aria-describedby={
+                !validDraft && (draft.start || draft.end) ? invalidMessageId : undefined
+              }
+              // Below `sm:`, the mobile inset styling (fixed inset-x-3 bottom-3 top-3)
+              // is unchanged. At `sm:` and up, top/left/width come from the anchor state
+              // computed against the trigger's on-screen rect — passed as CSS custom
+              // properties so they only take effect once the `sm:` media query matches,
+              // and never fight the mobile inset classes at small viewports.
+              style={
+                anchor
+                  ? ({
+                      '--picker-top': `${anchor.top}px`,
+                      '--picker-left': `${anchor.left}px`,
+                      '--picker-width': `${anchor.width}px`,
+                    } as CSSProperties)
+                  : undefined
+              }
+              className="fixed inset-x-3 bottom-3 top-3 z-50 overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 sm:bottom-auto sm:left-[var(--picker-left)] sm:right-auto sm:top-[var(--picker-top)] sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-[var(--picker-width)] sm:p-5"
             >
-              {copy.invalid}
-            </p>
-          ) : null}
-          <div className="sticky bottom-0 -mx-4 mt-4 flex items-center justify-between border-t border-zinc-200 bg-white px-4 pb-1 pt-4 dark:border-zinc-700 dark:bg-zinc-900 sm:-mx-5 sm:px-5">
-            <button
-              type="button"
-              onClick={() => {
-                setDraft(EMPTY_DATE_TIME_RANGE);
-                onChange(EMPTY_DATE_TIME_RANGE);
-                setOpen(false);
-              }}
-              className="px-2 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-            >
-              {copy.clear}
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(value);
-                  setOpen(false);
-                }}
-                className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-              >
-                {copy.cancel}
-              </button>
-              <button
-                type="button"
-                disabled={!validDraft}
-                onClick={() => {
-                  if (!validDraft) return;
-                  onChange(draft);
-                  setOpen(false);
-                }}
-                className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {copy.apply}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+              <div className="grid gap-6 sm:grid-cols-2 sm:divide-x sm:divide-zinc-200 dark:sm:divide-zinc-700">
+                <CalendarPanel
+                  title={copy.start}
+                  value={draft.start}
+                  range={draft}
+                  cursor={startCursor}
+                  onCursorChange={setStartCursor}
+                  onDateChange={(date) => setDraftDate('start', date)}
+                  onTimeChange={(time) => setDraftTime('start', time)}
+                  locale={locale}
+                  previousLabel={copy.previous}
+                  nextLabel={copy.next}
+                  timeLabel={copy.time}
+                  defaultTime="00:00"
+                />
+                <div className="sm:pl-6">
+                  <CalendarPanel
+                    title={copy.end}
+                    value={draft.end}
+                    range={draft}
+                    cursor={endCursor}
+                    onCursorChange={setEndCursor}
+                    onDateChange={(date) => setDraftDate('end', date)}
+                    onTimeChange={(time) => setDraftTime('end', time)}
+                    locale={locale}
+                    previousLabel={copy.previous}
+                    nextLabel={copy.next}
+                    timeLabel={copy.time}
+                    defaultTime="23:59"
+                  />
+                </div>
+              </div>
+              {!validDraft && (draft.start || draft.end) ? (
+                <p
+                  id={invalidMessageId}
+                  className="mt-3 text-xs font-medium text-red-600 dark:text-red-400"
+                >
+                  {copy.invalid}
+                </p>
+              ) : null}
+              <div className="sticky bottom-0 -mx-4 mt-4 flex items-center justify-between border-t border-zinc-200 bg-white px-4 pb-1 pt-4 dark:border-zinc-700 dark:bg-zinc-900 sm:-mx-5 sm:px-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(EMPTY_DATE_TIME_RANGE);
+                    onChange(EMPTY_DATE_TIME_RANGE);
+                    setOpen(false);
+                  }}
+                  className="px-2 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                >
+                  {copy.clear}
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(value);
+                      setOpen(false);
+                    }}
+                    className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  >
+                    {copy.cancel}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!validDraft}
+                    onClick={() => {
+                      if (!validDraft) return;
+                      onChange(draft);
+                      setOpen(false);
+                    }}
+                    className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {copy.apply}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
