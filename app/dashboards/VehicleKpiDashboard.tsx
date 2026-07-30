@@ -20,6 +20,7 @@ import {
   isCompleteDateTimeRange,
   isDateInDateTimeRange,
   legacyDateFiltersToRange,
+  resolveStoredDateTimeRange,
   type DateTimeRange,
 } from './dateTimeRange';
 import {
@@ -147,9 +148,7 @@ export default function VehicleKpiDashboard({
       const storedMonths = Array.isArray(stored.monthFilters)
         ? stored.monthFilters.filter((value) => typeof value === 'string')
         : [];
-      const storedRange = stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)
-        ? stored.dateTimeRange
-        : legacyDateFiltersToRange(storedMonths);
+      const storedRange = resolveStoredDateTimeRange(stored.dateTimeRange, storedMonths);
       if (isCompleteDateTimeRange(storedRange)) {
         didSetDefaultMonth.current = true;
         setDateTimeRange(storedRange);

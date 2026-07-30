@@ -7,6 +7,7 @@ import LoadingState from './LoadingState';
 import { findValue, normalizeLabel, parseDate } from './dashboardDataUtils';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import {
+  clampDateTimeRangeToMaxMonths,
   isCompleteDateTimeRange,
   isDateInDateTimeRange,
   type DateTimeRange,
@@ -292,7 +293,8 @@ export default function DynamicTripDashboard({
       if (stored.pageSize === 'all' || typeof stored.pageSize === 'number') setPageSize(stored.pageSize);
       if (typeof stored.search === 'string') setSearch(stored.search);
       if (stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)) {
-        setDateTimeRange(stored.dateTimeRange);
+        const resolved = clampDateTimeRangeToMaxMonths(stored.dateTimeRange);
+        setDateTimeRange(resolved);
       }
       if (Array.isArray(stored.vehicleFilters)) setVehicleFilters(stored.vehicleFilters.filter((value) => typeof value === 'string'));
       if (Array.isArray(stored.driverFilters)) setDriverFilters(stored.driverFilters.filter((value) => typeof value === 'string'));

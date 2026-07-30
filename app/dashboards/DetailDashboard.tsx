@@ -8,8 +8,8 @@ import {
   dateTimeRangeToMonthKeys,
   isCompleteDateTimeRange,
   isDateInDateTimeRange,
-  legacyDateFiltersToRange,
   monthKeyToDateTimeRange,
+  resolveStoredDateTimeRange,
   type DateTimeRange,
 } from './dateTimeRange';
 import { saveDashboardScore } from './scoreCache';
@@ -243,9 +243,11 @@ export default function DetailDashboard({
       const storedDays = Array.isArray(stored.dayFilters)
         ? stored.dayFilters.filter((v) => typeof v === 'string')
         : [];
-      const storedRange = isCompleteDateTimeRange(stored.dateTimeRange)
-        ? stored.dateTimeRange
-        : legacyDateFiltersToRange(storedMonths, storedDays);
+      const storedRange = resolveStoredDateTimeRange(
+        stored.dateTimeRange,
+        storedMonths,
+        storedDays,
+      );
       // Future-only stored months (poison defaults) → let the default-month effect re-pick.
       if (isCompleteDateTimeRange(storedRange)) didSetDefaultMonth.current = true;
       setFilters((prev) => ({

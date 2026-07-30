@@ -7,8 +7,8 @@ import {
   dateTimeRangeToMonthKeys,
   isCompleteDateTimeRange,
   isDateInDateTimeRange,
-  legacyDateFiltersToRange,
   monthKeyToDateTimeRange,
+  resolveStoredDateTimeRange,
   type DateTimeRange,
 } from './dateTimeRange';
 import { saveDashboardScore } from './scoreCache';
@@ -145,9 +145,11 @@ export default function SimpleDashboard({
       const storedDays = Array.isArray(stored.dayFilters)
         ? stored.dayFilters.filter((v) => typeof v === 'string')
         : [];
-      const storedRange = isCompleteDateTimeRange(stored.dateTimeRange)
-        ? stored.dateTimeRange
-        : legacyDateFiltersToRange(storedMonth ? [storedMonth] : [], storedDays);
+      const storedRange = resolveStoredDateTimeRange(
+        stored.dateTimeRange,
+        storedMonth ? [storedMonth] : [],
+        storedDays,
+      );
       if (isCompleteDateTimeRange(storedRange)) didSetDefaultMonth.current = true;
       setFilters({
         dateTimeRange: storedRange,
