@@ -110,9 +110,14 @@ requires grepping the others.
   the current instant is shifted to Bangkok wall-clock digits before calculating
   its age. This keeps both the Offline KPI and the relative Updated label correct
   in every viewer timezone.
-- Device dots continue to show the last values reported by the API. The expanded
-  row details identify that the overall Offline state was caused by an API update
-  overdue by more than 30 minutes.
+- Device dots reflect each device's own last-reported value (online/offline/not
+  installed) **except** when the row's overall status is Offline: any dot that
+  would otherwise render green (individually "online") is dimmed to the same
+  gray used for "Not Installed", so the row's dots visually agree with its own
+  Offline verdict. A device already reporting offline (red) or not installed
+  (gray) is unaffected. The expanded row details still identify that the
+  overall Offline state was caused by an API update overdue by more than 30
+  minutes.
 - Missing or invalid update timestamps do not trigger this age-based override.
 
 ---

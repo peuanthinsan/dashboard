@@ -97,15 +97,19 @@ function StatusDot({
   status,
   title,
   mutedOffline = false,
+  rowOffline = false,
 }: {
   status: DeviceDotStatus;
   title?: string;
   /** When true, offline renders grey (Intercom follows GPS visually). */
   mutedOffline?: boolean;
+  rowOffline?: boolean;
 }) {
   const color =
     status === 'online'
-      ? 'bg-emerald-500'
+      ? rowOffline
+        ? 'bg-zinc-400'
+        : 'bg-emerald-500'
       : status === 'not_installed'
         ? 'bg-zinc-400'
         : mutedOffline
@@ -214,7 +218,6 @@ export default function AlchemUnitStatusDashboard({
         );
         const updatedAt = parseDate(updatedRaw);
         const rawType = toText(findValue(row, ['Type', 'Device Type', 'Status Type']));
-        const updatedAt = parseDate(updatedRaw);
         const indicators = deriveUnitDeviceIndicators({
           vehicleNo,
           gps: gpsRaw,
@@ -520,23 +523,24 @@ export default function AlchemUnitStatusDashboard({
                       const ind = row.indicators;
                       const isOpen = expanded === row.vehicleNo;
                       const isIssue = ind.overall !== 'healthy' && ind.overall !== 'not_installed';
+                      const rowOffline = ind.overall === 'offline';
                       return (
                         <Fragment key={row.vehicleNo}>
                           <tr className={tableRow}>
                             <td className={`${tableCell} font-semibold`} title={row.vehicleNo}>
                               {row.truckCode}
                             </td>
-                            <td className={`${tableCell} text-center`}><StatusDot status={ind.gps} title="GPS" /></td>
-                            <td className={`${tableCell} text-center`}><StatusDot status={ind.mcr} title="MCR" /></td>
-                            <td className={`${tableCell} text-center`}><StatusDot status={ind.mdvr} title="MDVR" /></td>
-                            <td className={`${tableCell} text-center`}><StatusDot status={ind.ivms} title="IVMS" /></td>
-                            <td className={`${tableCell} text-center`}><StatusDot status={ind.fatigueAi} title="Fatigue AI" /></td>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.gps} title="GPS" rowOffline={rowOffline} /></td>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.mcr} title="MCR" rowOffline={rowOffline} /></td>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.mdvr} title="MDVR" rowOffline={rowOffline} /></td>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.ivms} title="IVMS" rowOffline={rowOffline} /></td>
+                            <td className={`${tableCell} text-center`}><StatusDot status={ind.fatigueAi} title="Fatigue AI" rowOffline={rowOffline} /></td>
                             <td className={`${tableCell} text-center`}>
-                              <StatusDot status={ind.intercom} title="Intercom" mutedOffline />
+                              <StatusDot status={ind.intercom} title="Intercom" mutedOffline rowOffline={rowOffline} />
                             </td>
                             {([1, 2, 3, 4, 5] as const).map((ch) => (
                               <td key={ch} className={`${tableCell} text-center`}>
-                                <StatusDot status={ind.cameras[ch]} title={`C${ch}`} />
+                                <StatusDot status={ind.cameras[ch]} title={`C${ch}`} rowOffline={rowOffline} />
                               </td>
                             ))}
                             <td className={tableCell}>
