@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bangkokAsUtcNow,
   buildAbnormalDetails,
   deriveUnitDeviceIndicators,
   extractTruckCode,
   formatRelativeUpdated,
   indicatorIsOffline,
+  isUpdateStale,
   parseCameraStatuses,
   parseGpsOnline,
 } from './unitDeviceStatus';
@@ -115,6 +117,18 @@ describe('deriveUnitDeviceIndicators', () => {
     expect(offline.overall).toBe('offline');
   });
 
+  it('marks GPS/overall offline when the row is stale even if gps is reported true', () => {
+    const ind = deriveUnitDeviceIndicators({
+      vehicleNo: 'R010',
+      gps: true,
+      recording: '1, 2, 3, 4, 5',
+      videoloss: 'None',
+      stale: true,
+    });
+    expect(ind.gps).toBe('offline');
+    expect(ind.overall).toBe('offline');
+  });
+
   it('sets Fatigue AI from Camera 3 and overall Warning when cameras fail', () => {
     const ind = deriveUnitDeviceIndicators({
       vehicleNo: 'R001(64-9396)',
@@ -197,5 +211,34 @@ describe('formatRelativeUpdated', () => {
     const now = new Date('2026-07-21T04:00:00Z');
     expect(formatRelativeUpdated(new Date('2026-07-21T03:58:00Z'), now, 'en')).toBe('2 min ago');
     expect(formatRelativeUpdated(new Date('2026-07-21T02:00:00Z'), now, 'en')).toBe('2 hr ago');
+  });
+});
+
+describe('isUpdateStale', () => {
+  // real "now" is 04:00:00Z; bangkokAsUtcNow(now) shifts it +7h to 11:00:00Z,
+  // matching the Bangkok-wall-clock-as-UTC frame that stored timestamps use.
+  const now = new Date('2026-07-21T04:00:00Z');
+
+  it('returns false at 29 minutes old (Bangkok frame)', () => {
+    // bangkokAsUtcNow(now) = 11:00:00Z; 29 min before that is 10:31:00Z.
+    const updatedAt = new Date('2026-07-21T10:31:00Z');
+    expect(isUpdateStale(updatedAt, now)).toBe(false);
+  });
+
+  it('returns true at 31 minutes old (Bangkok frame)', () => {
+    // bangkokAsUtcNow(now) = 11:00:00Z; 31 min before that is 10:29:00Z.
+    const updatedAt = new Date('2026-07-21T10:29:00Z');
+    expect(isUpdateStale(updatedAt, now)).toBe(true);
+  });
+
+  it('returns false for a null timestamp', () => {
+    expect(isUpdateStale(null, now)).toBe(false);
+  });
+});
+
+describe('bangkokAsUtcNow', () => {
+  it('shifts now by +7 hours', () => {
+    const now = new Date('2026-07-21T04:00:00Z');
+    expect(bangkokAsUtcNow(now).toISOString()).toBe('2026-07-21T11:00:00.000Z');
   });
 });

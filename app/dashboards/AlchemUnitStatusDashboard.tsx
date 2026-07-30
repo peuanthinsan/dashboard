@@ -30,11 +30,13 @@ import {
   tableRow,
 } from 'app/ui/design-tokens';
 import {
+  bangkokAsUtcNow,
   buildAbnormalDetails,
   deriveUnitDeviceIndicators,
   extractTruckCode,
   formatRelativeUpdated,
   indicatorIsOffline,
+  isUpdateStale,
   type DeviceDotStatus,
   type DeviceFilterKey,
   type OverallStatus,
@@ -209,11 +211,13 @@ export default function AlchemUnitStatusDashboard({
           findValue(row, ['lastupdatedtime', 'Last Updated Time', 'datatime', 'Date & time', 'DateTime']),
         );
         const rawType = toText(findValue(row, ['Type', 'Device Type', 'Status Type']));
+        const updatedAt = parseDate(updatedRaw);
         const indicators = deriveUnitDeviceIndicators({
           vehicleNo,
           gps: gpsRaw,
           recording,
           videoloss,
+          stale: isUpdateStale(updatedAt, now),
         });
         return {
           vehicleNo,
@@ -222,7 +226,7 @@ export default function AlchemUnitStatusDashboard({
           truckCode: extractTruckCode(vehicleNo) || vehicleNo,
           location,
           fleet,
-          updatedAt: parseDate(updatedRaw),
+          updatedAt,
           updatedRaw,
           indicators,
           details: buildAbnormalDetails(indicators, lang === 'th' ? 'th' : 'en'),
@@ -234,7 +238,7 @@ export default function AlchemUnitStatusDashboard({
         if (!row.fleet) return true; // no Fleet column on Alchem sheet → keep rows
         return scopeSet.has(normalizeLabel(row.fleet));
       });
-  }, [rows, scopeSet, lang]);
+  }, [rows, scopeSet, lang, now]);
 
   const vehicleOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.vehicleNo).filter(Boolean))).sort(), [vehicleRows]);
   const driverOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.driver).filter(Boolean))).sort(), [vehicleRows]);
@@ -375,7 +379,7 @@ export default function AlchemUnitStatusDashboard({
             />
           </section>
 
-          <section className={`${dashboardSectionClass} space-y-4`}>
+          <section className={`${dashboardSectionClass} relative z-20 space-y-4`}>
             <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
               <DateTimeRangePicker
                 value={dateTimeRange}
@@ -535,7 +539,7 @@ export default function AlchemUnitStatusDashboard({
                               <OverallBadge status={ind.overall} lang={lang} />
                             </td>
                             <td className={`${tableCell} whitespace-nowrap text-zinc-500`}>
-                              {formatRelativeUpdated(row.updatedAt, now, lang === 'th' ? 'th' : 'en')}
+                              {formatRelativeUpdated(row.updatedAt, bangkokAsUtcNow(now), lang === 'th' ? 'th' : 'en')}
                             </td>
                             <td className={`${tableCell} text-center`}>
                               <button

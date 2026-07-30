@@ -19,6 +19,8 @@ export type UnitDeviceRowInput = {
   gps?: unknown;
   recording?: string | null;
   videoloss?: string | null;
+  /** True when the row's last-update timestamp exceeds the offline staleness threshold. */
+  stale?: boolean;
 };
 
 const NAMED_CAMERA_MAP: Record<string, CameraChannel> = {
@@ -126,7 +128,7 @@ export function deriveUnitDeviceIndicators(input: UnitDeviceRowInput): UnitDevic
     };
   }
 
-  const gpsOnline = parseGpsOnline(input.gps);
+  const gpsOnline = parseGpsOnline(input.gps) && !input.stale;
   const gps: DeviceDotStatus = gpsOnline ? 'online' : 'offline';
   const cameras = parseCameraStatuses(input.recording, input.videoloss);
   const fatigueAi = cameras[3];
@@ -252,6 +254,23 @@ export function indicatorIsOffline(
     default:
       return false;
   }
+}
+
+/** Business rule: a device silent for more than 30 minutes is Offline. */
+export const OFFLINE_STALENESS_MS = 30 * 60_000;
+const BANGKOK_UTC_OFFSET_MS = 7 * 3_600_000;
+/**
+ * Sheet timestamps are Bangkok wall-clock digits stored as UTC (see parseDate).
+ * Shift "now" by +7h into that same frame before diffing, otherwise elapsed
+ * time is understated by 7 hours for every viewer.
+ */
+export function bangkokAsUtcNow(now: Date = new Date()): Date {
+  return new Date(now.getTime() + BANGKOK_UTC_OFFSET_MS);
+}
+
+export function isUpdateStale(updatedAt: Date | null, now: Date = new Date()): boolean {
+  if (!updatedAt || Number.isNaN(updatedAt.getTime())) return false;
+  return bangkokAsUtcNow(now).getTime() - updatedAt.getTime() > OFFLINE_STALENESS_MS;
 }
 
 export function formatRelativeUpdated(

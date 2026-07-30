@@ -381,7 +381,7 @@ export default function BigthUnitStatusDashboard({
             </div>
           </section>
 
-          <section className={dashboardSectionClass}>
+          <section className={`${dashboardSectionClass} relative z-20`}>
             <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <DateTimeRangePicker
                 value={dateTimeRange}
