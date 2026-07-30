@@ -655,14 +655,6 @@ export default function DetailDashboard({
     saveDashboardScore(dashboardId, overallSafetyScore, filteredAlerts.length);
   }, [dashboardId, loading, overallSafetyScore, filteredAlerts.length]);
 
-  const uniqueDrivers = useMemo(() => {
-    const s = new Set<string>();
-    filteredAlerts.forEach((r) => {
-      if (r.driver && r.driver !== '—') s.add(r.driver);
-    });
-    return s.size;
-  }, [filteredAlerts]);
-
   // Compute previous month alert count for trend
   const previousMonthAlertCount = useMemo(() => {
     if (monthFilters.length !== 1) return 0;
@@ -1056,7 +1048,7 @@ export default function DetailDashboard({
           </FilterBar>
 
           {/* ── KPI Row ── */}
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-2">
             <KpiCard
               label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total alerts'}
               value={filteredAlerts.length}
@@ -1073,14 +1065,6 @@ export default function DetailDashboard({
                     }
                   : undefined
               }
-            />
-            <KpiCard
-              label={lang === 'th' ? 'รถที่ไม่ซ้ำ' : 'Unique vehicles'}
-              value={uniqueVehicles}
-            />
-            <KpiCard
-              label={lang === 'th' ? 'คนขับที่ไม่ซ้ำ' : 'Unique drivers'}
-              value={uniqueDrivers}
             />
             <KpiCard
               label={lang === 'th' ? 'ความเร็วเฉลี่ย' : 'Avg speed'}

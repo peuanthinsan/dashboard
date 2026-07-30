@@ -214,6 +214,7 @@ export default function AlchemUnitStatusDashboard({
         );
         const updatedAt = parseDate(updatedRaw);
         const rawType = toText(findValue(row, ['Type', 'Device Type', 'Status Type']));
+        const updatedAt = parseDate(updatedRaw);
         const indicators = deriveUnitDeviceIndicators({
           vehicleNo,
           gps: gpsRaw,
@@ -382,7 +383,7 @@ export default function AlchemUnitStatusDashboard({
             />
           </section>
 
-          <section className={`${dashboardSectionClass} space-y-4`}>
+          <section className={`${dashboardSectionClass} relative z-20 space-y-4`}>
             <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
               <DateTimeRangePicker
                 value={dateTimeRange}
