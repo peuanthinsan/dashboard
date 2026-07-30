@@ -117,6 +117,10 @@ export default function VehicleKpiDashboard({
   const didSetDefaultMonth = useRef(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const fetchMonthKeys = useMemo(
+    () => dateTimeRangeToMonthKeys(dateTimeRange),
+    [dateTimeRange],
+  );
   const {
     rows,
     loading,
@@ -129,7 +133,7 @@ export default function VehicleKpiDashboard({
   } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
-    monthKeys: dateTimeRangeToMonthKeys(dateTimeRange),
+    monthKeys: fetchMonthKeys,
     loadMonthCatalog: true,
   });
 
