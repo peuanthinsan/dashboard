@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type GoogleSheetColumn,
   type GoogleSheetRow,
@@ -235,6 +235,15 @@ export default function useGoogleSheet({
   const loadedMonthSigRef = useRef<string | null>(null);
 
   const monthKeySig = monthKeys ? [...monthKeys].sort().join(',') : '';
+  const monthKeyOrderSig = monthKeys?.join(',') ?? '';
+  // Callers may reconstruct an equivalent month-key array on every render.
+  // Keep the fetch input keyed to ordered content so those renders do not
+  // recreate fetchSheet while preserving caller-specified progressive priority.
+  // The sorted signature above remains the canonical cache/set identity.
+  const fetchMonthKeys = useMemo(
+    () => (monthKeyOrderSig ? monthKeyOrderSig.split(',') : []),
+    [monthKeyOrderSig],
+  );
   // Computed at call time: once a sheet is known not to support month scoping,
   // reads and writes share the single legacy-window cache entry. `includeVideo`
   // is part of the key so a Detail dashboard's video-inclusive rows never get
@@ -618,7 +627,7 @@ export default function useGoogleSheet({
       // `monthKeys` array (now capped at MAX_RANGE_MONTHS upstream), so this
       // guard doesn't need to change for that fix. Left as-is; review
       // separately if this guard's behavior is in question.
-      if (monthScoped && !scopeBroken && (!monthKeys || monthKeys.length === 0)) {
+      if (monthScoped && !scopeBroken && fetchMonthKeys.length === 0) {
         if (gen !== fetchGen.current) return;
         setRows([]);
         setColumns([]);
@@ -632,7 +641,7 @@ export default function useGoogleSheet({
       let result: CachedSheet;
       if (monthScoped && !scopeBroken) {
         try {
-          result = await fetchMonths(monthKeys!, signal, includeVideo, (acc, done, total) => {
+          result = await fetchMonths(fetchMonthKeys, signal, includeVideo, (acc, done, total) => {
             if (gen !== fetchGen.current) return;
             // Progressive apply: show data as soon as the first chunk lands.
             setColumns([...acc.columns]);
@@ -685,11 +694,11 @@ export default function useGoogleSheet({
     enabled,
     fetchMonthCatalog,
     fetchMonths,
+    fetchMonthKeys,
     fetchRecent,
     gid,
     includeVideo,
     monthKeySig,
-    monthKeys,
     monthScoped,
     readCache,
     sheetId,

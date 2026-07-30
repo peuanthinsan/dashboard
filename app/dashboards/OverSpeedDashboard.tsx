@@ -122,10 +122,14 @@ export default function OverSpeedDashboard({
   const storageKey = useMemo(() => `${dashboardId}-overspeed`, [dashboardId]);
   const didSetDefaultMonth = useRef(false);
   const defaultMonthKey = useMemo(() => previousMonthKey(), []);
+  const fetchMonthKeys = useMemo(
+    () => dateTimeRangeToMonthKeys(dateTimeRange),
+    [dateTimeRange],
+  );
   const { rows, columns: sheetColumns, loading, refreshing, progress, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
     sheetId,
     gid: sheetGid,
-    monthKeys: dateTimeRangeToMonthKeys(dateTimeRange),
+    monthKeys: fetchMonthKeys,
     loadMonthCatalog: true,
   });
 
