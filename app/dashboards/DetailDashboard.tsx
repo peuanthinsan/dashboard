@@ -1019,9 +1019,9 @@ export default function DetailDashboard({
           />
         </div>
       ) : (
-        <div>
+        <div className="flex flex-col gap-6">
           {refreshing && (
-            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status" aria-live="polite">
               {lang === 'th' ? 'กำลังโหลดข้อมูลเพิ่มเติม…' : 'Loading more data…'}
               {progress ? ` ${Math.round((progress.done / progress.total) * 100)}%` : ''}
             </p>
