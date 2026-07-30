@@ -9,8 +9,8 @@ import {
   dateTimeRangeToMonthKeys,
   isCompleteDateTimeRange,
   isDateInDateTimeRange,
-  legacyDateFiltersToRange,
   monthKeyToDateTimeRange,
+  resolveStoredDateTimeRange,
   type DateTimeRange,
 } from './dateTimeRange';
 import { findValue, normalizeLabel, parseDate, previousMonthKey, rejectFutureMonthKeys, resolveDefaultMonthKey, resolveScopeFleetNames, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
@@ -150,9 +150,11 @@ export default function OverSpeedDashboard({
       const storedDays = Array.isArray(stored.dayFilters)
         ? stored.dayFilters.filter((v) => typeof v === 'string')
         : [];
-      const storedRange = stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)
-        ? stored.dateTimeRange
-        : legacyDateFiltersToRange(storedMonths, storedDays);
+      const storedRange = resolveStoredDateTimeRange(
+        stored.dateTimeRange,
+        storedMonths,
+        storedDays,
+      );
       if (isCompleteDateTimeRange(storedRange)) {
         didSetDefaultMonth.current = true;
         setDateTimeRange(storedRange);

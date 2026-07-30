@@ -12,8 +12,10 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  countMonthsSpanned,
   EMPTY_DATE_TIME_RANGE,
   isCompleteDateTimeRange,
+  MAX_RANGE_MONTHS,
   type DateTimeRange,
 } from 'app/dashboards/dateTimeRange';
 import { useFocusTrap } from 'app/hooks/useFocusTrap';
@@ -300,6 +302,11 @@ export default function DateTimeRangePicker({
 
   const label = useMemo(() => formatButtonLabel(value, locale), [locale, value]);
   const validDraft = isCompleteDateTimeRange(draft);
+  const rangeTooLong = useMemo(() => {
+    const spanned = countMonthsSpanned(draft);
+    return spanned != null && spanned > MAX_RANGE_MONTHS;
+  }, [draft]);
+  const canApplyDraft = validDraft && !rangeTooLong;
 
   const openPicker = () => {
     if (open) {
@@ -340,6 +347,9 @@ export default function DateTimeRangePicker({
     cancel: isThai ? 'ยกเลิก' : 'Cancel',
     apply: isThai ? 'ใช้' : 'Apply',
     invalid: isThai ? 'เวลาสิ้นสุดต้องไม่ก่อนเวลาเริ่มต้น' : 'End must be after start',
+    rangeTooLong: isThai
+      ? 'ช่วงวันที่ต้องไม่เกิน 24 เดือน'
+      : 'Date range must span 24 calendar months or less',
   };
 
   return (
@@ -389,7 +399,9 @@ export default function DateTimeRangePicker({
               aria-modal="true"
               aria-label={copy.select}
               aria-describedby={
-                !validDraft && (draft.start || draft.end) ? invalidMessageId : undefined
+                (!validDraft && (draft.start || draft.end)) || rangeTooLong
+                  ? invalidMessageId
+                  : undefined
               }
               // Below `sm:`, the mobile inset styling (fixed inset-x-3 bottom-3 top-3)
               // is unchanged. At `sm:` and up, top/left/width come from the anchor state
@@ -446,6 +458,13 @@ export default function DateTimeRangePicker({
                 >
                   {copy.invalid}
                 </p>
+              ) : rangeTooLong ? (
+                <p
+                  id={invalidMessageId}
+                  className="mt-3 text-xs font-medium text-red-600 dark:text-red-400"
+                >
+                  {copy.rangeTooLong}
+                </p>
               ) : null}
               <div className="sticky bottom-0 -mx-4 mt-4 flex items-center justify-between border-t border-zinc-200 bg-white px-4 pb-1 pt-4 dark:border-zinc-700 dark:bg-zinc-900 sm:-mx-5 sm:px-5">
                 <button
@@ -472,9 +491,9 @@ export default function DateTimeRangePicker({
                   </button>
                   <button
                     type="button"
-                    disabled={!validDraft}
+                    disabled={!canApplyDraft}
                     onClick={() => {
-                      if (!validDraft) return;
+                      if (!canApplyDraft) return;
                       onChange(draft);
                       setOpen(false);
                     }}

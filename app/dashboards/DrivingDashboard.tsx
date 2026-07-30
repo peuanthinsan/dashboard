@@ -11,8 +11,8 @@ import {
   dateTimeRangeToMonthKeys,
   isCompleteDateTimeRange,
   isDateInDateTimeRange,
-  legacyDateFiltersToRange,
   monthKeyToDateTimeRange,
+  resolveStoredDateTimeRange,
   type DateTimeRange,
 } from './dateTimeRange';
 import { findValue, parseDate, previousMonthKey, rejectFutureMonthKeys, resolveDefaultMonthKey, scopeFleetSet, toDayKey, toDisplayString } from './dashboardDataUtils';
@@ -275,9 +275,11 @@ export default function DrivingDashboard({
       const storedDays = Array.isArray(stored.dayFilters)
         ? stored.dayFilters.filter((v) => typeof v === 'string')
         : [];
-      const storedRange = stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)
-        ? stored.dateTimeRange
-        : legacyDateFiltersToRange(restoredMonths, storedDays);
+      const storedRange = resolveStoredDateTimeRange(
+        stored.dateTimeRange,
+        restoredMonths,
+        storedDays,
+      );
       // Only skip the default-month effect when we restored a real (non-future) month.
       if (isCompleteDateTimeRange(storedRange)) {
         didSetDefaultMonth.current = true;

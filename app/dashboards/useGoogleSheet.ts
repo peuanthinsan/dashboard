@@ -471,6 +471,11 @@ export default function useGoogleSheet({
           if (signal.aborted || isAbortError(err)) throw err;
           if (err instanceof MonthScopeUnsupportedError) throw err;
           // Direct GViz blocked or flaky for this sheet — remember and fall back.
+          // Mark this SYNCHRONOUSLY (before any other await), so any in-flight
+          // sibling call to fetchMonths for the same sheet/gid — e.g. a second
+          // dashboard mounting concurrently — also sees `directBroken` and skips
+          // straight to the proxy instead of independently retrying (and failing)
+          // the direct path for its own chunk 1.
           directBroken.add(key);
         }
       }
@@ -604,6 +609,15 @@ export default function useGoogleSheet({
         }
       }
 
+      // Empty-monthKeys guard: month-scoped fetching with nothing selected yet
+      // (e.g. catalog-only load before the user has picked a range) renders an
+      // empty, non-loading state instead of falling through to `fetchMonths`
+      // with a zero-length key list. This is a distinct failure mode from the
+      // oversized-range/leap-year clamp fix in `dateTimeRange.ts` — an
+      // oversized *persisted* range still reaches here with a non-empty
+      // `monthKeys` array (now capped at MAX_RANGE_MONTHS upstream), so this
+      // guard doesn't need to change for that fix. Left as-is; review
+      // separately if this guard's behavior is in question.
       if (monthScoped && !scopeBroken && (!monthKeys || monthKeys.length === 0)) {
         if (gen !== fetchGen.current) return;
         setRows([]);
