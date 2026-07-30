@@ -12,6 +12,7 @@ export type UnitDeviceIndicators = {
   intercom: DeviceDotStatus;
   cameras: Record<CameraChannel, DeviceDotStatus>;
   overall: OverallStatus;
+  apiUpdateStale: boolean;
 };
 
 export type UnitDeviceRowInput = {
@@ -19,6 +20,8 @@ export type UnitDeviceRowInput = {
   gps?: unknown;
   recording?: string | null;
   videoloss?: string | null;
+  updatedAt?: Date | null;
+  now?: Date;
 };
 
 const NAMED_CAMERA_MAP: Record<string, CameraChannel> = {
@@ -32,6 +35,26 @@ const NAMED_CAMERA_MAP: Record<string, CameraChannel> = {
 };
 
 const CAMERA_CHANNELS: CameraChannel[] = [1, 2, 3, 4, 5];
+const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1_000;
+export const UNIT_API_OFFLINE_AFTER_MS = 30 * 60 * 1_000;
+
+/**
+ * Parsed sheet timestamps carry Bangkok wall-clock digits in UTC fields. Shift
+ * the real current instant to the same representation before comparing them.
+ */
+function bangkokWallClockMs(now: Date): number {
+  return now.getTime() + BANGKOK_UTC_OFFSET_MS;
+}
+
+export function isUnitApiUpdateStale(
+  updatedAt: Date | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (!updatedAt || Number.isNaN(updatedAt.getTime()) || Number.isNaN(now.getTime())) {
+    return false;
+  }
+  return bangkokWallClockMs(now) - updatedAt.getTime() > UNIT_API_OFFLINE_AFTER_MS;
+}
 
 export function extractTruckCode(vehicleNo: string): string {
   const trimmed = vehicleNo.trim();
@@ -123,6 +146,7 @@ export function deriveUnitDeviceIndicators(input: UnitDeviceRowInput): UnitDevic
       intercom: 'not_installed',
       cameras: emptyCams,
       overall: 'not_installed',
+      apiUpdateStale: false,
     };
   }
 
@@ -132,9 +156,10 @@ export function deriveUnitDeviceIndicators(input: UnitDeviceRowInput): UnitDevic
   const fatigueAi = cameras[3];
   // Intercom follows GPS (rendered grey when offline in the dashboard UI).
   const intercom: DeviceDotStatus = gps;
+  const apiUpdateStale = isUnitApiUpdateStale(input.updatedAt, input.now);
 
   let overall: OverallStatus;
-  if (!gpsOnline) {
+  if (apiUpdateStale || !gpsOnline) {
     overall = 'offline';
   } else {
     const cameraIssue = CAMERA_CHANNELS.some((ch) => cameras[ch] !== 'online');
@@ -151,6 +176,7 @@ export function deriveUnitDeviceIndicators(input: UnitDeviceRowInput): UnitDevic
     intercom,
     cameras,
     overall,
+    apiUpdateStale,
   };
 }
 
@@ -184,6 +210,14 @@ export function buildAbnormalDetails(
 
   const parts: string[] = [];
   const offlineLabel = lang === 'th' ? 'ผิดปกติ' : 'Offline';
+
+  if (indicators.apiUpdateStale) {
+    parts.push(
+      lang === 'th'
+        ? 'API ไม่ได้อัปเดตเกิน 30 นาที'
+        : 'API has not updated for over 30 minutes',
+    );
+  }
 
   const pushIfOffline = (labelEn: string, labelTh: string, status: DeviceDotStatus) => {
     if (status === 'offline') {
@@ -262,7 +296,7 @@ export function formatRelativeUpdated(
   if (!date || Number.isNaN(date.getTime())) {
     return lang === 'th' ? '—' : '—';
   }
-  const diffMs = Math.max(0, now.getTime() - date.getTime());
+  const diffMs = Math.max(0, bangkokWallClockMs(now) - date.getTime());
   const minutes = Math.floor(diffMs / 60_000);
   if (minutes < 1) return lang === 'th' ? 'เมื่อกี้' : 'just now';
   if (minutes < 60) {

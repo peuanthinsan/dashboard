@@ -5,6 +5,7 @@ import {
   extractTruckCode,
   formatRelativeUpdated,
   indicatorIsOffline,
+  isUnitApiUpdateStale,
   parseCameraStatuses,
   parseGpsOnline,
 } from './unitDeviceStatus';
@@ -128,6 +129,41 @@ describe('deriveUnitDeviceIndicators', () => {
     expect(ind.intercom).toBe('online');
     expect(ind.overall).toBe('warning');
   });
+
+  it('overrides the overall status to Offline when the API update is over 30 minutes old', () => {
+    const ind = deriveUnitDeviceIndicators({
+      vehicleNo: 'T029',
+      gps: true,
+      recording: '1, 2, 3, 4, 5',
+      videoloss: 'None',
+      // parseDate stores the Bangkok 11:29:59 wall-clock digits as UTC digits.
+      updatedAt: new Date('2026-07-30T11:29:59Z'),
+      // 05:00 UTC is 12:00 in Bangkok, making the update 30m 1s old.
+      now: new Date('2026-07-30T05:00:00Z'),
+    });
+
+    expect(ind.apiUpdateStale).toBe(true);
+    expect(ind.overall).toBe('offline');
+    expect(ind.gps).toBe('online');
+    expect(buildAbnormalDetails(ind, 'en')).toBe(
+      'API has not updated for over 30 minutes',
+    );
+  });
+});
+
+describe('isUnitApiUpdateStale', () => {
+  const now = new Date('2026-07-30T05:00:00Z'); // 12:00 Bangkok
+
+  it('stays online at exactly 30 minutes and switches immediately after', () => {
+    expect(isUnitApiUpdateStale(new Date('2026-07-30T11:30:00Z'), now)).toBe(false);
+    expect(isUnitApiUpdateStale(new Date('2026-07-30T11:29:59Z'), now)).toBe(true);
+  });
+
+  it('does not mark missing, invalid, or future timestamps stale', () => {
+    expect(isUnitApiUpdateStale(null, now)).toBe(false);
+    expect(isUnitApiUpdateStale(new Date('invalid'), now)).toBe(false);
+    expect(isUnitApiUpdateStale(new Date('2026-07-30T12:01:00Z'), now)).toBe(false);
+  });
 });
 
 describe('buildAbnormalDetails', () => {
@@ -193,9 +229,9 @@ describe('indicatorIsOffline', () => {
 });
 
 describe('formatRelativeUpdated', () => {
-  it('formats minute/hour relative labels', () => {
+  it('formats Bangkok wall-clock timestamps relative to the real current instant', () => {
     const now = new Date('2026-07-21T04:00:00Z');
-    expect(formatRelativeUpdated(new Date('2026-07-21T03:58:00Z'), now, 'en')).toBe('2 min ago');
-    expect(formatRelativeUpdated(new Date('2026-07-21T02:00:00Z'), now, 'en')).toBe('2 hr ago');
+    expect(formatRelativeUpdated(new Date('2026-07-21T10:58:00Z'), now, 'en')).toBe('2 min ago');
+    expect(formatRelativeUpdated(new Date('2026-07-21T09:00:00Z'), now, 'en')).toBe('2 hr ago');
   });
 });

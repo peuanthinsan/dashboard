@@ -190,10 +190,14 @@ export default function AlchemUnitStatusDashboard({
     if (!autoRefresh) return;
     const id = window.setInterval(() => {
       refresh();
-      setNow(new Date());
     }, 60_000);
     return () => window.clearInterval(id);
   }, [autoRefresh, refresh]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const vehicleRows = useMemo<VehicleRow[]>(() => {
     return rows
@@ -208,12 +212,15 @@ export default function AlchemUnitStatusDashboard({
         const updatedRaw = toText(
           findValue(row, ['lastupdatedtime', 'Last Updated Time', 'datatime', 'Date & time', 'DateTime']),
         );
+        const updatedAt = parseDate(updatedRaw);
         const rawType = toText(findValue(row, ['Type', 'Device Type', 'Status Type']));
         const indicators = deriveUnitDeviceIndicators({
           vehicleNo,
           gps: gpsRaw,
           recording,
           videoloss,
+          updatedAt,
+          now,
         });
         return {
           vehicleNo,
@@ -222,7 +229,7 @@ export default function AlchemUnitStatusDashboard({
           truckCode: extractTruckCode(vehicleNo) || vehicleNo,
           location,
           fleet,
-          updatedAt: parseDate(updatedRaw),
+          updatedAt,
           updatedRaw,
           indicators,
           details: buildAbnormalDetails(indicators, lang === 'th' ? 'th' : 'en'),
@@ -234,7 +241,7 @@ export default function AlchemUnitStatusDashboard({
         if (!row.fleet) return true; // no Fleet column on Alchem sheet → keep rows
         return scopeSet.has(normalizeLabel(row.fleet));
       });
-  }, [rows, scopeSet, lang]);
+  }, [rows, scopeSet, lang, now]);
 
   const vehicleOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.vehicleNo).filter(Boolean))).sort(), [vehicleRows]);
   const driverOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.driver).filter(Boolean))).sort(), [vehicleRows]);

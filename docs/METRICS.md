@@ -101,6 +101,20 @@ requires grepping the others.
   `['Fleet', 'User']` (falls back to a `User` column). DynamicTrip performs **no
   fleet scoping at all** (its sheets have no Fleet column) — a deliberate no-op.
 
+### 0.5 ALCHEM unit offline status (`AlchemUnitStatusDashboard.tsx`, `unitDeviceStatus.ts`)
+
+- A vehicle's overall status is forced to **Offline** when its API update timestamp
+  is more than **30 minutes old**, even when the last reported GPS/device values
+  were online. Exactly 30 minutes old is not yet offline.
+- The sheet timestamp is parsed using the shared Bangkok-as-UTC convention (§0.3);
+  the current instant is shifted to Bangkok wall-clock digits before calculating
+  its age. This keeps both the Offline KPI and the relative Updated label correct
+  in every viewer timezone.
+- Device dots continue to show the last values reported by the API. The expanded
+  row details identify that the overall Offline state was caused by an API update
+  overdue by more than 30 minutes.
+- Missing or invalid update timestamps do not trigger this age-based override.
+
 ---
 
 ## 1. Alert count — "Total alerts" and every alert-derived number (Detail, Summary, Video; Simple diverges)
