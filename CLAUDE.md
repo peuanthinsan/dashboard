@@ -44,6 +44,10 @@ targeted checks; rely on CI for the broad suite unless diagnosing a CI failure.
 
 - **Models:** plan on Fable/Opus; code with Codex by default (codex-delegation skill — Codex prompts must forbid git); review/verify/git on Fable/Opus. Sequencing, verification matrix, escalation: `songdee-fleet-workflow`.
 - **Git:** worktree + feature branch + PR. The main checkout is often mid-feature — don't disturb it (`git-rescue-and-parallel-sessions`).
-- **Deploy:** a push NEVER deploys (`git.deploymentEnabled:false`, region `sin1`); `vercel deploy --prod` on user request — commands in `peuan-portfolio`.
+- **Deploy:** a push to `main` starts a Vercel production deploy after GitHub
+  Actions gates pass. A newer push cancels the superseded workflow, leaving the
+  newest green `main` SHA as the deployment candidate. Pull requests never deploy. Keep
+  `git.deploymentEnabled:false` in `vercel.json` to prevent a duplicate Vercel
+  Git deployment.
 - **Metrics:** semantics live in `docs/METRICS.md` — update it in the same PR when they change.
 - Related repos: the six `~/*-dvis` customer inspection apps (see `dvis-fleet-apps` — inspection/unit-status screens live there, not here).
