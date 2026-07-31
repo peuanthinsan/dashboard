@@ -36,7 +36,9 @@ playbook, escalation triggers).
 
 ## Verification before claiming done
 
-`npm run lint && npm test && npm run build` — there is no CI beyond Vercel's build.
+GitHub Actions runs `npm run lint`, `npm test`, and `npm run build` on every pull
+request and push to `main`. Locally, run only newly added tests or the smallest
+targeted checks; rely on CI for the broad suite unless diagnosing a CI failure.
 
 ## Workflow
 
