@@ -61,6 +61,7 @@ export default function AlertRulesEditor({ initial }: { initial?: AlertRule[] | 
   const lastInitial = useRef(initial);
   useEffect(() => {
     if (initial !== lastInitial.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- prop identity is the reset signal when the parent reuses this mounted editor
       setRules(initial ?? []);
       lastInitial.current = initial;
     }

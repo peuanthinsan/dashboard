@@ -21,6 +21,7 @@ export default function Error({
   const copy = useMemo(() => getSiteCopy(lang), [lang]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the browser-only cookie must be read after the hydration-safe server-default render
     setLang(readDashboardLangFromCookie());
   }, []);
 

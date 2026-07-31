@@ -33,6 +33,7 @@ export default function SendWarningButton({
 
   useEffect(() => {
     if (state.status === 'success') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- a completed server action is the external signal to close this local popover
       setOpen(false);
     }
   }, [state.status]);
