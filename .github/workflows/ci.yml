@@ -31,7 +31,6 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
-
   deploy:
     name: Deploy production
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
