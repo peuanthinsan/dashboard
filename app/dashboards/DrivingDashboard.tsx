@@ -357,7 +357,6 @@ export default function DrivingDashboard({
     () => applyRowFilters(shiftRows, { includeDateTime: false }),
     [applyRowFilters, shiftRows],
   );
-
   const completedShiftRows = useMemo(
     () => filteredShiftRows.filter(isCompletedShift),
     [filteredShiftRows],
@@ -569,7 +568,7 @@ export default function DrivingDashboard({
       c.tripCount += 1;
       map.set(mk, c);
     });
-    return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+    return Array.from(map.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey)).slice(-8);
   }, [trendShiftRows]);
 
   // --- Fleet counts ---
