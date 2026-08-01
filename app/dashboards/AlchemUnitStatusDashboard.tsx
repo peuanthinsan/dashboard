@@ -218,7 +218,6 @@ export default function AlchemUnitStatusDashboard({
         );
         const updatedAt = parseDate(updatedRaw);
         const rawType = toText(findValue(row, ['Type', 'Device Type', 'Status Type']));
-        const updatedAt = parseDate(updatedRaw);
         const indicators = deriveUnitDeviceIndicators({
           vehicleNo,
           gps: gpsRaw,
