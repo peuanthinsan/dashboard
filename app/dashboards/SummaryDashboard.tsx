@@ -88,6 +88,106 @@ const priorMonthKeyOf = (monthKey: string): string | null => {
   return toMonthKey(new Date(Date.UTC(y, m - 2, 1)));
 };
 
+const ALERT_COUNT_COLUMNS = [
+  { key: 'Distraction', label: 'Distraction' },
+  { key: 'Harsh Acceleration', label: 'Harsh Acceleration' },
+  { key: 'Harsh Brake', label: 'Harsh Brake' },
+  { key: 'Overspeed', label: 'OverSpeed' },
+  { key: 'Yawning', label: 'Yawning' },
+  { key: 'Fatigue', label: 'Fatigue' },
+  { key: 'Mobile Phone', label: 'Mobile Phone' },
+  { key: 'Eating/Drinking', label: 'Eating/Drinking' },
+  { key: 'Smoking', label: 'Smoking' },
+] as const;
+
+type AlertCountRow = {
+  vehicle: string;
+  driver: string;
+  counts: Record<string, number>;
+  total: number;
+};
+
+const AlertCountTable = ({
+  rows,
+  lang,
+}: {
+  rows: Array<{ vehicle: string; driver: string; remarks: string }>;
+  lang: DashboardLang;
+}) => {
+  const { columns, data, maxCount } = useMemo(() => {
+    const grouped = new Map<string, AlertCountRow>();
+    rows.forEach((row) => {
+      const vehicle = row.vehicle === '—' ? 'Unspecified' : row.vehicle;
+      const driver = row.driver === '—' ? 'Unspecified' : row.driver;
+      const id = `${vehicle}\u0000${driver}`;
+      const existing = grouped.get(id) ?? { vehicle, driver, counts: {}, total: 0 };
+      const column = ALERT_COUNT_COLUMNS.find((item) => normalizeLabel(row.remarks).includes(normalizeLabel(item.key)));
+      if (column) {
+        existing.counts[column.key] = (existing.counts[column.key] ?? 0) + 1;
+        existing.total += 1;
+      }
+      grouped.set(id, existing);
+    });
+
+    const visibleColumns = ALERT_COUNT_COLUMNS.filter((column) =>
+      dataHasCount(grouped, column.key),
+    );
+    const resolvedColumns = visibleColumns.length > 0 ? visibleColumns : ALERT_COUNT_COLUMNS.slice(0, 5);
+    const resolvedData = Array.from(grouped.values())
+      .filter((row) => row.total > 0)
+      .sort((a, b) => b.total - a.total || a.vehicle.localeCompare(b.vehicle));
+    const highest = Math.max(0, ...resolvedData.flatMap((row) => resolvedColumns.map((column) => row.counts[column.key] ?? 0)));
+    return { columns: resolvedColumns, data: resolvedData, maxCount: highest };
+  }, [rows]);
+
+  return (
+    <section className={dashboardSectionClass}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className={heading2}>{lang === 'th' ? 'ข้อมูลแยกตามประเภท' : 'Classified Data'}</h2>
+          <p className={`mt-1 ${textSecondary}`}>
+            {lang === 'th' ? 'จำนวนการแจ้งเตือนแยกตามรถและคนขับ' : 'Alert counts by vehicle and driver.'}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {lang === 'th' ? 'จำนวนรายการ' : 'Record count'}
+        </span>
+      </div>
+      <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200/80 dark:border-zinc-800">
+        <table className="min-w-[760px] w-full border-collapse text-xs" aria-label={lang === 'th' ? 'ตารางจำนวนการแจ้งเตือน' : 'Alert counts by vehicle and driver'}>
+          <thead>
+            <tr className="bg-zinc-100/90 dark:bg-zinc-950/70">
+              <th scope="col" className="sticky left-0 z-10 border-b border-r border-zinc-200/80 bg-zinc-100/95 px-3 py-2 text-left font-semibold text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950/95 dark:text-zinc-300">{lang === 'th' ? 'รถ' : 'Vehicle No'}</th>
+              <th scope="col" className="border-b border-r border-zinc-200/80 px-3 py-2 text-left font-semibold text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">{lang === 'th' ? 'คนขับ' : 'Driver Name'}</th>
+              {columns.map((column) => (
+                <th key={column.key} scope="col" className="border-b border-zinc-200/80 px-3 py-2 text-center font-semibold text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">{column.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.length === 0 ? (
+              <tr><td colSpan={columns.length + 2} className="px-3 py-8 text-center text-zinc-400">{lang === 'th' ? 'ไม่พบข้อมูล' : 'No alert counts for the selected filters.'}</td></tr>
+            ) : data.map((row) => (
+              <tr key={`${row.vehicle}-${row.driver}`} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/60">
+                <th scope="row" className="sticky left-0 z-[1] border-r border-zinc-100 bg-white px-3 py-2 text-left font-medium text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-900 dark:text-zinc-200">{row.vehicle}</th>
+                <td className="border-r border-zinc-100 px-3 py-2 text-zinc-600 dark:border-zinc-800/60 dark:text-zinc-300">{row.driver}</td>
+                {columns.map((column) => {
+                  const count = row.counts[column.key] ?? 0;
+                  const intensity = maxCount > 0 && count > 0 ? 0.12 + (count / maxCount) * 0.82 : 0;
+                  return <td key={column.key} className="px-3 py-2 text-center tabular-nums text-zinc-700 dark:text-zinc-200" style={count > 0 ? { backgroundColor: `rgba(245, 158, 11, ${intensity})` } : undefined}>{count || ''}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+};
+
+const dataHasCount = (grouped: Map<string, AlertCountRow>, key: string) =>
+  Array.from(grouped.values()).some((row) => (row.counts[key] ?? 0) > 0);
+
 export default function SummaryDashboard({
   dashboardId,
   dashboardName,
@@ -706,6 +806,9 @@ export default function SummaryDashboard({
               })}
             </div>
           </section>
+
+          {/* ⑥ Classified alert counts — one row per vehicle/driver pair. */}
+          <AlertCountTable rows={currentRows} lang={lang} />
 
           {/* ═══ People & Vehicles ═══ */}
           <div className="flex items-center gap-3">
