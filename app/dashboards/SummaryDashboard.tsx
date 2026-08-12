@@ -182,8 +182,15 @@ const AlertCountTable = ({
                 <td className="border-r border-zinc-100 px-3 py-2 text-zinc-600 dark:border-zinc-800/60 dark:text-zinc-300">{row.driver}</td>
                 {columns.map((column) => {
                   const count = row.counts[column.key] ?? 0;
-                  const intensity = maxCount > 0 && count > 0 ? 0.12 + (count / maxCount) * 0.82 : 0;
-                  return <td key={column.key} className="px-3 py-2 text-center tabular-nums text-zinc-700 dark:text-zinc-200" style={count > 0 ? { backgroundColor: `rgba(245, 158, 11, ${intensity})` } : undefined}>{count || ''}</td>;
+                  const ratio = maxCount > 0 ? count / maxCount : 0;
+                  const heatClass = count === 0
+                    ? ''
+                    : ratio >= 0.75
+                      ? 'bg-amber-500 text-amber-950 dark:bg-amber-600 dark:text-amber-50'
+                      : ratio >= 0.5
+                        ? 'bg-amber-300 text-amber-950 dark:bg-amber-700 dark:text-amber-50'
+                        : 'bg-amber-100 text-amber-950 dark:bg-amber-800 dark:text-amber-50';
+                  return <td key={column.key} className={`px-3 py-2 text-center tabular-nums ${count > 0 ? `font-semibold ${heatClass}` : 'text-zinc-700 dark:text-zinc-200'}`}>{count || ''}</td>;
                 })}
               </tr>
             ))}
