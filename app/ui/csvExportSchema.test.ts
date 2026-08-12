@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeDriverNameBeforeId, shouldUseSavedColumnPrefs } from './csvExportSchema';
+import { moveColumn, moveColumnTo, placeDriverNameBeforeId, shouldUseSavedColumnPrefs } from './csvExportSchema';
 
 describe('shouldUseSavedColumnPrefs', () => {
   const schema = [{ key: 'a' }, { key: 'b' }, { key: 'c' }];
@@ -76,5 +76,31 @@ describe('placeDriverNameBeforeId', () => {
   it('leaves schemas without both columns unchanged', () => {
     const schema = [{ key: 'id', label: 'id' }, { key: 'vehicle', label: 'Vehicle No' }];
     expect(placeDriverNameBeforeId(schema)).toBe(schema);
+  });
+});
+
+describe('moveColumn', () => {
+  it('moves a column up or down', () => {
+    expect(moveColumn(['id', 'driver', 'vehicle'], 1, -1)).toEqual(['driver', 'id', 'vehicle']);
+    expect(moveColumn(['id', 'driver', 'vehicle'], 1, 1)).toEqual(['id', 'vehicle', 'driver']);
+  });
+
+  it('leaves boundary moves unchanged', () => {
+    const columns = ['id', 'driver'];
+    expect(moveColumn(columns, 0, -1)).toBe(columns);
+    expect(moveColumn(columns, 1, 1)).toBe(columns);
+  });
+});
+
+describe('moveColumnTo', () => {
+  it('moves a dragged column to the dropped column position', () => {
+    expect(moveColumnTo(['id', 'driver', 'vehicle'], 0, 2)).toEqual(['driver', 'vehicle', 'id']);
+    expect(moveColumnTo(['id', 'driver', 'vehicle'], 2, 0)).toEqual(['vehicle', 'id', 'driver']);
+  });
+
+  it('leaves invalid or same-position moves unchanged', () => {
+    const columns = ['id', 'driver'];
+    expect(moveColumnTo(columns, 0, 0)).toBe(columns);
+    expect(moveColumnTo(columns, -1, 0)).toBe(columns);
   });
 });

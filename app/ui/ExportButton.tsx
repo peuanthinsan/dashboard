@@ -9,7 +9,12 @@ import {
   saveCsvExportPrefs,
   type StoredColumnPref,
 } from 'app/ui/csvExportPrefsStorage';
-import { placeDriverNameBeforeId, shouldUseSavedColumnPrefs } from 'app/ui/csvExportSchema';
+import {
+  moveColumn,
+  moveColumnTo,
+  placeDriverNameBeforeId,
+  shouldUseSavedColumnPrefs,
+} from 'app/ui/csvExportSchema';
 import {
   type TimeFormatId,
   formatExportCellValue,
@@ -176,6 +181,11 @@ function copyForLang(lang: 'en' | 'th') {
       headerLabel: 'หัวคอลัมน์ในไฟล์',
       selectAll: 'เลือกทั้งหมด',
       deselectAll: 'ไม่เลือก',
+      reorder: 'เรียงลำดับ',
+      dragToReorder: 'ลากเพื่อเรียงลำดับ',
+      dropToReorder: 'วางเพื่อย้ายคอลัมน์',
+      moveUp: 'เลื่อนขึ้น',
+      moveDown: 'เลื่อนลง',
       cancel: 'ยกเลิก',
       download: 'ดาวน์โหลด CSV',
       preparingCsv: 'กำลังเตรียม CSV…',
@@ -203,6 +213,11 @@ function copyForLang(lang: 'en' | 'th') {
     headerLabel: 'CSV header',
     selectAll: 'Select all',
     deselectAll: 'Deselect all',
+    reorder: 'Reorder',
+    dragToReorder: 'Drag to reorder',
+    dropToReorder: 'Drop to move column',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
     cancel: 'Cancel',
     download: 'Download CSV',
     preparingCsv: 'Preparing CSV…',
@@ -245,6 +260,8 @@ export default function ExportButton({
     'load_parse' | 'load_version' | 'save_quota' | 'save_unknown' | null
   >(null);
   const [csvBusy, setCsvBusy] = useState(false);
+  const [draggedColumnKey, setDraggedColumnKey] = useState<string | null>(null);
+  const [dragOverColumnKey, setDragOverColumnKey] = useState<string | null>(null);
 
   const hasFullSheet =
     Boolean(fullSheetExport && fullSheetExport.rows.length > 0 && fullSheetExport.columns.length > 0);
@@ -263,6 +280,8 @@ export default function ExportButton({
   const handleClose = useCallback(() => {
     setPrefsNotice(null);
     setCsvBusy(false);
+    setDraggedColumnKey(null);
+    setDragOverColumnKey(null);
     setOpen(false);
   }, []);
   const trapRef = useFocusTrap(open, handleClose);
@@ -360,6 +379,21 @@ export default function ExportButton({
   const setAllEnabled = (enabled: boolean) => {
     setColumnStates((prev) => prev.map((c) => ({ ...c, enabled })));
     setAttemptedEmpty(false);
+  };
+
+  const moveColumnBy = (index: number, direction: -1 | 1) => {
+    setColumnStates((prev) => moveColumn(prev, index, direction));
+  };
+
+  const handleColumnDrop = (targetKey: string) => {
+    if (!draggedColumnKey || draggedColumnKey === targetKey) return;
+    setColumnStates((prev) => {
+      const sourceIndex = prev.findIndex((column) => column.key === draggedColumnKey);
+      const targetIndex = prev.findIndex((column) => column.key === targetKey);
+      return moveColumnTo(prev, sourceIndex, targetIndex);
+    });
+    setDraggedColumnKey(null);
+    setDragOverColumnKey(null);
   };
 
   const modal =
@@ -492,6 +526,9 @@ export default function ExportButton({
                       <th className="w-10 pb-2 pr-2" scope="col">
                         <span className="sr-only">Include</span>
                       </th>
+                      <th className="w-20 pb-2 pr-2" scope="col">
+                        <span className="sr-only">{t.reorder}</span>
+                      </th>
                       <th className="pb-2 pr-2" scope="col">
                         {t.fieldKey}
                       </th>
@@ -501,8 +538,29 @@ export default function ExportButton({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {columnStates.map((col) => (
-                      <tr key={col.key}>
+                    {columnStates.map((col, index) => (
+                      <tr
+                        key={col.key}
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.effectAllowed = 'move';
+                          setDraggedColumnKey(col.key);
+                        }}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = 'move';
+                          if (draggedColumnKey !== col.key) setDragOverColumnKey(col.key);
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          handleColumnDrop(col.key);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedColumnKey(null);
+                          setDragOverColumnKey(null);
+                        }}
+                        className={dragOverColumnKey === col.key ? 'bg-emerald-50 dark:bg-emerald-950/30' : undefined}
+                      >
                         <td className="py-2 pr-2 align-middle">
                           <input
                             type="checkbox"
@@ -516,6 +574,43 @@ export default function ExportButton({
                             className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800"
                             aria-label={`${t.fieldKey} ${col.key}`}
                           />
+                        </td>
+                        <td className="py-2 pr-2 align-middle">
+                          <div className="flex items-center gap-1" title={t.dragToReorder}>
+                            <span
+                              className="cursor-grab px-0.5 text-zinc-400 active:cursor-grabbing dark:text-zinc-500"
+                              aria-label={`${t.dragToReorder}: ${col.label}`}
+                              title={t.dragToReorder}
+                            >
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01" />
+                              </svg>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => moveColumnBy(index, -1)}
+                              disabled={index === 0}
+                              className="rounded border border-zinc-200 p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-30 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                              aria-label={`${t.moveUp}: ${col.label}`}
+                              title={t.moveUp}
+                            >
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m5 15 7-7 7 7" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveColumnBy(index, 1)}
+                              disabled={index === columnStates.length - 1}
+                              className="rounded border border-zinc-200 p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-30 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                              aria-label={`${t.moveDown}: ${col.label}`}
+                              title={t.moveDown}
+                            >
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m5 9 7 7 7-7" />
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                         <td className="max-w-[min(200px,28vw)] truncate py-2 pr-2 align-middle font-mono text-xs text-zinc-600 dark:text-zinc-400">
                           {col.key}

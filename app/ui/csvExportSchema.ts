@@ -26,3 +26,33 @@ export function placeDriverNameBeforeId<T extends { label: string }>(schema: T[]
   const driver = schema[driverIndex]!;
   return [...schema.slice(0, idIndex), driver, ...schema.slice(idIndex, driverIndex), ...schema.slice(driverIndex + 1)];
 }
+
+/** Returns a reordered copy, leaving the list unchanged at either boundary. */
+export function moveColumn<T>(columns: T[], index: number, direction: -1 | 1): T[] {
+  const nextIndex = index + direction;
+  if (index < 0 || index >= columns.length || nextIndex < 0 || nextIndex >= columns.length) {
+    return columns;
+  }
+
+  const next = [...columns];
+  [next[index], next[nextIndex]] = [next[nextIndex]!, next[index]!];
+  return next;
+}
+
+/** Moves one column to the position occupied by another column. */
+export function moveColumnTo<T>(columns: T[], sourceIndex: number, targetIndex: number): T[] {
+  if (
+    sourceIndex < 0 ||
+    sourceIndex >= columns.length ||
+    targetIndex < 0 ||
+    targetIndex >= columns.length ||
+    sourceIndex === targetIndex
+  ) {
+    return columns;
+  }
+
+  const next = [...columns];
+  const [moved] = next.splice(sourceIndex, 1);
+  next.splice(targetIndex, 0, moved!);
+  return next;
+}
