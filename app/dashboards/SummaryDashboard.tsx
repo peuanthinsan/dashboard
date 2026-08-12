@@ -107,6 +107,8 @@ type AlertCountRow = {
   total: number;
 };
 
+const ALERT_COUNT_PAGE_SIZE = 15;
+
 const AlertCountTable = ({
   rows,
   lang,
@@ -139,6 +141,13 @@ const AlertCountTable = ({
     const highest = Math.max(0, ...resolvedData.flatMap((row) => resolvedColumns.map((column) => row.counts[column.key] ?? 0)));
     return { columns: resolvedColumns, data: resolvedData, maxCount: highest };
   }, [rows]);
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(data.length / ALERT_COUNT_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages - 1);
+  const pagedData = data.slice(
+    currentPage * ALERT_COUNT_PAGE_SIZE,
+    (currentPage + 1) * ALERT_COUNT_PAGE_SIZE,
+  );
 
   return (
     <section className={dashboardSectionClass}>
@@ -167,7 +176,7 @@ const AlertCountTable = ({
           <tbody>
             {data.length === 0 ? (
               <tr><td colSpan={columns.length + 2} className="px-3 py-8 text-center text-zinc-400">{lang === 'th' ? 'ไม่พบข้อมูล' : 'No alert counts for the selected filters.'}</td></tr>
-            ) : data.map((row) => (
+            ) : pagedData.map((row) => (
               <tr key={`${row.vehicle}-${row.driver}`} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/60">
                 <th scope="row" className="sticky left-0 z-[1] border-r border-zinc-100 bg-white px-3 py-2 text-left font-medium text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-900 dark:text-zinc-200">{row.vehicle}</th>
                 <td className="border-r border-zinc-100 px-3 py-2 text-zinc-600 dark:border-zinc-800/60 dark:text-zinc-300">{row.driver}</td>
@@ -181,6 +190,48 @@ const AlertCountTable = ({
           </tbody>
         </table>
       </div>
+      {totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100/80 px-2 pt-3 dark:border-zinc-800/60">
+          <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+            {currentPage * ALERT_COUNT_PAGE_SIZE + 1}–{Math.min((currentPage + 1) * ALERT_COUNT_PAGE_SIZE, data.length)} of {data.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={currentPage === 0}
+              onClick={() => setPage((previous) => Math.max(0, previous - 1))}
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-zinc-600 transition-all hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            >
+              {lang === 'th' ? 'ก่อนหน้า' : 'Prev'}
+            </button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, index) => {
+              const startPage = Math.max(0, Math.min(currentPage - 2, totalPages - 5));
+              const pageNumber = startPage + index;
+              if (pageNumber >= totalPages) return null;
+              return (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  onClick={() => setPage(pageNumber)}
+                  aria-current={pageNumber === currentPage ? 'page' : undefined}
+                  aria-label={`${lang === 'th' ? 'หน้า' : 'Page'} ${pageNumber + 1}`}
+                  className={`h-7 min-w-[28px] rounded-md px-1.5 text-xs font-medium tabular-nums transition-all ${pageNumber === currentPage ? 'bg-red-600 text-white shadow-sm' : 'text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'}`}
+                >
+                  {pageNumber + 1}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              disabled={currentPage >= totalPages - 1}
+              onClick={() => setPage((previous) => Math.min(totalPages - 1, previous + 1))}
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-zinc-600 transition-all hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            >
+              {lang === 'th' ? 'ถัดไป' : 'Next'}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
