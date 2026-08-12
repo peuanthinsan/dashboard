@@ -9,7 +9,7 @@ import {
   saveCsvExportPrefs,
   type StoredColumnPref,
 } from 'app/ui/csvExportPrefsStorage';
-import { shouldUseSavedColumnPrefs } from 'app/ui/csvExportSchema';
+import { placeDriverNameBeforeId, shouldUseSavedColumnPrefs } from 'app/ui/csvExportSchema';
 import {
   type TimeFormatId,
   formatExportCellValue,
@@ -78,7 +78,7 @@ function schemaFromProps(
 }
 
 function schemaFromFullSheet(source: FullSheetExportSource): ExportColumnDef[] {
-  return source.columns.map((c) => ({ key: c.fieldKey ?? c.label, label: c.label }));
+  return placeDriverNameBeforeId(source.columns.map((c) => ({ key: c.fieldKey ?? c.label, label: c.label })));
 }
 
 function columnTypeMapFromFullSheet(source: FullSheetExportSource): Map<string, string> {

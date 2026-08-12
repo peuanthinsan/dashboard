@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldUseSavedColumnPrefs } from './csvExportSchema';
+import { placeDriverNameBeforeId, shouldUseSavedColumnPrefs } from './csvExportSchema';
 
 describe('shouldUseSavedColumnPrefs', () => {
   const schema = [{ key: 'a' }, { key: 'b' }, { key: 'c' }];
@@ -53,5 +53,28 @@ describe('shouldUseSavedColumnPrefs', () => {
       { key: 'b', enabled: true, label: 'B' },
     ];
     expect(shouldUseSavedColumnPrefs(saved, schema)).toBe(true);
+  });
+});
+
+describe('placeDriverNameBeforeId', () => {
+  it('moves Driver Name immediately before id while preserving the other columns', () => {
+    const schema = [
+      { key: 'id', label: 'id' },
+      { key: 'vehicle', label: 'Vehicle No' },
+      { key: 'driver', label: 'Driver Name' },
+      { key: 'alert', label: 'Alert Type' },
+    ];
+
+    expect(placeDriverNameBeforeId(schema).map((column) => column.label)).toEqual([
+      'Driver Name',
+      'id',
+      'Vehicle No',
+      'Alert Type',
+    ]);
+  });
+
+  it('leaves schemas without both columns unchanged', () => {
+    const schema = [{ key: 'id', label: 'id' }, { key: 'vehicle', label: 'Vehicle No' }];
+    expect(placeDriverNameBeforeId(schema)).toBe(schema);
   });
 });
