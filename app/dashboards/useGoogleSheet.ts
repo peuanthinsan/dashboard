@@ -35,7 +35,7 @@ type UseGoogleSheetOptions = {
    * Month-scoped fetch mode (alert dashboards on large sheets):
    * - `undefined` — legacy "most recent 25k" (Driving / Video / etc.).
    * - `[]` — load the month catalogue only; wait for a selection before fetching rows.
-   * - `['2026-06', …]` — fetch those months in chunks, rendered progressively.
+   * - `['2026-06', …]` — fetch those months in chunks and publish one complete snapshot.
    * Sheets that can't serve month scoping (no date-typed column, empty/failed
    * catalogue) automatically fall back to the legacy most-recent window.
    */
@@ -58,7 +58,7 @@ type SheetResponse = {
   rows: GoogleSheetRow[];
   /** True while there is nothing to render yet (first paint). */
   loading: boolean;
-  /** True while more chunks are still arriving; partial rows are already visible. */
+  /** True while more chunks are still arriving; the current snapshot stays visible. */
   refreshing: boolean;
   /** Chunk progress for the current month load (null when idle). */
   progress: SheetLoadProgress | null;
@@ -81,7 +81,7 @@ type SheetMeta = { orderColId: string; select: string; hasDateColumn: boolean };
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CATALOG_TTL_MS = 10 * 60 * 1000;
 const MAX_CACHE_CHARS = 2_000_000;
-/** Bump when fetch semantics change (direct GViz chunks + progressive apply). */
+/** Bump when fetch semantics change (direct GViz chunks + atomic snapshot apply). */
 const CACHE_VERSION = 'v9';
 /** Cap on distinct in-memory cached sheets; each can hold a full multi-MB row array, so
  *  an unbounded Map grows for the tab's lifetime as the user steps through months/dashboards. */
@@ -641,17 +641,14 @@ export default function useGoogleSheet({
       let result: CachedSheet;
       if (monthScoped && !scopeBroken) {
         try {
-          result = await fetchMonths(fetchMonthKeys, signal, includeVideo, (acc, done, total) => {
+          result = await fetchMonths(fetchMonthKeys, signal, includeVideo, (_acc, done, total) => {
             if (gen !== fetchGen.current) return;
-            // Progressive apply: show data as soon as the first chunk lands.
-            setColumns([...acc.columns]);
-            setRows([...acc.rows]);
-            setLastUpdated(new Date(acc.lastUpdated));
+            // Keep the rendered dashboard on one complete snapshot. Publishing
+            // each chunk here makes charts render partial data and then change
+            // while the user is reading them. The completed payload is applied
+            // below, so initial loads remain in the loading state and refreshes
+            // keep showing the previous snapshot until all chunks arrive.
             setProgress({ done, total });
-            if (acc.rows.length > 0) {
-              setLoading(false);
-              setRefreshing(done < total);
-            }
           });
         } catch (err) {
           if (!(err instanceof MonthScopeUnsupportedError)) throw err;
