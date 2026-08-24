@@ -126,6 +126,8 @@ function DashboardByTemplate({
       return <BigthUnitStatusDashboard {...props} isAdmin={isAdmin} />;
     case 'ALCHEMUnitStatus':
       return <AlchemUnitStatusDashboard {...props} isAdmin={isAdmin} />;
+    case 'VINYTHAIUnitStatus':
+      return <AlchemUnitStatusDashboard {...props} isAdmin={isAdmin} unitStatusProfile="vinythai" />;
     case 'Summary':
     default:
       return <SummaryDashboard {...props} isAdmin={isAdmin} />;

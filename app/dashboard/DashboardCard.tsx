@@ -32,6 +32,7 @@ const templateIcons: Record<string, string> = {
   Video: '🎥',
   ALCHEMUnitStatus: '📡',
   BIGTHUnitStatus: '📡',
+  VINYTHAIUnitStatus: '📡',
 };
 
 const templateColors: Record<string, string> = {
@@ -45,6 +46,7 @@ const templateColors: Record<string, string> = {
   Video: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200/50 dark:bg-fuchsia-950/60 dark:text-fuchsia-300 dark:ring-fuchsia-800/30',
   ALCHEMUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
   BIGTHUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
+  VINYTHAIUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
 };
 
 const templateIconBg: Record<string, string> = {
@@ -58,6 +60,7 @@ const templateIconBg: Record<string, string> = {
   Video: 'bg-fuchsia-50 ring-fuchsia-200/40 dark:bg-fuchsia-950/40 dark:ring-fuchsia-800/30',
   ALCHEMUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
   BIGTHUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
+  VINYTHAIUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
 };
 
 const templateDescriptions: Record<string, { en: string; th: string }> = {
@@ -71,6 +74,7 @@ const templateDescriptions: Record<string, { en: string; th: string }> = {
   Video: { en: 'Video evidence review', th: 'ตรวจสอบหลักฐานวิดีโอ' },
   ALCHEMUnitStatus: { en: 'Fleet device health status', th: 'สถานะอุปกรณ์ยานพาหนะ' },
   BIGTHUnitStatus: { en: 'Unit device status', th: 'สถานะอุปกรณ์หน่วย' },
+  VINYTHAIUnitStatus: { en: 'Vinythai unit device status', th: 'สถานะอุปกรณ์ Vinythai' },
 };
 
 export default function DashboardCard({ id, name, template, sheetUrl, lang }: DashboardCardProps) {

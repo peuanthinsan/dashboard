@@ -128,6 +128,11 @@ describe('dashboardDataUtils', () => {
       expect(resolveTemplate('unit status')).toBe('BIGTHUnitStatus');
       expect(resolveTemplate('BIGTHUnitStatus')).toBe('BIGTHUnitStatus');
     });
+
+    it('maps Vinythai unit-status aliases', () => {
+      expect(resolveTemplate('VINYTHAIUnitStatus')).toBe('VINYTHAIUnitStatus');
+      expect(resolveTemplate('vinythai unit status')).toBe('VINYTHAIUnitStatus');
+    });
   });
 
   describe('remarkMatchesAllowedTarget', () => {

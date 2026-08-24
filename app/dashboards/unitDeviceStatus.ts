@@ -20,6 +20,12 @@ export type UnitDeviceRowInput = {
   gps?: unknown;
   recording?: string | null;
   videoloss?: string | null;
+  /** Optional direct Camera CH2 value used by customer-specific sheets. */
+  cameraCh2?: unknown;
+  /** Vinythai uses CH2 for Fatigue AI; Alchem keeps the legacy CH3 mapping. */
+  fatigueCameraChannel?: CameraChannel;
+  /** Intercom is green for Vinythai regardless of GPS availability. */
+  intercomAlwaysOnline?: boolean;
   updatedAt?: Date | null;
   now?: Date;
 };
@@ -132,6 +138,13 @@ export function parseCameraStatuses(
   return cameras;
 }
 
+export function parseCameraOnline(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value == null) return false;
+  const raw = String(value).trim().toLowerCase();
+  return ['true', '1', 'yes', 'online', 'connected', 'connect', 'on'].includes(raw);
+}
+
 export function deriveUnitDeviceIndicators(input: UnitDeviceRowInput): UnitDeviceIndicators {
   const vehicleNo = String(input.vehicleNo ?? '').trim();
   if (!vehicleNo) {
@@ -153,9 +166,13 @@ export function deriveUnitDeviceIndicators(input: UnitDeviceRowInput): UnitDevic
   const gpsOnline = parseGpsOnline(input.gps);
   const gps: DeviceDotStatus = gpsOnline ? 'online' : 'offline';
   const cameras = parseCameraStatuses(input.recording, input.videoloss);
-  const fatigueAi = cameras[3];
-  // Intercom follows GPS (rendered grey when offline in the dashboard UI).
-  const intercom: DeviceDotStatus = gps;
+  if (input.cameraCh2 !== undefined && input.cameraCh2 !== null && String(input.cameraCh2).trim() !== '') {
+    cameras[2] = parseCameraOnline(input.cameraCh2) ? 'online' : 'offline';
+  }
+  const fatigueAi = cameras[input.fatigueCameraChannel ?? 3];
+  // Vinythai's Intercom indicator is always green; Alchem keeps the legacy
+  // GPS-following behavior when this flag is not set.
+  const intercom: DeviceDotStatus = input.intercomAlwaysOnline ? 'online' : gps;
   const apiUpdateStale = isUnitApiUpdateStale(input.updatedAt, input.now);
 
   let overall: OverallStatus;

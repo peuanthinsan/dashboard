@@ -491,6 +491,14 @@ export function resolveTemplate(template: string): string {
     return 'ALCHEMUnitStatus';
   }
   if (
+    normalized === 'vinythaiunitstatus' ||
+    normalized === 'vinythai unit status' ||
+    normalized === 'vinythai unit status dashboard' ||
+    normalized === 'vinythai unit device status'
+  ) {
+    return 'VINYTHAIUnitStatus';
+  }
+  if (
     normalized === 'bigthunitstatus' ||
     normalized === 'bigth unit status' ||
     normalized === 'bigth unit status dashboard' ||

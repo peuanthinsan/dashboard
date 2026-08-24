@@ -1,5 +1,7 @@
 # songdee-dashboard
 
+@WORKSPACE.md
+
 Multi-tenant fleet driver-safety dashboards (Next.js App Router) rendering customer
 Google Sheets. **Full project context lives in the user-global skill
 `songdee-dashboard-dev` — invoke it at the start of any task here.** This file holds only

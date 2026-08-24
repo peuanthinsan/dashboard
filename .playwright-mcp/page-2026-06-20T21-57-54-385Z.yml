@@ -1,0 +1,52 @@
+- generic [active] [ref=e1]:
+  - link "ข้ามไปยังเนื้อหาหลัก" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic:
+        - img
+      - generic [ref=e6]:
+        - img "SongdeeGPS" [ref=e8]
+        - paragraph [ref=e9]: ข้อมูลเชิงลึกด้านความปลอดภัยของฟลีท
+      - generic [ref=e10]:
+        - heading "ส่งดีจีพีเอส ขับขี่ปลอดภัย ชีวิตปลอดภัย" [level=2] [ref=e11]:
+          - text: ส่งดีจีพีเอส
+          - text: ขับขี่ปลอดภัย ชีวิตปลอดภัย
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - generic [ref=e14]: 📍
+            - text: ติดตาม GPS ฟลีทแบบเรียลไทม์
+          - generic [ref=e15]:
+            - generic [ref=e16]: 🛡️
+            - text: แจ้งเตือนความปลอดภัยคนขับด้วย AI
+          - generic [ref=e17]:
+            - generic [ref=e18]: 📊
+            - text: คะแนนความปลอดภัยและข้อมูลเชิงลึกการขับขี่
+          - generic [ref=e19]:
+            - generic [ref=e20]: 📋
+            - text: รายงานและข้อมูลเชิงลึกที่ส่งออกได้
+      - paragraph [ref=e22]: © 2026 SongdeeGPS — ส่งดีจีพีเอส
+    - main [ref=e23]:
+      - generic [ref=e24]:
+        - button "Switch interface language to English" [ref=e25] [cursor=pointer]: English
+        - button "Loading appearance preference" [disabled] [ref=e26]:
+          - generic [ref=e27]: …
+      - generic [ref=e28]:
+        - generic [ref=e29]:
+          - heading "ยินดีต้อนรับกลับมา" [level=2] [ref=e30]
+          - paragraph [ref=e31]: เข้าสู่ระบบเพื่อดำเนินการต่อ
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34]: อีเมล
+            - textbox "อีเมล" [ref=e35]:
+              - /placeholder: user@acme.com
+          - generic [ref=e36]:
+            - generic [ref=e37]: รหัสผ่าน
+            - textbox "รหัสผ่าน" [ref=e38]:
+              - /placeholder: ••••••••
+            - paragraph [ref=e39]: รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร
+          - button "เข้าสู่ระบบ" [ref=e40] [cursor=pointer]
+        - paragraph [ref=e41]:
+          - text: ยังไม่มีบัญชี?
+          - link "สร้างบัญชี" [ref=e42] [cursor=pointer]:
+            - /url: /register

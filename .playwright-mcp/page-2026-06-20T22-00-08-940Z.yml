@@ -1,0 +1,1009 @@
+- generic [ref=e1]:
+  - link "ข้ามไปยังเนื้อหาหลัก" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - link "SongdeeGPS" [ref=e8] [cursor=pointer]:
+            - /url: /dashboard
+            - img "SongdeeGPS" [ref=e9]
+          - navigation "เมนูหลัก" [ref=e10]:
+            - link "แดชบอร์ด" [ref=e11] [cursor=pointer]:
+              - /url: /dashboard
+        - generic [ref=e12]:
+          - button "Switch interface language to English" [ref=e13] [cursor=pointer]: English
+          - button "Switch to dark mode" [ref=e14] [cursor=pointer]:
+            - generic [ref=e15]: ☀
+    - main [ref=e16]:
+      - generic [ref=e19]:
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - link "กลับไปหน้าแดชบอร์ด" [ref=e25] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e26]
+              - text: กลับไปหน้าแดชบอร์ด
+            - paragraph [ref=e28]: แดชบอร์ดรายละเอียด
+            - generic [ref=e29]:
+              - img "SongdeeGPS" [ref=e30]
+              - heading "Baanplu" [level=1] [ref=e31]
+            - paragraph [ref=e119]: อัปเดตล่าสุด 20/06/2026, 14:59:34
+            - generic [ref=e33]: 2 ตัวกรองที่ใช้งานอยู่
+          - generic [ref=e34]:
+            - button "ส่งออก CSV" [ref=e35] [cursor=pointer]:
+              - img [ref=e36]
+              - text: ส่งออก CSV
+            - link "แก้ไข" [ref=e38] [cursor=pointer]:
+              - /url: /admin/dashboards?highlight=8e1bce78-4a1a-4efc-9cd6-e6f32bd66895
+              - img [ref=e39]
+              - text: แก้ไข
+            - button "พิมพ์ / PDF" [ref=e41] [cursor=pointer]:
+              - img [ref=e42]
+              - text: พิมพ์ / PDF
+        - generic [ref=e120]:
+          - generic [ref=e121]:
+            - button "Previous year" [ref=e122] [cursor=pointer]: ‹
+            - generic [ref=e123]: "2026"
+            - button "Next year" [ref=e124] [cursor=pointer]: ›
+            - generic [ref=e125]: "|"
+            - button "ม.ค." [ref=e126] [cursor=pointer]
+            - button "ก.พ." [ref=e127] [cursor=pointer]
+            - button "มี.ค." [ref=e128] [cursor=pointer]
+            - button "เม.ย." [ref=e129] [cursor=pointer]
+            - button "พ.ค." [ref=e130] [cursor=pointer]
+            - button "มิ.ย." [ref=e131] [cursor=pointer]
+            - button "ก.ค." [ref=e132] [cursor=pointer]
+            - button "ส.ค." [ref=e133] [cursor=pointer]
+            - button "ก.ย." [ref=e134] [cursor=pointer]
+            - button "ต.ค." [ref=e135] [cursor=pointer]
+            - button "พ.ย." [ref=e136] [cursor=pointer]
+            - button "ธ.ค." [ref=e137] [cursor=pointer]
+            - generic [ref=e138]: "|"
+            - button "Clear month selection" [ref=e139] [cursor=pointer]: ✕
+          - generic [ref=e140]:
+            - generic [ref=e141]: พ.ค. 2569
+            - generic [ref=e142]: "|"
+            - button "1" [ref=e143] [cursor=pointer]
+            - button "2" [ref=e144] [cursor=pointer]
+            - button "3" [ref=e145] [cursor=pointer]
+            - button "4" [ref=e146] [cursor=pointer]
+            - button "5" [ref=e147] [cursor=pointer]
+            - button "6" [ref=e148] [cursor=pointer]
+            - button "7" [ref=e149] [cursor=pointer]
+            - button "8" [ref=e150] [cursor=pointer]
+            - button "9" [ref=e151] [cursor=pointer]
+            - button "10" [ref=e152] [cursor=pointer]
+            - button "11" [ref=e153] [cursor=pointer]
+            - button "12" [ref=e154] [cursor=pointer]
+            - button "13" [ref=e155] [cursor=pointer]
+            - button "14" [ref=e156] [cursor=pointer]
+            - button "+17" [ref=e157] [cursor=pointer]
+          - generic [ref=e158]:
+            - button "1 กลุ่มรถ ▴" [expanded] [ref=e1135] [cursor=pointer]:
+              - generic [ref=e160]: 1 กลุ่มรถ
+              - generic [ref=e161]: ▴
+            - listbox [ref=e1136]:
+              - textbox "ค้นหา..." [active] [ref=e1138]
+              - generic [ref=e1139]:
+                - option "ALTAST" [ref=e1140] [cursor=pointer]:
+                  - generic [ref=e1142]: ALTAST
+                - option "ALTPTG" [ref=e1143] [cursor=pointer]:
+                  - generic [ref=e1145]: ALTPTG
+                - option "Baanphlu" [selected] [ref=e1146] [cursor=pointer]:
+                  - generic [ref=e1147]: ✓
+                  - generic [ref=e1148]: Baanphlu
+                - option "BSC" [ref=e1149] [cursor=pointer]:
+                  - generic [ref=e1151]: BSC
+                - option "MON" [ref=e1152] [cursor=pointer]:
+                  - generic [ref=e1154]: MON
+                - option "PAG" [ref=e1155] [cursor=pointer]:
+                  - generic [ref=e1157]: PAG
+                - option "SERVICE" [ref=e1158] [cursor=pointer]:
+                  - generic [ref=e1160]: SERVICE
+              - generic [ref=e1161]:
+                - button "ล้างทั้งหมด" [ref=e1162] [cursor=pointer]
+                - button "เลือกทั้งหมด" [ref=e1163] [cursor=pointer]
+          - button "ทั้งหมด ▾" [ref=e163] [cursor=pointer]:
+            - generic [ref=e164]: ทั้งหมด
+            - generic [ref=e165]: ▾
+          - button "ทั้งหมด ▾" [ref=e167] [cursor=pointer]:
+            - generic [ref=e168]: ทั้งหมด
+            - generic [ref=e169]: ▾
+          - button "ทั้งหมด ▾" [ref=e171] [cursor=pointer]:
+            - generic [ref=e172]: ทั้งหมด
+            - generic [ref=e173]: ▾
+          - button "รีเซ็ต" [ref=e174] [cursor=pointer]
+        - generic [ref=e175]:
+          - region "การแจ้งเตือนทั้งหมด" [ref=e176]:
+            - paragraph [ref=e177]: การแจ้งเตือนทั้งหมด
+            - paragraph [ref=e178]: "15"
+            - generic [ref=e179]: ↓ 53.1% เทียบเดือนก่อน
+          - region "รถที่ไม่ซ้ำ" [ref=e180]:
+            - paragraph [ref=e181]: รถที่ไม่ซ้ำ
+            - paragraph [ref=e182]: "2"
+          - region "คนขับที่ไม่ซ้ำ" [ref=e183]:
+            - paragraph [ref=e184]: คนขับที่ไม่ซ้ำ
+            - paragraph [ref=e185]: "2"
+          - region "ความเร็วเฉลี่ย" [ref=e186]:
+            - paragraph [ref=e187]: ความเร็วเฉลี่ย
+            - paragraph [ref=e188]: 46 km/h
+            - paragraph [ref=e189]: 15 วิดีโอ
+        - generic [ref=e190]:
+          - img [ref=e192]
+          - generic [ref=e194]: วิเคราะห์การแจ้งเตือน
+          - img [ref=e195]
+        - generic [ref=e198]:
+          - heading "แนวโน้มการแจ้งเตือนรายวัน" [level=2] [ref=e200]
+          - generic [ref=e201]:
+            - generic [ref=e202]: แสดง
+            - button "การแจ้งเตือนทุกประเภท" [ref=e203] [cursor=pointer]
+            - button "Distraction" [ref=e204] [cursor=pointer]
+            - button "Harsh Acceleration" [ref=e205] [cursor=pointer]
+            - button "Harsh Brake" [ref=e206] [cursor=pointer]
+            - button "Yawning" [ref=e207] [cursor=pointer]
+          - img "แนวโน้มการแจ้งเตือนรายวัน" [ref=e210]:
+            - generic [ref=e211]:
+              - generic [ref=e213]: "6"
+              - generic [ref=e215]: "5"
+              - generic [ref=e217]: "3"
+              - generic [ref=e219]: "2"
+              - generic [ref=e221]: "0"
+              - generic [ref=e222]: 08/05/2026
+              - generic [ref=e223]: 12/05/2026
+              - generic [ref=e224]: 14/05/2026
+              - generic [ref=e225]: 15/05/2026
+              - generic [ref=e226]: 19/05/2026
+              - generic [ref=e227]: 20/05/2026
+              - generic [ref=e228]: 22/05/2026
+        - generic [ref=e238]:
+          - generic [ref=e239]:
+            - heading "สัดส่วนประเภทการแจ้งเตือน" [level=2] [ref=e240]
+            - generic [ref=e242]:
+              - img "สัดส่วนประเภทการแจ้งเตือน" [ref=e244]:
+                - generic [ref=e250]: "15"
+                - generic [ref=e251]: ทั้งหมด
+              - generic [ref=e252]:
+                - generic [ref=e253]:
+                  - generic [ref=e256]: Yawning
+                  - generic [ref=e257]:
+                    - text: "9"
+                    - generic [ref=e258]: (60%)
+                - generic [ref=e259]:
+                  - generic [ref=e262]: Harsh Acceleration
+                  - generic [ref=e263]:
+                    - text: "4"
+                    - generic [ref=e264]: (27%)
+                - generic [ref=e265]:
+                  - generic [ref=e268]: Distraction
+                  - generic [ref=e269]:
+                    - text: "1"
+                    - generic [ref=e270]: (7%)
+                - generic [ref=e271]:
+                  - generic [ref=e274]: Harsh Brake
+                  - generic [ref=e275]:
+                    - text: "1"
+                    - generic [ref=e276]: (7%)
+          - generic [ref=e277]:
+            - heading "แผนที่ความร้อน" [level=2] [ref=e278]
+            - paragraph [ref=e279]: รวมทุกสัปดาห์และทุกเดือนในช่วงที่เลือก — แสดงจำนวนครั้งตามวันในสัปดาห์และชั่วโมงในวัน
+            - img "Alert heatmap showing 15 alerts distributed across days of the week and hours of the day" [ref=e281]:
+              - generic [ref=e282]:
+                - generic [ref=e283]: Hour of day →
+                - generic [ref=e284]:
+                  - generic [ref=e286]: Day of week
+                  - generic [ref=e287]:
+                    - generic [ref=e289]: 12a
+                    - generic [ref=e290]: 1a
+                    - generic [ref=e291]: 2a
+                    - generic [ref=e292]: 3a
+                    - generic [ref=e293]: 4a
+                    - generic [ref=e294]: 5a
+                    - generic [ref=e295]: 6a
+                    - generic [ref=e296]: 7a
+                    - generic [ref=e297]: 8a
+                    - generic [ref=e298]: 9a
+                    - generic [ref=e299]: 10a
+                    - generic [ref=e300]: 11a
+                    - generic [ref=e301]: 12p
+                    - generic [ref=e302]: 1p
+                    - generic [ref=e303]: 2p
+                    - generic [ref=e304]: 3p
+                    - generic [ref=e305]: 4p
+                    - generic [ref=e306]: 5p
+                    - generic [ref=e307]: 6p
+                    - generic [ref=e308]: 7p
+                    - generic [ref=e309]: 8p
+                    - generic [ref=e310]: 9p
+                    - generic [ref=e311]: 10p
+                    - generic [ref=e312]: 11p
+                    - generic [ref=e313]:
+                      - generic [ref=e314]: Mon
+                      - generic "Mon 00:00, 0 alerts" [ref=e315]
+                      - generic "Mon 01:00, 0 alerts" [ref=e316]
+                      - generic "Mon 02:00, 0 alerts" [ref=e317]
+                      - generic "Mon 03:00, 0 alerts" [ref=e318]
+                      - generic "Mon 04:00, 0 alerts" [ref=e319]
+                      - generic "Mon 05:00, 0 alerts" [ref=e320]
+                      - generic "Mon 06:00, 0 alerts" [ref=e321]
+                      - generic "Mon 07:00, 0 alerts" [ref=e322]
+                      - generic "Mon 08:00, 0 alerts" [ref=e323]
+                      - generic "Mon 09:00, 0 alerts" [ref=e324]
+                      - generic "Mon 10:00, 0 alerts" [ref=e325]
+                      - generic "Mon 11:00, 0 alerts" [ref=e326]
+                      - generic "Mon 12:00, 0 alerts" [ref=e327]
+                      - generic "Mon 13:00, 0 alerts" [ref=e328]
+                      - generic "Mon 14:00, 0 alerts" [ref=e329]
+                      - generic "Mon 15:00, 0 alerts" [ref=e330]
+                      - generic "Mon 16:00, 0 alerts" [ref=e331]
+                      - generic "Mon 17:00, 0 alerts" [ref=e332]
+                      - generic "Mon 18:00, 0 alerts" [ref=e333]
+                      - generic "Mon 19:00, 0 alerts" [ref=e334]
+                      - generic "Mon 20:00, 0 alerts" [ref=e335]
+                      - generic "Mon 21:00, 0 alerts" [ref=e336]
+                      - generic "Mon 22:00, 0 alerts" [ref=e337]
+                      - generic "Mon 23:00, 0 alerts" [ref=e338]
+                    - generic [ref=e339]:
+                      - generic [ref=e340]: Tue
+                      - generic "Tue 00:00, 0 alerts" [ref=e341]
+                      - generic "Tue 01:00, 0 alerts" [ref=e342]
+                      - generic "Tue 02:00, 0 alerts" [ref=e343]
+                      - generic "Tue 03:00, 0 alerts" [ref=e344]
+                      - generic "Tue 04:00, 0 alerts" [ref=e345]
+                      - generic "Tue 05:00, 0 alerts" [ref=e346]
+                      - generic "Tue 06:00, 0 alerts" [ref=e347]
+                      - generic "Tue 07:00, 1 alert" [ref=e348]:
+                        - generic: ·
+                      - generic "Tue 08:00, 0 alerts" [ref=e349]
+                      - generic "Tue 09:00, 0 alerts" [ref=e350]
+                      - generic "Tue 10:00, 0 alerts" [ref=e351]
+                      - generic "Tue 11:00, 0 alerts" [ref=e352]
+                      - generic "Tue 12:00, 0 alerts" [ref=e353]
+                      - generic "Tue 13:00, 0 alerts" [ref=e354]
+                      - generic "Tue 14:00, 0 alerts" [ref=e355]
+                      - generic "Tue 15:00, 1 alert" [ref=e356]:
+                        - generic: ·
+                      - generic "Tue 16:00, 0 alerts" [ref=e357]
+                      - generic "Tue 17:00, 0 alerts" [ref=e358]
+                      - generic "Tue 18:00, 0 alerts" [ref=e359]
+                      - generic "Tue 19:00, 0 alerts" [ref=e360]
+                      - generic "Tue 20:00, 0 alerts" [ref=e361]
+                      - generic "Tue 21:00, 0 alerts" [ref=e362]
+                      - generic "Tue 22:00, 0 alerts" [ref=e363]
+                      - generic "Tue 23:00, 0 alerts" [ref=e364]
+                    - generic [ref=e365]:
+                      - generic [ref=e366]: Wed
+                      - generic "Wed 00:00, 0 alerts" [ref=e367]
+                      - generic "Wed 01:00, 0 alerts" [ref=e368]
+                      - generic "Wed 02:00, 0 alerts" [ref=e369]
+                      - generic "Wed 03:00, 0 alerts" [ref=e370]
+                      - generic "Wed 04:00, 0 alerts" [ref=e371]
+                      - generic "Wed 05:00, 1 alert" [ref=e372]:
+                        - generic: ·
+                      - generic "Wed 06:00, 0 alerts" [ref=e373]
+                      - generic "Wed 07:00, 0 alerts" [ref=e374]
+                      - generic "Wed 08:00, 0 alerts" [ref=e375]
+                      - generic "Wed 09:00, 0 alerts" [ref=e376]
+                      - generic "Wed 10:00, 0 alerts" [ref=e377]
+                      - generic "Wed 11:00, 0 alerts" [ref=e378]
+                      - generic "Wed 12:00, 0 alerts" [ref=e379]
+                      - generic "Wed 13:00, 0 alerts" [ref=e380]
+                      - generic "Wed 14:00, 0 alerts" [ref=e381]
+                      - generic "Wed 15:00, 0 alerts" [ref=e382]
+                      - generic "Wed 16:00, 0 alerts" [ref=e383]
+                      - generic "Wed 17:00, 0 alerts" [ref=e384]
+                      - generic "Wed 18:00, 0 alerts" [ref=e385]
+                      - generic "Wed 19:00, 0 alerts" [ref=e386]
+                      - generic "Wed 20:00, 0 alerts" [ref=e387]
+                      - generic "Wed 21:00, 0 alerts" [ref=e388]
+                      - generic "Wed 22:00, 0 alerts" [ref=e389]
+                      - generic "Wed 23:00, 0 alerts" [ref=e390]
+                    - generic [ref=e391]:
+                      - generic [ref=e392]: Thu
+                      - generic "Thu 00:00, 0 alerts" [ref=e393]
+                      - generic "Thu 01:00, 0 alerts" [ref=e394]
+                      - generic "Thu 02:00, 0 alerts" [ref=e395]
+                      - generic "Thu 03:00, 0 alerts" [ref=e396]
+                      - generic "Thu 04:00, 0 alerts" [ref=e397]
+                      - generic "Thu 05:00, 0 alerts" [ref=e398]
+                      - generic "Thu 06:00, 0 alerts" [ref=e399]
+                      - generic "Thu 07:00, 0 alerts" [ref=e400]
+                      - generic "Thu 08:00, 4 alerts" [ref=e401]:
+                        - generic: ▪
+                      - generic "Thu 09:00, 0 alerts" [ref=e402]
+                      - generic "Thu 10:00, 0 alerts" [ref=e403]
+                      - generic "Thu 11:00, 0 alerts" [ref=e404]
+                      - generic "Thu 12:00, 0 alerts" [ref=e405]
+                      - generic "Thu 13:00, 1 alert" [ref=e406]:
+                        - generic: ·
+                      - generic "Thu 14:00, 0 alerts" [ref=e407]
+                      - generic "Thu 15:00, 0 alerts" [ref=e408]
+                      - generic "Thu 16:00, 0 alerts" [ref=e409]
+                      - generic "Thu 17:00, 0 alerts" [ref=e410]
+                      - generic "Thu 18:00, 0 alerts" [ref=e411]
+                      - generic "Thu 19:00, 0 alerts" [ref=e412]
+                      - generic "Thu 20:00, 0 alerts" [ref=e413]
+                      - generic "Thu 21:00, 0 alerts" [ref=e414]
+                      - generic "Thu 22:00, 0 alerts" [ref=e415]
+                      - generic "Thu 23:00, 0 alerts" [ref=e416]
+                    - generic [ref=e417]:
+                      - generic [ref=e418]: Fri
+                      - generic "Fri 00:00, 0 alerts" [ref=e419]
+                      - generic "Fri 01:00, 0 alerts" [ref=e420]
+                      - generic "Fri 02:00, 0 alerts" [ref=e421]
+                      - generic "Fri 03:00, 0 alerts" [ref=e422]
+                      - generic "Fri 04:00, 0 alerts" [ref=e423]
+                      - generic "Fri 05:00, 0 alerts" [ref=e424]
+                      - generic "Fri 06:00, 1 alert" [ref=e425]:
+                        - generic: ·
+                      - generic "Fri 07:00, 0 alerts" [ref=e426]
+                      - generic "Fri 08:00, 0 alerts" [ref=e427]
+                      - generic "Fri 09:00, 0 alerts" [ref=e428]
+                      - generic "Fri 10:00, 2 alerts" [ref=e429]:
+                        - generic: ·
+                      - generic "Fri 11:00, 0 alerts" [ref=e430]
+                      - generic "Fri 12:00, 1 alert" [ref=e431]:
+                        - generic: ·
+                      - generic "Fri 13:00, 3 alerts" [ref=e432]:
+                        - generic: ▪
+                      - generic "Fri 14:00, 0 alerts" [ref=e433]
+                      - generic "Fri 15:00, 0 alerts" [ref=e434]
+                      - generic "Fri 16:00, 0 alerts" [ref=e435]
+                      - generic "Fri 17:00, 0 alerts" [ref=e436]
+                      - generic "Fri 18:00, 0 alerts" [ref=e437]
+                      - generic "Fri 19:00, 0 alerts" [ref=e438]
+                      - generic "Fri 20:00, 0 alerts" [ref=e439]
+                      - generic "Fri 21:00, 0 alerts" [ref=e440]
+                      - generic "Fri 22:00, 0 alerts" [ref=e441]
+                      - generic "Fri 23:00, 0 alerts" [ref=e442]
+                    - generic [ref=e443]:
+                      - generic [ref=e444]: Sat
+                      - generic "Sat 00:00, 0 alerts" [ref=e445]
+                      - generic "Sat 01:00, 0 alerts" [ref=e446]
+                      - generic "Sat 02:00, 0 alerts" [ref=e447]
+                      - generic "Sat 03:00, 0 alerts" [ref=e448]
+                      - generic "Sat 04:00, 0 alerts" [ref=e449]
+                      - generic "Sat 05:00, 0 alerts" [ref=e450]
+                      - generic "Sat 06:00, 0 alerts" [ref=e451]
+                      - generic "Sat 07:00, 0 alerts" [ref=e452]
+                      - generic "Sat 08:00, 0 alerts" [ref=e453]
+                      - generic "Sat 09:00, 0 alerts" [ref=e454]
+                      - generic "Sat 10:00, 0 alerts" [ref=e455]
+                      - generic "Sat 11:00, 0 alerts" [ref=e456]
+                      - generic "Sat 12:00, 0 alerts" [ref=e457]
+                      - generic "Sat 13:00, 0 alerts" [ref=e458]
+                      - generic "Sat 14:00, 0 alerts" [ref=e459]
+                      - generic "Sat 15:00, 0 alerts" [ref=e460]
+                      - generic "Sat 16:00, 0 alerts" [ref=e461]
+                      - generic "Sat 17:00, 0 alerts" [ref=e462]
+                      - generic "Sat 18:00, 0 alerts" [ref=e463]
+                      - generic "Sat 19:00, 0 alerts" [ref=e464]
+                      - generic "Sat 20:00, 0 alerts" [ref=e465]
+                      - generic "Sat 21:00, 0 alerts" [ref=e466]
+                      - generic "Sat 22:00, 0 alerts" [ref=e467]
+                      - generic "Sat 23:00, 0 alerts" [ref=e468]
+                    - generic [ref=e469]:
+                      - generic [ref=e470]: Sun
+                      - generic "Sun 00:00, 0 alerts" [ref=e471]
+                      - generic "Sun 01:00, 0 alerts" [ref=e472]
+                      - generic "Sun 02:00, 0 alerts" [ref=e473]
+                      - generic "Sun 03:00, 0 alerts" [ref=e474]
+                      - generic "Sun 04:00, 0 alerts" [ref=e475]
+                      - generic "Sun 05:00, 0 alerts" [ref=e476]
+                      - generic "Sun 06:00, 0 alerts" [ref=e477]
+                      - generic "Sun 07:00, 0 alerts" [ref=e478]
+                      - generic "Sun 08:00, 0 alerts" [ref=e479]
+                      - generic "Sun 09:00, 0 alerts" [ref=e480]
+                      - generic "Sun 10:00, 0 alerts" [ref=e481]
+                      - generic "Sun 11:00, 0 alerts" [ref=e482]
+                      - generic "Sun 12:00, 0 alerts" [ref=e483]
+                      - generic "Sun 13:00, 0 alerts" [ref=e484]
+                      - generic "Sun 14:00, 0 alerts" [ref=e485]
+                      - generic "Sun 15:00, 0 alerts" [ref=e486]
+                      - generic "Sun 16:00, 0 alerts" [ref=e487]
+                      - generic "Sun 17:00, 0 alerts" [ref=e488]
+                      - generic "Sun 18:00, 0 alerts" [ref=e489]
+                      - generic "Sun 19:00, 0 alerts" [ref=e490]
+                      - generic "Sun 20:00, 0 alerts" [ref=e491]
+                      - generic "Sun 21:00, 0 alerts" [ref=e492]
+                      - generic "Sun 22:00, 0 alerts" [ref=e493]
+                      - generic "Sun 23:00, 0 alerts" [ref=e494]
+                - generic [ref=e495]:
+                  - generic [ref=e496]: Less
+                  - generic [ref=e503]: More
+        - generic [ref=e504]:
+          - img [ref=e506]
+          - generic [ref=e508]: อันดับและข้อมูลเชิงลึก
+          - img [ref=e509]
+        - generic [ref=e512]:
+          - generic [ref=e513]:
+            - heading "ยานพาหนะ 5 อันดับแรก" [level=2] [ref=e514]
+            - paragraph [ref=e515]: เรียงตามจำนวนการแจ้งเตือน
+            - img "ยานพาหนะ 5 อันดับแรก" [ref=e517]:
+              - generic [ref=e518]:
+                - generic [ref=e520]:
+                  - generic [ref=e521]:
+                    - generic [ref=e522]: "1"
+                    - generic [ref=e523]: Baanphlu-199
+                  - generic [ref=e524]: "8"
+                - generic [ref=e528]:
+                  - generic [ref=e529]:
+                    - generic [ref=e530]: "2"
+                    - generic [ref=e531]: Baanphlu72-2586
+                  - generic [ref=e532]: "7"
+          - generic [ref=e535]:
+            - heading "คนขับ 5 อันดับแรก" [level=2] [ref=e536]
+            - paragraph [ref=e537]: คนขับที่มีการแจ้งเตือนมากที่สุด
+            - img "คนขับ 5 อันดับแรก" [ref=e539]:
+              - generic [ref=e540]:
+                - generic [ref=e542]:
+                  - generic [ref=e543]:
+                    - generic [ref=e544]: "1"
+                    - generic [ref=e545]: Wanlop Chobchuen
+                  - generic [ref=e546]: "5"
+                - generic [ref=e550]:
+                  - generic [ref=e551]:
+                    - generic [ref=e552]: "2"
+                    - generic [ref=e553]: Boriphat Satcha
+                  - generic [ref=e554]: "1"
+        - generic [ref=e557]:
+          - img [ref=e559]
+          - generic [ref=e561]: หลักฐานและไทม์ไลน์
+          - img [ref=e562]
+        - generic [ref=e565]:
+          - generic [ref=e566]:
+            - heading "ไทม์ไลน์การแจ้งเตือน" [level=2] [ref=e567]
+            - generic [ref=e568]:
+              - generic [ref=e569]: แจ้งเตือนซ้ำภายใน 2 ชม.
+              - generic [ref=e571]: 15 รายการล่าสุด
+          - generic [ref=e572]:
+            - generic [ref=e573]:
+              - generic [ref=e574]: 10:10
+              - generic [ref=e575]: 22 May
+              - generic [ref=e576]: Baanphlu-199
+              - generic [ref=e577]: —
+              - generic [ref=e578]: Yawning
+              - generic [ref=e580]:
+                - generic [ref=e581]: "ความเร็ว:"
+                - text: "19"
+            - generic [ref=e582]:
+              - generic [ref=e583]: 10:01
+              - generic [ref=e584]: 22 May
+              - generic [ref=e585]: Baanphlu-199
+              - generic [ref=e586]: —
+              - generic [ref=e587]: Yawning
+              - generic [ref=e589]:
+                - generic [ref=e590]: "ความเร็ว:"
+                - text: "34"
+            - generic [ref=e591]:
+              - generic [ref=e592]: 05:43
+              - generic [ref=e593]: 20 May
+              - generic [ref=e594]: Baanphlu72-2586
+              - generic [ref=e595]: —
+              - generic [ref=e596]: Distraction
+              - generic [ref=e598]:
+                - generic [ref=e599]: "ความเร็ว:"
+                - text: "16"
+            - generic [ref=e600]:
+              - generic [ref=e601]: 15:10
+              - generic [ref=e602]: 19 May
+              - generic [ref=e603]: Baanphlu-199
+              - generic [ref=e604]: —
+              - generic [ref=e605]: Yawning
+              - generic [ref=e607]:
+                - generic [ref=e608]: "ความเร็ว:"
+                - text: "41"
+            - generic [ref=e609]:
+              - generic [ref=e610]: 12:41
+              - generic [ref=e611]: 15 May
+              - generic [ref=e612]: Baanphlu72-2586
+              - generic [ref=e613]: Boriphat Satcha
+              - generic [ref=e614]: Yawning
+              - generic [ref=e616]:
+                - generic [ref=e617]: "ความเร็ว:"
+                - text: "56"
+            - generic [ref=e618]:
+              - generic [ref=e619]: 06:41
+              - generic [ref=e620]: 15 May
+              - generic [ref=e621]: Baanphlu72-2586
+              - generic [ref=e622]: —
+              - generic [ref=e623]: Yawning
+              - generic [ref=e625]:
+                - generic [ref=e626]: "ความเร็ว:"
+                - text: "54"
+            - generic [ref=e627]:
+              - generic [ref=e628]: 13:29
+              - generic [ref=e629]: 14 May
+              - generic [ref=e630]: Baanphlu-199
+              - generic [ref=e631]: Wanlop Chobchuen
+              - generic [ref=e632]: Harsh Brake
+              - generic [ref=e634]:
+                - generic [ref=e635]: "ความเร็ว:"
+                - text: "34"
+            - generic [ref=e636]:
+              - generic [ref=e637]: 08:52
+              - generic [ref=e638]: 14 May
+              - generic [ref=e639]: Baanphlu-199
+              - generic [ref=e640]: Wanlop Chobchuen
+              - generic [ref=e641]: Harsh Acceleration
+              - generic [ref=e643]:
+                - generic [ref=e644]: "ความเร็ว:"
+                - text: "46"
+            - generic [ref=e645]:
+              - generic [ref=e646]: 08:49
+              - generic [ref=e647]: 14 May
+              - generic [ref=e648]: Baanphlu-199
+              - generic [ref=e649]: Wanlop Chobchuen
+              - generic [ref=e650]: Harsh Acceleration
+              - generic [ref=e652]:
+                - generic [ref=e653]: "ความเร็ว:"
+                - text: "48"
+            - generic [ref=e654]:
+              - generic [ref=e655]: 08:48
+              - generic [ref=e656]: 14 May
+              - generic [ref=e657]: Baanphlu-199
+              - generic [ref=e658]: Wanlop Chobchuen
+              - generic [ref=e659]: Harsh Acceleration
+              - generic [ref=e661]:
+                - generic [ref=e662]: "ความเร็ว:"
+                - text: "46"
+            - generic [ref=e663]:
+              - generic [ref=e664]: 08:46
+              - generic [ref=e665]: 14 May
+              - generic [ref=e666]: Baanphlu-199
+              - generic [ref=e667]: Wanlop Chobchuen
+              - generic [ref=e668]: Harsh Acceleration
+              - generic [ref=e670]:
+                - generic [ref=e671]: "ความเร็ว:"
+                - text: "22"
+            - generic [ref=e672]:
+              - generic [ref=e673]: 07:50
+              - generic [ref=e674]: 12 May
+              - generic [ref=e675]: Baanphlu72-2586
+              - generic [ref=e676]: —
+              - generic [ref=e677]: Yawning
+              - generic [ref=e679]:
+                - generic [ref=e680]: "ความเร็ว:"
+                - text: "72"
+            - generic [ref=e681]:
+              - generic [ref=e682]: 13:40
+              - generic [ref=e683]: 08 May
+              - generic [ref=e684]: Baanphlu72-2586
+              - generic [ref=e685]: —
+              - generic [ref=e686]: Yawning
+              - generic [ref=e688]:
+                - generic [ref=e689]: "ความเร็ว:"
+                - text: "64"
+            - generic [ref=e690]:
+              - generic [ref=e691]: 13:32
+              - generic [ref=e692]: 08 May
+              - generic [ref=e693]: Baanphlu72-2586
+              - generic [ref=e694]: —
+              - generic [ref=e695]: Yawning
+              - generic [ref=e697]:
+                - generic [ref=e698]: "ความเร็ว:"
+                - text: "73"
+            - generic [ref=e699]:
+              - generic [ref=e700]: 13:23
+              - generic [ref=e701]: 08 May
+              - generic [ref=e702]: Baanphlu72-2586
+              - generic [ref=e703]: —
+              - generic [ref=e704]: Yawning
+              - generic [ref=e706]:
+                - generic [ref=e707]: "ความเร็ว:"
+                - text: "72"
+        - generic [ref=e708]:
+          - generic [ref=e709]:
+            - generic [ref=e710]:
+              - heading "วิดีโอล่าสุดตามประเภทการแจ้งเตือน" [level=2] [ref=e711]
+              - paragraph [ref=e712]: จัดอันดับตามผู้ขับที่มีการแจ้งเตือนมากที่สุด โดยแสดงวิดีโอล่าสุด 1 คลิปต่อคนในแต่ละประเภท
+            - generic [ref=e713]: 6 ตัวอย่าง
+          - generic [ref=e714]:
+            - article [ref=e715]:
+              - generic [ref=e716]:
+                - heading "Distraction" [level=3] [ref=e717]
+                - generic [ref=e718]: 1 / 10 รายการล่าสุด
+              - generic [ref=e720]:
+                - generic [ref=e721]: Distraction
+                - generic [ref=e723]:
+                  - paragraph [ref=e724]: Baanphlu72-2586
+                  - paragraph [ref=e725]: —
+                  - paragraph [ref=e726]: 20/05/2026, 05:43:39
+                  - paragraph [ref=e727]: "ความเร็ว: 16"
+                - link "ดูวิดีโอ" [ref=e728] [cursor=pointer]:
+                  - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Eye%20Closing-A2&pAlertDateTime=20/05/2026%2005:43:39&pDateTime=2026.05.20%2005:43:39
+                  - img [ref=e729]
+                  - text: ดูวิดีโอ
+            - article [ref=e732]:
+              - generic [ref=e733]:
+                - heading "Harsh Acceleration" [level=3] [ref=e734]
+                - generic [ref=e735]: 1 / 10 รายการล่าสุด
+              - generic [ref=e737]:
+                - generic [ref=e738]: Harsh Acceleration
+                - generic [ref=e740]:
+                  - paragraph [ref=e741]: Baanphlu-199
+                  - paragraph [ref=e742]: Wanlop Chobchuen
+                  - paragraph [ref=e743]: 14/05/2026, 08:52:07
+                  - paragraph [ref=e744]: "ความเร็ว: 46"
+                - link "ดูวิดีโอ" [ref=e745] [cursor=pointer]:
+                  - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Harsh%20Acceleration&pAlertDateTime=14/05/2026%2008:52:07&pDateTime=2026.05.14%2008:52:07
+                  - img [ref=e746]
+                  - text: ดูวิดีโอ
+            - article [ref=e749]:
+              - generic [ref=e750]:
+                - heading "Harsh Brake" [level=3] [ref=e751]
+                - generic [ref=e752]: 1 / 10 รายการล่าสุด
+              - generic [ref=e754]:
+                - generic [ref=e755]: Harsh Brake
+                - generic [ref=e757]:
+                  - paragraph [ref=e758]: Baanphlu-199
+                  - paragraph [ref=e759]: Wanlop Chobchuen
+                  - paragraph [ref=e760]: 14/05/2026, 13:29:27
+                  - paragraph [ref=e761]: "ความเร็ว: 34"
+                - link "ดูวิดีโอ" [ref=e762] [cursor=pointer]:
+                  - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Harsh%20Brake&pAlertDateTime=14/05/2026%2013:29:27&pDateTime=2026.05.14%2013:29:27
+                  - img [ref=e763]
+                  - text: ดูวิดีโอ
+            - article [ref=e766]:
+              - generic [ref=e767]:
+                - heading "Yawning" [level=3] [ref=e768]
+                - generic [ref=e769]: 3 / 10 รายการล่าสุด
+              - generic [ref=e770]:
+                - generic [ref=e771]:
+                  - generic [ref=e772]: Yawning
+                  - generic [ref=e774]:
+                    - paragraph [ref=e775]: Baanphlu72-2586
+                    - paragraph [ref=e776]: —
+                    - paragraph [ref=e777]: 15/05/2026, 06:41:56
+                    - paragraph [ref=e778]: "ความเร็ว: 54"
+                  - link "ดูวิดีโอ" [ref=e779] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Yawning-A2&pAlertDateTime=15/05/2026%2006:41:56&pDateTime=2026.05.15%2006:41:56
+                    - img [ref=e780]
+                    - text: ดูวิดีโอ
+                - generic [ref=e783]:
+                  - generic [ref=e784]: Yawning
+                  - generic [ref=e786]:
+                    - paragraph [ref=e787]: Baanphlu-199
+                    - paragraph [ref=e788]: —
+                    - paragraph [ref=e789]: 22/05/2026, 10:10:32
+                    - paragraph [ref=e790]: "ความเร็ว: 19"
+                  - link "ดูวิดีโอ" [ref=e791] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Yawning-A2&pAlertDateTime=22/05/2026%2010:10:32&pDateTime=2026.05.22%2010:10:32
+                    - img [ref=e792]
+                    - text: ดูวิดีโอ
+                - generic [ref=e795]:
+                  - generic [ref=e796]: Yawning
+                  - generic [ref=e798]:
+                    - paragraph [ref=e799]: Baanphlu72-2586
+                    - paragraph [ref=e800]: Boriphat Satcha
+                    - paragraph [ref=e801]: 15/05/2026, 12:41:36
+                    - paragraph [ref=e802]: "ความเร็ว: 56"
+                  - link "ดูวิดีโอ" [ref=e803] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Yawning-A2&pAlertDateTime=15/05/2026%2012:41:36&pDateTime=2026.05.15%2012:41:36
+                    - img [ref=e804]
+                    - text: ดูวิดีโอ
+        - generic [ref=e807]:
+          - img [ref=e809]
+          - generic [ref=e811]: ข้อมูลทั้งหมด
+          - img [ref=e812]
+        - generic [ref=e815]:
+          - generic [ref=e816]:
+            - heading "ตารางการแจ้งเตือน" [level=2] [ref=e817]
+            - generic [ref=e818]:
+              - button "เลือกทั้งหมด" [ref=e819] [cursor=pointer]
+              - generic [ref=e820]: 15 รายการ
+          - table "ตารางการแจ้งเตือน" [ref=e824]:
+            - rowgroup [ref=e825]:
+              - row "แถว วันเวลาแจ้งเตือน รถ คนขับ ความเร็ว ฟลีท ประเภทดิบ (ผู้ดูแล) ประเภทการแจ้งเตือน วิดีโอ แก้ไขคนขับ" [ref=e826]:
+                - columnheader [ref=e827]
+                - columnheader "แถว" [ref=e828] [cursor=pointer]:
+                  - generic [ref=e829]: แถว
+                - columnheader "วันเวลาแจ้งเตือน" [ref=e830] [cursor=pointer]:
+                  - generic [ref=e831]:
+                    - text: วันเวลาแจ้งเตือน
+                    - generic [ref=e832]: ▼
+                - columnheader "รถ" [ref=e833] [cursor=pointer]:
+                  - generic [ref=e834]: รถ
+                - columnheader "คนขับ" [ref=e835] [cursor=pointer]:
+                  - generic [ref=e836]: คนขับ
+                - columnheader "ความเร็ว" [ref=e837] [cursor=pointer]:
+                  - generic [ref=e838]: ความเร็ว
+                - columnheader "ฟลีท" [ref=e839] [cursor=pointer]:
+                  - generic [ref=e840]: ฟลีท
+                - columnheader "ประเภทดิบ (ผู้ดูแล)" [ref=e841] [cursor=pointer]:
+                  - generic [ref=e842]: ประเภทดิบ (ผู้ดูแล)
+                - columnheader "ประเภทการแจ้งเตือน" [ref=e843] [cursor=pointer]:
+                  - generic [ref=e844]: ประเภทการแจ้งเตือน
+                - columnheader "วิดีโอ" [ref=e845]:
+                  - generic [ref=e846]: วิดีโอ
+                - columnheader "แก้ไขคนขับ" [ref=e847]:
+                  - generic [ref=e848]: แก้ไขคนขับ
+            - rowgroup [ref=e849]:
+              - row "เลือกแถวนี้ 7673 22/05/2026, 10:10:32 Baanphlu-199 — 19 Baanphlu Yawning-A2 Yawning ดู ระบุคนขับ" [ref=e850]:
+                - cell "เลือกแถวนี้" [ref=e851]:
+                  - checkbox "เลือกแถวนี้" [ref=e852] [cursor=pointer]
+                - cell "7673" [ref=e853]
+                - cell "22/05/2026, 10:10:32" [ref=e854]
+                - cell "Baanphlu-199" [ref=e855]
+                - cell "—" [ref=e856]
+                - cell "19" [ref=e857]
+                - cell "Baanphlu" [ref=e858]
+                - cell "Yawning-A2" [ref=e859]
+                - cell "Yawning" [ref=e860]:
+                  - generic [ref=e861]: Yawning
+                - cell "ดู" [ref=e862]:
+                  - link "ดู" [ref=e863] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Yawning-A2&pAlertDateTime=22/05/2026 10:10:32&pDateTime=2026.05.22 10:10:32
+                - cell "ระบุคนขับ" [ref=e864]:
+                  - button "ระบุคนขับ" [ref=e865] [cursor=pointer]:
+                    - generic [ref=e866]: ระบุคนขับ
+                    - img [ref=e867]
+              - row "เลือกแถวนี้ 7674 22/05/2026, 10:01:45 Baanphlu-199 — 34 Baanphlu Yawning-A2 Yawning ดู ระบุคนขับ" [ref=e869]:
+                - cell "เลือกแถวนี้" [ref=e870]:
+                  - checkbox "เลือกแถวนี้" [ref=e871] [cursor=pointer]
+                - cell "7674" [ref=e872]
+                - cell "22/05/2026, 10:01:45" [ref=e873]
+                - cell "Baanphlu-199" [ref=e874]
+                - cell "—" [ref=e875]
+                - cell "34" [ref=e876]
+                - cell "Baanphlu" [ref=e877]
+                - cell "Yawning-A2" [ref=e878]
+                - cell "Yawning" [ref=e879]:
+                  - generic [ref=e880]: Yawning
+                - cell "ดู" [ref=e881]:
+                  - link "ดู" [ref=e882] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Yawning-A2&pAlertDateTime=22/05/2026 10:01:45&pDateTime=2026.05.22 10:01:45
+                - cell "ระบุคนขับ" [ref=e883]:
+                  - button "ระบุคนขับ" [ref=e884] [cursor=pointer]:
+                    - generic [ref=e885]: ระบุคนขับ
+                    - img [ref=e886]
+              - row "เลือกแถวนี้ 8354 20/05/2026, 05:43:39 Baanphlu72-2586 — 16 Baanphlu Eye Closing-A2 Distraction ดู ระบุคนขับ" [ref=e888]:
+                - cell "เลือกแถวนี้" [ref=e889]:
+                  - checkbox "เลือกแถวนี้" [ref=e890] [cursor=pointer]
+                - cell "8354" [ref=e891]
+                - cell "20/05/2026, 05:43:39" [ref=e892]
+                - cell "Baanphlu72-2586" [ref=e893]
+                - cell "—" [ref=e894]
+                - cell "16" [ref=e895]
+                - cell "Baanphlu" [ref=e896]
+                - cell "Eye Closing-A2" [ref=e897]
+                - cell "Distraction" [ref=e898]:
+                  - generic [ref=e899]: Distraction
+                - cell "ดู" [ref=e900]:
+                  - link "ดู" [ref=e901] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Eye Closing-A2&pAlertDateTime=20/05/2026 05:43:39&pDateTime=2026.05.20 05:43:39
+                - cell "ระบุคนขับ" [ref=e902]:
+                  - button "ระบุคนขับ" [ref=e903] [cursor=pointer]:
+                    - generic [ref=e904]: ระบุคนขับ
+                    - img [ref=e905]
+              - row "เลือกแถวนี้ 8454 19/05/2026, 15:10:40 Baanphlu-199 — 41 Baanphlu Yawning-A2 Yawning ดู ระบุคนขับ" [ref=e907]:
+                - cell "เลือกแถวนี้" [ref=e908]:
+                  - checkbox "เลือกแถวนี้" [ref=e909] [cursor=pointer]
+                - cell "8454" [ref=e910]
+                - cell "19/05/2026, 15:10:40" [ref=e911]
+                - cell "Baanphlu-199" [ref=e912]
+                - cell "—" [ref=e913]
+                - cell "41" [ref=e914]
+                - cell "Baanphlu" [ref=e915]
+                - cell "Yawning-A2" [ref=e916]
+                - cell "Yawning" [ref=e917]:
+                  - generic [ref=e918]: Yawning
+                - cell "ดู" [ref=e919]:
+                  - link "ดู" [ref=e920] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Yawning-A2&pAlertDateTime=19/05/2026 15:10:40&pDateTime=2026.05.19 15:10:40
+                - cell "ระบุคนขับ" [ref=e921]:
+                  - button "ระบุคนขับ" [ref=e922] [cursor=pointer]:
+                    - generic [ref=e923]: ระบุคนขับ
+                    - img [ref=e924]
+              - row "เลือกแถวนี้ 10177 15/05/2026, 12:41:36 Baanphlu72-2586 Boriphat Satcha 56 Baanphlu Yawning-A2 Yawning ดู ระบุคนขับ" [ref=e926]:
+                - cell "เลือกแถวนี้" [ref=e927]:
+                  - checkbox "เลือกแถวนี้" [ref=e928] [cursor=pointer]
+                - cell "10177" [ref=e929]
+                - cell "15/05/2026, 12:41:36" [ref=e930]
+                - cell "Baanphlu72-2586" [ref=e931]
+                - cell "Boriphat Satcha" [ref=e932]
+                - cell "56" [ref=e933]
+                - cell "Baanphlu" [ref=e934]
+                - cell "Yawning-A2" [ref=e935]
+                - cell "Yawning" [ref=e936]:
+                  - generic [ref=e937]: Yawning
+                - cell "ดู" [ref=e938]:
+                  - link "ดู" [ref=e939] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Yawning-A2&pAlertDateTime=15/05/2026 12:41:36&pDateTime=2026.05.15 12:41:36
+                - cell "ระบุคนขับ" [ref=e940]:
+                  - button "ระบุคนขับ" [ref=e941] [cursor=pointer]:
+                    - generic [ref=e942]: ระบุคนขับ
+                    - img [ref=e943]
+              - row "เลือกแถวนี้ 10508 15/05/2026, 06:41:56 Baanphlu72-2586 — 54 Baanphlu Yawning-A2 Yawning ดู ระบุคนขับ" [ref=e945]:
+                - cell "เลือกแถวนี้" [ref=e946]:
+                  - checkbox "เลือกแถวนี้" [ref=e947] [cursor=pointer]
+                - cell "10508" [ref=e948]
+                - cell "15/05/2026, 06:41:56" [ref=e949]
+                - cell "Baanphlu72-2586" [ref=e950]
+                - cell "—" [ref=e951]
+                - cell "54" [ref=e952]
+                - cell "Baanphlu" [ref=e953]
+                - cell "Yawning-A2" [ref=e954]
+                - cell "Yawning" [ref=e955]:
+                  - generic [ref=e956]: Yawning
+                - cell "ดู" [ref=e957]:
+                  - link "ดู" [ref=e958] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Yawning-A2&pAlertDateTime=15/05/2026 06:41:56&pDateTime=2026.05.15 06:41:56
+                - cell "ระบุคนขับ" [ref=e959]:
+                  - button "ระบุคนขับ" [ref=e960] [cursor=pointer]:
+                    - generic [ref=e961]: ระบุคนขับ
+                    - img [ref=e962]
+              - row "เลือกแถวนี้ 10375 14/05/2026, 13:29:27 Baanphlu-199 Wanlop Chobchuen 34 Baanphlu Harsh Brake Harsh Brake ดู ระบุคนขับ" [ref=e964]:
+                - cell "เลือกแถวนี้" [ref=e965]:
+                  - checkbox "เลือกแถวนี้" [ref=e966] [cursor=pointer]
+                - cell "10375" [ref=e967]
+                - cell "14/05/2026, 13:29:27" [ref=e968]
+                - cell "Baanphlu-199" [ref=e969]
+                - cell "Wanlop Chobchuen" [ref=e970]
+                - cell "34" [ref=e971]
+                - cell "Baanphlu" [ref=e972]
+                - cell "Harsh Brake" [ref=e973]
+                - cell "Harsh Brake" [ref=e974]:
+                  - generic [ref=e975]: Harsh Brake
+                - cell "ดู" [ref=e976]:
+                  - link "ดู" [ref=e977] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Harsh Brake&pAlertDateTime=14/05/2026 13:29:27&pDateTime=2026.05.14 13:29:27
+                - cell "ระบุคนขับ" [ref=e978]:
+                  - button "ระบุคนขับ" [ref=e979] [cursor=pointer]:
+                    - generic [ref=e980]: ระบุคนขับ
+                    - img [ref=e981]
+              - row "เลือกแถวนี้ 10376 14/05/2026, 08:52:07 Baanphlu-199 Wanlop Chobchuen 46 Baanphlu Harsh Acceleration Harsh Acceleration ดู ระบุคนขับ" [ref=e983]:
+                - cell "เลือกแถวนี้" [ref=e984]:
+                  - checkbox "เลือกแถวนี้" [ref=e985] [cursor=pointer]
+                - cell "10376" [ref=e986]
+                - cell "14/05/2026, 08:52:07" [ref=e987]
+                - cell "Baanphlu-199" [ref=e988]
+                - cell "Wanlop Chobchuen" [ref=e989]
+                - cell "46" [ref=e990]
+                - cell "Baanphlu" [ref=e991]
+                - cell "Harsh Acceleration" [ref=e992]
+                - cell "Harsh Acceleration" [ref=e993]:
+                  - generic [ref=e994]: Harsh Acceleration
+                - cell "ดู" [ref=e995]:
+                  - link "ดู" [ref=e996] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Harsh Acceleration&pAlertDateTime=14/05/2026 08:52:07&pDateTime=2026.05.14 08:52:07
+                - cell "ระบุคนขับ" [ref=e997]:
+                  - button "ระบุคนขับ" [ref=e998] [cursor=pointer]:
+                    - generic [ref=e999]: ระบุคนขับ
+                    - img [ref=e1000]
+              - row "เลือกแถวนี้ 10377 14/05/2026, 08:49:10 Baanphlu-199 Wanlop Chobchuen 48 Baanphlu Harsh Acceleration Harsh Acceleration ดู ระบุคนขับ" [ref=e1002]:
+                - cell "เลือกแถวนี้" [ref=e1003]:
+                  - checkbox "เลือกแถวนี้" [ref=e1004] [cursor=pointer]
+                - cell "10377" [ref=e1005]
+                - cell "14/05/2026, 08:49:10" [ref=e1006]
+                - cell "Baanphlu-199" [ref=e1007]
+                - cell "Wanlop Chobchuen" [ref=e1008]
+                - cell "48" [ref=e1009]
+                - cell "Baanphlu" [ref=e1010]
+                - cell "Harsh Acceleration" [ref=e1011]
+                - cell "Harsh Acceleration" [ref=e1012]:
+                  - generic [ref=e1013]: Harsh Acceleration
+                - cell "ดู" [ref=e1014]:
+                  - link "ดู" [ref=e1015] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Harsh Acceleration&pAlertDateTime=14/05/2026 08:49:10&pDateTime=2026.05.14 08:49:10
+                - cell "ระบุคนขับ" [ref=e1016]:
+                  - button "ระบุคนขับ" [ref=e1017] [cursor=pointer]:
+                    - generic [ref=e1018]: ระบุคนขับ
+                    - img [ref=e1019]
+              - row "เลือกแถวนี้ 10378 14/05/2026, 08:48:02 Baanphlu-199 Wanlop Chobchuen 46 Baanphlu Harsh Acceleration Harsh Acceleration ดู ระบุคนขับ" [ref=e1021]:
+                - cell "เลือกแถวนี้" [ref=e1022]:
+                  - checkbox "เลือกแถวนี้" [ref=e1023] [cursor=pointer]
+                - cell "10378" [ref=e1024]
+                - cell "14/05/2026, 08:48:02" [ref=e1025]
+                - cell "Baanphlu-199" [ref=e1026]
+                - cell "Wanlop Chobchuen" [ref=e1027]
+                - cell "46" [ref=e1028]
+                - cell "Baanphlu" [ref=e1029]
+                - cell "Harsh Acceleration" [ref=e1030]
+                - cell "Harsh Acceleration" [ref=e1031]:
+                  - generic [ref=e1032]: Harsh Acceleration
+                - cell "ดู" [ref=e1033]:
+                  - link "ดู" [ref=e1034] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Harsh Acceleration&pAlertDateTime=14/05/2026 08:48:02&pDateTime=2026.05.14 08:48:02
+                - cell "ระบุคนขับ" [ref=e1035]:
+                  - button "ระบุคนขับ" [ref=e1036] [cursor=pointer]:
+                    - generic [ref=e1037]: ระบุคนขับ
+                    - img [ref=e1038]
+              - row "เลือกแถวนี้ 10379 14/05/2026, 08:46:55 Baanphlu-199 Wanlop Chobchuen 22 Baanphlu Harsh Acceleration Harsh Acceleration ดู ระบุคนขับ" [ref=e1040]:
+                - cell "เลือกแถวนี้" [ref=e1041]:
+                  - checkbox "เลือกแถวนี้" [ref=e1042] [cursor=pointer]
+                - cell "10379" [ref=e1043]
+                - cell "14/05/2026, 08:46:55" [ref=e1044]
+                - cell "Baanphlu-199" [ref=e1045]
+                - cell "Wanlop Chobchuen" [ref=e1046]
+                - cell "22" [ref=e1047]
+                - cell "Baanphlu" [ref=e1048]
+                - cell "Harsh Acceleration" [ref=e1049]
+                - cell "Harsh Acceleration" [ref=e1050]:
+                  - generic [ref=e1051]: Harsh Acceleration
+                - cell "ดู" [ref=e1052]:
+                  - link "ดู" [ref=e1053] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu-199&pAlertType=Harsh Acceleration&pAlertDateTime=14/05/2026 08:46:55&pDateTime=2026.05.14 08:46:55
+                - cell "ระบุคนขับ" [ref=e1054]:
+                  - button "ระบุคนขับ" [ref=e1055] [cursor=pointer]:
+                    - generic [ref=e1056]: ระบุคนขับ
+                    - img [ref=e1057]
+              - row "เลือกแถวนี้ 11735 12/05/2026, 07:50:20 Baanphlu72-2586 — 72 Baanphlu Yawning-A2 Yawning ดู ระบุคนขับ" [ref=e1059]:
+                - cell "เลือกแถวนี้" [ref=e1060]:
+                  - checkbox "เลือกแถวนี้" [ref=e1061] [cursor=pointer]
+                - cell "11735" [ref=e1062]
+                - cell "12/05/2026, 07:50:20" [ref=e1063]
+                - cell "Baanphlu72-2586" [ref=e1064]
+                - cell "—" [ref=e1065]
+                - cell "72" [ref=e1066]
+                - cell "Baanphlu" [ref=e1067]
+                - cell "Yawning-A2" [ref=e1068]
+                - cell "Yawning" [ref=e1069]:
+                  - generic [ref=e1070]: Yawning
+                - cell "ดู" [ref=e1071]:
+                  - link "ดู" [ref=e1072] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Yawning-A2&pAlertDateTime=12/05/2026 07:50:20&pDateTime=2026.05.12 07:50:20
+                - cell "ระบุคนขับ" [ref=e1073]:
+                  - button "ระบุคนขับ" [ref=e1074] [cursor=pointer]:
+                    - generic [ref=e1075]: ระบุคนขับ
+                    - img [ref=e1076]
+              - row "เลือกแถวนี้ 13334 08/05/2026, 13:40:25 Baanphlu72-2586 — 64 Baanphlu Yawning-A2 Yawning ดู ระบุคนขับ" [ref=e1078]:
+                - cell "เลือกแถวนี้" [ref=e1079]:
+                  - checkbox "เลือกแถวนี้" [ref=e1080] [cursor=pointer]
+                - cell "13334" [ref=e1081]
+                - cell "08/05/2026, 13:40:25" [ref=e1082]
+                - cell "Baanphlu72-2586" [ref=e1083]
+                - cell "—" [ref=e1084]
+                - cell "64" [ref=e1085]
+                - cell "Baanphlu" [ref=e1086]
+                - cell "Yawning-A2" [ref=e1087]
+                - cell "Yawning" [ref=e1088]:
+                  - generic [ref=e1089]: Yawning
+                - cell "ดู" [ref=e1090]:
+                  - link "ดู" [ref=e1091] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Yawning-A2&pAlertDateTime=08/05/2026 13:40:25&pDateTime=2026.05.08 13:40:25
+                - cell "ระบุคนขับ" [ref=e1092]:
+                  - button "ระบุคนขับ" [ref=e1093] [cursor=pointer]:
+                    - generic [ref=e1094]: ระบุคนขับ
+                    - img [ref=e1095]
+              - row "เลือกแถวนี้ 13338 08/05/2026, 13:32:10 Baanphlu72-2586 — 73 Baanphlu Yawning-A2 Yawning ดู ระบุคนขับ" [ref=e1097]:
+                - cell "เลือกแถวนี้" [ref=e1098]:
+                  - checkbox "เลือกแถวนี้" [ref=e1099] [cursor=pointer]
+                - cell "13338" [ref=e1100]
+                - cell "08/05/2026, 13:32:10" [ref=e1101]
+                - cell "Baanphlu72-2586" [ref=e1102]
+                - cell "—" [ref=e1103]
+                - cell "73" [ref=e1104]
+                - cell "Baanphlu" [ref=e1105]
+                - cell "Yawning-A2" [ref=e1106]
+                - cell "Yawning" [ref=e1107]:
+                  - generic [ref=e1108]: Yawning
+                - cell "ดู" [ref=e1109]:
+                  - link "ดู" [ref=e1110] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Yawning-A2&pAlertDateTime=08/05/2026 13:32:10&pDateTime=2026.05.08 13:32:10
+                - cell "ระบุคนขับ" [ref=e1111]:
+                  - button "ระบุคนขับ" [ref=e1112] [cursor=pointer]:
+                    - generic [ref=e1113]: ระบุคนขับ
+                    - img [ref=e1114]
+              - row "เลือกแถวนี้ 13345 08/05/2026, 13:23:43 Baanphlu72-2586 — 72 Baanphlu Yawning-A2 Yawning ดู ระบุคนขับ" [ref=e1116]:
+                - cell "เลือกแถวนี้" [ref=e1117]:
+                  - checkbox "เลือกแถวนี้" [ref=e1118] [cursor=pointer]
+                - cell "13345" [ref=e1119]
+                - cell "08/05/2026, 13:23:43" [ref=e1120]
+                - cell "Baanphlu72-2586" [ref=e1121]
+                - cell "—" [ref=e1122]
+                - cell "72" [ref=e1123]
+                - cell "Baanphlu" [ref=e1124]
+                - cell "Yawning-A2" [ref=e1125]
+                - cell "Yawning" [ref=e1126]:
+                  - generic [ref=e1127]: Yawning
+                - cell "ดู" [ref=e1128]:
+                  - link "ดู" [ref=e1129] [cursor=pointer]:
+                    - /url: https://www.vehtecvideo.net/FMSVideoAlertsV2?paramVehicleNo=Baanphlu72-2586&pAlertType=Yawning-A2&pAlertDateTime=08/05/2026 13:23:43&pDateTime=2026.05.08 13:23:43
+                - cell "ระบุคนขับ" [ref=e1130]:
+                  - button "ระบุคนขับ" [ref=e1131] [cursor=pointer]:
+                    - generic [ref=e1132]: ระบุคนขับ
+                    - img [ref=e1133]
+        - generic [ref=e107]: Powered by SongdeeGPS
+  - button "Open Next.js Dev Tools" [ref=e114] [cursor=pointer]:
+    - img [ref=e115]
+  - alert [ref=e118]

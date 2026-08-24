@@ -51,6 +51,8 @@ type DashboardProps = {
   organizationNames?: string[] | null;
   lang?: DashboardLang;
   isAdmin?: boolean;
+  /** Customer-specific status rules; defaults to the existing Alchem mapping. */
+  unitStatusProfile?: 'alchem' | 'vinythai';
 };
 
 type VehicleRow = {
@@ -159,6 +161,7 @@ export default function AlchemUnitStatusDashboard({
   organizationNames,
   lang = 'en',
   isAdmin = false,
+  unitStatusProfile = 'alchem',
 }: DashboardProps) {
   const scopeNames = useMemo(
     () => resolveScopeFleetNames(organizationName, organizationNames),
@@ -212,6 +215,7 @@ export default function AlchemUnitStatusDashboard({
         const location = toText(findValue(row, ['location', 'Location', 'Region']));
         const recording = toText(findValue(row, ['recording', 'Recording']));
         const videoloss = toText(findValue(row, ['videoloss', 'Video Loss', 'Videoloss']));
+        const cameraCh2 = findValue(row, ['Camera CH2', 'Camera Ch2', 'CH2', 'C2', 'Camera 2']);
         const gpsRaw = findValue(row, ['gps', 'GPS', 'GPS Status']);
         const updatedRaw = toText(
           findValue(row, ['lastupdatedtime', 'Last Updated Time', 'datatime', 'Date & time', 'DateTime']),
@@ -223,6 +227,9 @@ export default function AlchemUnitStatusDashboard({
           gps: gpsRaw,
           recording,
           videoloss,
+          cameraCh2,
+          fatigueCameraChannel: unitStatusProfile === 'vinythai' ? 2 : 3,
+          intercomAlwaysOnline: unitStatusProfile === 'vinythai',
           updatedAt,
           now,
         });
@@ -245,7 +252,7 @@ export default function AlchemUnitStatusDashboard({
         if (!row.fleet) return true; // no Fleet column on Alchem sheet → keep rows
         return scopeSet.has(normalizeLabel(row.fleet));
       });
-  }, [rows, scopeSet, lang, now]);
+  }, [rows, scopeSet, lang, now, unitStatusProfile]);
 
   const vehicleOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.vehicleNo).filter(Boolean))).sort(), [vehicleRows]);
   const driverOptions = useMemo(() => Array.from(new Set(vehicleRows.map((row) => row.driver).filter(Boolean))).sort(), [vehicleRows]);

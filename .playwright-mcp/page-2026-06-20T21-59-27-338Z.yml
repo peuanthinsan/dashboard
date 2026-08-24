@@ -1,0 +1,51 @@
+- generic [active] [ref=e1]:
+  - link "ข้ามไปยังเนื้อหาหลัก" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - link "SongdeeGPS" [ref=e8] [cursor=pointer]:
+            - /url: /dashboard
+            - img "SongdeeGPS" [ref=e9]
+          - navigation "เมนูหลัก" [ref=e10]:
+            - link "แดชบอร์ด" [ref=e11] [cursor=pointer]:
+              - /url: /dashboard
+        - generic [ref=e12]:
+          - button "Switch interface language to English" [ref=e13] [cursor=pointer]: English
+          - button "Switch to dark mode" [ref=e14] [cursor=pointer]:
+            - generic [ref=e15]: ☀
+    - main [ref=e16]:
+      - generic [ref=e19]:
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - link "กลับไปหน้าแดชบอร์ด" [ref=e25] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e26]
+              - text: กลับไปหน้าแดชบอร์ด
+            - paragraph [ref=e28]: แดชบอร์ดรายละเอียด
+            - generic [ref=e29]:
+              - img "SongdeeGPS" [ref=e30]
+              - heading "Baanplu" [level=1] [ref=e31]
+            - generic [ref=e33]: 1 ตัวกรองที่ใช้งานอยู่
+          - generic [ref=e34]:
+            - button "ส่งออก CSV" [disabled] [ref=e35]:
+              - img [ref=e36]
+              - text: ส่งออก CSV
+            - link "แก้ไข" [ref=e38] [cursor=pointer]:
+              - /url: /admin/dashboards?highlight=8e1bce78-4a1a-4efc-9cd6-e6f32bd66895
+              - img [ref=e39]
+              - text: แก้ไข
+            - button "พิมพ์ / PDF" [ref=e41] [cursor=pointer]:
+              - img [ref=e42]
+              - text: พิมพ์ / PDF
+        - status [ref=e44]:
+          - generic [ref=e45]:
+            - status "กำลังโหลดการแจ้งเตือนแบบละเอียด..." [ref=e46]
+            - generic [ref=e47]:
+              - paragraph [ref=e48]: กำลังโหลดการแจ้งเตือนแบบละเอียด...
+              - paragraph [ref=e49]: กำลังสร้างไทม์ไลน์การแจ้งเตือนล่าสุด
+        - generic [ref=e107]: Powered by SongdeeGPS
+  - button "Open Next.js Dev Tools" [ref=e114] [cursor=pointer]:
+    - img [ref=e115]
+  - alert [ref=e118]

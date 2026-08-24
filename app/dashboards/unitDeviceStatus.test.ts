@@ -130,6 +130,34 @@ describe('deriveUnitDeviceIndicators', () => {
     expect(ind.overall).toBe('warning');
   });
 
+  it('supports Vinythai rules: Fatigue AI uses CH2 and Intercom stays green', () => {
+    const ind = deriveUnitDeviceIndicators({
+      vehicleNo: 'VT001',
+      gps: false,
+      recording: '1, 2, 3, 4, 5',
+      videoloss: 'None',
+      cameraCh2: 'offline',
+      fatigueCameraChannel: 2,
+      intercomAlwaysOnline: true,
+    });
+    expect(ind.fatigueAi).toBe('offline');
+    expect(ind.intercom).toBe('online');
+    expect(ind.overall).toBe('offline');
+  });
+
+  it('parses a connected direct Camera CH2 value', () => {
+    const ind = deriveUnitDeviceIndicators({
+      vehicleNo: 'VT002',
+      gps: true,
+      recording: '1, 3, 4, 5',
+      cameraCh2: 'Connected',
+      fatigueCameraChannel: 2,
+      intercomAlwaysOnline: true,
+    });
+    expect(ind.cameras[2]).toBe('online');
+    expect(ind.fatigueAi).toBe('online');
+  });
+
   it('overrides the overall status to Offline when the API update is over 30 minutes old', () => {
     const ind = deriveUnitDeviceIndicators({
       vehicleNo: 'T029',

@@ -51,7 +51,7 @@ import type {
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
 import { DrivingSheetLinkFields } from './DrivingSheetLinkFields';
 import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'BIGTHUnitStatus', 'ALCHEMUnitStatus'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'BIGTHUnitStatus', 'ALCHEMUnitStatus', 'VINYTHAIUnitStatus'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
 
