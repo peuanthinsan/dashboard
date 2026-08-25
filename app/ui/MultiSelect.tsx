@@ -28,7 +28,6 @@ export default function MultiSelect({
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [cleared, setCleared] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const optionRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -43,26 +42,16 @@ export default function MultiSelect({
     [options, search],
   );
 
-  const allSelected = selected.length === 0 || selected.length === options.length;
-  const hasSelection = selected.length > 0 && selected.length < options.length;
+  const hasSelection = selected.length > 0;
 
   const toggleItem = (item: string) => {
-    // An empty selection is the shared dashboard convention for "show all".
-    // Start a filter with the clicked option instead of treating the empty
-    // state as an explicit selection of every option (which inverted the
-    // interaction and made Clear filter appear to do nothing).
-    if (selected.length === 0) {
-      setCleared(false);
-      onChange([item]);
-      return;
-    }
+    const next = selected.includes(item)
+      ? selected.filter((s) => s !== item)
+      : [...selected, item];
 
-    setCleared(false);
-    onChange(
-      selected.includes(item)
-        ? selected.filter((s) => s !== item)
-        : [...selected, item],
-    );
+    // Every option selected is equivalent to no filter. Keep one canonical
+    // representation so the dropdown and the dashboard cannot disagree.
+    onChange(next.length === options.length ? [] : next);
   };
 
   useEffect(() => {
@@ -85,7 +74,7 @@ export default function MultiSelect({
     if (open) searchRef.current?.focus();
   }, [open]);
 
-  const triggerText = allSelected
+  const triggerText = !hasSelection
     ? t.all
     : `${selected.length} ${label}`;
 
@@ -146,7 +135,7 @@ export default function MultiSelect({
 
           <div id={listboxId} className="max-h-[240px] overflow-y-auto p-1.5" role="listbox" aria-label={label} aria-multiselectable="true">
             {filtered.map((option) => {
-              const checked = !cleared && (allSelected || selected.includes(option));
+              const checked = selected.includes(option);
               const optionIndex = filtered.indexOf(option);
               // role="option" must sit on the focusable element so screen readers
               // announce "selected/not selected" and keyboard users can reach it.
@@ -215,9 +204,9 @@ export default function MultiSelect({
               onClick={() => {
                 onChange([]);
                 setSearch('');
-                setCleared(true);
               }}
-              className="text-[11px] font-semibold text-zinc-500 transition hover:text-zinc-900 dark:hover:text-zinc-200"
+              disabled={!hasSelection}
+              className="text-[11px] font-semibold text-zinc-500 transition hover:text-zinc-900 disabled:cursor-default disabled:opacity-40 dark:hover:text-zinc-200"
             >
               {t.clear}
             </button>
