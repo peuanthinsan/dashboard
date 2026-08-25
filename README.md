@@ -1,6 +1,6 @@
-# SongdeeGPS Dashboard
+# Fleet Dashboard
 
-Fleet safety and driving analytics dashboard for SongdeeGPS. Monitors alerts, driver performance, and fleet metrics with data sourced from Google Sheets.
+Fleet safety and driving analytics dashboard for fleet operations. Monitors alerts, driver performance, and fleet metrics with data sourced from Google Sheets.
 
 ## Features
 
