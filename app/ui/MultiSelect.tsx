@@ -46,11 +46,19 @@ export default function MultiSelect({
   const hasSelection = selected.length > 0 && selected.length < options.length;
 
   const toggleItem = (item: string) => {
-    const effectiveSelection = selected.length === 0 ? options : selected;
+    // An empty selection is the shared dashboard convention for "show all".
+    // Start a filter with the clicked option instead of treating the empty
+    // state as an explicit selection of every option (which inverted the
+    // interaction and made Clear filter appear to do nothing).
+    if (selected.length === 0) {
+      onChange([item]);
+      return;
+    }
+
     onChange(
-      effectiveSelection.includes(item)
-        ? effectiveSelection.filter((s) => s !== item)
-        : [...effectiveSelection, item],
+      selected.includes(item)
+        ? selected.filter((s) => s !== item)
+        : [...selected, item],
     );
   };
 
@@ -204,6 +212,7 @@ export default function MultiSelect({
               onClick={() => {
                 onChange([]);
                 setSearch('');
+                setOpen(false);
               }}
               className="text-[11px] font-semibold text-zinc-500 transition hover:text-zinc-900 dark:hover:text-zinc-200"
             >
