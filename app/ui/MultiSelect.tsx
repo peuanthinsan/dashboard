@@ -28,6 +28,7 @@ export default function MultiSelect({
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [cleared, setCleared] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const optionRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -51,10 +52,12 @@ export default function MultiSelect({
     // state as an explicit selection of every option (which inverted the
     // interaction and made Clear filter appear to do nothing).
     if (selected.length === 0) {
+      setCleared(false);
       onChange([item]);
       return;
     }
 
+    setCleared(false);
     onChange(
       selected.includes(item)
         ? selected.filter((s) => s !== item)
@@ -143,7 +146,7 @@ export default function MultiSelect({
 
           <div id={listboxId} className="max-h-[240px] overflow-y-auto p-1.5" role="listbox" aria-label={label} aria-multiselectable="true">
             {filtered.map((option) => {
-              const checked = allSelected || selected.includes(option);
+              const checked = !cleared && (allSelected || selected.includes(option));
               const optionIndex = filtered.indexOf(option);
               // role="option" must sit on the focusable element so screen readers
               // announce "selected/not selected" and keyboard users can reach it.
@@ -212,7 +215,7 @@ export default function MultiSelect({
               onClick={() => {
                 onChange([]);
                 setSearch('');
-                setOpen(false);
+                setCleared(true);
               }}
               className="text-[11px] font-semibold text-zinc-500 transition hover:text-zinc-900 dark:hover:text-zinc-200"
             >
