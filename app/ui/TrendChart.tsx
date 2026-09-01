@@ -23,6 +23,8 @@ interface TrendChartProps {
   colors?: string[];
   className?: string;
   ariaLabel?: string;
+  /** Set false when summing values from different comparison periods would be misleading. */
+  showTooltipTotal?: boolean;
   /** Show every category with full labels (angled); extra bottom margin. Use for driver / entity names on bar charts. */
   xAxisCategoryMode?: boolean;
   /** When set, guarantees each category at least this many SVG units of width, growing the chart and making it horizontally scrollable instead of shrinking bars as categories are added. */
@@ -111,10 +113,10 @@ function YAxisLeft({ svgHeight, maxValue, layout, svgWidth }: { svgHeight: numbe
   const plotWidth = svgWidth - layout.left - layout.right;
   return (
     <>
-      {ticks.map((tick) => {
+      {ticks.map((tick, index) => {
         const y = layout.top + tick.position * (svgHeight - layout.top - layout.bottom);
         return (
-          <g key={`y-left-${tick.value}`}>
+          <g key={`y-left-${index}-${tick.value}`}>
             <line
               x1={layout.left}
               y1={y}
@@ -168,11 +170,11 @@ function YAxisRight({
   const rightX = svgWidth - layout.right;
   return (
     <>
-      {ticks.map((tick) => {
+      {ticks.map((tick, index) => {
         const y = layout.top + tick.position * (svgHeight - layout.top - layout.bottom);
         return (
           <text
-            key={`y-right-${tick.value}`}
+            key={`y-right-${index}-${tick.value}`}
             x={rightX + 10}
             y={y + 4}
             textAnchor="start"
@@ -429,7 +431,10 @@ function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMod
     const multiData = data as MultiTrendDatum[];
     const seriesKeys = Object.keys(multiData[0].values);
     const labels = multiData.map((d) => d.label);
-    const rawMax = Math.max(1, ...multiData.flatMap((d) => Object.values(d.values)));
+    const finiteValues = multiData
+      .flatMap((d) => Object.values(d.values))
+      .filter((value) => Number.isFinite(value));
+    const rawMax = Math.max(1, ...finiteValues);
     const maxValue = computeNiceMax(rawMax, 4);
     const groupWidth = plotWidth / multiData.length;
     const barPad = 0.15;
@@ -442,7 +447,10 @@ function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMod
         {multiData.map((d, gi) => {
           const groupX = layout.left + gi * groupWidth + groupWidth * barPad;
           return seriesKeys.map((key, si) => {
-            const value = d.values[key] ?? 0;
+            const value = d.values[key];
+            // Non-finite values represent calendar cells that do not exist or
+            // fall outside a partial selected month. They are absent, not zero.
+            if (!Number.isFinite(value)) return null;
             const barH = ((value / Math.max(1, maxValue)) * (svgHeight - layout.top - layout.bottom));
             const x = groupX + si * barWidth;
             const y = baselineY - barH;
@@ -462,11 +470,12 @@ function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMod
                     x: e.clientX,
                     y: e.clientY,
                     header: labels[gi],
-                    rows: seriesKeys.map((k, ki) => ({
-                      color: colors[ki % colors.length],
-                      label: k,
-                      value: d.values[k] ?? 0,
-                    })),
+                    rows: seriesKeys.flatMap((k, ki) => {
+                      const rowValue = d.values[k];
+                      return Number.isFinite(rowValue)
+                        ? [{ color: colors[ki % colors.length], label: k, value: rowValue }]
+                        : [];
+                    }),
                   })
                 }
                 onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
@@ -708,7 +717,11 @@ function Legend({ seriesKeys, colors, mode, barKey, lineKey }: LegendProps) {
           { label: barKey, color: colors[0], shape: 'rect' as const },
           { label: lineKey, color: colors[1] ?? colors[0], shape: 'line' as const },
         ]
-      : seriesKeys.map((key, i) => ({ label: key, color: colors[i % colors.length], shape: 'line' as const }));
+      : seriesKeys.map((key, i) => ({
+          label: key,
+          color: colors[i % colors.length],
+          shape: mode === 'bar' ? 'rect' as const : 'line' as const,
+        }));
 
   return (
     <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-zinc-500 dark:text-zinc-400">
@@ -750,6 +763,69 @@ function EmptyChart({ svgHeight, svgWidth }: { svgHeight: number; svgWidth: numb
   );
 }
 
+/**
+ * SVG geometry and hover tooltips are not sufficient for assistive technology.
+ * Keep the same chart values available as a semantic table without changing
+ * the visual layout.
+ */
+function AccessibleDataTable({
+  data,
+  caption,
+}: {
+  data: TrendDatum[] | MultiTrendDatum[];
+  caption: string;
+}) {
+  if (data.length === 0) return null;
+
+  if (isMultiTrendData(data)) {
+    const seriesKeys = Object.keys(data[0].values);
+    return (
+      <table className="sr-only">
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Category</th>
+            {seriesKeys.map((key) => <th key={key} scope="col">{key}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((datum, index) => (
+            <tr key={`${index}-${datum.label}`}>
+              <th scope="row">{datum.label}</th>
+              {seriesKeys.map((key) => {
+                const value = datum.values[key];
+                return (
+                  <td key={key}>{Number.isFinite(value) ? formatDataLabel(value) : '—'}</td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
+  return (
+    <table className="sr-only">
+      <caption>{caption}</caption>
+      <thead>
+        <tr>
+          <th scope="col">Category</th>
+          <th scope="col">Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((datum, index) => (
+          <tr key={`${index}-${datum.label}`}>
+            <th scope="row">{datum.label}</th>
+            <td>{formatDataLabel(datum.value)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -761,6 +837,7 @@ export default function TrendChart({
   colors = CHART_COLORS,
   className = '',
   ariaLabel,
+  showTooltipTotal = true,
   xAxisCategoryMode = false,
   minCategoryWidth,
 }: TrendChartProps) {
@@ -834,6 +911,7 @@ export default function TrendChart({
           )}
         </svg>
       </div>
+      <AccessibleDataTable data={data} caption={ariaLabel ?? 'Trend chart data'} />
       <Legend
         seriesKeys={seriesKeys}
         colors={colors}
@@ -847,7 +925,7 @@ export default function TrendChart({
         y={tooltip.y}
         header={tooltip.header}
         rows={tooltip.rows}
-        showTotal={tooltip.rows.length > 1}
+        showTotal={showTooltipTotal && tooltip.rows.length > 1}
       />
     </div>
   );

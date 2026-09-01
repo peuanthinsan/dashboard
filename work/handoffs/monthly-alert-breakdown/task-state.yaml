@@ -1,0 +1,10 @@
+task_id: monthly-alert-breakdown
+active_root: codex
+delegated_provider: claude-code
+phase: review
+requested_lane: review
+observed_model: UNKNOWN
+observed_effort: UNKNOWN
+base_ref: cc48d6623df598cd1bbf4ce02cce9e684b265675
+writer_lease: codex-source-claude-receipt-only
+status: delegated_review_blocked_auth
