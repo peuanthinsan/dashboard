@@ -511,6 +511,14 @@ export function resolveTemplate(template: string): string {
   if (template === 'OverSpeed') return 'OverSpeed';
   if (normalized === 'vehicle kpi' || normalized === 'vehiclekpi') return 'VehicleKPI';
   if (template === 'DynamicTrip') return 'DynamicTrip';
+  if (
+    normalized === 'location data v1' ||
+    normalized === 'locationdatav1' ||
+    normalized === 'location data' ||
+    normalized === 'location dashboard'
+  ) {
+    return 'LocationDataV1';
+  }
   return template;
 }
 

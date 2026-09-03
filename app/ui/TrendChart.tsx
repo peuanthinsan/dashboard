@@ -25,10 +25,24 @@ interface TrendChartProps {
   ariaLabel?: string;
   /** Set false when summing values from different comparison periods would be misleading. */
   showTooltipTotal?: boolean;
+  /** Label used for a single-series tooltip row and accessible table value column. */
+  singleSeriesLabel?: string;
+  /** Maximum number of horizontal X-axis labels before labels are skipped. */
+  maxXAxisLabels?: number;
+  /** Number of intervals on the Y axis. */
+  yAxisTickCount?: number;
+  /** Prefer fewer evenly spaced gridlines over fractional labels for count data. */
+  wholeNumberYAxis?: boolean;
+  /** Fraction of each category slot reserved on both sides of a single bar. */
+  barCategoryPadding?: number;
+  /** Optional cap for a single-series bar's width in SVG units. */
+  maxBarWidth?: number;
   /** Show every category with full labels (angled); extra bottom margin. Use for driver / entity names on bar charts. */
   xAxisCategoryMode?: boolean;
   /** When set, guarantees each category at least this many SVG units of width, growing the chart and making it horizontally scrollable instead of shrinking bars as categories are added. */
   minCategoryWidth?: number;
+  /** Keep category sizing at a fixed SVG scale so sparse charts remain readable on narrow screens. */
+  preserveCategoryScale?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,6 +59,7 @@ function isMultiTrendData(data: TrendDatum[] | MultiTrendDatum[]): data is Multi
 // ---------------------------------------------------------------------------
 
 const SVG_WIDTH = 1200;
+const MIN_FIXED_CATEGORY_WIDTH = 360;
 const BASE_PADDING = { top: 28, right: 56, bottom: 60, left: 80 } as const;
 type ChartLayout = { top: number; right: number; bottom: number; left: number };
 
@@ -108,8 +123,25 @@ function toX(index: number, total: number, layout: ChartLayout, svgWidth: number
 // Sub-renderers
 // ---------------------------------------------------------------------------
 
-function YAxisLeft({ svgHeight, maxValue, layout, svgWidth }: { svgHeight: number; maxValue: number; layout: ChartLayout; svgWidth: number }) {
-  const ticks = buildYAxisTicks(maxValue, 4);
+function buildWholeNumberYAxisTicks(maxValue: number, tickCount: number) {
+  const wholeMax = Math.max(1, Math.ceil(maxValue));
+  let intervalCount = Math.min(Math.max(1, Math.floor(tickCount)), wholeMax);
+
+  while (intervalCount > 1 && wholeMax % intervalCount !== 0) {
+    intervalCount -= 1;
+  }
+
+  const step = wholeMax / intervalCount;
+  return Array.from({ length: intervalCount + 1 }, (_, index) => ({
+    value: wholeMax - index * step,
+    position: index / intervalCount,
+  }));
+}
+
+function YAxisLeft({ svgHeight, maxValue, tickCount, wholeNumbers, layout, svgWidth }: { svgHeight: number; maxValue: number; tickCount: number; wholeNumbers: boolean; layout: ChartLayout; svgWidth: number }) {
+  const ticks = wholeNumbers
+    ? buildWholeNumberYAxisTicks(maxValue, tickCount)
+    : buildYAxisTicks(maxValue, tickCount);
   const plotWidth = svgWidth - layout.left - layout.right;
   return (
     <>
@@ -156,17 +188,19 @@ function YAxisLeft({ svgHeight, maxValue, layout, svgWidth }: { svgHeight: numbe
 function YAxisRight({
   svgHeight,
   maxValue,
+  tickCount,
   label,
   layout,
   svgWidth,
 }: {
   svgHeight: number;
   maxValue: number;
+  tickCount: number;
   label?: string;
   layout: ChartLayout;
   svgWidth: number;
 }) {
-  const ticks = buildYAxisTicks(maxValue, 4);
+  const ticks = buildYAxisTicks(maxValue, tickCount);
   const rightX = svgWidth - layout.right;
   return (
     <>
@@ -214,6 +248,7 @@ function XAxisLabels({
   svgHeight,
   maxLabels = 8,
   categoryMode = false,
+  banded = false,
   layout,
   svgWidth,
 }: {
@@ -221,6 +256,7 @@ function XAxisLabels({
   svgHeight: number;
   maxLabels?: number;
   categoryMode?: boolean;
+  banded?: boolean;
   layout: ChartLayout;
   svgWidth: number;
 }) {
@@ -243,7 +279,9 @@ function XAxisLabels({
             filteredIndex < arr.length - 1
               ? filteredIndex * step
               : count - 1;
-          const x = toX(origIndex, count, layout, svgWidth);
+          const x = banded
+            ? layout.left + ((origIndex + 0.5) / count) * (svgWidth - layout.left - layout.right)
+            : toX(origIndex, count, layout, svgWidth);
           const text = label.length > maxChars ? `${label.slice(0, maxChars - 1)}…` : label;
           return (
             <text
@@ -284,10 +322,14 @@ interface LineModeProps {
   setTooltip: SetTooltip;
   layout: ChartLayout;
   xAxisCategoryMode: boolean;
+  maxXAxisLabels: number;
+  yAxisTickCount: number;
+  wholeNumberYAxis: boolean;
+  singleSeriesLabel?: string;
   svgWidth: number;
 }
 
-function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode, svgWidth }: LineModeProps) {
+function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode, maxXAxisLabels, yAxisTickCount, wholeNumberYAxis, singleSeriesLabel, svgWidth }: LineModeProps) {
   if (data.length === 0) return null;
 
   const isMulti = isMultiTrendData(data);
@@ -298,12 +340,12 @@ function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMo
     const seriesKeys = Object.keys(multiData[0].values);
     const labels = multiData.map((d) => d.label);
     const rawMax = Math.max(1, ...multiData.flatMap((d) => Object.values(d.values)));
-    const maxValue = computeNiceMax(rawMax, 4);
+    const maxValue = computeNiceMax(rawMax, yAxisTickCount);
 
     return (
       <g>
-        <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} svgWidth={svgWidth} />
-        <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
+        <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} tickCount={yAxisTickCount} wholeNumbers={wholeNumberYAxis} layout={layout} svgWidth={svgWidth} />
+        <XAxisLabels labels={labels} svgHeight={svgHeight} maxLabels={maxXAxisLabels} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
         {seriesKeys.map((key, si) => {
           const color = colors[si % colors.length];
           const points = multiData.map((d, i) => ({
@@ -355,7 +397,7 @@ function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMo
   const singleData = data as TrendDatum[];
   const labels = singleData.map((d) => d.label);
   const rawMax = Math.max(1, ...singleData.map((d) => d.value));
-  const maxValue = computeNiceMax(rawMax, 4);
+  const maxValue = computeNiceMax(rawMax, yAxisTickCount);
   const color = colors[0];
   const baselineY = svgHeight - layout.bottom;
 
@@ -369,8 +411,8 @@ function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMo
 
   return (
     <g>
-      <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} svgWidth={svgWidth} />
-      <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
+      <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} tickCount={yAxisTickCount} wholeNumbers={wholeNumberYAxis} layout={layout} svgWidth={svgWidth} />
+      <XAxisLabels labels={labels} svgHeight={svgHeight} maxLabels={maxXAxisLabels} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
       {/* Area fill */}
       <path d={areaPath} fill={color} fillOpacity="0.08" stroke="none" />
       {/* Line */}
@@ -396,7 +438,7 @@ function LineMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMo
               x: e.clientX,
               y: e.clientY,
               header: labels[i],
-              rows: [{ color, label: labels[i], value: singleData[i].value }],
+              rows: [{ color, label: singleSeriesLabel ?? labels[i], value: singleData[i].value }],
             })
           }
           onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
@@ -417,10 +459,16 @@ interface BarModeProps {
   setTooltip: SetTooltip;
   layout: ChartLayout;
   xAxisCategoryMode: boolean;
+  maxXAxisLabels: number;
+  yAxisTickCount: number;
+  wholeNumberYAxis: boolean;
+  barCategoryPadding?: number;
+  maxBarWidth?: number;
+  singleSeriesLabel?: string;
   svgWidth: number;
 }
 
-function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode, svgWidth }: BarModeProps) {
+function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode, maxXAxisLabels, yAxisTickCount, wholeNumberYAxis, barCategoryPadding, maxBarWidth, singleSeriesLabel, svgWidth }: BarModeProps) {
   if (data.length === 0) return null;
 
   const isMulti = isMultiTrendData(data);
@@ -435,15 +483,15 @@ function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMod
       .flatMap((d) => Object.values(d.values))
       .filter((value) => Number.isFinite(value));
     const rawMax = Math.max(1, ...finiteValues);
-    const maxValue = computeNiceMax(rawMax, 4);
+    const maxValue = computeNiceMax(rawMax, yAxisTickCount);
     const groupWidth = plotWidth / multiData.length;
     const barPad = 0.15;
     const barWidth = (groupWidth * (1 - barPad * 2)) / seriesKeys.length;
 
     return (
       <g>
-        <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} svgWidth={svgWidth} />
-        <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
+        <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} tickCount={yAxisTickCount} wholeNumbers={wholeNumberYAxis} layout={layout} svgWidth={svgWidth} />
+        <XAxisLabels labels={labels} svgHeight={svgHeight} maxLabels={maxXAxisLabels} categoryMode={xAxisCategoryMode} banded layout={layout} svgWidth={svgWidth} />
         {multiData.map((d, gi) => {
           const groupX = layout.left + gi * groupWidth + groupWidth * barPad;
           return seriesKeys.map((key, si) => {
@@ -491,18 +539,18 @@ function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMod
   const singleData = data as TrendDatum[];
   const labels = singleData.map((d) => d.label);
   const rawMax = Math.max(1, ...singleData.map((d) => d.value));
-  const maxValue = computeNiceMax(rawMax, 4);
-  const barPad = 0.1;
-  const barWidth = (plotWidth / singleData.length) * (1 - barPad * 2);
+  const maxValue = computeNiceMax(rawMax, yAxisTickCount);
+  const barPad = Math.min(0.45, Math.max(0, barCategoryPadding ?? 0.1));
+  const slotWidth = plotWidth / singleData.length;
+  const barWidth = Math.min(slotWidth * (1 - barPad * 2), maxBarWidth ?? Number.POSITIVE_INFINITY);
   const color = colors[0];
 
   return (
     <g>
-      <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} layout={layout} svgWidth={svgWidth} />
-      <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
+      <YAxisLeft svgHeight={svgHeight} maxValue={maxValue} tickCount={yAxisTickCount} wholeNumbers={wholeNumberYAxis} layout={layout} svgWidth={svgWidth} />
+      <XAxisLabels labels={labels} svgHeight={svgHeight} maxLabels={maxXAxisLabels} categoryMode={xAxisCategoryMode} banded layout={layout} svgWidth={svgWidth} />
       {singleData.map((d, i) => {
-        const slotWidth = plotWidth / singleData.length;
-        const x = layout.left + i * slotWidth + slotWidth * barPad;
+        const x = layout.left + i * slotWidth + (slotWidth - barWidth) / 2;
         const barH = (d.value / Math.max(1, maxValue)) * (svgHeight - layout.top - layout.bottom);
         const y = baselineY - barH;
         return (
@@ -520,7 +568,7 @@ function BarMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMod
                 x: e.clientX,
                 y: e.clientY,
                 header: labels[i],
-                rows: [{ color, label: labels[i], value: d.value }],
+                rows: [{ color, label: singleSeriesLabel ?? labels[i], value: d.value }],
               })
             }
             onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
@@ -542,10 +590,13 @@ interface DualAxisModeProps {
   setTooltip: SetTooltip;
   layout: ChartLayout;
   xAxisCategoryMode: boolean;
+  maxXAxisLabels: number;
+  yAxisTickCount: number;
+  wholeNumberYAxis: boolean;
   svgWidth: number;
 }
 
-function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode, svgWidth }: DualAxisModeProps) {
+function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCategoryMode, maxXAxisLabels, yAxisTickCount, wholeNumberYAxis, svgWidth }: DualAxisModeProps) {
   if (data.length === 0) return null;
 
   const seriesKeys = Object.keys(data[0].values);
@@ -556,8 +607,8 @@ function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCatego
   const barValues = data.map((d) => d.values[barKey] ?? 0);
   const lineValues = data.map((d) => d.values[lineKey] ?? 0);
 
-  const maxBarValue = computeNiceMax(Math.max(1, ...barValues), 4);
-  const maxLineValue = computeNiceMax(Math.max(1, ...lineValues), 4);
+  const maxBarValue = computeNiceMax(Math.max(1, ...barValues), yAxisTickCount);
+  const maxLineValue = computeNiceMax(Math.max(1, ...lineValues), yAxisTickCount);
 
   const plotWidth = svgWidth - layout.left - layout.right;
   const plotHeight = svgHeight - layout.top - layout.bottom;
@@ -579,12 +630,12 @@ function DualAxisMode({ data, svgHeight, colors, setTooltip, layout, xAxisCatego
   return (
     <g>
       {/* Left Y-axis (bars) */}
-      <YAxisLeft svgHeight={svgHeight} maxValue={maxBarValue} layout={layout} svgWidth={svgWidth} />
+      <YAxisLeft svgHeight={svgHeight} maxValue={maxBarValue} tickCount={yAxisTickCount} wholeNumbers={wholeNumberYAxis} layout={layout} svgWidth={svgWidth} />
       {/* Right Y-axis (line) */}
       {lineKey ? (
-        <YAxisRight svgHeight={svgHeight} maxValue={maxLineValue} label={lineKey} layout={layout} svgWidth={svgWidth} />
+        <YAxisRight svgHeight={svgHeight} maxValue={maxLineValue} tickCount={yAxisTickCount} label={lineKey} layout={layout} svgWidth={svgWidth} />
       ) : null}
-      <XAxisLabels labels={labels} svgHeight={svgHeight} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
+      <XAxisLabels labels={labels} svgHeight={svgHeight} maxLabels={maxXAxisLabels} categoryMode={xAxisCategoryMode} layout={layout} svgWidth={svgWidth} />
 
       {/* Bars */}
       {data.map((d, i) => {
@@ -771,58 +822,64 @@ function EmptyChart({ svgHeight, svgWidth }: { svgHeight: number; svgWidth: numb
 function AccessibleDataTable({
   data,
   caption,
+  valueLabel,
 }: {
   data: TrendDatum[] | MultiTrendDatum[];
   caption: string;
+  valueLabel?: string;
 }) {
   if (data.length === 0) return null;
 
   if (isMultiTrendData(data)) {
     const seriesKeys = Object.keys(data[0].values);
     return (
-      <table className="sr-only">
+      <div className="sr-only">
+        <table>
+          <caption>{caption}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              {seriesKeys.map((key) => <th key={key} scope="col">{key}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((datum, index) => (
+              <tr key={`${index}-${datum.label}`}>
+                <th scope="row">{datum.label}</th>
+                {seriesKeys.map((key) => {
+                  const value = datum.values[key];
+                  return (
+                    <td key={key}>{Number.isFinite(value) ? formatDataLabel(value) : '—'}</td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <div className="sr-only">
+      <table>
         <caption>{caption}</caption>
         <thead>
           <tr>
             <th scope="col">Category</th>
-            {seriesKeys.map((key) => <th key={key} scope="col">{key}</th>)}
+            <th scope="col">{valueLabel ?? 'Value'}</th>
           </tr>
         </thead>
         <tbody>
           {data.map((datum, index) => (
             <tr key={`${index}-${datum.label}`}>
               <th scope="row">{datum.label}</th>
-              {seriesKeys.map((key) => {
-                const value = datum.values[key];
-                return (
-                  <td key={key}>{Number.isFinite(value) ? formatDataLabel(value) : '—'}</td>
-                );
-              })}
+              <td>{formatDataLabel(datum.value)}</td>
             </tr>
           ))}
         </tbody>
       </table>
-    );
-  }
-
-  return (
-    <table className="sr-only">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          <th scope="col">Category</th>
-          <th scope="col">Value</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((datum, index) => (
-          <tr key={`${index}-${datum.label}`}>
-            <th scope="row">{datum.label}</th>
-            <td>{formatDataLabel(datum.value)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    </div>
   );
 }
 
@@ -838,13 +895,24 @@ export default function TrendChart({
   className = '',
   ariaLabel,
   showTooltipTotal = true,
+  singleSeriesLabel,
+  maxXAxisLabels = 8,
+  yAxisTickCount = 4,
+  wholeNumberYAxis = false,
+  barCategoryPadding,
+  maxBarWidth,
   xAxisCategoryMode = false,
   minCategoryWidth,
+  preserveCategoryScale = false,
 }: TrendChartProps) {
   const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0, header: '', rows: [] });
   const svgHeight = height;
-  const svgWidth = minCategoryWidth ? Math.max(SVG_WIDTH, data.length * minCategoryWidth) : SVG_WIDTH;
-  const scrolls = svgWidth > SVG_WIDTH;
+  const fixedCategoryWidth = minCategoryWidth && preserveCategoryScale
+    ? Math.max(MIN_FIXED_CATEGORY_WIDTH, data.length * minCategoryWidth)
+    : undefined;
+  const svgWidth = fixedCategoryWidth
+    ?? (minCategoryWidth ? Math.max(SVG_WIDTH, data.length * minCategoryWidth) : SVG_WIDTH);
+  const scrolls = fixedCategoryWidth !== undefined || svgWidth > SVG_WIDTH;
   const viewBox = `0 0 ${svgWidth} ${svgHeight}`;
   const isEmpty = data.length === 0;
   const layout = getChartLayout(xAxisCategoryMode);
@@ -861,7 +929,14 @@ export default function TrendChart({
         <svg
           viewBox={viewBox}
           overflow="visible"
-          style={scrolls ? { width: `${svgWidth}px`, height: 'auto', display: 'block' } : { width: '100%', height: 'auto', display: 'block' }}
+          style={scrolls
+            ? {
+                width: `${svgWidth}px`,
+                height: 'auto',
+                display: 'block',
+                ...(fixedCategoryWidth !== undefined ? { margin: '0 auto' } : {}),
+              }
+            : { width: '100%', height: 'auto', display: 'block' }}
           role="img"
           aria-label={ariaLabel ?? 'Trend chart'}
         >
@@ -875,6 +950,10 @@ export default function TrendChart({
               setTooltip={setTooltip}
               layout={layout}
               xAxisCategoryMode={xAxisCategoryMode}
+              maxXAxisLabels={maxXAxisLabels}
+              yAxisTickCount={yAxisTickCount}
+              wholeNumberYAxis={wholeNumberYAxis}
+              singleSeriesLabel={singleSeriesLabel}
               svgWidth={svgWidth}
             />
           ) : mode === 'bar' ? (
@@ -885,6 +964,12 @@ export default function TrendChart({
               setTooltip={setTooltip}
               layout={layout}
               xAxisCategoryMode={xAxisCategoryMode}
+              maxXAxisLabels={maxXAxisLabels}
+              yAxisTickCount={yAxisTickCount}
+              wholeNumberYAxis={wholeNumberYAxis}
+              barCategoryPadding={barCategoryPadding}
+              maxBarWidth={maxBarWidth}
+              singleSeriesLabel={singleSeriesLabel}
               svgWidth={svgWidth}
             />
           ) : mode === 'dual-axis' && isMulti ? (
@@ -895,6 +980,9 @@ export default function TrendChart({
               setTooltip={setTooltip}
               layout={layout}
               xAxisCategoryMode={xAxisCategoryMode}
+              maxXAxisLabels={maxXAxisLabels}
+              yAxisTickCount={yAxisTickCount}
+              wholeNumberYAxis={wholeNumberYAxis}
               svgWidth={svgWidth}
             />
           ) : (
@@ -906,12 +994,22 @@ export default function TrendChart({
               setTooltip={setTooltip}
               layout={layout}
               xAxisCategoryMode={xAxisCategoryMode}
+              maxXAxisLabels={maxXAxisLabels}
+              yAxisTickCount={yAxisTickCount}
+              wholeNumberYAxis={wholeNumberYAxis}
+              barCategoryPadding={barCategoryPadding}
+              maxBarWidth={maxBarWidth}
+              singleSeriesLabel={singleSeriesLabel}
               svgWidth={svgWidth}
             />
           )}
         </svg>
       </div>
-      <AccessibleDataTable data={data} caption={ariaLabel ?? 'Trend chart data'} />
+      <AccessibleDataTable
+        data={data}
+        caption={ariaLabel ?? 'Trend chart data'}
+        valueLabel={singleSeriesLabel}
+      />
       <Legend
         seriesKeys={seriesKeys}
         colors={colors}

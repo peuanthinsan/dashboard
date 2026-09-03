@@ -154,7 +154,19 @@ export function DataTable<T extends object>({
                     >
                       {col.label}
                       <span aria-hidden="true" className={isActive ? 'text-red-500' : 'text-zinc-300 dark:text-zinc-600'}>
-                        {isActive ? (sort.direction === 'asc' ? '▲' : '▼') : '↕'}
+                        <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.35">
+                          {isActive ? (
+                            sort.direction === 'asc' ? (
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 7.5 6 4l3.5 3.5" />
+                            ) : (
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 4.5 6 8l3.5-3.5" />
+                            )
+                          ) : (
+                            <>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4 6 1l3 3M9 8l-3 3-3-3" />
+                            </>
+                          )}
+                        </svg>
                       </span>
                     </button>
                   ) : (

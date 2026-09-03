@@ -118,6 +118,9 @@ describe('dashboardDataUtils', () => {
       expect(resolveTemplate('Simple')).toBe('Simple');
       expect(resolveTemplate('Driving')).toBe('Driving');
       expect(resolveTemplate('DynamicTrip')).toBe('DynamicTrip');
+      expect(resolveTemplate('Location Data v1')).toBe('LocationDataV1');
+      expect(resolveTemplate('locationdatav1')).toBe('LocationDataV1');
+      expect(resolveTemplate('location dashboard')).toBe('LocationDataV1');
     });
 
     it('maps ALCHEMUnitStatus aliases without colliding with BIGTH unit status', () => {

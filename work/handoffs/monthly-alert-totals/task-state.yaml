@@ -1,0 +1,11 @@
+task_id: monthly-alert-totals
+active_root: codex
+delegated_provider: claude-code
+phase: review
+requested_lane: review
+observed_provider_version: 2.1.252
+observed_model: UNKNOWN
+observed_effort: UNKNOWN
+base_ref: 336af20282bb430d108163c983e0ddac3511ea5a
+writer_lease: codex-source-claude-receipt-only
+status: fallback_review_complete_after_scope_change

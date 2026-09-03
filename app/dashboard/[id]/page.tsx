@@ -15,6 +15,7 @@ import {
 import DetailDashboard from 'app/dashboards/DetailDashboard';
 import DrivingDashboard from 'app/dashboards/DrivingDashboard';
 import DynamicTripDashboard from 'app/dashboards/DynamicTripDashboard';
+import LocationDataV1Dashboard from 'app/dashboards/LocationDataV1Dashboard';
 import OverSpeedDashboard from 'app/dashboards/OverSpeedDashboard';
 import VehicleKpiDashboard from 'app/dashboards/VehicleKpiDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
@@ -122,6 +123,8 @@ function DashboardByTemplate({
       return <VehicleKpiDashboard {...props} isAdmin={isAdmin} />;
     case 'DynamicTrip':
       return <DynamicTripDashboard {...props} isAdmin={isAdmin} />;
+    case 'LocationDataV1':
+      return <LocationDataV1Dashboard {...props} isAdmin={isAdmin} />;
     case 'BIGTHUnitStatus':
       return <BigthUnitStatusDashboard {...props} isAdmin={isAdmin} />;
     case 'ALCHEMUnitStatus':

@@ -1,0 +1,180 @@
+'use client';
+
+import { useMemo } from 'react';
+import { heading2, textMuted } from 'app/ui/design-tokens';
+
+export type TelemetryPoint = {
+  id: number;
+  segmentKey: string;
+  vehicleNo: string;
+  timestamp: number;
+  speed: number;
+  ignitionOn: boolean | null;
+};
+
+type LocationTelemetryTimelineProps = {
+  points: TelemetryPoint[];
+  lang?: 'en' | 'th';
+};
+
+const WIDTH = 760;
+const HEIGHT = 320;
+const PAD = { top: 30, right: 28, bottom: 50, left: 48 };
+const MAX_POINTS = 240;
+
+function samplePoints<T>(values: T[], max: number): T[] {
+  if (values.length <= max) return values;
+  return Array.from({ length: max }, (_, index) => {
+    const sourceIndex = Math.round((index * (values.length - 1)) / (max - 1));
+    return values[sourceIndex]!;
+  });
+}
+
+function formatTick(timestamp: number, includeDate: boolean) {
+  return new Date(timestamp).toLocaleTimeString('en-GB', {
+    ...(includeDate ? { day: '2-digit', month: '2-digit' } : {}),
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  });
+}
+
+export default function LocationTelemetryTimeline({ points, lang = 'en' }: LocationTelemetryTimelineProps) {
+  const chart = useMemo(() => {
+    const ordered = samplePoints(
+      [...points].filter((point) => Number.isFinite(point.timestamp)).sort((a, b) => a.timestamp - b.timestamp),
+      MAX_POINTS,
+    );
+    if (ordered.length === 0) return null;
+    const start = ordered[0]!.timestamp;
+    const end = ordered[ordered.length - 1]!.timestamp;
+    const span = Math.max(end - start, 1);
+    const rawMax = Math.max(...ordered.map((point) => point.speed), 0);
+    const maxSpeed = Math.max(20, Math.ceil(rawMax / 20) * 20);
+    const plotWidth = WIDTH - PAD.left - PAD.right;
+    const plotHeight = HEIGHT - PAD.top - PAD.bottom;
+    const mapped = ordered.map((point, index) => ({
+      ...point,
+      x: ordered.length === 1 ? PAD.left + plotWidth / 2 : PAD.left + ((point.timestamp - start) / span) * plotWidth,
+      y: PAD.top + plotHeight - (Math.max(0, point.speed) / maxSpeed) * plotHeight,
+      index,
+    }));
+    const grouped = new Map<string, typeof mapped>();
+    mapped.forEach((point) => {
+      const values = grouped.get(point.segmentKey) ?? [];
+      values.push(point);
+      grouped.set(point.segmentKey, values);
+    });
+    const segments = Array.from(grouped.entries()).map(([key, values]) => ({ key, values }));
+    const speedPaths = segments.flatMap(({ key, values }) => {
+      if (values.length < 2) return [];
+      return [{
+        key,
+        path: values.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' '),
+      }];
+    });
+    const areaPaths = speedPaths.map(({ key, path }) => {
+      const values = grouped.get(key)!;
+      return {
+        key,
+        path: `${path} L ${values[values.length - 1]!.x.toFixed(2)} ${(PAD.top + plotHeight).toFixed(2)} L ${values[0]!.x.toFixed(2)} ${(PAD.top + plotHeight).toFixed(2)} Z`,
+      };
+    });
+    return { ordered, mapped, segments, start, end, maxSpeed, plotWidth, plotHeight, speedPaths, areaPaths };
+  }, [points]);
+
+  const labels = lang === 'th'
+    ? {
+        title: 'ความเร็วและการเปิดกุญแจ',
+        hint: 'ลำดับเวลาของความเร็วและสถานะรถ',
+        speed: 'ความเร็ว',
+        ignition: 'กุญแจ ON',
+        empty: 'ไม่มีข้อมูลเวลาในมุมมองนี้',
+      }
+    : {
+        title: 'Speed & ignition timeline',
+        hint: 'Speed samples and ignition-on periods over time',
+        speed: 'Speed',
+        ignition: 'Ignition on',
+        empty: 'No dated telemetry in this view.',
+      };
+
+  return (
+    <section className="min-w-0" aria-labelledby="location-timeline-title">
+      <div className="px-1 pb-3">
+        <h2 id="location-timeline-title" className={heading2}>{labels.title}</h2>
+        <p className={`mt-1 ${textMuted}`}>{labels.hint}</p>
+      </div>
+      <div className="overflow-hidden rounded-xl border border-zinc-200/70 bg-zinc-50/80 dark:border-zinc-800 dark:bg-zinc-950/50">
+        {chart ? (
+          <>
+            <svg
+              className="block aspect-[19/8] min-h-[220px] w-full"
+              viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+              role="img"
+              aria-label={`${labels.title}: ${chart.ordered.length} samples, maximum ${chart.maxSpeed} kilometres per hour scale`}
+            >
+              <defs>
+                <linearGradient id="speed-area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#16a34a" stopOpacity="0.22" />
+                  <stop offset="1" stopColor="#16a34a" stopOpacity="0.02" />
+                </linearGradient>
+              </defs>
+              {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+                const y = PAD.top + chart.plotHeight - ratio * chart.plotHeight;
+                const value = Math.round(chart.maxSpeed * ratio);
+                return (
+                  <g key={ratio}>
+                    <line x1={PAD.left} x2={WIDTH - PAD.right} y1={y} y2={y} stroke="currentColor" strokeWidth="1" strokeDasharray="4 5" className="text-zinc-200 dark:text-zinc-800" />
+                    <text x={PAD.left - 10} y={y + 4} textAnchor="end" fontSize="10" fill="currentColor" className="text-zinc-400">{value}</text>
+                  </g>
+                );
+              })}
+              {chart.segments.flatMap(({ values }) => values.slice(0, -1).map((point, index) => {
+                if (point.ignitionOn !== true) return null;
+                const next = values[index + 1]!;
+                return (
+                  <rect
+                    key={`ignition-${point.id}`}
+                    x={point.x}
+                    y={PAD.top}
+                    width={Math.max(1, next.x - point.x)}
+                    height={chart.plotHeight}
+                    fill="#f59e0b"
+                    opacity="0.09"
+                  />
+                );
+              }))}
+              {chart.areaPaths.map(({ key, path }) => <path key={`area-${key}`} d={path} fill="url(#speed-area)" />)}
+              {chart.speedPaths.map(({ key, path }) => <path key={`speed-${key}`} d={path} fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />)}
+              {chart.segments.flatMap(({ values }) => values.length === 1 ? (
+                <circle key={`speed-point-${values[0]!.id}`} cx={values[0]!.x} cy={values[0]!.y} r="3" fill="#16a34a" />
+              ) : [])}
+              {chart.segments.flatMap(({ values }) => values.slice(0, -1).map((point, index) => {
+                const next = values[index + 1]!;
+                const y = HEIGHT - 27;
+                return point.ignitionOn === true ? (
+                  <line key={`ign-line-${point.id}`} x1={point.x} x2={next.x} y1={y} y2={y} stroke="#f59e0b" strokeWidth="8" strokeLinecap="round" />
+                ) : null;
+              }))}
+              {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+                const timestamp = chart.start + (chart.end - chart.start) * ratio;
+                const x = PAD.left + chart.plotWidth * ratio;
+                return <text key={ratio} x={x} y={HEIGHT - 8} textAnchor={ratio === 0 ? 'start' : ratio === 1 ? 'end' : 'middle'} fontSize="10" fill="currentColor" className="text-zinc-400">{formatTick(timestamp, chart.end - chart.start >= 86_400_000)}</text>;
+              })}
+            </svg>
+            <div className="flex flex-wrap items-center gap-5 border-t border-zinc-200/70 bg-white px-4 py-3 text-[11px] font-semibold text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+              <span className="inline-flex items-center gap-2"><span className="h-0.5 w-5 rounded-full bg-green-600" />{labels.speed} (km/h)</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2 w-5 rounded-full bg-amber-500/80" />{labels.ignition}</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex min-h-[260px] items-center justify-center px-6 text-sm text-zinc-400 dark:text-zinc-500">
+            {labels.empty}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

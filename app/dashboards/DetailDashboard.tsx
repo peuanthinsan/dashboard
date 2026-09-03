@@ -72,13 +72,12 @@ import DriverSummaryCards from './DriverSummaryCards';
 import AlertDriverNameCell from './AlertDriverNameCell';
 import { saveAlertDriverNamesBulk } from './alertDriverActions';
 import {
-  buildDailyTrendData,
-  buildMonthlyTrendData,
+  buildMonthlyTrendTotals,
   filterTrendAlerts,
   getTrendMonthOptions,
+  getTrendMonthOptionsForRange,
   resolveSelectedTrendMonths,
   toggleTrendMonthFilter,
-  type TrendBreakdownMode,
 } from './detailTrendData';
 
 type DashboardProps = {
@@ -131,7 +130,6 @@ type DetailFilterState = {
   vehicleFilters: string[];
   driverFilters: string[];
   trendRemarkFilter: string;
-  trendBreakdownMode: TrendBreakdownMode;
   trendMonthFilters: string[];
 };
 
@@ -145,6 +143,7 @@ const toDateLabel = (value: unknown) => {
 };
 
 const hasVideoLink = (videoUrl: string) => Boolean(videoUrl && videoUrl !== '—');
+const MONTHLY_TREND_COLORS = [CHART_COLORS[0]];
 
 // Badge color for remark types
 const getRemarkBadgeClass = (remark: string): string => {
@@ -201,7 +200,6 @@ export default function DetailDashboard({
     vehicleFilters: [],
     driverFilters: [],
     trendRemarkFilter: 'all',
-    trendBreakdownMode: 'timeline',
     trendMonthFilters: [],
   });
   const {
@@ -212,7 +210,6 @@ export default function DetailDashboard({
     vehicleFilters,
     driverFilters,
     trendRemarkFilter,
-    trendBreakdownMode,
     trendMonthFilters,
   } = filters;
   const { rows, columns: sheetColumns, loading, refreshing, progress, error, lastUpdated, refresh, availableMonths } = useGoogleSheet({
@@ -283,7 +280,6 @@ export default function DetailDashboard({
         vehicleFilters: Array.isArray(stored.vehicleFilters) ? stored.vehicleFilters.filter((v) => typeof v === 'string') : prev.vehicleFilters,
         driverFilters: Array.isArray(stored.driverFilters) ? stored.driverFilters.filter((v) => typeof v === 'string') : prev.driverFilters,
         trendRemarkFilter: typeof stored.trendRemarkFilter === 'string' ? stored.trendRemarkFilter : prev.trendRemarkFilter,
-        trendBreakdownMode: stored.trendBreakdownMode === 'month' ? 'month' : 'timeline',
         trendMonthFilters: Array.isArray(stored.trendMonthFilters)
           ? stored.trendMonthFilters.filter((v) => typeof v === 'string')
           : [],
@@ -295,6 +291,22 @@ export default function DetailDashboard({
   useEffect(() => {
     saveStoredFilters(storageKey, filters);
   }, [filters, storageKey]);
+
+  const handleDateTimeRangeChange = useCallback((range: DateTimeRange) => {
+    setFilters((current) => {
+      const rangeChanged =
+        current.dateTimeRange.start !== range.start ||
+        current.dateTimeRange.end !== range.end;
+      return {
+        ...current,
+        dateTimeRange: range,
+        monthFilters: dateTimeRangeToMonthKeys(range),
+        dayFilters: [],
+        // A chart-local selection belongs to the previous month domain.
+        trendMonthFilters: rangeChanged ? [] : current.trendMonthFilters,
+      };
+    });
+  }, []);
 
   const resetFilters = () => {
     const nextMonth =
@@ -311,7 +323,6 @@ export default function DetailDashboard({
       vehicleFilters: [],
       driverFilters: [],
       trendRemarkFilter: 'all',
-      trendBreakdownMode: 'timeline',
       trendMonthFilters: [],
     });
   };
@@ -607,15 +618,12 @@ export default function DetailDashboard({
     () => filterTrendAlerts(filteredAlerts, trendRemarkFilter),
     [filteredAlerts, trendRemarkFilter],
   );
-  const availableTrendMonthOptions = useMemo(
-    () => getTrendMonthOptions(
-      monthFilters.length > 0
-        ? monthFilters.map((monthKey) => ({ monthKey }))
-        : filteredAlerts,
-      lang,
-    ),
-    [filteredAlerts, lang, monthFilters],
-  );
+  const availableTrendMonthOptions = useMemo(() => {
+    const rangeMonths = getTrendMonthOptionsForRange(dateTimeRange, lang);
+    return rangeMonths.length > 0
+      ? rangeMonths
+      : getTrendMonthOptions(filteredAlerts, lang);
+  }, [dateTimeRange, filteredAlerts, lang]);
   const selectedTrendMonthOptions = useMemo(
     () => resolveSelectedTrendMonths(availableTrendMonthOptions, trendMonthFilters),
     [availableTrendMonthOptions, trendMonthFilters],
@@ -644,20 +652,13 @@ export default function DetailDashboard({
   }, [availableTrendMonthKeys]);
 
   const trendChartData = useMemo(
-    () => trendBreakdownMode === 'month'
-      ? buildMonthlyTrendData(trendAlerts, selectedTrendMonthOptions, dateTimeRange)
-      : buildDailyTrendData(trendAlerts),
-    [dateTimeRange, selectedTrendMonthOptions, trendAlerts, trendBreakdownMode],
+    () => buildMonthlyTrendTotals(trendAlerts, selectedTrendMonthOptions),
+    [selectedTrendMonthOptions, trendAlerts],
   );
-  const trendChartColors = trendBreakdownMode === 'month'
-    ? selectedTrendMonthOptions.map((month) => month.color)
-    : CHART_COLORS;
   const comparedMonthLabels = selectedTrendMonthOptions.map((month) => month.label).join(', ');
-  const trendChartAriaLabel = trendBreakdownMode === 'month'
-    ? (lang === 'th'
-        ? `เปรียบเทียบการแจ้งเตือนรายวันตามเดือน: ${comparedMonthLabels}`
-        : `Daily alert comparison by month: ${comparedMonthLabels}`)
-    : (lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend');
+  const trendChartAriaLabel = lang === 'th'
+    ? `ยอดรวมการแจ้งเตือนรายเดือน: ${comparedMonthLabels}`
+    : `Monthly alert totals: ${comparedMonthLabels}`;
 
   // ── Heatmap dates ──
   const heatmapDates = useMemo(
@@ -1055,12 +1056,7 @@ export default function DetailDashboard({
           <FilterBar>
             <DateTimeRangePicker
               value={dateTimeRange}
-              onChange={(range) => setFilters((current) => ({
-                ...current,
-                dateTimeRange: range,
-                monthFilters: dateTimeRangeToMonthKeys(range),
-                dayFilters: [],
-              }))}
+              onChange={handleDateTimeRangeChange}
               lang={lang}
             />
             {hasActiveFilters && (
@@ -1094,12 +1090,7 @@ export default function DetailDashboard({
           <FilterBar>
             <DateTimeRangePicker
               value={dateTimeRange}
-              onChange={(range) => setFilters((current) => ({
-                ...current,
-                dateTimeRange: range,
-                monthFilters: dateTimeRangeToMonthKeys(range),
-                dayFilters: [],
-              }))}
+              onChange={handleDateTimeRangeChange}
               lang={lang}
             />
             <MultiSelect label={lang === 'th' ? 'กลุ่มรถ' : 'fleets'} options={fleetOptions} selected={filters.fleetFilters} onChange={(v) => setFilters(f => ({ ...f, fleetFilters: v }))} lang={lang} />
@@ -1148,19 +1139,17 @@ export default function DetailDashboard({
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-400/50 to-transparent dark:via-red-600/30" />
           </div>
 
-          {/* ── Daily trend (full width) ── */}
+          {/* ── Monthly trend (full width) ── */}
           <section className={dashboardSectionClass}>
             <div>
               <h2 className={heading2}>
-                {lang === 'th' ? 'แนวโน้มการแจ้งเตือนรายวัน' : 'Daily alert trend'}
+                {lang === 'th' ? 'ยอดรวมการแจ้งเตือนรายเดือน' : 'Monthly alert totals'}
               </h2>
-              {trendBreakdownMode === 'month' ? (
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  {lang === 'th'
-                    ? 'เปรียบเทียบจำนวนการแจ้งเตือนของแต่ละเดือนตามวันที่ โดยอิงช่วงวันที่ที่เลือกด้านบน'
-                    : 'Compare each month side-by-side by day, within the date range selected above.'}
-                </p>
-              ) : null}
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {lang === 'th'
+                  ? 'เปรียบเทียบยอดรวมการแจ้งเตือนของแต่ละเดือนภายในช่วงวันที่ที่เลือกด้านบน'
+                  : 'Compare total alerts per month within the date range selected above.'}
+              </p>
             </div>
             <div className="mt-3 space-y-3 text-xs text-zinc-600 dark:text-zinc-300">
               <div className="flex flex-wrap items-center gap-2" role="group" aria-label={lang === 'th' ? 'กรองประเภทการแจ้งเตือนในกราฟ' : 'Filter chart by alert type'}>
@@ -1185,32 +1174,7 @@ export default function DetailDashboard({
                 ))}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2" role="group" aria-label={lang === 'th' ? 'มุมมองกราฟ' : 'Chart view'}>
-                <span className="uppercase tracking-[0.2em] text-zinc-500">
-                  {lang === 'th' ? 'มุมมอง' : 'View'}
-                </span>
-                {([
-                  { value: 'timeline', label: lang === 'th' ? 'ไทม์ไลน์' : 'Timeline' },
-                  { value: 'month', label: lang === 'th' ? 'เปรียบเทียบรายเดือน' : 'Compare months' },
-                ] as const).map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setFilters((current) => ({ ...current, trendBreakdownMode: option.value }))}
-                    aria-pressed={trendBreakdownMode === option.value}
-                    className={[
-                      'rounded-full px-2.5 py-1 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:focus-visible:outline-red-400',
-                      trendBreakdownMode === option.value
-                        ? 'bg-red-600 text-white'
-                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700',
-                    ].join(' ')}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-
-              {trendBreakdownMode === 'month' && availableTrendMonthOptions.length > 0 ? (
+              {availableTrendMonthOptions.length > 0 ? (
                 <div className="flex flex-wrap items-center gap-2" role="group" aria-label={lang === 'th' ? 'เลือกเดือนที่จะแสดงในกราฟ' : 'Choose months to show in chart'}>
                   <span className="uppercase tracking-[0.2em] text-zinc-500">
                     {lang === 'th' ? 'เดือน' : 'Months'}
@@ -1237,17 +1201,12 @@ export default function DetailDashboard({
                         onClick={() => handleTrendMonthToggle(month.key)}
                         aria-pressed={selected}
                         className={[
-                          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:focus-visible:outline-red-400',
+                          'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:focus-visible:outline-red-400',
                           selected
                             ? 'bg-white text-zinc-800 ring-zinc-300 shadow-sm dark:bg-zinc-800 dark:text-zinc-100 dark:ring-zinc-600'
-                            : 'bg-zinc-50 text-zinc-400 ring-zinc-200 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:text-zinc-500 dark:ring-zinc-800 dark:hover:bg-zinc-800',
+                            : 'bg-zinc-50 text-zinc-600 ring-zinc-200 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:text-zinc-300 dark:ring-zinc-800 dark:hover:bg-zinc-800',
                         ].join(' ')}
                       >
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: month.color }}
-                          aria-hidden="true"
-                        />
                         {month.label}
                       </button>
                     );
@@ -1255,13 +1214,6 @@ export default function DetailDashboard({
                 </div>
               ) : null}
 
-              {trendBreakdownMode === 'month' && availableTrendMonthOptions.length < 2 ? (
-                <p className="text-zinc-500 dark:text-zinc-400" role="status">
-                  {lang === 'th'
-                    ? 'เลือกช่วงวันที่ที่ครอบคลุมอย่างน้อยสองเดือนเพื่อเปรียบเทียบ'
-                    : 'Select a date range spanning at least two months to compare.'}
-                </p>
-              ) : null}
             </div>
             <div className="mt-4">
               {trendChartData.length === 0 ? (
@@ -1273,14 +1225,18 @@ export default function DetailDashboard({
               ) : (
                 <TrendChart
                   data={trendChartData}
-                  mode={trendBreakdownMode === 'month' ? 'bar' : 'line'}
-                  height={trendBreakdownMode === 'month' ? 260 : 220}
-                  colors={trendChartColors}
+                  mode="bar"
+                  height={300}
+                  colors={MONTHLY_TREND_COLORS}
                   ariaLabel={trendChartAriaLabel}
-                  minCategoryWidth={trendBreakdownMode === 'month'
-                    ? Math.max(40, selectedTrendMonthOptions.length * 16)
-                    : undefined}
-                  showTooltipTotal={trendBreakdownMode !== 'month'}
+                  minCategoryWidth={96}
+                  preserveCategoryScale
+                  maxXAxisLabels={selectedTrendMonthOptions.length}
+                  yAxisTickCount={3}
+                  wholeNumberYAxis
+                  barCategoryPadding={0.24}
+                  maxBarWidth={72}
+                  singleSeriesLabel={lang === 'th' ? 'การแจ้งเตือน' : 'Alerts'}
                 />
               )}
             </div>

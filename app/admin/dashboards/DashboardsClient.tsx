@@ -51,9 +51,12 @@ import type {
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
 import { DrivingSheetLinkFields } from './DrivingSheetLinkFields';
 import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'BIGTHUnitStatus', 'ALCHEMUnitStatus', 'VINYTHAIUnitStatus'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'Location Data v1', 'BIGTHUnitStatus', 'ALCHEMUnitStatus', 'VINYTHAIUnitStatus'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
+
+const isLocationDataTemplate = (template: string) =>
+  template === 'Location Data v1' || template === 'LocationDataV1';
 
 function bulkSheetTargetKey(organizationId: number | undefined, template: string) {
   return `${organizationId ?? 'company'}::${template}`;
@@ -459,13 +462,15 @@ function DashboardRow({
               />
             </label>
           </div>
-          <AlertTypesAndRemarksSelector
-            sheetId={dashboard.sheetId ?? undefined}
-            sheetGid={dashboard.sheetGid ?? undefined}
-            sheetUrl={dashboard.sheetUrl ?? undefined}
-            initialAlertTypes={dashboard.alertTypes ?? []}
-            initialRemarks={dashboard.remarks ?? []}
-          />
+          {!isLocationDataTemplate(editTemplate) ? (
+            <AlertTypesAndRemarksSelector
+              sheetId={dashboard.sheetId ?? undefined}
+              sheetGid={dashboard.sheetGid ?? undefined}
+              sheetUrl={dashboard.sheetUrl ?? undefined}
+              initialAlertTypes={dashboard.alertTypes ?? []}
+              initialRemarks={dashboard.remarks ?? []}
+            />
+          ) : null}
           {editTemplate === 'Driving' ? (
             <DrivingThresholdAdminFields initial={dashboard.drivingThresholds} />
           ) : null}
@@ -486,7 +491,9 @@ function DashboardRow({
                 ))}
             </select>
           </label>
-          <AlertRulesEditor initial={dashboard.alertRules} />
+          {!isLocationDataTemplate(editTemplate) ? (
+            <AlertRulesEditor initial={dashboard.alertRules} />
+          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StatusMessage state={state} />
             <div className="flex flex-wrap items-center gap-2">
@@ -1778,13 +1785,15 @@ export default function DashboardsClient({
                 className={`${ADMIN_TEXTAREA} resize-none`}
               />
             </div>
-            <div className="sm:col-span-2">
-              <AlertTypesAndRemarksSelector
-                sheetUrl={createSheetUrl}
-                initialAlertTypes={[]}
-                initialRemarks={[]}
-              />
-            </div>
+            {!isLocationDataTemplate(createTemplate) ? (
+              <div className="sm:col-span-2">
+                <AlertTypesAndRemarksSelector
+                  sheetUrl={createSheetUrl}
+                  initialAlertTypes={[]}
+                  initialRemarks={[]}
+                />
+              </div>
+            ) : null}
             {createTemplate === 'Driving' ? (
               <div className="sm:col-span-2">
                 <DrivingThresholdAdminFields />

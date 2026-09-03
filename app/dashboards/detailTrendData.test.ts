@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildDailyTrendData,
-  buildMonthlyTrendData,
+  buildMonthlyTrendTotals,
   filterTrendAlerts,
   getTrendMonthOptions,
+  getTrendMonthOptionsForRange,
   resolveSelectedTrendMonths,
   toggleTrendMonthFilter,
   type TrendMonthOption,
@@ -31,14 +31,7 @@ const alert = (id: string, timestamp: string | null, remarks = 'Fatigue'): TestA
 const option = (key: string, label: string): TrendMonthOption => ({
   key,
   label,
-  color: '#000000',
 });
-
-const consecutiveMonthKeys = (startYear: number, startMonth: number, count: number): string[] =>
-  Array.from({ length: count }, (_, index) => {
-    const date = new Date(Date.UTC(startYear, startMonth - 1 + index, 1));
-    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
-  });
 
 describe('filterTrendAlerts', () => {
   it('uses the existing normalized, bidirectional remark match semantics', () => {
@@ -57,22 +50,6 @@ describe('filterTrendAlerts', () => {
       'short',
     ]);
     expect(filterTrendAlerts(rows, 'all')).toEqual(rows);
-  });
-});
-
-describe('buildDailyTrendData', () => {
-  it('preserves the existing labels and returns chronological daily counts', () => {
-    const rows = [
-      alert('late-a', '2026-07-03T20:00:00Z'),
-      alert('missing', null),
-      alert('early', '2026-07-01T23:59:00Z'),
-      alert('late-b', '2026-07-03T01:00:00Z'),
-    ];
-
-    expect(buildDailyTrendData(rows)).toEqual([
-      { label: '01/07/2026', value: 1 },
-      { label: '03/07/2026', value: 2 },
-    ]);
   });
 });
 
@@ -97,27 +74,40 @@ describe('getTrendMonthOptions', () => {
       { key: '2026-07', label: 'ก.ค. 2026' },
       { key: '2026-08', label: 'ส.ค. 2026' },
     ]);
-    expect(th.map((month) => month.color)).toEqual(en.map((month) => month.color));
+  });
+});
+
+describe('getTrendMonthOptionsForRange', () => {
+  it('includes every calendar month touched by the active range, even partial or empty months', () => {
+    expect(getTrendMonthOptionsForRange({
+      start: '2026-03-31T23:30',
+      end: '2026-06-01T00:15',
+    }, 'en')).toEqual([
+      option('2026-03', 'Mar 2026'),
+      option('2026-04', 'Apr 2026'),
+      option('2026-05', 'May 2026'),
+      option('2026-06', 'Jun 2026'),
+    ]);
   });
 
-  it('assigns 24 unique colors to every rolling 24-month window and stays stable', () => {
-    const firstWindow = consecutiveMonthKeys(2025, 1, 24);
-    const shiftedWindow = consecutiveMonthKeys(2025, 2, 24);
-    const first = getTrendMonthOptions(firstWindow.map((monthKey) => ({ monthKey })), 'en');
-    const shifted = getTrendMonthOptions(
-      shiftedWindow.slice().reverse().map((monthKey) => ({ monthKey })),
-      'th',
-    );
+  it('orders the selected range across year boundaries and localizes labels', () => {
+    expect(getTrendMonthOptionsForRange({
+      start: '2026-11-10T00:00',
+      end: '2027-02-20T23:59',
+    }, 'th')).toEqual([
+      option('2026-11', 'พ.ย. 2026'),
+      option('2026-12', 'ธ.ค. 2026'),
+      option('2027-01', 'ม.ค. 2027'),
+      option('2027-02', 'ก.พ. 2027'),
+    ]);
+  });
 
-    expect(new Set(first.map((month) => month.color))).toHaveLength(24);
-    expect(new Set(shifted.map((month) => month.color))).toHaveLength(24);
-
-    const firstColors = new Map(first.map((month) => [month.key, month.color]));
-    shifted.forEach((month) => {
-      if (firstColors.has(month.key)) {
-        expect(month.color).toBe(firstColors.get(month.key));
-      }
-    });
+  it('returns no month options for an incomplete or invalid range', () => {
+    expect(getTrendMonthOptionsForRange({ start: '', end: '' }, 'en')).toEqual([]);
+    expect(getTrendMonthOptionsForRange({
+      start: '2026-06-02T00:00',
+      end: '2026-06-01T23:59',
+    }, 'en')).toEqual([]);
   });
 });
 
@@ -147,87 +137,31 @@ describe('month selection helpers', () => {
   });
 });
 
-describe('buildMonthlyTrendData', () => {
-  const months = [
-    option('2026-07', 'Jul 2026'),
-    option('2026-08', 'Aug 2026'),
-  ];
+describe('buildMonthlyTrendTotals', () => {
+  it('sums all in-scope alerts into one chronological bar per selected month', () => {
+    const months = [
+      option('2027-01', 'Jan 2027'),
+      option('2026-12', 'Dec 2026'),
+      option('2026-11', 'Nov 2026'),
+    ];
 
-  it('aligns the same day across months, zero-fills gaps, and preserves series order', () => {
-    const data = buildMonthlyTrendData([
-      alert('jul-1a', '2026-07-01T08:00:00Z'),
-      alert('jul-1b', '2026-07-01T09:00:00Z'),
-      alert('jul-2', '2026-07-02T08:00:00Z'),
-      alert('aug-1', '2026-08-01T08:00:00Z'),
-      alert('aug-3', '2026-08-03T08:00:00Z'),
-    ], months);
-
-    expect(data).toEqual([
-      { label: '01', values: { 'Jul 2026': 2, 'Aug 2026': 1 } },
-      { label: '02', values: { 'Jul 2026': 1, 'Aug 2026': 0 } },
-      { label: '03', values: { 'Jul 2026': 0, 'Aug 2026': 1 } },
+    expect(buildMonthlyTrendTotals([
+      alert('dec-early', '2026-12-01T08:00:00Z'),
+      alert('dec-late', '2026-12-30T21:00:00Z'),
+      alert('jan', '2027-01-14T08:00:00Z'),
+      alert('unselected', '2026-10-14T08:00:00Z'),
+      alert('missing', null),
+      { ...alert('malformed', '2026-12-12T08:00:00Z'), monthKey: '2026-99' },
+    ], months)).toEqual([
+      { label: 'Nov 2026', value: 0 },
+      { label: 'Dec 2026', value: 2 },
+      { label: 'Jan 2027', value: 1 },
     ]);
-    data.forEach((datum) => {
-      expect(Object.keys(datum.values)).toEqual(['Jul 2026', 'Aug 2026']);
-    });
   });
 
-  it('marks invalid February dates as NaN instead of false zeroes', () => {
-    const leapYearMonths = [
-      option('2024-02', 'Feb 2024'),
-      option('2024-03', 'Mar 2024'),
-    ];
-    const data = buildMonthlyTrendData([], leapYearMonths, {
-      start: '2024-02-01T00:00',
-      end: '2024-03-31T23:59',
-    });
-
-    expect(data).toHaveLength(31);
-    expect(data.find((datum) => datum.label === '29')?.values).toEqual({
-      'Feb 2024': 0,
-      'Mar 2024': 0,
-    });
-    expect(data.find((datum) => datum.label === '30')?.values).toEqual({
-      'Feb 2024': Number.NaN,
-      'Mar 2024': 0,
-    });
-    expect(data.find((datum) => datum.label === '31')?.values).toEqual({
-      'Feb 2024': Number.NaN,
-      'Mar 2024': 0,
-    });
-  });
-
-  it('uses partial-range eligibility, omits all-NaN days, and counts only in-range alerts', () => {
-    const partialMonths = [
-      option('2026-01', 'Jan 2026'),
-      option('2026-02', 'Feb 2026'),
-    ];
-    const data = buildMonthlyTrendData([
-      alert('before-start', '2026-01-15T08:00:00Z'),
-      alert('after-start', '2026-01-15T13:00:00Z'),
-      alert('on-end', '2026-02-10T10:00:00Z'),
-      alert('after-end', '2026-02-10T11:00:00Z'),
-    ], partialMonths, {
-      start: '2026-01-15T12:00',
-      end: '2026-02-10T10:30',
-    });
-
-    expect(data.map((datum) => datum.label)).toEqual([
-      '01', '02', '03', '04', '05', '06', '07', '08', '09', '10',
-      '15', '16', '17', '18', '19', '20', '21', '22', '23', '24',
-      '25', '26', '27', '28', '29', '30', '31',
-    ]);
-    expect(data.find((datum) => datum.label === '10')?.values).toEqual({
-      'Jan 2026': Number.NaN,
-      'Feb 2026': 1,
-    });
-    expect(data.find((datum) => datum.label === '15')?.values).toEqual({
-      'Jan 2026': 1,
-      'Feb 2026': Number.NaN,
-    });
-    expect(data.some((datum) => datum.label === '11')).toBe(false);
-    data.forEach((datum) => {
-      expect(Object.keys(datum.values)).toEqual(['Jan 2026', 'Feb 2026']);
-    });
+  it('returns no bars when no months are selected', () => {
+    expect(buildMonthlyTrendTotals([
+      alert('jan', '2027-01-14T08:00:00Z'),
+    ], [])).toEqual([]);
   });
 });
