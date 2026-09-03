@@ -14,7 +14,15 @@ export type TelemetryPoint = {
 
 type LocationTelemetryTimelineProps = {
   points: TelemetryPoint[];
+  onSelectVehicle?: (vehicleNo: string) => void;
   lang?: 'en' | 'th';
+};
+
+export type TelemetryVehicleScope = {
+  vehicleNo: string | null;
+  vehicleOptions: string[];
+  vehicleCount: number;
+  hasUnidentifiedVehicle: boolean;
 };
 
 const WIDTH = 760;
@@ -40,10 +48,38 @@ function formatTick(timestamp: number, includeDate: boolean) {
   });
 }
 
-export default function LocationTelemetryTimeline({ points, lang = 'en' }: LocationTelemetryTimelineProps) {
+/** A speed/ignition trace is truthful only when every point belongs to one identified vehicle. */
+export function resolveTelemetryVehicleScope(points: TelemetryPoint[]): TelemetryVehicleScope {
+  const vehicleOptions = Array.from(new Set(
+    points.map((point) => point.vehicleNo.trim()).filter(Boolean),
+  )).sort((a, b) => a.localeCompare(b));
+  const hasUnidentifiedVehicle = points.some((point) => !point.vehicleNo.trim());
+  const vehicleNo = vehicleOptions.length === 1 && !hasUnidentifiedVehicle
+    ? vehicleOptions[0]!
+    : null;
+
+  return {
+    vehicleNo,
+    vehicleOptions,
+    vehicleCount: vehicleOptions.length + (hasUnidentifiedVehicle ? 1 : 0),
+    hasUnidentifiedVehicle,
+  };
+}
+
+export default function LocationTelemetryTimeline({
+  points,
+  onSelectVehicle,
+  lang = 'en',
+}: LocationTelemetryTimelineProps) {
+  const vehicleScope = useMemo(() => resolveTelemetryVehicleScope(points), [points]);
   const chart = useMemo(() => {
+    if (!vehicleScope.vehicleNo) return null;
     const ordered = samplePoints(
-      [...points].filter((point) => Number.isFinite(point.timestamp)).sort((a, b) => a.timestamp - b.timestamp),
+      points
+        .filter((point) =>
+          point.vehicleNo.trim() === vehicleScope.vehicleNo && Number.isFinite(point.timestamp),
+        )
+        .sort((a, b) => a.timestamp - b.timestamp),
       MAX_POINTS,
     );
     if (ordered.length === 0) return null;
@@ -82,32 +118,90 @@ export default function LocationTelemetryTimeline({ points, lang = 'en' }: Locat
       };
     });
     return { ordered, mapped, segments, start, end, maxSpeed, plotWidth, plotHeight, speedPaths, areaPaths };
-  }, [points]);
+  }, [points, vehicleScope.vehicleNo]);
 
   const labels = lang === 'th'
     ? {
         title: 'ความเร็วและการเปิดกุญแจ',
-        hint: 'ลำดับเวลาของความเร็วและสถานะรถ',
+        hint: 'ความเร็วและสถานะกุญแจของรถหนึ่งคันตามช่วงเวลา',
         speed: 'ความเร็ว',
         ignition: 'กุญแจ ON',
         empty: 'ไม่มีข้อมูลเวลาในมุมมองนี้',
+        selectOne: 'ข้อมูลความเร็วและกุญแจเป็นข้อมูลเฉพาะรถ กรุณาเลือกรถหนึ่งคันเพื่อดูเส้นเวลาที่ถูกต้อง',
+        unidentified: 'ต้องมีเลขรถที่ระบุชัดเจนก่อนจึงจะแสดงเส้นเวลานี้ได้',
+        chooseVehicle: 'เลือกรถ',
+        selectPlaceholder: 'เลือกรถหนึ่งคัน…',
+        vehicles: 'คันในมุมมองปัจจุบัน',
       }
     : {
         title: 'Speed & ignition timeline',
-        hint: 'Speed samples and ignition-on periods over time',
+        hint: 'Speed and ignition state for one vehicle over time',
         speed: 'Speed',
         ignition: 'Ignition on',
         empty: 'No dated telemetry in this view.',
+        selectOne: 'Speed and ignition are vehicle-specific. Select one vehicle to show a truthful timeline.',
+        unidentified: 'An identified vehicle number is required before this timeline can be shown.',
+        chooseVehicle: 'Choose a vehicle',
+        selectPlaceholder: 'Select one vehicle…',
+        vehicles: 'vehicles in the current view',
       };
+
+  const needsVehicleSelection = points.length > 0 && !vehicleScope.vehicleNo;
 
   return (
     <section className="min-w-0" aria-labelledby="location-timeline-title">
-      <div className="px-1 pb-3">
-        <h2 id="location-timeline-title" className={heading2}>{labels.title}</h2>
-        <p className={`mt-1 ${textMuted}`}>{labels.hint}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3 px-1 pb-3">
+        <div>
+          <h2 id="location-timeline-title" className={heading2}>{labels.title}</h2>
+          <p className={`mt-1 ${textMuted}`}>
+            {vehicleScope.vehicleNo ? `${vehicleScope.vehicleNo} · ${labels.hint}` : labels.hint}
+          </p>
+        </div>
+        {vehicleScope.vehicleCount > 0 ? (
+          <span className="inline-flex min-h-7 items-center rounded-full bg-zinc-100 px-3 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700">
+            {vehicleScope.vehicleNo ?? `${vehicleScope.vehicleCount} ${labels.vehicles}`}
+          </span>
+        ) : null}
       </div>
       <div className="overflow-hidden rounded-xl border border-zinc-200/70 bg-zinc-50/80 dark:border-zinc-800 dark:bg-zinc-950/50">
-        {chart ? (
+        {needsVehicleSelection ? (
+          <div className="flex min-h-[260px] items-center justify-center px-6 py-8 text-center">
+            <div className="w-full max-w-sm">
+              <svg aria-hidden="true" className="mx-auto h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 17l4-5 4 3 4-7 4 3" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 21h16M4 3v14" />
+              </svg>
+              <p
+                className="mt-3 text-sm font-semibold text-zinc-800 dark:text-zinc-100"
+                role="status"
+                aria-live="polite"
+              >
+                {vehicleScope.hasUnidentifiedVehicle && vehicleScope.vehicleOptions.length === 0
+                  ? labels.unidentified
+                  : labels.selectOne}
+              </p>
+              {onSelectVehicle && vehicleScope.vehicleOptions.length > 0 ? (
+                <label className="mx-auto mt-5 block max-w-xs text-left">
+                  <span className="mb-1.5 block text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                    {labels.chooseVehicle}
+                  </span>
+                  <select
+                    value=""
+                    onChange={(event) => {
+                      if (event.target.value) onSelectVehicle(event.target.value);
+                    }}
+                    className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-400/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  >
+                    <option value="">{labels.selectPlaceholder}</option>
+                    {vehicleScope.vehicleOptions.map((vehicleNo) => (
+                      <option key={vehicleNo} value={vehicleNo}>{vehicleNo}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+          </div>
+        ) : chart ? (
           <>
             <svg
               className="block aspect-[19/8] min-h-[220px] w-full"

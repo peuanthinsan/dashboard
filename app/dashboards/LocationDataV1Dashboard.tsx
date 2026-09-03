@@ -618,7 +618,11 @@ export default function LocationDataV1Dashboard({
               <LocationRouteOverview points={routePoints} selectedId={resolvedSelectedRecordId} onSelect={setSelectedRecordId} lang={lang} />
             </div>
             <div className={dashboardSectionClass}>
-              <LocationTelemetryTimeline points={telemetryPoints} lang={lang} />
+              <LocationTelemetryTimeline
+                points={telemetryPoints}
+                onSelectVehicle={(vehicleNo) => setVehicles([vehicleNo])}
+                lang={lang}
+              />
             </div>
           </section>
 

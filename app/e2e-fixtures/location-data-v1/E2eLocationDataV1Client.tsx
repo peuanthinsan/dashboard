@@ -44,6 +44,7 @@ function sourceDate(date: Date) {
 
 const sampleRows = Array.from({ length: 596 }, (_, sourceIndex) => {
   const chronologicalIndex = 595 - sourceIndex;
+  const isSecondVehicle = chronologicalIndex % 2 === 1;
   const time = new Date(Date.UTC(2026, 8, 1, 8, 14 + chronologicalIndex));
   const progress = chronologicalIndex / 595;
   const routeProgress = progress <= 0.5 ? progress * 2 : (1 - progress) * 2;
@@ -51,8 +52,8 @@ const sampleRows = Array.from({ length: 596 }, (_, sourceIndex) => {
   const speedWave = Math.sin(chronologicalIndex / 13) * 24 + Math.sin(chronologicalIndex / 4.5) * 12 + 32;
   const stoppedWindow = chronologicalIndex % 97 < 18 || !ignitionOn;
   const speed = stoppedWindow ? 0 : Math.max(4, Math.min(73, Math.round(speedWave)));
-  const latitude = 13.53018 + routeProgress * 0.122 + Math.sin(chronologicalIndex / 31) * 0.008;
-  const longitude = 100.65267 + Math.sin(routeProgress * Math.PI) * 0.056 + Math.sin(chronologicalIndex / 47) * 0.005;
+  const latitude = 13.53018 + routeProgress * 0.122 + Math.sin(chronologicalIndex / 31) * 0.008 + (isSecondVehicle ? 0.02 : 0);
+  const longitude = 100.65267 + Math.sin(routeProgress * Math.PI) * 0.056 + Math.sin(chronologicalIndex / 47) * 0.005 - (isSecondVehicle ? 0.015 : 0);
   const pollingMode = chronologicalIndex === 31
     ? 'ACC ON'
     : chronologicalIndex === 479
@@ -61,7 +62,7 @@ const sampleRows = Array.from({ length: 596 }, (_, sourceIndex) => {
         ? 'Trip notification'
         : 'Normal';
   return {
-    'Vehicle No': 'LOC-0055',
+    'Vehicle No': isSecondVehicle ? 'LOC-0099' : 'LOC-0055',
     'Track Time': sourceDate(time),
     Latitude: Number(latitude.toFixed(7)),
     Longitude: Number(longitude.toFixed(7)),
@@ -69,7 +70,7 @@ const sampleRows = Array.from({ length: 596 }, (_, sourceIndex) => {
     Location: LOCATIONS[Math.min(LOCATIONS.length - 1, Math.floor(routeProgress * LOCATIONS.length))],
     Speed: speed,
     Ignition: ignitionOn ? 'ON' : 'OFF',
-    'Driver Name': chronologicalIndex < 3 ? '' : 'Driver A',
+    'Driver Name': chronologicalIndex < 3 ? '' : isSecondVehicle ? 'Driver B' : 'Driver A',
     'Face ID': '',
     'Polling Mode': pollingMode,
     Fuelbar: 0,

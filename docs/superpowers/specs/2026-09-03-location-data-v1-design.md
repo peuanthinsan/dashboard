@@ -13,7 +13,7 @@
 1. Existing `DashboardShell` with breadcrumb, title, source freshness, current-view audit state, refresh, export, print, and admin source actions.
 2. Four filter-aware metrics: approximate GPS distance, estimated moving time, maximum speed, and record count.
 3. Google Maps route overview plotted from source coordinates, with speed-colored segments, point selection, and coordinate links.
-4. Speed and ignition timeline using the same filtered record set.
+4. Speed and ignition timeline for exactly one identified vehicle from the filtered record set. A multi-vehicle view shows a vehicle selector instead of overlaying incomparable traces.
 5. Search, date/time, vehicle, driver, ignition, GPS, and polling-mode filters.
 6. Sortable, paginated source-history table with wrapped Thai addresses and map actions.
 
@@ -47,7 +47,7 @@
 | Information hierarchy | Title/status, four KPIs, route + telemetry, filters, history | Same hierarchy, inside the existing richer `DashboardShell` audit header | Faithful; shared product chrome intentionally retained |
 | KPI grid | Four across desktop, two across mobile | Four at desktop and two at 390 px | Faithful |
 | Route surface | Coordinate route with speed colors and selected point | Live Google Maps with green/amber/red segments, sampled clickable markers, start/end/selected states, and outbound coordinate link | Improved per client follow-up; stylized concept basemap intentionally replaced |
-| Telemetry | Speed line plus ignition periods | Responsive SVG timeline with discontinuity-safe per-vehicle segments and multi-day date ticks | Faithful |
+| Telemetry | Speed line plus ignition periods | Responsive SVG timeline for one explicitly labeled vehicle, with discontinuity-safe segments and multi-day date ticks; multi-vehicle views require a vehicle selection | Faithful, with an explicit scope guard to prevent a misleading fleet overlay |
 | Filters and history | Compact filtering plus an operator-readable audit trail | Persisted search/date/vehicle/driver/ignition/GPS/polling filters and a sortable, 10-row paginated, horizontally scrollable table | Faithful to product table conventions; mobile remains an audit table rather than concept cards |
 | Theme and tokens | Light Songdee surfaces with red/green/amber/blue semantics | Existing light and dark themes both verified; typography, borders, radii, focus states, and semantic colors use project tokens | Faithful |
 | Responsive behavior | No clipped controls at phone width | Verified at native 1440 × 1000 and 390 × 844 viewports; controls wrap and the dense table scrolls horizontally | Pass |
