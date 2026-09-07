@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useGoogleSheet from './useGoogleSheet';
@@ -176,29 +176,29 @@ export default function LocationDataV1Dashboard({
   const [gpsStatuses, setGpsStatuses] = useState<string[]>([]);
   const [pollingModes, setPollingModes] = useState<string[]>([]);
   const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
-  const didLoadStoredFilters = useRef(false);
+  const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
 
   useEffect(() => {
-    if (didLoadStoredFilters.current) return;
-    didLoadStoredFilters.current = true;
     const stored = loadStoredFilters<StoredLocationFilters>(storageKey);
-    if (!stored) return;
     const frame = requestAnimationFrame(() => {
-      if (typeof stored.search === 'string') setSearch(stored.search);
-      if (stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)) {
-        setDateTimeRange(stored.dateTimeRange);
+      if (stored) {
+        if (typeof stored.search === 'string') setSearch(stored.search);
+        if (stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)) {
+          setDateTimeRange(stored.dateTimeRange);
+        }
+        if (Array.isArray(stored.vehicles)) setVehicles(stored.vehicles.filter((value) => typeof value === 'string'));
+        if (Array.isArray(stored.drivers)) setDrivers(stored.drivers.filter((value) => typeof value === 'string'));
+        if (Array.isArray(stored.ignition)) setIgnition(stored.ignition.filter((value) => typeof value === 'string'));
+        if (Array.isArray(stored.gpsStatuses)) setGpsStatuses(stored.gpsStatuses.filter((value) => typeof value === 'string'));
+        if (Array.isArray(stored.pollingModes)) setPollingModes(stored.pollingModes.filter((value) => typeof value === 'string'));
       }
-      if (Array.isArray(stored.vehicles)) setVehicles(stored.vehicles.filter((value) => typeof value === 'string'));
-      if (Array.isArray(stored.drivers)) setDrivers(stored.drivers.filter((value) => typeof value === 'string'));
-      if (Array.isArray(stored.ignition)) setIgnition(stored.ignition.filter((value) => typeof value === 'string'));
-      if (Array.isArray(stored.gpsStatuses)) setGpsStatuses(stored.gpsStatuses.filter((value) => typeof value === 'string'));
-      if (Array.isArray(stored.pollingModes)) setPollingModes(stored.pollingModes.filter((value) => typeof value === 'string'));
+      setHydratedStorageKey(storageKey);
     });
     return () => cancelAnimationFrame(frame);
   }, [storageKey]);
 
   useEffect(() => {
-    if (!didLoadStoredFilters.current) return;
+    if (hydratedStorageKey !== storageKey) return;
     saveStoredFilters(storageKey, {
       search,
       dateTimeRange,
@@ -208,7 +208,7 @@ export default function LocationDataV1Dashboard({
       gpsStatuses,
       pollingModes,
     });
-  }, [dateTimeRange, drivers, gpsStatuses, ignition, pollingModes, search, storageKey, vehicles]);
+  }, [dateTimeRange, drivers, gpsStatuses, hydratedStorageKey, ignition, pollingModes, search, storageKey, vehicles]);
 
   const scopeSet = useMemo(
     () => scopeFleetSet(organizationName, organizationNames),

@@ -18,6 +18,25 @@ type MultiSelectProps = {
   className?: string;
 };
 
+export function getNextMultiSelectSelection(
+  selected: string[],
+  item: string,
+) {
+  return selected.includes(item)
+    ? selected.filter((selectedItem) => selectedItem !== item)
+    : [...selected, item];
+}
+
+export function getMultiSelectTriggerText(
+  selected: string[],
+  label: string,
+  allLabel: string,
+) {
+  if (selected.length === 0) return allLabel;
+  if (selected.length === 1) return selected[0];
+  return `${selected.length} ${label}`;
+}
+
 export default function MultiSelect({
   label,
   options,
@@ -45,13 +64,7 @@ export default function MultiSelect({
   const hasSelection = selected.length > 0;
 
   const toggleItem = (item: string) => {
-    const next = selected.includes(item)
-      ? selected.filter((s) => s !== item)
-      : [...selected, item];
-
-    // Every option selected is equivalent to no filter. Keep one canonical
-    // representation so the dropdown and the dashboard cannot disagree.
-    onChange(next.length === options.length ? [] : next);
+    onChange(getNextMultiSelectSelection(selected, item));
   };
 
   useEffect(() => {
@@ -74,9 +87,7 @@ export default function MultiSelect({
     if (open) searchRef.current?.focus();
   }, [open]);
 
-  const triggerText = !hasSelection
-    ? t.all
-    : `${selected.length} ${label}`;
+  const triggerText = getMultiSelectTriggerText(selected, label, t.all);
 
   const stateClass = open ? multiSelectOpen : hasSelection ? multiSelectActive : multiSelectDefault;
 

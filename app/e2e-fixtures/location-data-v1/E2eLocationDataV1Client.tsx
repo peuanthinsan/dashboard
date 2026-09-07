@@ -3,9 +3,20 @@
 import { useEffect, useState } from 'react';
 import LocationDataV1Dashboard from 'app/dashboards/LocationDataV1Dashboard';
 
-const DASHBOARD_ID = 'e2e-location-data-v1';
-const SHEET_ID = 'e2e-location-data-v1-sheet';
 const SHEET_GID = '0';
+
+type LocationDataV1FixtureMode = 'fleet' | 'single-vehicle';
+
+const FIXTURE_IDENTITIES: Record<LocationDataV1FixtureMode, { dashboardId: string; sheetId: string }> = {
+  fleet: {
+    dashboardId: 'e2e-location-data-v1',
+    sheetId: 'e2e-location-data-v1-sheet',
+  },
+  'single-vehicle': {
+    dashboardId: 'e2e-location-data-v1-single-vehicle',
+    sheetId: 'e2e-location-data-v1-single-vehicle-sheet',
+  },
+};
 
 const HEADERS = [
   'Vehicle No',
@@ -80,26 +91,34 @@ const sampleRows = Array.from({ length: 596 }, (_, sourceIndex) => {
 
 const columns = HEADERS.map((label) => ({ label, fieldKey: label, type: label.includes('Time') ? 'datetime' : 'string' }));
 
-export default function E2eLocationDataV1Client() {
+type E2eLocationDataV1ClientProps = {
+  mode?: LocationDataV1FixtureMode;
+};
+
+export default function E2eLocationDataV1Client({ mode = 'fleet' }: E2eLocationDataV1ClientProps) {
   const [ready, setReady] = useState(false);
+  const { dashboardId, sheetId } = FIXTURE_IDENTITIES[mode];
 
   useEffect(() => {
     const now = Date.now();
+    const rows = mode === 'single-vehicle'
+      ? sampleRows.filter((row) => row['Vehicle No'] === 'LOC-0055')
+      : sampleRows;
     localStorage.setItem(
-      `google-sheet:v9:${SHEET_ID}:${SHEET_GID}:video=false:months=recent`,
-      JSON.stringify({ columns, rows: sampleRows, lastUpdated: now }),
+      `google-sheet:v9:${sheetId}:${SHEET_GID}:video=false:months=recent`,
+      JSON.stringify({ columns, rows, lastUpdated: now }),
     );
     const frame = requestAnimationFrame(() => setReady(true));
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [mode, sheetId]);
 
   if (!ready) return null;
 
   return (
     <LocationDataV1Dashboard
-      dashboardId={DASHBOARD_ID}
+      dashboardId={dashboardId}
       dashboardName="Location Data v1"
-      sheetId={SHEET_ID}
+      sheetId={sheetId}
       sheetGid={SHEET_GID}
       dashboardNotes="Minute-by-minute route telemetry from the configured vehicle tracker."
       lang="en"
