@@ -1,0 +1,10 @@
+objective: Simple monthly summary with raw-sheet compatibility
+active_root: Codex
+root_model: UNKNOWN
+root_effort: UNKNOWN
+phase: review_and_browser_qa
+base_sha: 6bf0c5bce69390ebb76548622366fe88bd216b4a
+writer_lease: root except simpleSummaryData.ts and its test owned by Codex worker
+review_provider: Claude
+review_status: requested
+publishing_approved: false

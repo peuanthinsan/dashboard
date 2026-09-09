@@ -1,109 +1,109 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import { columns, sampleRows } from './fixtures/location-data';
 
 const FIXTURE_PATH = '/e2e-fixtures/location-data-v1';
 
-async function openFixture(page: Page, path: string) {
-  const response = await page.goto(path);
-  test.skip(
-    response?.status() === 404,
-    'Fixture is disabled: restart dev with ALLOW_E2E_FIXTURES=true (Playwright webServer sets this when it starts its own server).',
-  );
-  await expect(page.getByRole('heading', { name: 'Location history' })).toBeVisible({ timeout: 20_000 });
+async function mockVehicleApi(page: Page, { single = false, many = false, history = false, slowVehicle = '' } = {}) {
+  const vehicles = single ? ['LOC-0055'] : ['LOC-0055', 'LOC-0099'];
+  if (many) vehicles.push(...Array.from({ length: 498 }, (_, i) => `TRUCK-${String(i + 2).padStart(3, '0')}`));
+  const requests: Array<{ vehicle: string; offset: number }> = [];
+  await page.route('**/api/sheets/e2e-location-data-v1*/0?*', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get('mode') === 'location-vehicles') {
+      await route.fulfill({ json: { vehicles: vehicles.map((vehicleNo) => ({ vehicleNo, fleets: [] })), hasFleetColumn: false, hasUnidentifiedVehicles: false } });
+      return;
+    }
+    expect(url.searchParams.get('mode')).toBe('location-rows');
+    const vehicle = url.searchParams.get('vehicle')!;
+    expect(vehicles).toContain(vehicle);
+    const offset = Number(url.searchParams.get('offset') ?? 0);
+    requests.push({ vehicle, offset });
+    if (vehicle === slowVehicle) await new Promise((resolve) => setTimeout(resolve, 600));
+    const rows = history
+      ? Array.from({ length: 2_010 }, (_, i) => ({ ...sampleRows[i % sampleRows.length], 'Vehicle No': vehicle }))
+      : vehicle.startsWith('TRUCK-')
+        ? sampleRows.slice(0, 10).map((row) => ({ ...row, 'Vehicle No': vehicle }))
+        : sampleRows.filter((row) => row['Vehicle No'] === vehicle);
+    await route.fulfill({ json: { columns, rows: rows.slice(offset, offset + 2_000), vehicle, offset, hasMore: rows.length > offset + 2_000, lastUpdated: Date.now() } }).catch(() => {});
+  });
+  return requests;
 }
 
-function vehicleFilter(page: Page): Locator {
-  return page.getByRole('region', { name: 'Location filters' });
+async function openFixture(page: Page, single = false) {
+  const response = await page.goto(`${FIXTURE_PATH}${single ? '?mode=single-vehicle' : ''}`);
+  test.skip(response?.status() === 404, 'Start the dev server with ALLOW_E2E_FIXTURES=true.');
+  await expect(page.getByRole('heading', { name: 'Location history' })).toBeVisible();
 }
 
-async function expectVisibleVehicleCells(page: Page, expectedVehicle: string) {
-  const table = page.getByRole('table', { name: 'Location history' });
-  const vehicleCells = table.locator('tbody tr td:nth-child(2)');
-  await expect(vehicleCells).toHaveCount(10);
-  expect(await vehicleCells.allTextContents()).toEqual(Array(10).fill(expectedVehicle));
+function picker(page: Page) { return page.getByRole('region', { name: 'Selected vehicle' }); }
+
+async function expectVehicleRows(page: Page, vehicle: string) {
+  const cells = page.getByRole('table', { name: 'Location history' }).locator('tbody tr td:nth-child(2)');
+  await expect(cells).toHaveCount(10);
+  await expect(cells).toHaveText(Array(10).fill(vehicle));
 }
 
-test.describe('Location Data v1 filters', () => {
-  test('keeps the only vehicle visibly selected and persists it across reloads', async ({ page }) => {
-    await openFixture(page, `${FIXTURE_PATH}?mode=single-vehicle`);
-
-    const filters = vehicleFilter(page);
-    const allVehiclesTrigger = filters.getByRole('button', { name: /^All vehicles$/ });
-    await expect(allVehiclesTrigger).toBeVisible();
-    await allVehiclesTrigger.click();
-
-    const onlyVehicle = filters.getByRole('option', { name: 'LOC-0055' });
-    await expect(onlyVehicle).toHaveAttribute('aria-selected', 'false');
-    await onlyVehicle.click();
-    await expect(onlyVehicle).toHaveAttribute('aria-selected', 'true');
-
-    await filters.getByRole('button', { name: 'Done', exact: true }).click();
-    const selectedVehicleTrigger = filters.getByRole('button').filter({ hasText: 'LOC-0055' });
-    await expect(selectedVehicleTrigger).toBeVisible();
-    await expectVisibleVehicleCells(page, 'LOC-0055');
-
-    await selectedVehicleTrigger.click();
-    await expect(filters.getByRole('option', { name: 'LOC-0055' })).toHaveAttribute('aria-selected', 'true');
-    await filters.getByRole('button', { name: 'Done', exact: true }).click();
-
+test.describe('Location Data v1 one-vehicle loading', () => {
+  test('automatically selects the sole vehicle and cannot clear it to All', async ({ page }) => {
+    const requests = await mockVehicleApi(page, { single: true });
+    await openFixture(page, true);
+    await picker(page).getByRole('button', { name: 'LOC-0055', exact: true }).click();
+    await expect(picker(page).getByRole('listbox')).toHaveAttribute('aria-multiselectable', 'false');
+    await expect(picker(page).getByRole('option', { name: 'LOC-0055' })).toHaveAttribute('aria-selected', 'true');
+    await picker(page).getByRole('option', { name: 'LOC-0055' }).click();
+    await expectVehicleRows(page, 'LOC-0055');
+    await expect(picker(page).getByRole('button', { name: 'All vehicles' })).toHaveCount(0);
+    expect(requests).toEqual([{ vehicle: 'LOC-0055', offset: 0 }]);
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Location history' })).toBeVisible({ timeout: 20_000 });
-    const reloadedFilters = vehicleFilter(page);
-    const reloadedTrigger = reloadedFilters.getByRole('button').filter({ hasText: 'LOC-0055' });
-    await expect(reloadedTrigger).toBeVisible();
-    await reloadedTrigger.click();
-    await expect(reloadedFilters.getByRole('option', { name: 'LOC-0055' })).toHaveAttribute('aria-selected', 'true');
-    await expectVisibleVehicleCells(page, 'LOC-0055');
+    await expectVehicleRows(page, 'LOC-0055');
   });
 
-  test('shows only the selected vehicle in Location history for a multi-vehicle sheet', async ({ page }) => {
-    await openFixture(page, FIXTURE_PATH);
-
-    const filters = vehicleFilter(page);
-    await filters.getByRole('button', { name: /^All vehicles$/ }).click();
-    const selectedVehicle = filters.getByRole('option', { name: 'LOC-0055' });
-    await selectedVehicle.click();
-    await expect(selectedVehicle).toHaveAttribute('aria-selected', 'true');
-    await expect(filters.getByRole('option', { name: 'LOC-0099' })).toHaveAttribute('aria-selected', 'false');
-    await filters.getByRole('button', { name: 'Done', exact: true }).click();
-
-    await expect(page.getByText('298 / 596 location records', { exact: true })).toBeVisible();
-    await expectVisibleVehicleCells(page, 'LOC-0055');
+  test('loads only one of 500 vehicles, supports search, and cancels stale switches', async ({ page }) => {
+    const requests = await mockVehicleApi(page, { many: true, slowVehicle: 'LOC-0099' });
+    await openFixture(page);
+    expect(requests).toEqual([{ vehicle: 'LOC-0055', offset: 0 }]);
+    await picker(page).getByRole('button', { name: 'LOC-0055', exact: true }).click();
+    await expect(picker(page).getByRole('option')).toHaveCount(100);
+    await picker(page).getByRole('option', { name: 'LOC-0099' }).click();
+    await expect(page.getByRole('table', { name: 'Location history' })).toHaveCount(0);
+    await picker(page).getByRole('button', { name: 'LOC-0099', exact: true }).click();
+    await picker(page).getByRole('searchbox').fill('TRUCK-499');
+    await expect(picker(page).getByRole('option')).toHaveCount(1);
+    await picker(page).getByRole('option', { name: 'TRUCK-499' }).click();
+    await expectVehicleRows(page, 'TRUCK-499');
+    // Let the intentionally slow obsolete request finish; it must not replace this vehicle.
+    await page.waitForTimeout(700);
+    await expectVehicleRows(page, 'TRUCK-499');
+    expect(new Set(requests.map((request) => request.vehicle))).toEqual(new Set(['LOC-0055', 'LOC-0099', 'TRUCK-499']));
+    expect(requests.every((request) => request.offset === 0)).toBe(true);
   });
 
-  test('keeps every explicitly checked option selected across multi-option and sole-option filters', async ({ page }) => {
-    await openFixture(page, `${FIXTURE_PATH}?mode=single-vehicle`);
-
-    const filters = vehicleFilter(page);
-    await filters.getByRole('button', { name: /^All ignition states$/ }).click();
-
-    const ignitionOff = filters.getByRole('option', { name: 'OFF' });
-    const ignitionOn = filters.getByRole('option', { name: 'ON' });
-    await ignitionOff.click();
-    await expect(ignitionOff).toHaveAttribute('aria-selected', 'true');
-    await ignitionOn.click();
-    await expect(ignitionOff).toHaveAttribute('aria-selected', 'true');
-    await expect(ignitionOn).toHaveAttribute('aria-selected', 'true');
-
+  test('migrates saved multiple vehicles to the first choice and preserves other dropdown behavior', async ({ page }) => {
+    const requests = await mockVehicleApi(page);
+    await page.addInitScript(() => localStorage.setItem('location-data-v1-e2e-location-data-v1', JSON.stringify({ vehicles: ['LOC-0099', 'LOC-0055'] })));
+    await openFixture(page);
+    expect(requests).toEqual([{ vehicle: 'LOC-0099', offset: 0 }]);
+    await expectVehicleRows(page, 'LOC-0099');
+    const filters = page.getByRole('region', { name: 'Location filters' });
+    await filters.getByRole('button', { name: 'All ignition states', exact: true }).click();
+    await filters.getByRole('option', { name: 'OFF', exact: true }).click();
+    await filters.getByRole('option', { name: 'ON', exact: true }).click();
+    await expect(filters.getByRole('option', { selected: true })).toHaveCount(2);
     await filters.getByRole('button', { name: 'Done', exact: true }).click();
-    const ignitionTrigger = filters.getByText('2 ignition states', { exact: true }).locator('..');
-    await expect(ignitionTrigger).toBeVisible();
-    await expect(filters.getByRole('button', { name: /^All ignition states$/ })).toHaveCount(0);
+    await filters.getByRole('button', { name: 'Clear filters', exact: true }).click();
+    await expect(picker(page).getByRole('button', { name: 'LOC-0099', exact: true })).toBeVisible();
+    await expectVehicleRows(page, 'LOC-0099');
+    expect(requests).toHaveLength(1);
+  });
 
-    await ignitionTrigger.click();
-    await expect(filters.getByRole('option', { name: 'OFF' })).toHaveAttribute('aria-selected', 'true');
-    await expect(filters.getByRole('option', { name: 'ON' })).toHaveAttribute('aria-selected', 'true');
-    await filters.getByRole('button', { name: 'Done', exact: true }).click();
-
-    await filters.getByRole('button', { name: /^All GPS statuses$/ }).click();
-    const onlyGpsStatus = filters.getByRole('option', { name: 'A' });
-    await expect(onlyGpsStatus).toHaveAttribute('aria-selected', 'false');
-    await onlyGpsStatus.click();
-    await expect(onlyGpsStatus).toHaveAttribute('aria-selected', 'true');
-    await filters.getByRole('button', { name: 'Done', exact: true }).click();
-
-    const gpsTrigger = filters.getByText('A', { exact: true }).locator('..');
-    await expect(gpsTrigger).toBeVisible();
-    await gpsTrigger.click();
-    await expect(filters.getByRole('option', { name: 'A' })).toHaveAttribute('aria-selected', 'true');
+  test('loads older history only on request and keeps it scoped to the selected plate', async ({ page }) => {
+    const requests = await mockVehicleApi(page, { history: true });
+    await openFixture(page);
+    await expect(page.getByText('2,000 / 2,000 location records', { exact: true })).toBeVisible();
+    expect(requests).toEqual([{ vehicle: 'LOC-0055', offset: 0 }]);
+    await page.getByRole('button', { name: 'Load older history', exact: true }).click();
+    await expect(page.getByText('2,010 / 2,010 location records', { exact: true })).toBeVisible();
+    expect(requests).toEqual([{ vehicle: 'LOC-0055', offset: 0 }, { vehicle: 'LOC-0055', offset: 2000 }]);
+    await expect(page.getByRole('button', { name: 'Load older history', exact: true })).toHaveCount(0);
   });
 });

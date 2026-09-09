@@ -16,6 +16,7 @@ type MultiSelectProps = {
   onChange: (selected: string[]) => void;
   lang?: string;
   className?: string;
+  selectionMode?: 'multiple' | 'single';
 };
 
 export function getNextMultiSelectSelection(
@@ -44,6 +45,7 @@ export default function MultiSelect({
   onChange,
   lang = 'en',
   className = '',
+  selectionMode = 'multiple',
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -51,6 +53,8 @@ export default function MultiSelect({
   const searchRef = useRef<HTMLInputElement>(null);
   const optionRefs = useRef<Array<HTMLDivElement | null>>([]);
   const listboxId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const single = selectionMode === 'single';
 
   const t = lang === 'th'
     ? { all: 'ทั้งหมด', search: 'ค้นหา...', clear: 'ล้างตัวกรอง', done: 'เสร็จ', options: 'ตัวเลือก' }
@@ -62,8 +66,17 @@ export default function MultiSelect({
   );
 
   const hasSelection = selected.length > 0;
+  // Keep large vehicle catalogues cheap to render; search reaches every option.
+  const visibleOptions = single ? filtered.slice(0, 100) : filtered;
 
   const toggleItem = (item: string) => {
+    if (single) {
+      onChange([item]);
+      setOpen(false);
+      setSearch('');
+      triggerRef.current?.focus();
+      return;
+    }
     onChange(getNextMultiSelectSelection(selected, item));
   };
 
@@ -87,13 +100,14 @@ export default function MultiSelect({
     if (open) searchRef.current?.focus();
   }, [open]);
 
-  const triggerText = getMultiSelectTriggerText(selected, label, t.all);
+  const triggerText = getMultiSelectTriggerText(selected, label, single ? (lang === 'th' ? 'เลือกรถ' : 'Select vehicle') : t.all);
 
   const stateClass = open ? multiSelectOpen : hasSelection ? multiSelectActive : multiSelectDefault;
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`${multiSelectTrigger} ${stateClass}`}
@@ -102,7 +116,7 @@ export default function MultiSelect({
         aria-controls={open ? listboxId : undefined}
       >
         <span className="min-w-0 truncate">{triggerText}</span>
-        {hasSelection ? (
+        {hasSelection && !single ? (
           <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
             {selected.length}
           </span>
@@ -144,10 +158,9 @@ export default function MultiSelect({
             </label>
           </div>
 
-          <div id={listboxId} className="max-h-[240px] overflow-y-auto p-1.5" role="listbox" aria-label={label} aria-multiselectable="true">
-            {filtered.map((option) => {
+          <div id={listboxId} className="max-h-[240px] overflow-y-auto p-1.5" role="listbox" aria-label={label} aria-multiselectable={!single}>
+            {visibleOptions.map((option, optionIndex) => {
               const checked = selected.includes(option);
-              const optionIndex = filtered.indexOf(option);
               // role="option" must sit on the focusable element so screen readers
               // announce "selected/not selected" and keyboard users can reach it.
               // Space/Enter toggle — matches the ARIA multiselect pattern.
@@ -168,7 +181,7 @@ export default function MultiSelect({
                     }
                     if (e.key === 'ArrowDown') {
                       e.preventDefault();
-                      optionRefs.current[Math.min(optionIndex + 1, filtered.length - 1)]?.focus();
+                      optionRefs.current[Math.min(optionIndex + 1, visibleOptions.length - 1)]?.focus();
                     }
                     if (e.key === 'ArrowUp') {
                       e.preventDefault();
@@ -181,7 +194,7 @@ export default function MultiSelect({
                     }
                     if (e.key === 'End') {
                       e.preventDefault();
-                      optionRefs.current[filtered.length - 1]?.focus();
+                      optionRefs.current[visibleOptions.length - 1]?.focus();
                     }
                   }}
                   className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/30 ${
@@ -190,7 +203,7 @@ export default function MultiSelect({
                 >
                   <span
                     aria-hidden="true"
-                    className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-sm border-2 text-[8px] font-bold ${
+                    className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center ${single ? 'rounded-full' : 'rounded-sm'} border-2 text-[8px] font-bold ${
                       checked
                         ? 'border-red-600 bg-red-600 text-white'
                         : 'border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800'
@@ -207,10 +220,15 @@ export default function MultiSelect({
                 {lang === 'th' ? 'ไม่พบผลลัพธ์' : 'No results'}
               </div>
             )}
+            {visibleOptions.length < filtered.length && (
+              <p className="px-2.5 py-2 text-xs text-zinc-500">
+                {lang === 'th' ? 'แสดง 100 รายการแรก — ค้นหาเพื่อระบุรถ' : 'Showing the first 100 matches. Search to find a vehicle.'}
+              </p>
+            )}
           </div>
 
           <div className="flex justify-between border-t border-zinc-100/80 bg-zinc-50/70 px-3 py-2.5 dark:border-zinc-800/60 dark:bg-zinc-950/30">
-            <button
+            {!single && <button
               type="button"
               onClick={() => {
                 onChange([]);
@@ -220,7 +238,7 @@ export default function MultiSelect({
               className="text-[11px] font-semibold text-zinc-500 transition hover:text-zinc-900 disabled:cursor-default disabled:opacity-40 dark:hover:text-zinc-200"
             >
               {t.clear}
-            </button>
+            </button>}
             <button
               type="button"
               onClick={() => setOpen(false)}

@@ -9,6 +9,8 @@ import {
 import { DEFAULT_SHEET_ROW_LIMIT } from 'app/dashboards/googleSheetGvizUrl';
 import { getUser, userCanAccessSheet } from 'app/db';
 import { isValidSheetGid, isValidSheetId } from 'app/admin/admin-utils';
+import { fetchLocationVehicleCatalog, fetchLocationVehiclePage } from 'app/dashboards/locationVehicleFetch';
+import { LOCATION_MAX_RECORDS } from 'app/dashboards/locationVehicleData';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -74,6 +76,24 @@ export async function GET(
   const includeVideo = url.searchParams.get('video') === '1';
 
   try {
+    if (mode === 'location-vehicles') {
+      return NextResponse.json(await fetchLocationVehicleCatalog(sheetId, gid, url.searchParams.get('refresh') === '1'));
+    }
+
+    if (mode === 'location-rows') {
+      const vehicle = url.searchParams.get('vehicle');
+      const offset = Number(url.searchParams.get('offset') ?? '0');
+      let scopes: unknown;
+      try { scopes = JSON.parse(url.searchParams.get('scopes') ?? '[]'); } catch { scopes = null; }
+      if (!Array.isArray(scopes) || scopes.length > 500 || scopes.some((value) => typeof value !== 'string' || !value.trim() || value.length > 256)) {
+        return NextResponse.json({ error: 'Invalid vehicle scope.' }, { status: 400 });
+      }
+      if (!vehicle?.trim() || vehicle.length > 256 || !Number.isInteger(offset) || offset < 0 || offset >= LOCATION_MAX_RECORDS) {
+        return NextResponse.json({ error: 'Select one vehicle and a valid history offset.' }, { status: 400 });
+      }
+      return NextResponse.json(await fetchLocationVehiclePage(sheetId, gid, vehicle, offset, request.signal, scopes));
+    }
+
     if (mode === 'months') {
       const months = await listSheetMonths(sheetId, gid);
       return NextResponse.json({ months, lastUpdated: Date.now() });
@@ -118,6 +138,9 @@ export async function GET(
       truncated: parsed.rows.length >= DEFAULT_SHEET_ROW_LIMIT,
     });
   } catch (err) {
+    if (mode === 'location-vehicles' || mode === 'location-rows') {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Unable to load vehicle data.' }, { status: 502 });
+    }
     if (err instanceof SheetDateColumnError) {
       // Explicit signal (not a silent recent-rows fallback, which chunked
       // clients would merge once per chunk): this sheet can't serve date ranges.

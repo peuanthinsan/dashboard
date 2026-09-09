@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
-import useGoogleSheet from './useGoogleSheet';
+import useLocationVehicleData from './useLocationVehicleData';
+import { LOCATION_FLEET_FIELDS, LOCATION_MAX_RECORDS, LOCATION_PAGE_SIZE } from './locationVehicleData';
 import { findValue, normalizeLabel, scopeFleetSet } from './dashboardDataUtils';
 import {
   buildLocationContinuityGroups,
@@ -86,7 +87,7 @@ type LocationTableRecord = LocationRecord & {
 };
 
 const EMPTY_RANGE: DateTimeRange = { start: '', end: '' };
-const FLEET_FIELD_ALIASES = ['Fleet', 'Fleet Name', 'Organization', 'Organization Name'];
+const FLEET_FIELD_ALIASES = LOCATION_FLEET_FIELDS;
 const NORMALIZED_FLEET_FIELDS = new Set(FLEET_FIELD_ALIASES.map(normalizeLabel));
 
 function formatDuration(milliseconds: number, lang: DashboardLang) {
@@ -157,16 +158,6 @@ export default function LocationDataV1Dashboard({
   lang = 'en',
   isAdmin = false,
 }: LocationDataV1DashboardProps) {
-  const {
-    rows,
-    columns: sheetColumns,
-    loading,
-    refreshing,
-    error,
-    lastUpdated,
-    refresh,
-  } = useGoogleSheet({ sheetId, gid: sheetGid });
-
   const storageKey = useMemo(() => `location-data-v1-${dashboardId}`, [dashboardId]);
   const [search, setSearch] = useState('');
   const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>(EMPTY_RANGE);
@@ -186,7 +177,7 @@ export default function LocationDataV1Dashboard({
         if (stored.dateTimeRange && isCompleteDateTimeRange(stored.dateTimeRange)) {
           setDateTimeRange(stored.dateTimeRange);
         }
-        if (Array.isArray(stored.vehicles)) setVehicles(stored.vehicles.filter((value) => typeof value === 'string'));
+        if (Array.isArray(stored.vehicles)) setVehicles(stored.vehicles.filter((value) => typeof value === 'string' && value.trim()).slice(0, 1));
         if (Array.isArray(stored.drivers)) setDrivers(stored.drivers.filter((value) => typeof value === 'string'));
         if (Array.isArray(stored.ignition)) setIgnition(stored.ignition.filter((value) => typeof value === 'string'));
         if (Array.isArray(stored.gpsStatuses)) setGpsStatuses(stored.gpsStatuses.filter((value) => typeof value === 'string'));
@@ -197,54 +188,45 @@ export default function LocationDataV1Dashboard({
     return () => cancelAnimationFrame(frame);
   }, [storageKey]);
 
+  const scopeSet = useMemo(
+    () => scopeFleetSet(organizationName, organizationNames),
+    [organizationName, organizationNames],
+  );
+  const scopes = useMemo(() => Array.from(scopeSet), [scopeSet]);
+  const {
+    rows, columns: sheetColumns, loading, refreshing, error, lastUpdated, refresh,
+    selectedVehicle, vehicleOptions, hasMore, loadMore,
+  } = useLocationVehicleData({
+    sheetId, gid: sheetGid, preferredVehicle: vehicles[0] ?? null, scopes,
+    enabled: hydratedStorageKey === storageKey,
+  });
+
   useEffect(() => {
-    if (hydratedStorageKey !== storageKey) return;
+    if (hydratedStorageKey !== storageKey || !selectedVehicle) return;
     saveStoredFilters(storageKey, {
       search,
       dateTimeRange,
-      vehicles,
+      vehicles: [selectedVehicle],
       drivers,
       ignition,
       gpsStatuses,
       pollingModes,
     });
-  }, [dateTimeRange, drivers, gpsStatuses, hydratedStorageKey, ignition, pollingModes, search, storageKey, vehicles]);
+  }, [dateTimeRange, drivers, gpsStatuses, hydratedStorageKey, ignition, pollingModes, search, selectedVehicle, storageKey]);
 
-  const scopeSet = useMemo(
-    () => scopeFleetSet(organizationName, organizationNames),
-    [organizationName, organizationNames],
-  );
   const hasFleetColumn = useMemo(
     () => sheetColumns.some((column) => NORMALIZED_FLEET_FIELDS.has(normalizeLabel(column.label))),
     [sheetColumns],
   );
   const normalizedRecords = useMemo(() => normalizeLocationRows(rows), [rows]);
-  const isDedicatedSingleVehicleSource = useMemo(() => {
-    const vehicleIds = normalizedRecords.map((record) => normalizeLabel(record.vehicleNo));
-    return (
-      vehicleIds.length > 0 &&
-      vehicleIds.every(Boolean) &&
-      new Set(vehicleIds).size === 1
-    );
-  }, [normalizedRecords]);
-  const scopeConfigurationError =
-    !loading &&
-    scopeSet.size > 0 &&
-    !hasFleetColumn &&
-    !isDedicatedSingleVehicleSource
-      ? lang === 'th'
-        ? 'แดชบอร์ดนี้จำกัดกลุ่มรถ แต่ชีตที่มีรถหลายคันไม่มีคอลัมน์ Fleet หรือ Organization'
-        : 'This fleet-scoped dashboard has multiple or unidentified vehicles, but the sheet has no Fleet or Organization column.'
-      : null;
   const records = useMemo(() => {
-    if (scopeConfigurationError) return [];
-    if (scopeSet.size === 0 || !hasFleetColumn) return normalizedRecords;
     return normalizedRecords.filter((record) => {
+      if (record.vehicleNo !== selectedVehicle) return false;
+      if (scopeSet.size === 0 || !hasFleetColumn) return true;
       const fleet = String(findValue(record.sourceRow, FLEET_FIELD_ALIASES) ?? '');
       return scopeSet.has(normalizeLabel(fleet));
     });
-  }, [hasFleetColumn, normalizedRecords, scopeConfigurationError, scopeSet]);
-  const vehicleOptions = useMemo(() => Array.from(new Set(records.map((record) => record.vehicleNo).filter(Boolean))).sort(), [records]);
+  }, [hasFleetColumn, normalizedRecords, scopeSet, selectedVehicle]);
   const driverOptions = useMemo(() => Array.from(new Set(records.map((record) => record.driverName).filter(Boolean))).sort(), [records]);
   const ignitionOptions = useMemo(() => Array.from(new Set(records.map((record) => record.ignition).filter(Boolean))).sort(), [records]);
   const gpsOptions = useMemo(() => Array.from(new Set(records.map((record) => record.gpsStatus).filter(Boolean))).sort(), [records]);
@@ -260,7 +242,6 @@ export default function LocationDataV1Dashboard({
       ) {
         return false;
       }
-      if (vehicles.length > 0 && !vehicles.includes(record.vehicleNo)) return false;
       if (drivers.length > 0 && !drivers.includes(record.driverName)) return false;
       if (ignition.length > 0 && !ignition.includes(record.ignition)) return false;
       if (gpsStatuses.length > 0 && !gpsStatuses.includes(record.gpsStatus)) return false;
@@ -279,7 +260,7 @@ export default function LocationDataV1Dashboard({
         record.longitude,
       ].join(' ')).includes(term);
     });
-  }, [dateTimeRange, drivers, gpsStatuses, ignition, pollingModes, records, search, vehicles]);
+  }, [dateTimeRange, drivers, gpsStatuses, ignition, pollingModes, records, search]);
 
   const summary = useMemo(
     () => summarizeLocationRecords(filteredRecords, records),
@@ -338,7 +319,6 @@ export default function LocationDataV1Dashboard({
   const activeFilterCount =
     (search ? 1 : 0) +
     (isCompleteDateTimeRange(dateTimeRange) ? 1 : 0) +
-    vehicles.length +
     drivers.length +
     ignition.length +
     gpsStatuses.length +
@@ -365,7 +345,7 @@ export default function LocationDataV1Dashboard({
         refreshing: 'กำลังรีเฟรช…',
         export: 'ส่งออก CSV',
         history: 'ประวัติตำแหน่ง',
-        historyHint: 'แสดงข้อมูลล่าสุดสูงสุด 25,000 แถว คลิกแถวเพื่อเน้นจุดบนเส้นทาง',
+        historyHint: `แสดงประวัติที่โหลดของรถที่เลือก โหลดเพิ่มครั้งละ ${LOCATION_PAGE_SIZE.toLocaleString()} แถว สูงสุด ${LOCATION_MAX_RECORDS.toLocaleString()} แถว ตัวชี้วัดและการส่งออกใช้เฉพาะประวัติที่โหลด`,
         noData: 'ไม่พบข้อมูลตำแหน่ง',
         noDataDetail: 'ตรวจสอบลิงก์ชีตหรือลองล้างตัวกรอง',
         trackTime: 'เวลาติดตาม',
@@ -397,7 +377,7 @@ export default function LocationDataV1Dashboard({
         refreshing: 'Refreshing…',
         export: 'Export CSV',
         history: 'Location history',
-        historyHint: 'Showing up to 25,000 most recent source rows. Select a row to highlight its point on the route.',
+        historyHint: `Showing loaded history for the selected vehicle. Load ${LOCATION_PAGE_SIZE.toLocaleString()} older records at a time, up to ${LOCATION_MAX_RECORDS.toLocaleString()}. KPIs and exports use loaded history only.`,
         noData: 'No location records found',
         noDataDetail: 'Check the sheet link or clear the current filters.',
         trackTime: 'Track Time',
@@ -412,11 +392,17 @@ export default function LocationDataV1Dashboard({
   const clearFilters = () => {
     setSearch('');
     setDateTimeRange(EMPTY_RANGE);
-    setVehicles([]);
     setDrivers([]);
     setIgnition([]);
     setGpsStatuses([]);
     setPollingModes([]);
+  };
+
+  const selectVehicle = (next: string[]) => {
+    if (!next[0] || next[0] === selectedVehicle) return;
+    setVehicles([next[0]]);
+    clearFilters();
+    setSelectedRecordId(null);
   };
 
   const tableColumns = useMemo<Column<LocationTableRecord>[]>(() => [
@@ -571,11 +557,19 @@ export default function LocationDataV1Dashboard({
       actions={actions}
       dashboardId={dashboardId}
       isAdmin={isAdmin}
-      activeFilterCount={activeFilterCount}
-      filterSummary={filterSummary}
+      activeFilterCount={activeFilterCount + (selectedVehicle ? 1 : 0)}
+      filterSummary={selectedVehicle ? `${selectedVehicle} · ${filterSummary}` : filterSummary}
     >
-      {loading || error || scopeConfigurationError ? (
-        <LoadingState error={error ?? scopeConfigurationError ?? undefined} onRetry={refresh} lang={lang} />
+      <section className={`${dashboardSectionClass} relative z-30`} aria-label={lang === 'th' ? 'รถที่เลือก' : 'Selected vehicle'}>
+        <div className="flex flex-wrap items-center gap-3">
+          <MultiSelect label={copy.vehicles} options={vehicleOptions} selected={selectedVehicle ? [selectedVehicle] : []} onChange={selectVehicle} lang={lang} selectionMode="single" />
+          <p className={textSecondary}>
+            {lang === 'th' ? 'แสดงรถครั้งละหนึ่งคัน เลือกทะเบียนเพื่อโหลดเส้นทางและประวัติ' : 'One vehicle at a time. Choose a plate to load its route and history.'}
+          </p>
+        </div>
+      </section>
+      {loading || (error && rows.length === 0) ? (
+        <LoadingState error={error ?? undefined} onRetry={refresh} lang={lang} />
       ) : records.length === 0 ? (
         <section className={dashboardSectionClass}>
           <EmptyState title={copy.noData} description={copy.noDataDetail} variant="dashboard" />
@@ -620,7 +614,7 @@ export default function LocationDataV1Dashboard({
             <div className={dashboardSectionClass}>
               <LocationTelemetryTimeline
                 points={telemetryPoints}
-                onSelectVehicle={(vehicleNo) => setVehicles([vehicleNo])}
+                onSelectVehicle={(vehicleNo) => selectVehicle([vehicleNo])}
                 lang={lang}
               />
             </div>
@@ -653,7 +647,6 @@ export default function LocationDataV1Dashboard({
               </span>
             </label>
             <DateTimeRangePicker value={dateTimeRange} onChange={setDateTimeRange} lang={lang} />
-            <MultiSelect label={copy.vehicles} options={vehicleOptions} selected={vehicles} onChange={setVehicles} lang={lang} />
             <MultiSelect label={copy.drivers} options={driverOptions} selected={drivers} onChange={setDrivers} lang={lang} />
             <MultiSelect label={copy.ignition} options={ignitionOptions} selected={ignition} onChange={setIgnition} lang={lang} />
             <MultiSelect label={copy.gps} options={gpsOptions} selected={gpsStatuses} onChange={setGpsStatuses} lang={lang} />
@@ -681,6 +674,14 @@ export default function LocationDataV1Dashboard({
               />
             ) : (
               <EmptyState title={copy.noData} description={copy.noDataDetail} />
+            )}
+            {(hasMore || error) && (
+              <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200/70 p-4 dark:border-zinc-800/70">
+                {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+                {hasMore && <button type="button" disabled={refreshing} onClick={() => void loadMore()} className={`${btnSecondary} ${btnSmall}`}>
+                  {refreshing ? (lang === 'th' ? 'กำลังโหลด…' : 'Loading…') : (lang === 'th' ? 'โหลดประวัติเก่ากว่า' : 'Load older history')}
+                </button>}
+              </div>
             )}
           </section>
         </>

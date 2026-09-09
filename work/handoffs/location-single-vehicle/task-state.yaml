@@ -1,0 +1,10 @@
+task: location-single-vehicle
+root: Codex
+model: GPT-6
+effort: UNKNOWN
+phase: complete_local
+base: 6bf0c5bce69390ebb76548622366fe88bd216b4a
+writer: root
+reviewer: Claude
+review_status: complete_no_findings
+production_approval: not_requested

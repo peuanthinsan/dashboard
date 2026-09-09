@@ -72,7 +72,7 @@ const templateIconBg: Record<string, string> = {
 const templateDescriptions: Record<string, { en: string; th: string }> = {
   Summary: { en: 'Overview with KPIs and charts', th: 'ภาพรวม KPI และกราฟ' },
   Detail: { en: 'In-depth alert analysis', th: 'วิเคราะห์การแจ้งเตือนเชิงลึก' },
-  Simple: { en: 'Minimal table view', th: 'มุมมองตารางอย่างง่าย' },
+  Simple: { en: 'Simple alerts & monthly summaries', th: 'การแจ้งเตือนแบบง่ายและสรุปรายเดือน' },
   Driving: { en: 'Driving hours & safety', th: 'ชั่วโมงขับขี่และความปลอดภัย' },
   OverSpeed: { en: 'Speed policy and event review', th: 'ตรวจสอบความเร็วและเหตุการณ์' },
   VehicleKPI: { en: 'Vehicle performance indicators', th: 'ตัวชี้วัดประสิทธิภาพรถ' },
