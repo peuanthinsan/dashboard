@@ -5,11 +5,21 @@ import { isUnitApiUpdateStale } from './unitDeviceStatus';
 export type UnitUpdateStatus = 'recent' | 'stale' | 'unknown';
 
 export type UnitHealth = 'online' | 'offline' | 'unknown';
+export type UnitOverallStatus = 'healthy' | 'warning' | 'offline' | 'unknown';
+export const CAMERA_CHANNELS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+export type UnitCameraChannel = typeof CAMERA_CHANNELS[number];
+export const CAMERA_FIELDS = [
+  { key: 'ch1Ai', en: 'AI camera', th: 'กล้อง AI' },
+  { key: 'front', en: 'Front camera', th: 'กล้องหน้า' },
+  { key: 'rearRight', en: 'Rear right', th: 'ด้านหลังขวา' },
+  { key: 'rearLeft', en: 'Rear left', th: 'ด้านหลังซ้าย' },
+  { key: 'cabin', en: 'Cabin', th: 'ห้องโดยสาร' },
+] as const;
 export const DEVICE_FIELDS = [
   { key: 'gpsStatus', en: 'GPS', th: 'GPS' },
   { key: 'statusAi', en: 'Status AI', th: 'สถานะ AI' },
   { key: 'deviceStatus', en: 'Device status', th: 'สถานะอุปกรณ์' },
-  { key: 'ch1Ai', en: 'CH1 AI', th: 'CH1 AI' },
+  { key: 'ch1Ai', en: 'AI camera', th: 'กล้อง AI' },
   { key: 'reverseBsd', en: 'Reverse BSD', th: 'BSD ด้านหลัง' },
   { key: 'front', en: 'Front camera', th: 'กล้องหน้า' },
   { key: 'frontBsd', en: 'Front BSD', th: 'BSD ด้านหน้า' },
@@ -21,6 +31,10 @@ export const DEVICE_FIELDS = [
   { key: 'storage', en: 'Storage', th: 'พื้นที่จัดเก็บ' },
   { key: 'seatVibrator', en: 'Seat vibrator', th: 'เบาะสั่น' },
   { key: 'intercom', en: 'Intercom', th: 'อินเตอร์คอม' },
+  { key: 'mcr', en: 'MCR', th: 'MCR' },
+  { key: 'mdvr', en: 'MDVR', th: 'MDVR' },
+  { key: 'ivms', en: 'IVMS', th: 'IVMS' },
+  { key: 'fatigueAi', en: 'Fatigue AI', th: 'AI ตรวจจับความเหนื่อยล้า' },
 ] as const;
 export type UnitDeviceKey = typeof DEVICE_FIELDS[number]['key'];
 
@@ -47,6 +61,8 @@ const STATUS_ALIASES: Record<UnitDeviceKey, string[]> = {
   frontBsd: ['Front BSD'], rearRight: ['Rear Right'], rearLeft: ['Rear Left'],
   leftBsd: ['Left BSD'], rightBsd: ['Right BSD'], cabin: ['Cabin'],
   storage: ['Storage', 'storagestatus', 'Storage Status'], seatVibrator: ['Seat Vibrator'], intercom: ['Intercom'],
+  mcr: ['MCR', 'MCR Status'], mdvr: ['MDVR', 'MDVR Status'], ivms: ['IVMS', 'IVMS Status'],
+  fatigueAi: ['Fatigue AI', 'Fatigue AI Status'],
 };
 
 // Only literal camera names are portable. Numeric channels and Driver/AI/Reverse 1
@@ -73,6 +89,143 @@ function readDeviceStatuses(row: GoogleSheetRow): Record<UnitDeviceKey, UnitHeal
   }
   result.intercom = 'online'; // Required for all companies: no trigger logic in source.
   return result;
+}
+
+// Preserve the legacy telemetry channel schema independently of BIGTH camera
+// positions. C1 is not evidence that BIGTH's Front or CH1 AI check is online.
+const RAW_CAMERA_NAMES: Record<string, UnitCameraChannel> = {
+  front: 1, driver: 2, ai: 3, 'rear right': 4, rearright: 4,
+  'rear left': 5, rearleft: 5,
+};
+
+function cameraTokens(value: string, sourceNames: string[] = []): Set<UnitCameraChannel> {
+  const channels = new Set<UnitCameraChannel>();
+  for (const raw of value.split(',')) {
+    const token = normalizeLabel(raw);
+    const numeric = Number(token);
+    if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 9) {
+      channels.add(numeric as UnitCameraChannel);
+    } else if (sourceNames.some((name) => name.trim())) {
+      const matches = sourceNames.map((name, index) => normalizeLabel(name) === token ? index + 1 : 0).filter(Boolean);
+      if (matches.length === 1 && matches[0] <= 9) channels.add(matches[0] as UnitCameraChannel);
+    } else if (Object.hasOwn(RAW_CAMERA_NAMES, token)) {
+      channels.add(RAW_CAMERA_NAMES[token]);
+    }
+  }
+  return channels;
+}
+
+function parseCameraMask(value: unknown): number | null {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  if (typeof value === 'string' && !/^(?:\d+|0x[\da-f]+)$/i.test(value.trim())) return null;
+  const mask = Number(value);
+  return Number.isSafeInteger(mask) && mask >= 0 && mask <= 0xffff ? mask : null;
+}
+
+function readObject(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch { return {}; }
+}
+
+function readCameraChannels(row: GoogleSheetRow) {
+  const recordingRaw = readText(row, ['recording']);
+  const lossRaw = readText(row, ['videoloss', 'Video Loss']);
+  const stopped = normalizeLabel(recordingRaw) === 'notrecording';
+  const result = {} as Record<UnitCameraChannel, UnitHealth>;
+  const present = {} as Record<UnitCameraChannel, boolean>;
+  const names = {} as Record<UnitCameraChannel, string>;
+  const representedChecklistKeys = new Set<UnitDeviceKey>();
+  const labels = Object.keys(row);
+  // VSS inventory and current health are different masks. Unused inputs may
+  // appear in videoLost. Never infer installation from those phantom loss bits.
+  const raw = readObject(findValue(row, ['raw_payload', 'Raw Payload']));
+  const mask = parseCameraMask(findValue(row, ['usableChs', 'Usable Channels']) ?? raw.usableChs);
+  const channelNames = String(findValue(row, ['channelname', 'Camera Names']) ?? raw.channelname ?? '').split(';');
+  const recording = cameraTokens(recordingRaw, mask !== null ? channelNames : []);
+  const loss = cameraTokens(lossRaw, mask !== null ? channelNames : []);
+  const status = readObject(findValue(row, ['lastStatusJson', 'Last Status JSON']) ?? raw.lastStatusJson);
+  const modules = status.module && typeof status.module === 'object' ? status.module as Record<string, unknown> : {};
+  const alarm = status.alarm && typeof status.alarm === 'object' ? status.alarm as Record<string, unknown> : {};
+  const recordMask = parseCameraMask(modules.record);
+  const lossMask = parseCameraMask(alarm.videoLost);
+  const malformedHealth = (Object.hasOwn(modules, 'record') && recordMask === null)
+    || (Object.hasOwn(alarm, 'videoLost') && lossMask === null);
+  const namedLoss = new Set(lossRaw.split(',').map(normalizeLabel)
+    .filter((name) => Object.hasOwn(RAW_CAMERA_NAMES, name)).map((name) => RAW_CAMERA_NAMES[name]));
+  for (const channel of CAMERA_CHANNELS) {
+    const bit = 1 << (channel - 1);
+    const aliases = [`Camera CH${channel}`, `CH${channel}`, `C${channel}`, `Camera ${channel}`, `Camera${channel}`];
+    const direct = hasAliasedColumn(labels, aliases);
+    // Sheet-only fallback displays observed cameras; a count does not establish
+    // a contiguous channel layout, and a blank shared column is not installation.
+    present[channel] = mask !== null ? (mask & bit) !== 0
+      : recording.has(channel) || namedLoss.has(channel) || (direct && isReportedValue(readText(row, aliases)));
+    const name = channelNames[channel - 1]?.trim() || (mask === null
+      ? [...recordingRaw.split(','), ...lossRaw.split(',')].find((value) => RAW_CAMERA_NAMES[normalizeLabel(value)] === channel)?.trim() ?? '' : '');
+    names[channel] = /^ch\s*\d+$/i.test(name) ? '' : name;
+    if (!present[channel]) {
+      result[channel] = 'unknown';
+    } else if (direct) {
+      const value = normalizeLabel(readText(row, aliases));
+      result[channel] = ['connected', 'connect', 'on'].includes(value) ? 'online'
+        : ['disconnected', 'disconnect', 'off'].includes(value) ? 'offline' : readUnitHealth(value);
+    } else if (mask !== null) {
+      if (recordMask !== null && lossMask !== null) {
+        result[channel] = (recordMask & bit) !== 0 && (lossMask & bit) === 0 ? 'online' : 'offline';
+      } else {
+        result[channel] = (lossMask !== null && (lossMask & bit) !== 0) || loss.has(channel) || stopped
+          || (recordMask !== null && (recordMask & bit) === 0) ? 'offline'
+          : malformedHealth || recordMask !== null ? 'unknown' : recording.has(channel) ? 'online' : 'unknown';
+      }
+    } else {
+      result[channel] = stopped || loss.has(channel) ? 'offline'
+        : recording.has(channel) ? 'online' : 'unknown';
+    }
+    // An explicit positional field can override the same literal camera name,
+    // but never a guessed numeric position. Other cameras retain their evidence.
+    if (present[channel] && !direct) {
+      const literalNames = mask !== null ? [channelNames[channel - 1] ?? '']
+        : [...recordingRaw.split(','), ...lossRaw.split(',')].filter((name) => RAW_CAMERA_NAMES[normalizeLabel(name)] === channel);
+      const explicit = CAMERA_FIELDS.find((field) => hasAliasedColumn(labels, STATUS_ALIASES[field.key])
+        && literalNames.some((name) => STATUS_ALIASES[field.key].map(normalizeLabel).includes(normalizeLabel(name))));
+      if (explicit) {
+        result[channel] = readUnitHealth(readText(row, STATUS_ALIASES[explicit.key]));
+        representedChecklistKeys.add(explicit.key);
+      }
+    }
+  }
+  return { channels: result, present, names, representedChecklistKeys, inventoryKnown: mask !== null,
+    installedCount: mask !== null ? CAMERA_CHANNELS.filter((channel) => (mask & (1 << (channel - 1))) !== 0).length : null };
+}
+
+export type UnitCheck = { key: string; en: string; th: string; status: UnitHealth; present?: boolean };
+type CameraRow = Pick<UnitRow, 'cameraSource' | 'cameraChannels' | 'cameraPresent' | 'cameraLabels' | 'cameraChecklistPresent' | 'cameraAdditionalChecks' | 'statuses'>;
+
+export function getUnitCameraChecks(row: CameraRow): UnitCheck[] {
+  return row.cameraSource === 'checklist'
+    ? CAMERA_FIELDS.map((field) => ({ ...field, ...(field.key === 'ch1Ai' ? { en: 'AI camera', th: 'กล้อง AI' } : {}), status: row.statuses[field.key], present: row.cameraChecklistPresent.includes(field.key) }))
+    : CAMERA_CHANNELS.map((channel) => ({ key: `c${channel}`, en: row.cameraLabels[channel] || `Camera ${channel}`, th: row.cameraLabels[channel] || `กล้อง ${channel}`, status: row.cameraChannels[channel], present: row.cameraPresent[channel] }));
+}
+
+/** Each check is counted once; channel telemetry never substitutes for BSD wiring. */
+export function getUnitChecks(row: CameraRow): UnitCheck[] {
+  const cameraKeys = new Set<string>(CAMERA_FIELDS.map((field) => field.key));
+  const devices = DEVICE_FIELDS.filter((field) => !cameraKeys.has(field.key) || (row.cameraSource === 'channels' && row.cameraAdditionalChecks.includes(field.key)))
+    .map((field) => ({ ...field, status: row.statuses[field.key] }));
+  return [...devices, ...getUnitCameraChecks(row).filter((check) => check.present !== false)];
+}
+
+function readOverallStatus(row: CameraRow & Pick<UnitRow, 'updateStatus' | 'expectedCameras'>): UnitOverallStatus {
+  if (row.updateStatus === 'stale' || row.statuses.gpsStatus === 'offline' || row.statuses.deviceStatus === 'offline') return 'offline';
+  if (getUnitChecks(row).some((check) => check.status === 'offline')) return 'warning';
+  const cameras = getUnitCameraChecks(row).filter((check) => check.present !== false);
+  if (row.statuses.gpsStatus !== 'online' || (cameras.length === 0 && row.expectedCameras !== 0)
+    || (row.expectedCameras !== null && cameras.length < row.expectedCameras)
+    || cameras.some((check) => check.status === 'unknown')) return 'unknown';
+  return 'healthy';
 }
 
 type CameraMetadata = { key: string; fleet: string; expectedCameras: number | null };
@@ -122,6 +275,14 @@ export type UnitRow = {
   statuses: Record<UnitDeviceKey, UnitHealth>;
   expectedCameras: number | null;
   activeCameras: number;
+  cameraSource: 'channels' | 'checklist';
+  cameraChannels: Record<UnitCameraChannel, UnitHealth>;
+  cameraPresent: Record<UnitCameraChannel, boolean>;
+  cameraLabels: Record<UnitCameraChannel, string>;
+  cameraChecklistPresent: string[];
+  cameraAdditionalChecks: string[];
+  cameraInventoryKnown: boolean;
+  overallStatus: UnitOverallStatus;
   recording: string;
   videoLoss: string;
   storageAlert: string;
@@ -228,6 +389,25 @@ export function buildUnitRows(
       : 'unknown';
 
     const statuses = readDeviceStatuses(row);
+    const cameraTelemetry = readCameraChannels(row);
+    const cameraChannels = cameraTelemetry.channels;
+    const cameraSource = cameraTelemetry.inventoryKnown || Object.values(cameraTelemetry.present).some(Boolean)
+      ? 'channels' : CAMERA_FIELDS.some((field) => isReportedValue(readText(row, STATUS_ALIASES[field.key]))) ? 'checklist' : 'channels';
+    const cameraState = { statuses, cameraChannels, cameraSource,
+      cameraPresent: cameraTelemetry.present, cameraLabels: cameraTelemetry.names,
+      cameraChecklistPresent: CAMERA_FIELDS.filter((field) => statuses[field.key] !== 'unknown' || isReportedValue(readText(row, STATUS_ALIASES[field.key]))).map((field) => field.key),
+      // Preserve independent positional checks, but count an explicit field only
+      // once when its literal name already supplies the raw camera's status.
+      cameraAdditionalChecks: CAMERA_FIELDS.filter((field) => !cameraTelemetry.representedChecklistKeys.has(field.key)
+        && (isReportedValue(readText(row, STATUS_ALIASES[field.key]))
+          || (!['front', 'rearRight', 'rearLeft'].includes(field.key) && statuses[field.key] !== 'unknown'))).map((field) => field.key),
+    } as const;
+    const preparedCameraChecklist = CAMERA_FIELDS.every((field) => hasAliasedColumn(Object.keys(row), STATUS_ALIASES[field.key]));
+    const activeCameras = preparedCameraChecklist && !cameraTelemetry.inventoryKnown
+      ? CAMERA_FIELDS.filter((field) => cameraState.cameraChecklistPresent.includes(field.key) && statuses[field.key] === 'online').length
+      : getUnitCameraChecks(cameraState).filter((check) => check.present !== false && check.status === 'online').length;
+    const expectedCameras = cameraSource === 'channels'
+      ? cameraTelemetry.installedCount ?? camera?.expectedCameras ?? null : camera?.expectedCameras ?? null;
     const unit: UnitRow = {
       vehicleNo,
       location: readText(row, ['location']),
@@ -242,8 +422,16 @@ export function buildUnitRows(
       driver: readText(row, ['Driver Name', 'Driver']),
       type: readText(row, ['Type', 'Device Type', 'devicetype', 'Status Type']),
       statuses,
-      expectedCameras: camera?.expectedCameras ?? null,
-      activeCameras: ['ch1Ai', 'front', 'rearRight', 'rearLeft', 'cabin'].filter((key) => statuses[key as UnitDeviceKey] === 'online').length,
+      expectedCameras,
+      activeCameras,
+      cameraSource,
+      cameraChannels,
+      cameraPresent: cameraState.cameraPresent,
+      cameraLabels: cameraState.cameraLabels,
+      cameraChecklistPresent: cameraState.cameraChecklistPresent,
+      cameraAdditionalChecks: cameraState.cameraAdditionalChecks,
+      cameraInventoryKnown: cameraTelemetry.inventoryKnown,
+      overallStatus: readOverallStatus({ ...cameraState, updateStatus, expectedCameras }),
       recording: readText(row, ['recording']),
       videoLoss: readText(row, ['videoloss', 'Video Loss']),
       storageAlert: readText(row, ['storagealert', 'Storage Alert']),

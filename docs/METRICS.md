@@ -141,22 +141,55 @@ requires grepping the others.
   storage is Offline. Blank, dash, NA and unrecognized values mean Unknown;
   unavailable telemetry is not counted as an equipment failure. This corrects
   the legacy classifier's treatment of sheet check marks and placeholder dashes.
-- Explicit status columns take precedence. Raw recording/video-loss lists can
-  identify only literal matching camera names; loss wins. Numeric channels and
-  customer-specific names such as `AI`, `Driver`, and `Reverse 1` are preserved in
-  details but do not imply a particular BIGTH camera. Status AI, seat vibrator
-  and overall device health need explicit source statuses; no unverified trigger
-  threshold or wiring map is invented. `nodays_noaialert` remains unused because
-  its time unit is unverified.
+- Explicit BIGTH status columns take precedence over recording/video-loss
+  telemetry. Its positional checks are never inferred from numbered inputs.
+  Status AI, Fatigue AI, MCR, MDVR, IVMS and seat vibrator require explicit source
+  statuses; GPS connectivity does not establish those devices' health, and the
+  conflicting legacy Fatigue AI camera 2/3 mappings are not applied. The same
+  rules apply to every company. `nodays_noaialert` remains unused because its
+  time unit is unverified.
+- The camera summary supports nine positions and uses friendly source names or
+  Camera 1–9 labels. VSS `usableChs` is the authoritative installed-camera mask
+  (bit 0 is camera 1), not a camera count: mask 9 means cameras 1 and 4. Names come
+  from semicolon-separated `channelname`, retaining empty positions. The fields
+  may be source columns or retained in a JSON `raw_payload` column.
+  `lastStatusJson.module.record` and `lastStatusJson.alarm.videoLost` are masks;
+  recording without loss means Online. Loss wins within the installed set, and
+  unused inputs stay blank even when video loss reports them. Missing or invalid
+  health payloads stay Unknown; they never default to Online. A cleared recording
+  bit makes an installed camera Offline because it is not currently recording,
+  including when its loss bit is clear. This is recording health, not a diagnosis
+  of a hardware defect.
+- When VSS inventory is absent, recording lists and explicit camera values
+  identify observed cameras. Numeric 1–9 and the legacy HOWEN names Front,
+  Driver, AI, Rear Right and Rear Left are understood as separate telemetry
+  inputs. Named loss preserves those known cameras; numeric loss alone does not
+  prove installation because recorders report unused inputs. `NotRecording`
+  makes established cameras Offline without inventing an installation.
+  Direct Camera CH1–9 / CH1–9 / C1–9 / Camera 1–9 values override raw health,
+  including an explicit blank remaining Unknown for an established camera.
+  Unreported positions stay blank, and raw recording/loss remain in details.
+  The current ALCHEM Google Sheet does not retain VSS inventory fields, so its
+  blanks indicate no reported camera evidence, not confirmed non-installation.
 - Camera setup counts Online **CH1 AI, Front, Rear Right, Rear Left, Cabin** as in
   BIGTH. Expected count comes from a unique `CH` tab Vehicle No or Code No match
   in the unit's fleet. Missing/invalid/ambiguous counts are Unknown, not zero. A real 0/0 configuration
-  is complete. Device type is read only from type columns, never a health status.
+  is complete. Raw-camera rows count Online observed/installed cameras, using
+  the VSS installed count when available. A CH total never implies contiguous
+  numbered installation. Device type is read only from type columns, never a health status.
   The optional CH tab's failure does not prevent the primary data from displaying.
-- Filters include complete date/time range, search, vehicle, fleet, driver,
-  device type and update age. GPS Online/Offline counts exclude Unknown GPS;
-  Needs attention counts units with at least one explicitly Offline device.
-  The damage matrix counts Offline checklist fields in the filtered units.
+- Details expand directly below the selected vehicle, including its issues,
+  full checklist and raw telemetry. Every camera and accessory status is also
+  visible without expansion. Filters include complete date/time range, search,
+  vehicle, fleet, driver, device type, location, failed check, overall status and
+  update age. GPS Online/Offline counts exclude Unknown GPS.
+- Overall status is Offline for stale updates or explicitly Offline GPS/Device
+  Status; other known device/camera failures mean Warning. Missing GPS or missing
+  camera health remains Unknown. Otherwise the reported checks are Healthy.
+  Device indicators still show their last report, including forced Online
+  Intercom. Needs attention counts Warning/Offline units. The damage matrix
+  counts reported Offline checks, including cameras, without counting absent
+  cameras or duplicating raw telemetry as BIGTH positional checks.
   Installation totals ignore interactive filters and aggregate CH by hard-scoped
   fleets, or fleets established from company-scoped units. Missing CH still
   counts a vehicle, contributes no known cameras and is disclosed as unknown.

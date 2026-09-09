@@ -1,0 +1,23 @@
+task_id: 20260909-unitstatus-camera-details
+active_root: codex
+provider: Codex
+model: UNKNOWN
+effort: UNKNOWN
+base_sha: 1855bbcdbcd2ed11088bbf60e3be4f28ffa78c0f
+phase: reviewed_ready_for_ci
+writer_lease: root
+review:
+  codex_bounded_review: pass
+  claude_review: pass
+  model: claude-fable-5
+  requested_effort: high
+  patch_sha256: 2e05a02741b73a0c1b64515981871abe7719a8f21da92fa4294eff7b3e934e5b
+  authorization: user_go_ahead_2026_09_09
+checks:
+  targeted_tests: 62_pass
+  typescript: pass
+  changed_file_eslint: pass
+  diff_check: pass
+  browser: pass_with_upstream_inventory_limitation
+production_changed: false
+upstream_question: location_of_vss_to_google_sheet_writer

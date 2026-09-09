@@ -3,6 +3,8 @@ import type { GoogleSheetRow } from './googleSheetParse';
 import {
   buildInstallRows,
   buildUnitRows,
+  getUnitCameraChecks,
+  getUnitChecks,
   hasUnitStatusColumns,
   isReportedValue,
   readUnitHealth,
@@ -19,6 +21,10 @@ const sourceRow = (overrides: GoogleSheetRow = {}): GoogleSheetRow => ({
 const cameraRow = (overrides: GoogleSheetRow = {}): GoogleSheetRow => ({
   'Vehicle No': 'V1', CH: 5, Fleet: 'North', ...overrides,
 });
+const unknownCameraChannels = {
+  1: 'unknown', 2: 'unknown', 3: 'unknown', 4: 'unknown', 5: 'unknown',
+  6: 'unknown', 7: 'unknown', 8: 'unknown', 9: 'unknown',
+} as const;
 
 describe('company and fleet boundaries', () => {
   it('supports every configured company using an exact comma-separated membership token', () => {
@@ -272,8 +278,8 @@ describe('common BIGTH device status requirements', () => {
       cabin: 'unknown', reverseBsd: 'unknown', frontBsd: 'unknown', leftBsd: 'unknown', rightBsd: 'unknown',
     });
     const [numeric] = buildUnitRows([sourceRow({ recording: '1, 2, 3, 4, 5', videoloss: '6, 7, 8' })], [], noScope, now);
-    expect(numeric.activeCameras).toBe(0);
-    expect(Object.entries(numeric.statuses).filter(([key, status]) => key !== 'intercom' && status !== 'unknown')).toEqual([]);
+    expect(numeric.activeCameras).toBe(5);
+    expect(numeric.statuses).toMatchObject({ ch1Ai: 'unknown', front: 'unknown', rearRight: 'unknown', rearLeft: 'unknown', cabin: 'unknown' });
   });
 
   it('preserves raw camera names and zero telemetry for unit details', () => {
@@ -284,6 +290,357 @@ describe('common BIGTH device status requirements', () => {
     })], [], noScope, now);
     expect(unit).toMatchObject({ recording, videoLoss: '7, 8', storageRaw: 'Exist', gps: 'true',
       speed: '0', direction: '0', hdop: '0', network: '4G', location: ' Bangkok ' });
+  });
+});
+
+describe('shared camera channels and overall unit health', () => {
+  it('restores HOWEN named cameras and Alchem AI/Driver loss without requiring CH metadata', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      username: 'Alcsongdee, SONGDEEAPI', gps: true, devicetype: 'HOWEN',
+      recording: 'Front, Driver, AI, Rear Right, Rear Left', videoloss: 'AI, Driver',
+    })], [], noScope, now, 'ALCHEM');
+    expect(unit.cameraChannels).toEqual({ ...unknownCameraChannels, 1: 'online', 2: 'offline', 3: 'offline', 4: 'online', 5: 'online' });
+    expect(getUnitCameraChecks(unit).filter((check) => check.present).map((check) => check.key)).toEqual(['c1', 'c2', 'c3', 'c4', 'c5']);
+    expect(unit).toMatchObject({ cameraSource: 'channels', activeCameras: 3, expectedCameras: null, overallStatus: 'warning' });
+    expect(unit.statuses).toMatchObject({ ch1Ai: 'unknown', cabin: 'unknown', intercom: 'online' });
+    expect(unit.videoLoss).toBe('AI, Driver');
+  });
+
+  it('reads numeric MDVR channels with loss precedence and leaves unobserved channels blank', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      gps: true, devicetype: 'MDVR', recording: '1, 2, 4', videoloss: '2, 7, 8',
+    })], [], noScope, now);
+    expect(unit.cameraChannels).toEqual({ ...unknownCameraChannels, 1: 'online', 2: 'offline', 4: 'online' });
+    expect(getUnitCameraChecks(unit).filter((check) => check.present).map((check) => check.key)).toEqual(['c1', 'c2', 'c4']);
+    expect(unit).toMatchObject({ cameraSource: 'channels', activeCameras: 2, expectedCameras: null, overallStatus: 'warning' });
+    expect(unit.statuses).toMatchObject({ ch1Ai: 'unknown', front: 'unknown', rearRight: 'unknown', rearLeft: 'unknown', cabin: 'unknown' });
+  });
+
+  it('uses explicit Vinythai CH2 aliases over recording and video loss, including a blank unknown', () => {
+    for (const alias of ['Camera CH2', 'CH2', 'C2', 'Camera2']) {
+      for (const [value, status] of [['connected', 'online'], ['offline', 'offline'], ['', 'unknown']] as const) {
+        const [unit] = buildUnitRows([sourceRow({
+          username: 'Vinythai', gps: true, recording: '1, 2, 3, 4, 5', videoloss: '2', [alias]: value,
+        })], [], noScope, now, 'Vinythai');
+        expect(unit.cameraChannels[2], `${alias}: ${value}`).toBe(status);
+        expect(unit.cameraSource).toBe('channels');
+        expect(unit.activeCameras).toBe(status === 'online' ? 5 : 4);
+        expect(unit.statuses.ch1Ai).toBe('unknown');
+      }
+    }
+  });
+
+  it('does not invent installed cameras from NotRecording and records only known named losses', () => {
+    const [unit] = buildUnitRows([sourceRow({ gps: true, recording: ' NotRecording ', videoloss: 'NA' })], [], noScope, now);
+    expect(unit.cameraChannels).toEqual(unknownCameraChannels);
+    expect(Object.values(unit.cameraPresent)).toEqual(Array(9).fill(false));
+    expect(unit).toMatchObject({ activeCameras: 0, cameraSource: 'channels', overallStatus: 'unknown' });
+    expect(unit.statuses.intercom).toBe('online');
+    const [knownLoss] = buildUnitRows([sourceRow({ gps: true, recording: 'NotRecording', videoloss: 'Driver' })], [], noScope, now);
+    expect(knownLoss.cameraChannels).toEqual({ ...unknownCameraChannels, 2: 'offline' });
+    expect(getUnitCameraChecks(knownLoss).filter((check) => check.present).map((check) => check.key)).toEqual(['c2']);
+    expect(knownLoss.overallStatus).toBe('warning');
+  });
+
+  it('keeps absent and unrecognized camera lists unknown instead of inventing five failures', () => {
+    for (const value of ['', 'NA', 'N/A', 'none', 'Reverse 1', '10, 11', 'unrecognized']) {
+      const [unit] = buildUnitRows([sourceRow({ gps: true, recording: value, videoloss: value })], [], noScope, now);
+      expect(unit.cameraChannels, value).toEqual(unknownCameraChannels);
+      expect(Object.values(unit.cameraPresent), value).toEqual(Array(9).fill(false));
+      expect(unit).toMatchObject({ activeCameras: 0, cameraSource: 'channels', overallStatus: 'unknown' });
+    }
+  });
+
+  it('records recognized loss without claiming health or failure for unreported other channels', () => {
+    const [unit] = buildUnitRows([sourceRow({ gps: true, recording: 'NA', videoloss: 'Driver' })], [], noScope, now);
+    expect(unit.cameraChannels).toEqual({ ...unknownCameraChannels, 2: 'offline' });
+    expect(unit.overallStatus).toBe('warning');
+  });
+
+  it('keeps prepared BIGTH checklist authority when raw channel telemetry disagrees', () => {
+    const checklist = { 'GPS Status': 'online', 'CH1 AI': 'online', Front: 'online', 'Rear Right': 'online', 'Rear Left': 'online', Cabin: 'online' };
+    const [healthy] = buildUnitRows([sourceRow({ ...checklist, recording: 'NotRecording' })], [], noScope, now);
+    expect(healthy.cameraChannels).toEqual(unknownCameraChannels);
+    expect(healthy).toMatchObject({ cameraSource: 'checklist', activeCameras: 5, expectedCameras: null, overallStatus: 'healthy' });
+    const [warning] = buildUnitRows([sourceRow({ ...checklist, Front: 'offline', recording: '1, 2, 3, 4, 5' })], [], noScope, now);
+    expect(warning).toMatchObject({ cameraSource: 'channels', activeCameras: 4, overallStatus: 'warning' });
+    expect(warning.cameraChannels[1]).toBe('online');
+    expect(warning.statuses.front).toBe('offline');
+    expect(getUnitChecks(warning)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'front', status: 'offline' }),
+    ]));
+  });
+
+  it('does not let a blank checklist column hide independent channel evidence', () => {
+    const [unit] = buildUnitRows([sourceRow({ gps: true, Front: '', recording: '1, 2, 3, 4, 5' })], [], noScope, now);
+    expect(unit.cameraChannels[1]).toBe('online');
+    expect(unit).toMatchObject({ cameraSource: 'channels', activeCameras: 5, overallStatus: 'healthy' });
+    expect(unit.statuses.front).toBe('unknown');
+  });
+
+  it('keeps a named rear-camera failure visible beside a reported BIGTH Front status', () => {
+    const [unit] = buildUnitRows([sourceRow({ gps: true, Front: 'online', videoloss: 'Rear Right' })], [], noScope, now);
+    expect(getUnitChecks(unit)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'front', status: 'online' }),
+      expect.objectContaining({ key: 'c4', status: 'offline', present: true }),
+    ]));
+    expect(unit.statuses).toMatchObject({ front: 'online', rearRight: 'offline' });
+    expect(unit).toMatchObject({ cameraSource: 'channels', overallStatus: 'warning' });
+  });
+
+  it('keeps independent Camera 9 and AI losses visible beside a nonblank Front checklist status', () => {
+    const cases: Array<{ row: GoogleSheetRow; failedKey: string }> = [
+      { row: { recording: 'Front', Camera9: 'offline' }, failedKey: 'c9' },
+      { row: { recording: 'Front, AI', videoloss: 'AI' }, failedKey: 'c3' },
+    ];
+    for (const { row, failedKey } of cases) {
+      const [unit] = buildUnitRows([sourceRow({ gps: true, Front: 'online', ...row })], [], noScope, now);
+      expect(getUnitChecks(unit)).toEqual(expect.arrayContaining([
+        expect.objectContaining({ key: 'c1', status: 'online', present: true }),
+        expect.objectContaining({ key: failedKey, status: 'offline', present: true }),
+      ]));
+      expect(unit).toMatchObject({ cameraSource: 'channels', activeCameras: 1, overallStatus: 'warning' });
+    }
+  });
+
+  it('keeps a literal Cabin failure visible alongside raw channel cameras', () => {
+    const [unit] = buildUnitRows([sourceRow({ gps: true, recording: 'Front', videoloss: 'Cabin' })], [], noScope, now);
+    expect(getUnitChecks(unit)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'c1', status: 'online', present: true }),
+      expect.objectContaining({ key: 'cabin', status: 'offline' }),
+    ]));
+    expect(unit).toMatchObject({ cameraSource: 'channels', activeCameras: 1, overallStatus: 'warning' });
+  });
+
+  it('counts explicit positional failures once when the same literal camera is represented by a raw slot', () => {
+    for (const [name, key] of [['Front', 'c1'], ['Rear Right', 'c4'], ['Rear Left', 'c5']]) {
+      const [unit] = buildUnitRows([sourceRow({ gps: true, recording: name, [name]: 'offline' })], [], noScope, now);
+      const failures = getUnitChecks(unit).filter((check) => check.status === 'offline');
+      expect(failures.map((check) => check.key), name).toEqual([key]);
+      expect(unit.overallStatus).toBe('warning');
+    }
+  });
+
+  it('retains a conflicting explicit positional check when a direct raw status blocks its override', () => {
+    const [unit] = buildUnitRows([sourceRow({ gps: true, recording: 'Front', Front: 'offline', Camera1: 'online' })], [], noScope, now);
+    expect(getUnitChecks(unit)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'front', status: 'offline' }),
+      expect.objectContaining({ key: 'c1', status: 'online', present: true }),
+    ]));
+    expect(unit.overallStatus).toBe('warning');
+  });
+
+  it('prioritizes stale updates, GPS offline, or device offline over camera health', () => {
+    const cases: GoogleSheetRow[] = [
+      { lastupdatedtime: '09/09/2026 11:29:59' },
+      { gps: false },
+      { 'Device Status': 'offline' },
+    ];
+    for (const overrides of cases) {
+      const [unit] = buildUnitRows([sourceRow({ gps: true, recording: '1, 2, 3, 4, 5', ...overrides })], [], noScope, now);
+      expect(unit.activeCameras).toBe(5);
+      expect(unit.overallStatus).toBe('offline');
+      expect(unit.statuses.intercom).toBe('online');
+    }
+  });
+
+  it('reports other checklist failures as warnings when GPS and cameras are healthy', () => {
+    for (const field of ['Status AI', 'Storage', 'Seat Vibrator', 'Reverse BSD']) {
+      const [unit] = buildUnitRows([sourceRow({ gps: true, recording: '1, 2, 3, 4, 5', [field]: 'offline' })], [], noScope, now);
+      expect(unit.overallStatus, field).toBe('warning');
+    }
+  });
+
+  it('requires GPS and some camera evidence for healthy status; Intercom alone is insufficient', () => {
+    const rows = [
+      sourceRow({ vehicleno: 'V1', gps: true, recording: '1, 2, 3, 4, 5' }),
+      sourceRow({ vehicleno: 'V2', recording: '1, 2, 3, 4, 5' }),
+      sourceRow({ vehicleno: 'V3', gps: true }),
+      sourceRow({ vehicleno: 'V4' }),
+    ];
+    const units = buildUnitRows(rows, [], noScope, now);
+    expect(units.map((unit) => unit.overallStatus)).toEqual(['healthy', 'unknown', 'unknown', 'unknown']);
+    expect(units.map((unit) => unit.statuses.intercom)).toEqual(['online', 'online', 'online', 'online']);
+  });
+});
+
+describe('VSS camera inventory and health masks', () => {
+  it('supports all nine installed numeric cameras using decimal inventory and hexadecimal health', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      gps: true, usableChs: 511,
+      lastStatusJson: JSON.stringify({ module: { record: '0x1ff' }, alarm: { videoLost: '0x0' } }),
+    })], [], noScope, now);
+    expect(unit).toMatchObject({ cameraInventoryKnown: true, expectedCameras: 9, activeCameras: 9, overallStatus: 'healthy' });
+    expect(Object.values(unit.cameraPresent)).toEqual(Array(9).fill(true));
+    expect(Object.values(unit.cameraChannels)).toEqual(Array(9).fill('online'));
+    expect(getUnitCameraChecks(unit).map((check) => check.key)).toEqual(['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9']);
+  });
+
+  it('treats mask 9 as sparse C1 and C4 inventory and ignores loss bits on unused inputs', () => {
+    for (const usableChs of [9, '9', '0x9']) {
+      const [unit] = buildUnitRows([sourceRow({
+        gps: true, usableChs, channelname: 'Cabin;CH2;CH3;Road;CH5;CH6;CH7;CH8;CH9',
+        lastStatusJson: JSON.stringify({ module: { record: 9 }, alarm: { videoLost: 502 } }),
+      })], [], noScope, now);
+      expect(unit.cameraChannels).toEqual({ ...unknownCameraChannels, 1: 'online', 4: 'online' });
+      expect(getUnitCameraChecks(unit).filter((check) => check.present).map((check) => [check.key, check.en]))
+        .toEqual([['c1', 'Cabin'], ['c4', 'Road']]);
+      expect(getUnitChecks(unit).filter((check) => /^c\d$/.test(check.key)).map((check) => check.key)).toEqual(['c1', 'c4']);
+      expect(unit).toMatchObject({ cameraInventoryKnown: true, expectedCameras: 2, activeCameras: 2, overallStatus: 'healthy' });
+    }
+  });
+
+  it('accepts inventory and health from the raw payload wrapper and gives installed loss precedence', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      gps: true,
+      raw_payload: JSON.stringify({ usableChs: '0x9', channelname: 'Front;CH2;CH3;Rear',
+        lastStatusJson: JSON.stringify({ module: { record: '0x9' }, alarm: { videoLost: '0x8' } }),
+      }),
+    })], [], noScope, now);
+    expect(unit.cameraChannels).toEqual({ ...unknownCameraChannels, 1: 'online', 4: 'offline' });
+    expect(unit).toMatchObject({ expectedCameras: 2, activeCameras: 1, overallStatus: 'warning' });
+    expect(unit.cameraLabels[4]).toBe('Rear');
+  });
+
+  it('counts an explicit Front failure once when VSS names place that same camera on slot 4', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      gps: true, usableChs: 9, channelname: 'Cabin;;;Front', Front: 'offline',
+      lastStatusJson: JSON.stringify({ module: { record: 9 }, alarm: { videoLost: 0 } }),
+    })], [], noScope, now);
+    expect(getUnitChecks(unit).filter((check) => check.status === 'offline').map((check) => check.key)).toEqual(['c4']);
+    expect(unit.statuses.front).toBe('offline');
+    expect(unit).toMatchObject({ activeCameras: 1, overallStatus: 'warning' });
+  });
+
+  it('marks a known installed camera offline when its recording bit is clear even without a loss bit', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      gps: true, usableChs: 9,
+      lastStatusJson: JSON.stringify({ module: { record: 1 }, alarm: { videoLost: 0 } }),
+    })], [], noScope, now);
+    expect(unit.cameraChannels).toEqual({ ...unknownCameraChannels, 1: 'online', 4: 'offline' });
+    expect(unit.cameraPresent[4]).toBe(true);
+    expect(unit.statuses.deviceStatus).toBe('unknown');
+    expect(unit.overallStatus).toBe('warning');
+  });
+
+  it('treats a zero inventory mask as no installed cameras despite telemetry on unused inputs', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      gps: true, usableChs: 0, recording: '1, 2, 3, 4, 5, 6, 7, 8, 9', videoloss: '2, 8', Camera2: 'online',
+      lastStatusJson: JSON.stringify({ module: { record: 511 }, alarm: { videoLost: 511 } }),
+    })], [], noScope, now);
+    expect(unit.cameraChannels).toEqual(unknownCameraChannels);
+    expect(Object.values(unit.cameraPresent)).toEqual(Array(9).fill(false));
+    expect(unit).toMatchObject({ cameraInventoryKnown: true, expectedCameras: 0, activeCameras: 0, overallStatus: 'healthy' });
+    expect(getUnitChecks(unit).filter((check) => /^c\d$/.test(check.key))).toEqual([]);
+    const [unknownGps] = buildUnitRows([sourceRow({ usableChs: 0 })], [], noScope, now);
+    expect(unknownGps.overallStatus).toBe('unknown');
+  });
+
+  it('rejects invalid inventory masks and uses only observed camera evidence as fallback', () => {
+    for (const usableChs of ['', '9oops', '0xNO', -1, 1.5, 65536, true]) {
+      const [unit] = buildUnitRows([sourceRow({ gps: true, usableChs, recording: '1, 4', videoloss: '2, 9' })], [], noScope, now);
+      expect(unit.cameraChannels, String(usableChs)).toEqual({ ...unknownCameraChannels, 1: 'online', 4: 'online' });
+      expect(getUnitCameraChecks(unit).filter((check) => check.present).map((check) => check.key)).toEqual(['c1', 'c4']);
+      expect(unit).toMatchObject({ cameraInventoryKnown: false, expectedCameras: null, activeCameras: 2, overallStatus: 'healthy' });
+    }
+  });
+
+  it('preserves known inventory but keeps missing or invalid health unknown', () => {
+    for (const lastStatusJson of [
+      '', 'malformed', '[]', '{}',
+      JSON.stringify({ module: { record: '9oops' }, alarm: { videoLost: 0 } }),
+      JSON.stringify({ module: { record: -1 }, alarm: { videoLost: 'invalid' } }),
+    ]) {
+      const [unit] = buildUnitRows([sourceRow({ gps: true, usableChs: 9, lastStatusJson })], [], noScope, now);
+      expect(unit.cameraChannels, lastStatusJson).toEqual(unknownCameraChannels);
+      expect(getUnitCameraChecks(unit).filter((check) => check.present).map((check) => check.key)).toEqual(['c1', 'c4']);
+      expect(unit).toMatchObject({ cameraInventoryKnown: true, expectedCameras: 2, activeCameras: 0, overallStatus: 'unknown' });
+    }
+  });
+
+  it('keeps an explicitly blank installed camera unknown even when the health mask reports recording', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      gps: true, usableChs: 3, Camera2: '',
+      lastStatusJson: JSON.stringify({ module: { record: 3 }, alarm: { videoLost: 0 } }),
+    })], [], noScope, now);
+    expect(unit.cameraChannels).toEqual({ ...unknownCameraChannels, 1: 'online' });
+    expect(unit.cameraPresent[2]).toBe(true);
+    expect(unit).toMatchObject({ activeCameras: 1, overallStatus: 'unknown' });
+    const [absent] = buildUnitRows([sourceRow({ gps: true, Camera2: '' })], [], noScope, now);
+    expect(absent.cameraPresent[2]).toBe(false);
+  });
+
+  it('preserves an installed numeric loss from the sheet when the VSS health payload is absent', () => {
+    const [unit] = buildUnitRows([sourceRow({ gps: true, usableChs: 9, recording: '1, 4', videoloss: '4' })], [], noScope, now);
+    expect(unit.cameraChannels).toEqual({ ...unknownCameraChannels, 1: 'online', 4: 'offline' });
+    expect(unit.cameraPresent[4]).toBe(true);
+    expect(unit).toMatchObject({ activeCameras: 1, overallStatus: 'warning' });
+  });
+
+  it('resolves VSS friendly camera names by their actual channel positions before legacy name mapping', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      gps: true, usableChs: 9, channelname: 'Cabin;;;Front', recording: 'Cabin, Front', videoloss: 'Front',
+    })], [], noScope, now);
+    expect(unit.cameraChannels).toEqual({ ...unknownCameraChannels, 1: 'online', 4: 'offline' });
+    expect(getUnitCameraChecks(unit).filter((check) => check.present).map((check) => [check.key, check.en, check.status]))
+      .toEqual([['c1', 'Cabin', 'online'], ['c4', 'Front', 'offline']]);
+    expect(unit).toMatchObject({ activeCameras: 1, overallStatus: 'warning' });
+  });
+
+  it('keeps complete valid VSS health masks authoritative over contradictory flattened recording and loss lists', () => {
+    const cases: Array<{ record: number; videoLost: number; row: GoogleSheetRow; frontStatus: string; overall: string }> = [
+      { record: 9, videoLost: 0, row: { recording: 'NotRecording', videoloss: 'Front' }, frontStatus: 'online', overall: 'healthy' },
+      { record: 1, videoLost: 8, row: { recording: 'Cabin, Front', videoloss: 'NA' }, frontStatus: 'offline', overall: 'warning' },
+    ];
+    for (const { record, videoLost, row, frontStatus, overall } of cases) {
+      const [unit] = buildUnitRows([sourceRow({
+        gps: true, usableChs: 9, channelname: 'Cabin;;;Front', ...row,
+        lastStatusJson: JSON.stringify({ module: { record }, alarm: { videoLost } }),
+      })], [], noScope, now);
+      expect(unit.cameraChannels[1]).toBe('online');
+      expect(unit.cameraChannels[4]).toBe(frontStatus);
+      expect(unit.overallStatus).toBe(overall);
+    }
+  });
+
+  it('does not let a blank Front checklist column hide a separately installed AI camera loss', () => {
+    const [unit] = buildUnitRows([sourceRow({
+      gps: true, Front: '', usableChs: 5, recording: 'Front, AI', videoloss: 'AI',
+    })], [], noScope, now);
+    expect(getUnitChecks(unit)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'c3', status: 'offline', present: true }),
+    ]));
+    expect(unit.statuses.front).toBe('unknown');
+    expect(unit).toMatchObject({ cameraSource: 'channels', activeCameras: 1, overallStatus: 'warning' });
+  });
+
+  it('does not infer online cameras from a recording mask when a supplied loss mask is malformed', () => {
+    for (const videoLost of ['9oops', -1, true]) {
+      const [unit] = buildUnitRows([sourceRow({
+        gps: true, usableChs: 9, recording: '1, 4',
+        lastStatusJson: JSON.stringify({ module: { record: 9 }, alarm: { videoLost } }),
+      })], [], noScope, now);
+      expect(unit.cameraChannels, String(videoLost)).toEqual(unknownCameraChannels);
+      expect(unit).toMatchObject({ activeCameras: 0, overallStatus: 'unknown' });
+    }
+  });
+
+  it('keeps incomplete installation coverage unknown without inventing failures for unseen cameras', () => {
+    const [unit] = buildUnitRows([sourceRow({ gps: true, recording: '1' })], [cameraRow({ CH: 5 })], noScope, now);
+    expect(unit).toMatchObject({ expectedCameras: 5, activeCameras: 1, overallStatus: 'unknown' });
+    expect(getUnitCameraChecks(unit).filter((check) => check.present).map((check) => check.key)).toEqual(['c1']);
+    expect(getUnitChecks(unit).filter((check) => check.status === 'offline')).toEqual([]);
+  });
+
+  it('does not turn a CH count into contiguous installation or suppress an observed channel beyond that count', () => {
+    const [unobserved] = buildUnitRows([sourceRow({ gps: true })], [cameraRow({ CH: 9 })], noScope, now);
+    expect(unobserved.expectedCameras).toBe(9);
+    expect(Object.values(unobserved.cameraPresent)).toEqual(Array(9).fill(false));
+    const [observed] = buildUnitRows([sourceRow({ gps: true, recording: '9' })], [cameraRow({ CH: 5 })], noScope, now);
+    expect(observed.expectedCameras).toBe(5);
+    expect(observed.cameraChannels[9]).toBe('online');
+    expect(getUnitCameraChecks(observed).filter((check) => check.present).map((check) => check.key)).toEqual(['c9']);
+    expect(observed.activeCameras).toBe(1);
   });
 });
 

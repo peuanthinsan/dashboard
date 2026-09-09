@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useId, useMemo, useState } from 'react';
 import type { DashboardLang } from 'app/dashboard/i18n-copy';
 import DateTimeRangePicker from 'app/ui/DateTimeRangePicker';
 import KpiCard from 'app/ui/KpiCard';
@@ -15,7 +15,7 @@ import { normalizeLabel, parseDate, scopeFleetSet } from './dashboardDataUtils';
 import { formatDateTimeGB } from './dateFormat';
 import { isCompleteDateTimeRange, isDateInDateTimeRange, type DateTimeRange } from './dateTimeRange';
 import {
-  buildInstallRows, buildUnitRows, DEVICE_FIELDS, hasUnitStatusColumns, isReportedValue,
+  buildInstallRows, buildUnitRows, getUnitCameraChecks, getUnitChecks, hasUnitStatusColumns, isReportedValue,
   type UnitHealth, type UnitRow, type UnitUpdateStatus,
 } from './unitStatusData';
 import useUnitStatusSheet from './useUnitStatusSheet';
@@ -37,7 +37,7 @@ type DashboardProps = {
 const COPY = {
   en: {
     title: 'Unit status', units: 'Units', gpsOnline: 'GPS online', gpsOffline: 'GPS offline', attention: 'Needs attention',
-    attentionNote: 'Units with at least one offline check', gpsUnknown: 'GPS status not reported',
+    attentionNote: 'Units with warnings, an offline status or failed camera checks', gpsUnknown: 'GPS status not reported',
     recent: 'Recent updates', stale: 'Stale updates', unknown: 'Unknown update time',
     recentBadge: 'Recent', staleBadge: 'Stale', unknownBadge: 'Unknown', online: 'Online', offline: 'Offline',
     autoRefresh: 'Auto-refresh', refresh: 'Refresh', refreshing: 'Refreshing…',
@@ -50,10 +50,16 @@ const COPY = {
     direction: 'Direction', mainPower: 'Main power', battery: 'Battery', idKey: 'ID key last detected',
     storageAlert: 'Storage alert', storageAlertTime: 'Storage alert time', latestAi: 'Latest alert',
     aiTime: 'Alert time', notReported: 'Not reported', fleet: 'Fleet', driver: 'Driver', type: 'Type',
-    fleets: 'fleets', vehicles: 'vehicles', drivers: 'drivers', types: 'types', dates: 'Report date & time',
+    fleets: 'fleets', vehicles: 'vehicles', drivers: 'drivers', types: 'types', locations: 'locations', dates: 'Report date & time',
+    locationFilter: 'Location / region', failedCheck: 'Failed check', allChecks: 'All checks', overall: 'Overall status',
+    healthy: 'Healthy', warning: 'Warning', accessories: 'BSD & accessories', issues: 'Issues to check',
+    noIssues: 'No offline checks reported.', staleIssue: 'The last update is more than 30 minutes old. Check the connection; device checks show the last report.',
+    unknownUpdateIssue: 'The update time is unavailable or invalid. Device checks show the last report.',
+    expectedUnknown: 'Expected count not reported', onlineCameras: (count: number) => `${count} online`,
     checklist: 'Device checklist', damage: 'Damage matrix', damageNote: 'Offline checks in the filtered units. Missing data is excluded.',
     installation: 'Fleet installation', installNote: 'Configured units and cameras across the dashboard fleet scope. Filters above do not change these totals.',
     cameraCount: 'Cameras', total: 'Total', installEmpty: 'No installation data reported.',
+    cameraLegend: 'Status indicators: ✓ Online · × Offline · ? Not reported. Camera positions with no reported data stay blank.',
     unknownCameraUnits: (count: number) => `${count} ${count === 1 ? 'unit' : 'units'} with unknown camera counts`,
     metadataUnavailable: 'Camera setup and installation totals are unavailable.', metadataLoading: 'Loading camera setup and installation totals…',
     timeNote: 'Times shown in Bangkok time', intercomNote: 'Intercom is always Online because its data has no status trigger.',
@@ -64,7 +70,7 @@ const COPY = {
   },
   th: {
     title: 'สถานะอุปกรณ์', units: 'รถทั้งหมด', gpsOnline: 'GPS ออนไลน์', gpsOffline: 'GPS ออฟไลน์', attention: 'ต้องตรวจสอบ',
-    attentionNote: 'รถที่มีรายการตรวจสอบออฟไลน์อย่างน้อยหนึ่งรายการ', gpsUnknown: 'ไม่มีข้อมูลสถานะ GPS',
+    attentionNote: 'รถที่มีคำเตือน สถานะออฟไลน์ หรือกล้องขัดข้อง', gpsUnknown: 'ไม่มีข้อมูลสถานะ GPS',
     recent: 'อัปเดตล่าสุด', stale: 'ข้อมูลเก่า', unknown: 'ไม่ทราบเวลาอัปเดต',
     recentBadge: 'ล่าสุด', staleBadge: 'ข้อมูลเก่า', unknownBadge: 'ไม่ทราบ', online: 'ออนไลน์', offline: 'ออฟไลน์',
     autoRefresh: 'รีเฟรชอัตโนมัติ', refresh: 'รีเฟรช', refreshing: 'กำลังรีเฟรช…',
@@ -77,10 +83,16 @@ const COPY = {
     direction: 'ทิศทาง', mainPower: 'ไฟเลี้ยงหลัก', battery: 'แบตเตอรี่', idKey: 'ตรวจพบ ID Key ล่าสุด',
     storageAlert: 'แจ้งเตือนพื้นที่จัดเก็บ', storageAlertTime: 'เวลาแจ้งเตือนพื้นที่จัดเก็บ', latestAi: 'แจ้งเตือนล่าสุด',
     aiTime: 'เวลาแจ้งเตือน', notReported: 'ไม่มีข้อมูลรายงาน', fleet: 'กลุ่มรถ', driver: 'คนขับ', type: 'ประเภท',
-    fleets: 'กลุ่มรถ', vehicles: 'รถ', drivers: 'คนขับ', types: 'ประเภท', dates: 'วันที่และเวลารายงาน',
+    fleets: 'กลุ่มรถ', vehicles: 'รถ', drivers: 'คนขับ', types: 'ประเภท', locations: 'สถานที่', dates: 'วันที่และเวลารายงาน',
+    locationFilter: 'สถานที่ / พื้นที่', failedCheck: 'รายการที่ขัดข้อง', allChecks: 'ทุกรายการ', overall: 'สถานะโดยรวม',
+    healthy: 'ปกติ', warning: 'คำเตือน', accessories: 'BSD และอุปกรณ์เสริม', issues: 'รายการที่ต้องตรวจสอบ',
+    noIssues: 'ไม่มีรายงานรายการออฟไลน์', staleIssue: 'ไม่มีการอัปเดตเกิน 30 นาที กรุณาตรวจสอบการเชื่อมต่อ สถานะอุปกรณ์แสดงตามรายงานล่าสุด',
+    unknownUpdateIssue: 'ไม่มีเวลาอัปเดตหรือเวลาไม่ถูกต้อง สถานะอุปกรณ์แสดงตามรายงานล่าสุด',
+    expectedUnknown: 'ไม่มีข้อมูลจำนวนกล้องที่ติดตั้ง', onlineCameras: (count: number) => `${count} กล้องออนไลน์`,
     checklist: 'รายการตรวจสอบอุปกรณ์', damage: 'สรุปอุปกรณ์ขัดข้อง', damageNote: 'จำนวนรายการออฟไลน์จากรถที่กรองไว้ ไม่นับรายการที่ไม่มีข้อมูล',
     installation: 'การติดตั้งตามกลุ่มรถ', installNote: 'รถและกล้องที่กำหนดไว้ในขอบเขตกลุ่มรถของแดชบอร์ด ตัวกรองด้านบนไม่เปลี่ยนยอดรวมนี้',
     cameraCount: 'กล้อง', total: 'รวม', installEmpty: 'ไม่มีข้อมูลการติดตั้ง',
+    cameraLegend: 'สถานะ: ✓ ออนไลน์ · × ออฟไลน์ · ? ไม่มีข้อมูลรายงาน ตำแหน่งกล้องที่ไม่มีข้อมูลรายงานจะแสดงว่าง',
     unknownCameraUnits: (count: number) => `${count} คันไม่มีข้อมูลจำนวนกล้อง`,
     metadataUnavailable: 'ไม่สามารถโหลดข้อมูลจำนวนกล้องและยอดรวมการติดตั้งได้', metadataLoading: 'กำลังโหลดข้อมูลจำนวนกล้องและยอดรวมการติดตั้ง…',
     timeNote: 'แสดงเวลาประเทศไทย', intercomNote: 'Intercom แสดงออนไลน์เสมอ เนื่องจากข้อมูลไม่มีเงื่อนไขแจ้งสถานะ',
@@ -116,9 +128,37 @@ function UpdateBadge({ status, copy }: { status: UnitUpdateStatus; copy: Copy })
 }
 
 function CameraSetup({ row, copy }: { row: UnitRow; copy: Copy }) {
-  if (row.expectedCameras == null) return <span className="text-zinc-500 dark:text-zinc-400">{copy.notReported}</span>;
+  if (row.expectedCameras !== 0 && !getUnitCameraChecks(row).some((check) => check.present !== false)) return <span className="text-zinc-500 dark:text-zinc-400">{copy.notReported}</span>;
+  if (row.expectedCameras == null) return <div><span className={badgeDefault}>{copy.onlineCameras(row.activeCameras)}</span><span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">{copy.expectedUnknown}</span></div>;
   const complete = row.activeCameras >= row.expectedCameras;
   return <span className={complete ? badgeSuccess : badgeWarning} title={copy.cameraSetupNote}>{row.activeCameras}/{row.expectedCameras}</span>;
+}
+
+function OverallBadge({ status, copy }: { status: UnitRow['overallStatus']; copy: Copy }) {
+  const styles = { healthy: badgeSuccess, warning: badgeWarning, offline: badgeDanger, unknown: badgeDefault };
+  const labels = { healthy: copy.healthy, warning: copy.warning, offline: copy.offline, unknown: copy.notReported };
+  return <span className={styles[status]}>{labels[status]}</span>;
+}
+
+function CheckIndicators({ checks, label, copy, lang, cameraSlots = false }: {
+  checks: ReturnType<typeof getUnitChecks>; label: string; copy: Copy; lang: DashboardLang; cameraSlots?: boolean;
+}) {
+  const style = { online: badgeSuccess, offline: badgeDanger, unknown: badgeDefault };
+  const symbols = { online: '✓', offline: '×', unknown: '?' };
+  const labels = { online: copy.online, offline: copy.offline, unknown: copy.notReported };
+  return (
+    <div className={cameraSlots ? 'grid w-[300px] grid-cols-3 gap-1.5' : 'flex min-w-[230px] max-w-[310px] flex-wrap gap-1.5'} role="group" aria-label={label}>
+      {checks.map((check) => {
+        if (check.present === false) return <span key={check.key} className="min-h-7" aria-hidden="true" />;
+        const checkLabel = check[lang === 'th' ? 'th' : 'en'];
+        return <span key={check.key} className={`${style[check.status]} gap-1 ${cameraSlots ? 'min-h-7 justify-center text-center' : ''}`} title={`${checkLabel}: ${labels[check.status]}`}>
+          <span aria-hidden="true">{checkLabel} {symbols[check.status]}</span>
+          <span className="sr-only">{checkLabel}: {labels[check.status]}</span>
+        </span>;
+      })}
+      {cameraSlots && Array.from({ length: Math.max(0, 9 - checks.length) }, (_, index) => <span key={`empty-${index}`} className="min-h-7" aria-hidden="true" />)}
+    </div>
+  );
 }
 
 function DetailGroup({ title, fields }: { title: string; fields: [string, string][] }) {
@@ -138,15 +178,23 @@ function DetailGroup({ title, fields }: { title: string; fields: [string, string
 }
 
 function UnitDetails({ row, copy, lang }: { row: UnitRow; copy: Copy; lang: DashboardLang }) {
+  const checks = getUnitChecks(row);
+  const issues = checks.filter((check) => check.status === 'offline');
   return (
     <div className="space-y-6 border-t border-zinc-200 px-1 py-6 dark:border-zinc-800">
+      <section aria-label={copy.issues} className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-900">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{copy.issues}</h3><OverallBadge status={row.overallStatus} copy={copy} /></div>
+        {row.updateStatus !== 'recent' && <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">{row.updateStatus === 'stale' ? copy.staleIssue : copy.unknownUpdateIssue}</p>}
+        {issues.length > 0 ? <ul className="mt-3 grid list-inside list-disc gap-1 text-sm text-red-700 sm:grid-cols-2 dark:text-red-300">{issues.map((check) => <li key={check.key}>{check[lang === 'th' ? 'th' : 'en']}</li>)}</ul>
+          : <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">{copy.noIssues}</p>}
+      </section>
       <section aria-label={copy.checklist}>
         <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{copy.checklist}</h3>
         <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {DEVICE_FIELDS.map((field) => (
+          {checks.map((field) => (
             <div key={field.key} className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
               <dt className="text-sm text-zinc-600 dark:text-zinc-300">{field[lang === 'th' ? 'th' : 'en']}</dt>
-              <dd className="shrink-0"><HealthBadge status={row.statuses[field.key]} copy={copy} /></dd>
+              <dd className="shrink-0"><HealthBadge status={field.status} copy={copy} /></dd>
             </div>
           ))}
         </dl>
@@ -174,7 +222,7 @@ function UnitDetails({ row, copy, lang }: { row: UnitRow; copy: Copy; lang: Dash
   );
 }
 
-function optionsFor(units: UnitRow[], key: 'vehicleNo' | 'fleet' | 'driver' | 'type') {
+function optionsFor(units: UnitRow[], key: 'vehicleNo' | 'fleet' | 'driver' | 'type' | 'location') {
   return Array.from(new Set(units.map((row) => row[key]).filter(Boolean)))
     .sort((a, b) => a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' }));
 }
@@ -183,11 +231,21 @@ function unitKey(row: UnitRow) {
   return JSON.stringify([normalizeLabel(row.fleet), normalizeLabel(row.vehicleNo)]);
 }
 
+const OVERALL_STATUSES = ['healthy', 'warning', 'offline', 'unknown'] as const;
+const PRIMARY_CHECKS = new Set(['gpsStatus', 'statusAi', 'deviceStatus', 'storage', 'intercom']);
+
+function aggregateCheckLabels(check: { key: string; en: string; th: string }) {
+  if (check.key === 'ch1Ai') return { en: 'AI camera', th: 'กล้อง AI' };
+  const camera = /^c([1-9])$/.exec(check.key);
+  return camera ? { en: `Camera ${camera[1]}`, th: `กล้อง ${camera[1]}` } : { en: check.en, th: check.th };
+}
+
 export default function UnitStatusDashboard({
   dashboardId, dashboardName, sheetId, sheetGid, dashboardNotes, organizationName,
   organizationNames, companyName, legacyBigthSource = false, lang = 'en', isAdmin = false,
 }: DashboardProps) {
   const copy = COPY[lang === 'th' ? 'th' : 'en'];
+  const instanceId = useId();
   const primary = useUnitStatusSheet({ sheetId, ...(legacyBigthSource ? { tabName: 'Unitstatus' } : { gid: sheetGid }) });
   const channelSheet = useUnitStatusSheet({ sheetId, tabName: 'CH' });
   const { columns, rows, loading, error, lastUpdated } = primary;
@@ -203,6 +261,9 @@ export default function UnitStatusDashboard({
   const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
   const [driverFilters, setDriverFilters] = useState<string[]>([]);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [locationFilters, setLocationFilters] = useState<string[]>([]);
+  const [failedCheck, setFailedCheck] = useState('');
+  const [overallFilters, setOverallFilters] = useState<UnitRow['overallStatus'][]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const scopeSet = useMemo(() => scopeFleetSet(organizationName, organizationNames), [organizationName, organizationNames]);
@@ -221,8 +282,10 @@ export default function UnitStatusDashboard({
   const units = useMemo(() => buildUnitRows(rows, channelSheet.rows, scopeSet, now, companyName), [rows, channelSheet.rows, scopeSet, now, companyName]);
   const options = useMemo(() => ({
     fleets: optionsFor(units, 'fleet'), vehicles: optionsFor(units, 'vehicleNo'),
-    drivers: optionsFor(units, 'driver'), types: optionsFor(units, 'type'),
+    drivers: optionsFor(units, 'driver'), types: optionsFor(units, 'type'), locations: optionsFor(units, 'location'),
   }), [units]);
+  const checkOptions = useMemo(() => Array.from(new Map(units.flatMap(getUnitChecks).filter((check) => check.key !== 'intercom').map((check) => [check.key, { ...check, ...aggregateCheckLabels(check) }])).values())
+    .sort((a, b) => a.en.localeCompare(b.en)), [units]);
   const filtered = useMemo(() => {
     const query = normalizeLabel(search);
     const fleets = new Set(fleetFilters.map(normalizeLabel));
@@ -232,25 +295,39 @@ export default function UnitStatusDashboard({
       && (fleets.size === 0 || fleets.has(normalizeLabel(row.fleet)))
       && (vehicleFilters.length === 0 || vehicleFilters.includes(row.vehicleNo))
       && (driverFilters.length === 0 || driverFilters.includes(row.driver))
-      && (typeFilters.length === 0 || typeFilters.includes(row.type)));
-  }, [units, search, status, dateTimeRange, fleetFilters, vehicleFilters, driverFilters, typeFilters]);
+      && (typeFilters.length === 0 || typeFilters.includes(row.type))
+      && (locationFilters.length === 0 || locationFilters.includes(row.location))
+      && (!failedCheck || getUnitChecks(row).some((check) => check.key === failedCheck && check.status === 'offline'))
+      && (overallFilters.length === 0 || overallFilters.includes(row.overallStatus)));
+  }, [units, search, status, dateTimeRange, fleetFilters, vehicleFilters, driverFilters, typeFilters, locationFilters, failedCheck, overallFilters]);
   const installRows = useMemo(() => buildInstallRows(channelSheet.rows, units, scopeSet), [channelSheet.rows, units, scopeSet]);
   const installTotals = installRows.reduce((total, row) => ({
     vehicles: total.vehicles + row.vehicles, cameras: total.cameras + row.cameras,
     unknownCameraUnits: total.unknownCameraUnits + row.unknownCameraUnits,
   }), { vehicles: 0, cameras: 0, unknownCameraUnits: 0 });
-  const damageCounts = useMemo(() => DEVICE_FIELDS.filter((field) => field.key !== 'gpsStatus')
-    .map((field) => ({ ...field, count: filtered.filter((row) => row.statuses[field.key] === 'offline').length }))
-    .sort((a, b) => b.count - a.count), [filtered]);
-  const selected = filtered.find((row) => unitKey(row) === expanded);
+  const damageCounts = useMemo(() => {
+    const counts = new Map<string, { key: string; en: string; th: string; count: number }>();
+    for (const row of filtered) {
+      for (const check of getUnitChecks(row)) {
+        if (check.key === 'gpsStatus') continue;
+        const current = counts.get(check.key) ?? { key: check.key, ...aggregateCheckLabels(check), count: 0 };
+        current.count += Number(check.status === 'offline');
+        counts.set(check.key, current);
+      }
+    }
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count || a.en.localeCompare(b.en));
+  }, [filtered]);
   const gpsUnknown = filtered.filter((row) => row.statuses.gpsStatus === 'unknown').length;
   const activeFilterCount = Number(Boolean(search.trim())) + Number(Boolean(status)) + Number(isCompleteDateTimeRange(dateTimeRange))
-    + fleetFilters.length + vehicleFilters.length + driverFilters.length + typeFilters.length;
+    + fleetFilters.length + vehicleFilters.length + driverFilters.length + typeFilters.length
+    + locationFilters.length + Number(Boolean(failedCheck)) + overallFilters.length;
   const invalidSource = columns.length > 0 && !hasUnitStatusColumns(columns);
   const reset = () => {
     setSearch(''); setStatus(''); setExpanded(null); setDateTimeRange({ start: '', end: '' });
     setFleetFilters([]); setVehicleFilters([]); setDriverFilters([]); setTypeFilters([]);
+    setLocationFilters([]); setFailedCheck(''); setOverallFilters([]);
   };
+  const overallLabels = { healthy: copy.healthy, warning: copy.warning, offline: copy.offline, unknown: copy.notReported };
   // The shell formats UTC digits; convert the fetch instant to Bangkok digits.
   const checkedAt = lastUpdated ? new Date(lastUpdated.getTime() + 7 * 60 * 60 * 1_000) : null;
 
@@ -279,9 +356,16 @@ export default function UnitStatusDashboard({
               <KpiCard label={copy.units} value={filtered.length} />
               <KpiCard label={copy.gpsOnline} value={filtered.filter((row) => row.statuses.gpsStatus === 'online').length} accentColor="#10b981" />
               <KpiCard label={copy.gpsOffline} value={filtered.filter((row) => row.statuses.gpsStatus === 'offline').length} accentColor="#ef4444" />
-              <KpiCard label={copy.attention} value={filtered.filter((row) => DEVICE_FIELDS.some((field) => row.statuses[field.key] === 'offline')).length} accentColor="#f59e0b" tooltip={copy.attentionNote} />
+              <KpiCard label={copy.attention} value={filtered.filter((row) => row.overallStatus === 'warning' || row.overallStatus === 'offline' || getUnitChecks(row).some((check) => check.status === 'offline')).length} accentColor="#f59e0b" tooltip={copy.attentionNote} />
             </div>
             {gpsUnknown > 0 && <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">{copy.gpsUnknown}: {gpsUnknown}</p>}
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950" role="group" aria-label={copy.overall}>
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{copy.overall}</p>
+              {OVERALL_STATUSES.map((overallStatus) => {
+                const count = filtered.filter((row) => row.overallStatus === overallStatus).length;
+                return <div key={overallStatus} className="flex items-center gap-2 text-xs tabular-nums"><OverallBadge status={overallStatus} copy={copy} /><span className="font-semibold text-zinc-700 dark:text-zinc-200">{count}</span><span className="text-zinc-500 dark:text-zinc-400">({filtered.length ? Math.round(count / filtered.length * 100) : 0}%)</span></div>;
+              })}
+            </div>
           </section>
 
           <section className={`${dashboardSectionClass} relative z-20 space-y-4`} aria-label={copy.search} data-print-hide>
@@ -303,12 +387,18 @@ export default function UnitStatusDashboard({
               </div>
               <button type="button" onClick={reset} className={btnSecondary}>{copy.reset}</button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <div role="group" aria-label={copy.fleet}><p className={`${labelBase} mb-2`}>{copy.fleet}</p><MultiSelect label={copy.fleets} options={options.fleets} selected={fleetFilters} onChange={setFleetFilters} lang={lang} /></div>
               <div role="group" aria-label={copy.vehicle}><p className={`${labelBase} mb-2`}>{copy.vehicle}</p><MultiSelect label={copy.vehicles} options={options.vehicles} selected={vehicleFilters} onChange={setVehicleFilters} lang={lang} /></div>
               <div role="group" aria-label={copy.driver}><p className={`${labelBase} mb-2`}>{copy.driver}</p><MultiSelect label={copy.drivers} options={options.drivers} selected={driverFilters} onChange={setDriverFilters} lang={lang} /></div>
               <div role="group" aria-label={copy.type}><p className={`${labelBase} mb-2`}>{copy.type}</p><MultiSelect label={copy.types} options={options.types} selected={typeFilters} onChange={setTypeFilters} lang={lang} /></div>
+              <div role="group" aria-label={copy.locationFilter}><p className={`${labelBase} mb-2`}>{copy.locationFilter}</p><MultiSelect label={copy.locations} options={options.locations} selected={locationFilters} onChange={setLocationFilters} lang={lang} /></div>
+              <div><label htmlFor="unit-status-failed-check" className={`${labelBase} mb-2`}>{copy.failedCheck}</label><select id="unit-status-failed-check" className={selectBase} value={failedCheck} onChange={(event) => setFailedCheck(event.target.value)}><option value="">{copy.allChecks}</option>{checkOptions.map((check) => <option key={check.key} value={check.key}>{check[lang === 'th' ? 'th' : 'en']}</option>)}</select></div>
             </div>
+            <fieldset className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+              <legend className="sr-only">{copy.overall}</legend><span aria-hidden="true" className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{copy.overall}</span>
+              {OVERALL_STATUSES.map((overallStatus) => <label key={overallStatus} className="inline-flex min-h-8 items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300"><input type="checkbox" className="h-4 w-4 accent-red-600" checked={overallFilters.includes(overallStatus)} onChange={() => setOverallFilters((current) => current.includes(overallStatus) ? current.filter((value) => value !== overallStatus) : [...current, overallStatus])} />{overallLabels[overallStatus]}</label>)}
+            </fieldset>
           </section>
 
           <section className={dashboardSectionClass}>
@@ -321,17 +411,33 @@ export default function UnitStatusDashboard({
               <p className="text-sm tabular-nums text-zinc-500 dark:text-zinc-400" aria-live="polite">{copy.count(filtered.length, units.length)}</p>
             </div>
             {(channelSheet.error || channelSheet.loading) && <p role="status" className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">{channelSheet.error ? copy.metadataUnavailable : copy.metadataLoading}</p>}
-            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800" tabIndex={0} role="region" aria-label={copy.title}>
-              <table className="w-full min-w-[1120px] text-sm">
+            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">{copy.cameraLegend}</p>
+            <div className="overflow-x-auto rounded-lg border border-zinc-200 [container-type:inline-size] dark:border-zinc-800" tabIndex={0} role="region" aria-label={copy.title}>
+              <table className="w-full min-w-[1520px] text-sm">
                 <thead className={tableHead}>
-                  <tr>{[copy.vehicle, copy.update, 'GPS', copy.aiStatus, copy.device, copy.storage, copy.cameraSetup, 'Intercom', copy.details].map((label) => <th key={label} scope="col" className={tableHeadCell}>{label}</th>)}</tr>
+                  <tr>{[copy.vehicle, copy.update, 'GPS', copy.aiStatus, copy.device, copy.storage, copy.cameraCount, copy.cameraSetup, copy.accessories, 'Intercom'].map((label) => <th key={label} scope="col" className={tableHeadCell}>{label}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {filtered.map((row) => (
-                    <tr key={unitKey(row)} className={`${tableRow} ${expanded === unitKey(row) ? 'bg-zinc-50 dark:bg-zinc-800/50' : ''}`}>
+                  {filtered.map((row) => {
+                    const key = unitKey(row);
+                    const isExpanded = expanded === key;
+                    const detailsId = `unit-status-details-${instanceId}-${encodeURIComponent(key)}`;
+                    const cameraChecks = getUnitCameraChecks(row);
+                    const cameraKeys = new Set(cameraChecks.map((check) => check.key));
+                    const auxiliaryChecks = getUnitChecks(row).filter((check) => !PRIMARY_CHECKS.has(check.key) && !cameraKeys.has(check.key));
+                    return <Fragment key={key}>
+                    <tr className={`${tableRow} ${isExpanded ? 'bg-zinc-50 dark:bg-zinc-800/50' : ''}`}>
                       <th scope="row" className={`${tableCell} text-left`}>
                         <span className="block font-semibold text-zinc-950 dark:text-zinc-100">{row.vehicleNo}</span>
                         <span className="mt-1 block text-xs font-normal text-zinc-500 dark:text-zinc-400">{reported(row.fleet || row.deviceType, copy)}</span>
+                        <span className="mt-2 block font-normal"><OverallBadge status={row.overallStatus} copy={copy} /></span>
+                        <button type="button" className="mt-1 inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg px-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 dark:text-red-400 dark:hover:bg-red-950/30"
+                          aria-expanded={isExpanded} aria-controls={isExpanded ? detailsId : undefined}
+                          aria-label={`${isExpanded ? copy.hide : copy.show}: ${row.vehicleNo}${row.fleet ? ` · ${row.fleet}` : ''}`}
+                          onClick={() => setExpanded(isExpanded ? null : key)}>
+                          {isExpanded ? copy.hide : copy.show}
+                          <svg aria-hidden="true" className={`h-4 w-4 transition-transform motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
+                        </button>
                       </th>
                       <td className={tableCell}>
                         <UpdateBadge status={row.updateStatus} copy={copy} />
@@ -341,25 +447,24 @@ export default function UnitStatusDashboard({
                       <td className={tableCell}><HealthBadge status={row.statuses.statusAi} copy={copy} /></td>
                       <td className={tableCell}><HealthBadge status={row.statuses.deviceStatus} copy={copy} /></td>
                       <td className={tableCell}><HealthBadge status={row.statuses.storage} copy={copy} /></td>
+                      <td className={tableCell}><CheckIndicators checks={cameraChecks} label={copy.cameraCount} copy={copy} lang={lang} cameraSlots /></td>
                       <td className={tableCell}><CameraSetup row={row} copy={copy} /></td>
+                      <td className={tableCell}><CheckIndicators checks={auxiliaryChecks} label={copy.accessories} copy={copy} lang={lang} /></td>
                       <td className={tableCell}><HealthBadge status={row.statuses.intercom} copy={copy} /></td>
-                      <td className={tableCell}>
-                        <button type="button" className="inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg px-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 dark:text-red-400 dark:hover:bg-red-950/30"
-                          aria-expanded={expanded === unitKey(row)} aria-controls="unit-status-details"
-                          aria-label={`${expanded === unitKey(row) ? copy.hide : copy.show}: ${row.vehicleNo}${row.fleet ? ` · ${row.fleet}` : ''}`}
-                          onClick={() => setExpanded(expanded === unitKey(row) ? null : unitKey(row))}>
-                          {expanded === unitKey(row) ? copy.hide : copy.show}
-                          <svg aria-hidden="true" className={`h-4 w-4 transition-transform motion-reduce:transition-none ${expanded === unitKey(row) ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
-                        </button>
-                      </td>
                     </tr>
-                  ))}
-                  {filtered.length === 0 && <tr><td colSpan={9} className={`${tableCell} py-12 text-center text-zinc-500`}>{units.length ? copy.noMatch : copy.empty}</td></tr>}
+                    {isExpanded && <tr className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+                      <td colSpan={10} className="p-0 align-top">
+                        <div id={detailsId} className="sticky left-0 box-border w-[100cqw] max-w-full px-4 sm:px-6" role="region" aria-label={`${copy.details}: ${row.vehicleNo}${row.fleet ? ` · ${row.fleet}` : ''}`}>
+                          <p className="pt-5 pb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{row.vehicleNo}{row.fleet ? ` · ${row.fleet}` : ''}</p>
+                          <UnitDetails row={row} copy={copy} lang={lang} />
+                        </div>
+                      </td>
+                    </tr>}
+                    </Fragment>;
+                  })}
+                  {filtered.length === 0 && <tr><td colSpan={10} className={`${tableCell} py-12 text-center text-zinc-500`}>{units.length ? copy.noMatch : copy.empty}</td></tr>}
                 </tbody>
               </table>
-            </div>
-            <div id="unit-status-details" role="region" aria-label={selected ? `${copy.details}: ${selected.vehicleNo}` : copy.details}>
-              {selected && <><p className="mt-6 mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{selected.vehicleNo}</p><UnitDetails row={selected} copy={copy} lang={lang} /></>}
             </div>
             <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">{copy.cameraSetupNote} · {copy.timeNote}</p>
           </section>
