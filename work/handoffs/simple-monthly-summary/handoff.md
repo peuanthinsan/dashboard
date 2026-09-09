@@ -83,3 +83,11 @@ The initial receipt is superseded after three scoped fixes:
   helper columns issuing only the bounded probe, and friendly timeout handling.
 - TypeScript and changed-path lint pass after corrections. Final source hashes
   replace the original source-manifest; initial receipt is not the final verdict.
+
+## Final browser rerun
+
+All prior browser checks passed on the corrected snapshot. The raw fixture now
+includes Month/Total helper columns and still renders the original daily view.
+An additional numeric-label fixture proves chart series colors stay matched to
+the table. No page errors, console errors or framework overlays. Temporary
+fixture removed and the task-owned local server stopped after verification.

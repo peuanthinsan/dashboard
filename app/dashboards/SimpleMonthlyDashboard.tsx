@@ -5,6 +5,7 @@ import type { DashboardLang } from 'app/dashboard/i18n-copy';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import { buildSimpleSummaryComparison, parseSimpleSummary } from './simpleSummaryData';
+import { resolveSelectedTrendMonths, toggleTrendMonthFilter } from './detailTrendData';
 import type { SimpleSheetResult } from './simpleSheetFetch';
 import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
@@ -12,7 +13,7 @@ import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import FilterBar from 'app/ui/FilterBar';
 import MultiSelect from 'app/ui/MultiSelect';
-import { heading2, btnSecondary } from 'app/ui/design-tokens';
+import { heading2, btnSecondary, CHART_COLORS } from 'app/ui/design-tokens';
 
 type Props = {
   dashboardId: string;
@@ -25,6 +26,10 @@ type Props = {
 };
 
 const TYPE_COLORS = ['#DC2626', '#D97706', '#2563EB', '#059669', '#7C3AED', '#DB2777', '#0891B2', '#EA580C', '#4F46E5', '#65A30D', '#A16207', '#475569'];
+const MONTHLY_CHART_COLORS = [CHART_COLORS[0]];
+const chartPillClass = 'rounded-full px-2.5 py-1 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:focus-visible:outline-red-400';
+const activeChartPillClass = 'bg-red-600 text-white';
+const inactiveChartPillClass = 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700';
 
 function monthLabel(month: string, lang: DashboardLang) {
   return new Intl.DateTimeFormat(lang === 'th' ? 'th-TH' : 'en-GB', {
@@ -40,6 +45,8 @@ export default function SimpleMonthlyDashboard({
   const summary = useMemo(() => parseSimpleSummary(sheet.columns, sheet.rows), [sheet.columns, sheet.rows]);
   const [monthFilters, setMonthFilters] = useState<string[]>([]);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [chartTypeFilter, setChartTypeFilter] = useState<string | null>(null);
+  const [chartMonthFilters, setChartMonthFilters] = useState<string[]>([]);
   const comparison = useMemo(
     () => buildSimpleSummaryComparison(summary.records, monthFilters, typeFilters),
     [summary.records, monthFilters, typeFilters],
@@ -51,15 +58,26 @@ export default function SimpleMonthlyDashboard({
     key: `alert:${type}`,
     color: TYPE_COLORS[summary.alertTypes.indexOf(type)] ?? `hsl(${summary.alertTypes.indexOf(type) * 137.508 % 360} 65% 42%)`,
   })), [comparison.alertTypes, summary.alertTypes]);
-  const chartData = useMemo(() => comparison.rows.map((row) => ({
-    label: monthLabel(row.month, lang), values: row.counts,
-  })), [comparison.rows, lang]);
-  const chartColors = useMemo(() => {
-    const colorsByType = new Map(typeColumns.map(({ type, color }) => [type, color]));
-    // JavaScript places numeric type names first in object keys. Match the
-    // chart's series order so each type keeps its table/filter color.
-    return Object.keys(chartData[0]?.values ?? {}).map((type) => colorsByType.get(type)!);
-  }, [chartData, typeColumns]);
+  // Page filters define the scope. These controls only narrow the graph;
+  // table rows, KPIs and CSV continue to use the full page comparison.
+  const activeChartType = chartTypeFilter !== null && comparison.alertTypes.includes(chartTypeFilter)
+    ? chartTypeFilter : null;
+  const chartMonthOptions = useMemo(() => comparison.months.map((key) => ({
+    key, label: monthLabel(key, lang),
+  })), [comparison.months, lang]);
+  const selectedChartMonths = useMemo(
+    () => resolveSelectedTrendMonths(chartMonthOptions, chartMonthFilters),
+    [chartMonthOptions, chartMonthFilters],
+  );
+  const selectedChartMonthKeys = new Set(selectedChartMonths.map(({ key }) => key));
+  const allChartMonthsSelected = selectedChartMonths.length === chartMonthOptions.length;
+  const chartData = useMemo(() => {
+    const rowsByMonth = new Map(comparison.rows.map((row) => [row.month, row]));
+    return selectedChartMonths.map(({ key, label }) => {
+      const row = rowsByMonth.get(key);
+      return { label, value: activeChartType === null ? row?.total ?? 0 : row?.counts[activeChartType] ?? 0 };
+    });
+  }, [comparison.rows, selectedChartMonths, activeChartType]);
   const tableRows = useMemo(() => comparison.rows.map((row) => ({
     month: row.month,
     ...Object.fromEntries(typeColumns.map(({ type, key }) => [key, row.counts[type]])),
@@ -76,7 +94,8 @@ export default function SimpleMonthlyDashboard({
       render: (value) => <span className="font-bold tabular-nums">{numberFormat.format(Number(value))}</span> },
   ], [lang, numberFormat, typeColumns]);
 
-  const resetFilters = () => { setMonthFilters([]); setTypeFilters([]); };
+  const resetChartFilters = () => { setChartTypeFilter(null); setChartMonthFilters([]); };
+  const resetFilters = () => { setMonthFilters([]); setTypeFilters([]); resetChartFilters(); };
   const tableTitle = lang === 'th' ? 'ตารางสรุปรายเดือน' : 'Monthly summary table';
   const chartTitle = lang === 'th' ? 'เปรียบเทียบการแจ้งเตือนรายเดือน' : 'Monthly alert comparison';
 
@@ -100,8 +119,8 @@ export default function SimpleMonthlyDashboard({
           <FilterBar title={lang === 'th' ? 'ตัวกรอง' : 'Filters'}
             description={lang === 'th' ? 'เลือกเดือนและประเภทเพื่อเปรียบเทียบ' : 'Choose months and alert types to compare.'}
             activeCount={activeFilterCount}>
-            <MultiSelect label={lang === 'th' ? 'เดือน' : 'months'} options={summary.months} selected={monthFilters} onChange={setMonthFilters} lang={lang} />
-            <MultiSelect label={lang === 'th' ? 'ประเภทการแจ้งเตือน' : 'alert types'} options={summary.alertTypes} selected={typeFilters} onChange={setTypeFilters} lang={lang} />
+            <MultiSelect label={lang === 'th' ? 'เดือน' : 'months'} options={summary.months} selected={monthFilters} onChange={(months) => { setMonthFilters(months); resetChartFilters(); }} lang={lang} />
+            <MultiSelect label={lang === 'th' ? 'ประเภทการแจ้งเตือน' : 'alert types'} options={summary.alertTypes} selected={typeFilters} onChange={(types) => { setTypeFilters(types); resetChartFilters(); }} lang={lang} />
             {activeFilterCount > 0 ? <button type="button" className={`${btnSecondary} ml-auto`} onClick={resetFilters}>{lang === 'th' ? 'รีเซ็ต' : 'Reset'}</button> : null}
           </FilterBar>
           <div className="grid gap-4 sm:grid-cols-3">
@@ -114,11 +133,44 @@ export default function SimpleMonthlyDashboard({
           ) : <>
             <section className={`${dashboardSectionClass} min-w-0`}>
               <h2 className={heading2}>{chartTitle}</h2>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'แต่ละสีคือประเภทการแจ้งเตือน เลือกประเภทเพื่อดูความแตกต่างระหว่างเดือน' : 'Each color is an alert type. Select a type to compare its count across months.'}</p>
-              <TrendChart key={`${monthFilters.join('|')}:${typeFilters.join('|')}`}
-                className="mt-4" data={chartData} colors={chartColors} mode="bar" height={340}
-                maxXAxisLabels={comparison.months.length} wholeNumberYAxis
-                minCategoryWidth={Math.max(220, comparison.alertTypes.length * 28 + 48)} preserveCategoryScale
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'เปรียบเทียบยอดรวมการแจ้งเตือนของแต่ละเดือน ตัวกรองด้านล่างมีผลเฉพาะกราฟนี้' : 'Compare total alerts per month. The filters below only change this graph.'}</p>
+              <div className="mt-3 space-y-3 text-xs text-zinc-600 dark:text-zinc-300">
+                <div className="flex flex-wrap items-center gap-2" role="group" aria-label={lang === 'th' ? 'กรองประเภทการแจ้งเตือนในกราฟ' : 'Filter chart by alert type'}>
+                  <span className="uppercase tracking-[0.2em] text-zinc-500">{lang === 'th' ? 'แสดง' : 'Show'}</span>
+                  <button type="button" onClick={() => setChartTypeFilter(null)} aria-pressed={activeChartType === null}
+                    className={`${chartPillClass} ${activeChartType === null ? activeChartPillClass : inactiveChartPillClass}`}>
+                    {lang === 'th' ? 'การแจ้งเตือนทุกประเภท' : 'All alert types'}
+                  </button>
+                  {comparison.alertTypes.map((type) => (
+                    <button key={type} type="button" onClick={() => setChartTypeFilter(type)} aria-pressed={activeChartType === type}
+                      className={`${chartPillClass} ${activeChartType === type ? activeChartPillClass : inactiveChartPillClass}`}>
+                      {type}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-2" role="group" aria-label={lang === 'th' ? 'เลือกเดือนที่จะแสดงในกราฟ' : 'Choose months to show in chart'}>
+                  <span className="uppercase tracking-[0.2em] text-zinc-500">{lang === 'th' ? 'เดือน' : 'Months'}</span>
+                  <button type="button" onClick={() => setChartMonthFilters([])} aria-pressed={allChartMonthsSelected}
+                    className={`${chartPillClass} ${allChartMonthsSelected ? activeChartPillClass : inactiveChartPillClass}`}>
+                    {lang === 'th' ? 'ทุกเดือน' : 'All months'}
+                  </button>
+                  {chartMonthOptions.map(({ key, label }) => (
+                    <button key={key} type="button"
+                      onClick={() => setChartMonthFilters((current) => toggleTrendMonthFilter(comparison.months, current, key))}
+                      aria-pressed={selectedChartMonthKeys.has(key)}
+                      className={`${chartPillClass} ring-1 ring-inset ${selectedChartMonthKeys.has(key)
+                        ? 'bg-white text-zinc-800 ring-zinc-300 shadow-sm dark:bg-zinc-800 dark:text-zinc-100 dark:ring-zinc-600'
+                        : 'bg-zinc-50 text-zinc-600 ring-zinc-200 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:text-zinc-300 dark:ring-zinc-800 dark:hover:bg-zinc-800'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <TrendChart key={JSON.stringify([monthFilters, typeFilters, activeChartType, chartMonthFilters])}
+                className="mt-4" data={chartData} colors={MONTHLY_CHART_COLORS} mode="bar" height={300}
+                maxXAxisLabels={selectedChartMonths.length} wholeNumberYAxis yAxisTickCount={3}
+                minCategoryWidth={96} preserveCategoryScale barCategoryPadding={0.24} maxBarWidth={72}
+                singleSeriesLabel={activeChartType ?? (lang === 'th' ? 'การแจ้งเตือน' : 'Alerts')}
                 ariaLabel={chartTitle}
               />
             </section>

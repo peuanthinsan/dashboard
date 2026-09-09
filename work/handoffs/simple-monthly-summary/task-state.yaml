@@ -2,9 +2,16 @@ objective: Simple monthly summary with raw-sheet compatibility
 active_root: Codex
 root_model: UNKNOWN
 root_effort: UNKNOWN
-phase: review_and_browser_qa
+phase: complete
 base_sha: 6bf0c5bce69390ebb76548622366fe88bd216b4a
 writer_lease: root except simpleSummaryData.ts and its test owned by Codex worker
 review_provider: Claude
-review_status: requested
+review_status: passed
 publishing_approved: false
+review_model: claude-fable-5
+review_effort: UNKNOWN
+verification: 71 targeted tests, TypeScript, scoped ESLint, desktop/mobile Playwright passed
+source_frozen: source-manifest.txt
+deployment: not performed
+observed_final_head: c8dc2a25aa6507690034b9555e02ba7491e8f50d
+head_note: HEAD advanced concurrently; root did not commit. Reviewed source hashes remain identical.

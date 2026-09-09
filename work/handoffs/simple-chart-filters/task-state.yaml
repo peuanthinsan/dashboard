@@ -1,0 +1,12 @@
+active_root: Codex
+root_model: UNKNOWN
+root_effort: UNKNOWN
+phase: complete
+base_sha: c8dc2a25aa6507690034b9555e02ba7491e8f50d
+writer_lease: Codex root
+review_status: passed
+source_sha256: 6a51480a6f648605612bde37add2cc2bf41b447547477a58699698dd4e7ecb76
+publishing_approved: false
+review_model: claude-fable-5
+review_effort: UNKNOWN
+verification: TypeScript, changed-file ESLint, targeted desktop/mobile Playwright PASS
