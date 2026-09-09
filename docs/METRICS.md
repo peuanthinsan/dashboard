@@ -161,7 +161,10 @@ requires grepping the others.
   fleets, or fleets established from company-scoped units. Missing CH still
   counts a vehicle, contributes no known cameras and is disclosed as unknown.
 - Raw sources with username columns require exact, case-insensitive comma-token
-  membership in the dashboard's company name, independently of fleet scope.
+  membership in the dashboard's company name or a verified source-account alias,
+  independently of fleet scope. ALCHEM accepts `Alcsongdee`, the account selected
+  by its source tab; this identity alias does not change device rules or relax
+  fleet restrictions. Other companies retain exact company-name matching.
   A configured fleet scope excludes missing/blank/mismatched Fleet values. When
   the source has no Fleet column, a unique CH match or exact scoped username
   token may establish it. Configured processed sheets without username columns

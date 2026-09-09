@@ -42,6 +42,44 @@ describe('company and fleet boundaries', () => {
     expect(units.map((unit) => unit.vehicleNo)).toEqual(['BIG-1']);
   });
 
+  it('accepts the ALCHEM source username alias and canonical name as exact normalized tokens', () => {
+    const rows = [
+      sourceRow({ vehicleno: 'V1', username: ' Alcsongdee, SONGDEEAPI' }),
+      sourceRow({ vehicleno: 'V2', username: ' Alcsongdee' }),
+      sourceRow({ vehicleno: 'V3', username: ' SONGDEEAPI , aLcSoNgDeE ' }),
+      sourceRow({ vehicleno: 'V4', username: 'ALCHEM' }),
+    ];
+    expect(buildUnitRows(rows, [], noScope, now, ' ALCHEM ').map((unit) => unit.vehicleNo))
+      .toEqual(['V1', 'V2', 'V3', 'V4']);
+  });
+
+  it('rejects ALCHEM alias near-matches, foreign memberships, and missing usernames', () => {
+    const rows = [
+      sourceRow({ vehicleno: 'V1', username: 'Alcsongdee Logistics' }),
+      sourceRow({ vehicleno: 'V2', username: 'MyAlcsongdee, SONGDEEAPI' }),
+      sourceRow({ vehicleno: 'V3', username: 'Alcsongdee2' }),
+      sourceRow({ vehicleno: 'V4', username: 'Other Company' }),
+      sourceRow({ vehicleno: 'V5', username: '' }),
+      sourceRow({ vehicleno: 'V6', username: null }),
+      { vehicleno: 'V7' },
+    ];
+    expect(buildUnitRows(rows, [], noScope, now, 'ALCHEM')).toEqual([]);
+    expect(buildUnitRows([sourceRow({ username: 'Alcsongdee' })], [], noScope, now, 'Acme'))
+      .toEqual([]);
+  });
+
+  it('keeps ALCHEM alias membership subject to the authorized Fleet boundary', () => {
+    const rows = [
+      sourceRow({ vehicleno: 'V1', username: 'Alcsongdee', Fleet: 'North' }),
+      sourceRow({ vehicleno: 'V2', username: 'Alcsongdee', Fleet: 'South' }),
+      sourceRow({ vehicleno: 'V3', username: 'Alcsongdee' }),
+      sourceRow({ vehicleno: 'V4', username: 'Alcsongdee', Fleet: '' }),
+    ];
+    const metadata = rows.map((row) => cameraRow({ 'Vehicle No': row.vehicleno }));
+    expect(buildUnitRows(rows, metadata, new Set(['North']), now, 'ALCHEM').map((unit) => unit.vehicleNo))
+      .toEqual(['V1']);
+  });
+
   it('enforces company membership and authorized Fleet independently when both are present', () => {
     const rows = [
       sourceRow({ vehicleno: 'V1', Fleet: ' North ' }),

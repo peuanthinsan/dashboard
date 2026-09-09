@@ -140,6 +140,11 @@ export type UnitRow = {
 const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1_000;
 const VEHICLE_NO_ALIASES = ['vehicleno', 'Vehicle No', 'Vehicle Number'];
 const USERNAME_ALIASES = ['username', 'User Name'];
+// Source account names can differ from the dashboard's company display name.
+// The ALCHEM tab explicitly queries username for Alcsongdee.
+const COMPANY_USERNAME_ALIASES: ReadonlyMap<string, readonly string[]> = new Map([
+  ['alchem', ['alcsongdee']],
+]);
 const FLEET_ALIASES = ['Fleet', 'Fleet Name'];
 const VEHICLE_NO_HEADERS = new Set(VEHICLE_NO_ALIASES.map(normalizeLabel));
 
@@ -178,6 +183,7 @@ export function buildUnitRows(
   const hasFleetColumn = rows.some((row) => hasAliasedColumn(Object.keys(row), FLEET_ALIASES));
   const hasUsernameColumn = rows.some((row) => hasAliasedColumn(Object.keys(row), USERNAME_ALIASES));
   const company = normalizeLabel(companyName ?? '');
+  const companyUsernames = new Set([company, ...(COMPANY_USERNAME_ALIASES.get(company) ?? [])]);
   const metadata = readCameraMetadata(chRows);
   const nowWallClockMs = now.getTime() + BANGKOK_UTC_OFFSET_MS;
   const unitsByVehicle = new Map<string, UnitRow>();
@@ -200,7 +206,7 @@ export function buildUnitRows(
     if (normalizedScope.size > 0) {
       if (!fleet || !normalizedScope.has(normalizeLabel(fleet))) continue;
     }
-    if (company && hasUsernameColumn && !usernames.includes(company)) {
+    if (company && hasUsernameColumn && !usernames.some((username) => companyUsernames.has(username))) {
       // Source username is an exact comma-separated membership token, never a substring.
       continue;
     }
