@@ -7,6 +7,8 @@ import {
   isExcludedAlertRemark,
   parseDate,
   resolveTemplate,
+  isLegacyBigthUnitStatusTemplate,
+  resolveTemplateForSave,
   remarkMatchesAllowedTarget,
   withDerivedRemark,
   previousMonthKey,
@@ -123,18 +125,48 @@ describe('dashboardDataUtils', () => {
       expect(resolveTemplate('location dashboard')).toBe('LocationDataV1');
     });
 
-    it('maps ALCHEMUnitStatus aliases without colliding with BIGTH unit status', () => {
-      expect(resolveTemplate('ALCHEMUnitStatus')).toBe('ALCHEMUnitStatus');
-      expect(resolveTemplate('alchem unit status')).toBe('ALCHEMUnitStatus');
-      expect(resolveTemplate('Unit Device Status')).toBe('ALCHEMUnitStatus');
-      expect(resolveTemplate('UnitDeviceStatus')).toBe('ALCHEMUnitStatus');
-      expect(resolveTemplate('unit status')).toBe('BIGTHUnitStatus');
-      expect(resolveTemplate('BIGTHUnitStatus')).toBe('BIGTHUnitStatus');
+    it.each([
+      'UnitStatus', 'unitstatus', 'Unit Status', 'unit status dashboard',
+      'BIGTHUnitStatus', 'bigth unit status', 'bigth unit status dashboard', 'nio unit status',
+      'ALCHEMUnitStatus', 'alchem unit status', 'alchem unit status dashboard',
+      'Unit Device Status', 'UnitDeviceStatus', 'unit device status dashboard', 'alchem unit device status',
+      'VINYTHAIUnitStatus', 'vinythai unit status', 'vinythai unit status dashboard', 'vinythai unit device status',
+      'VehicleUnitStatus', 'vehicle unit status', 'vehicle unit status dashboard', '  VEHICLE   UNIT STATUS  ',
+    ])('maps %s to the shared UnitStatus template', (alias) => {
+      expect(resolveTemplate(alias)).toBe('UnitStatus');
     });
 
-    it('maps Vinythai unit-status aliases', () => {
-      expect(resolveTemplate('VINYTHAIUnitStatus')).toBe('VINYTHAIUnitStatus');
-      expect(resolveTemplate('vinythai unit status')).toBe('VINYTHAIUnitStatus');
+    it('preserves the named source mode only for aliases of the old BIGTH template', () => {
+      for (const alias of [
+        'BIGTHUnitStatus', 'bigth unit status', 'bigth unit status dashboard',
+        'unit status', 'unit status dashboard', '  NIO   UNIT STATUS  ',
+      ]) {
+        expect(isLegacyBigthUnitStatusTemplate(alias)).toBe(true);
+        expect(resolveTemplate(alias)).toBe('UnitStatus');
+      }
+      for (const template of ['UnitStatus', 'unitstatus', 'VehicleUnitStatus', 'ALCHEMUnitStatus', 'VINYTHAIUnitStatus', 'UnitDeviceStatus', 'Summary', '']) {
+        expect(isLegacyBigthUnitStatusTemplate(template)).toBe(false);
+      }
+    });
+  });
+
+  describe('resolveTemplateForSave', () => {
+    it('retains legacy BIGTH source metadata for ordinary edits under the shared display name', () => {
+      for (const previous of ['BIGTHUnitStatus', '  BIGTH   unit status  ', 'unit status', 'nio unit status']) {
+        expect(resolveTemplateForSave('UnitStatus', previous)).toBe(previous);
+      }
+    });
+
+    it('uses the selected template when the source target or template changes', () => {
+      expect(resolveTemplateForSave('UnitStatus', 'BIGTHUnitStatus', true)).toBe('UnitStatus');
+      expect(resolveTemplateForSave('Summary', 'BIGTHUnitStatus')).toBe('Summary');
+      expect(resolveTemplateForSave('Location Data v1', 'BIGTHUnitStatus')).toBe('Location Data v1');
+    });
+
+    it('writes the canonical template for other legacy companies and new dashboards', () => {
+      for (const previous of ['UnitStatus', 'ALCHEMUnitStatus', 'VINYTHAIUnitStatus', 'VehicleUnitStatus', null]) {
+        expect(resolveTemplateForSave('UnitStatus', previous)).toBe('UnitStatus');
+      }
     });
   });
 

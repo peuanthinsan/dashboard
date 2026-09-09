@@ -1,0 +1,26 @@
+task_id: vehicle-unit-status
+active_root: codex
+provider: OpenAI
+model: GPT-6
+effort: UNKNOWN
+base_sha: c8dc2a25aa6507690034b9555e02ba7491e8f50d
+branch: codex/vehicle-unit-status
+phase: verified
+status: complete
+writer_leases:
+  helper_and_tests: released
+  ui_and_integration: released
+integration_workspace: /Users/peuan/songdee-dashboard
+integration_head: e4d709f81bec7784b98d999935952a9975f0b7f6
+integration_state: reviewed_uncommitted_changes
+review_provider: claude
+review_model: claude-sonnet-5
+review_effort_requested: high
+review_effort_verified: UNKNOWN
+review_verdict: PASS
+approval:
+  publish: not_requested
+  database_write: not_requested
+  deploy: not_requested
+
+superseded_by: work/handoffs/shared-unit-status

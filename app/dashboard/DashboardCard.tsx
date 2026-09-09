@@ -11,6 +11,7 @@ import {
   type CachedScore,
 } from 'app/dashboards/scoreCache';
 import { gradeFromScore } from 'app/dashboards/drivingScoring';
+import { resolveTemplate } from 'app/dashboards/dashboardDataUtils';
 import ScoreBlock from 'app/ui/ScoreBlock';
 
 type DashboardCardProps = {
@@ -32,9 +33,7 @@ const templateIcons: Record<string, string> = {
   'Location Data v1': '📍',
   LocationDataV1: '📍',
   Video: '🎥',
-  ALCHEMUnitStatus: '📡',
-  BIGTHUnitStatus: '📡',
-  VINYTHAIUnitStatus: '📡',
+  UnitStatus: '📡',
 };
 
 const templateColors: Record<string, string> = {
@@ -48,9 +47,7 @@ const templateColors: Record<string, string> = {
   'Location Data v1': 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30',
   LocationDataV1: 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30',
   Video: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200/50 dark:bg-fuchsia-950/60 dark:text-fuchsia-300 dark:ring-fuchsia-800/30',
-  ALCHEMUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
-  BIGTHUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
-  VINYTHAIUnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
+  UnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
 };
 
 const templateIconBg: Record<string, string> = {
@@ -64,9 +61,7 @@ const templateIconBg: Record<string, string> = {
   'Location Data v1': 'bg-emerald-50 ring-emerald-200/40 dark:bg-emerald-950/40 dark:ring-emerald-800/30',
   LocationDataV1: 'bg-emerald-50 ring-emerald-200/40 dark:bg-emerald-950/40 dark:ring-emerald-800/30',
   Video: 'bg-fuchsia-50 ring-fuchsia-200/40 dark:bg-fuchsia-950/40 dark:ring-fuchsia-800/30',
-  ALCHEMUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
-  BIGTHUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
-  VINYTHAIUnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
+  UnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
 };
 
 const templateDescriptions: Record<string, { en: string; th: string }> = {
@@ -80,9 +75,7 @@ const templateDescriptions: Record<string, { en: string; th: string }> = {
   'Location Data v1': { en: 'Live route and location history', th: 'เส้นทางและประวัติตำแหน่ง' },
   LocationDataV1: { en: 'Live route and location history', th: 'เส้นทางและประวัติตำแหน่ง' },
   Video: { en: 'Video evidence review', th: 'ตรวจสอบหลักฐานวิดีโอ' },
-  ALCHEMUnitStatus: { en: 'Fleet device health status', th: 'สถานะอุปกรณ์ยานพาหนะ' },
-  BIGTHUnitStatus: { en: 'Unit device status', th: 'สถานะอุปกรณ์หน่วย' },
-  VINYTHAIUnitStatus: { en: 'Vinythai unit device status', th: 'สถานะอุปกรณ์ Vinythai' },
+  UnitStatus: { en: 'Unit device status', th: 'สถานะอุปกรณ์ยานพาหนะ' },
 };
 
 export default function DashboardCard({ id, name, template, sheetUrl, lang }: DashboardCardProps) {
@@ -130,12 +123,13 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
     };
   }, [id, refreshScore]);
 
-  const icon = templateIcons[template ?? ''] ?? '📊';
+  const displayTemplate = resolveTemplate(template ?? '') === 'UnitStatus' ? 'UnitStatus' : template;
+  const icon = templateIcons[displayTemplate ?? ''] ?? '📊';
   const badgeColor =
-    templateColors[template ?? ''] ?? 'bg-zinc-100 text-zinc-600 ring-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700/30';
+    templateColors[displayTemplate ?? ''] ?? 'bg-zinc-100 text-zinc-600 ring-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700/30';
   const iconBg =
-    templateIconBg[template ?? ''] ?? 'bg-zinc-50 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60';
-  const desc = templateDescriptions[template ?? ''] ?? { en: 'Dashboard', th: 'แดชบอร์ด' };
+    templateIconBg[displayTemplate ?? ''] ?? 'bg-zinc-50 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60';
+  const desc = templateDescriptions[displayTemplate ?? ''] ?? { en: 'Dashboard', th: 'แดชบอร์ด' };
 
   function handleCopyLink(e: React.MouseEvent) {
     e.preventDefault();
@@ -169,7 +163,7 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
           {icon}
         </div>
         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeColor}`}>
-          {template ?? 'Summary'}
+          {displayTemplate ?? 'Summary'}
         </span>
       </div>
       <div className="relative flex-1">

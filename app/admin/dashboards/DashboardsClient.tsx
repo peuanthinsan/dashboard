@@ -51,9 +51,13 @@ import type {
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
 import { DrivingSheetLinkFields } from './DrivingSheetLinkFields';
 import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'Location Data v1', 'BIGTHUnitStatus', 'ALCHEMUnitStatus', 'VINYTHAIUnitStatus'] as const;
+import { resolveTemplate, resolveTemplateForSave } from 'app/dashboards/dashboardDataUtils';
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'Location Data v1', 'UnitStatus'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
+
+const editableTemplateName = (template: string | null) =>
+  resolveTemplate(template ?? '') === 'UnitStatus' ? 'UnitStatus' : template ?? 'Summary';
 
 const isLocationDataTemplate = (template: string) =>
   template === 'Location Data v1' || template === 'LocationDataV1';
@@ -267,9 +271,23 @@ function DashboardRow({
   checked: boolean;
   onCheck: (id: number, checked: boolean) => void;
 }) {
-  const [state, formAction] = useActionState(action, INITIAL_STATE);
+  const [state, formAction] = useActionState(
+    async (previousState: ActionState, formData: FormData) => {
+      const previousSource = parseSheetLink(dashboard.sheetUrl ?? '');
+      const nextSource = parseSheetLink(String(formData.get('sheetUrl') ?? ''));
+      // A name/notes edit must not silently move a legacy BIGTH dashboard from
+      // its named tab to the configured GID. A changed sheet target may do so.
+      formData.set('template', resolveTemplateForSave(
+        String(formData.get('template') ?? 'Summary'),
+        dashboard.template,
+        previousSource.sheetId !== nextSource.sheetId || previousSource.sheetGid !== nextSource.sheetGid,
+      ));
+      return action(previousState, formData);
+    },
+    INITIAL_STATE,
+  );
   const [isOpen, setIsOpen] = useState(false);
-  const [editTemplate, setEditTemplate] = useState(dashboard.template ?? 'Summary');
+  const [editTemplate, setEditTemplate] = useState(editableTemplateName(dashboard.template));
   const [editCompanyId, setEditCompanyId] = useState(String(dashboard.companyId ?? ''));
   const initialOrganizationIds = dashboard.organizationIds && dashboard.organizationIds.length > 0
     ? dashboard.organizationIds
@@ -280,7 +298,7 @@ function DashboardRow({
 
   useEffect(() => {
     if (!isOpen) return;
-    setEditTemplate(dashboard.template ?? 'Summary');
+    setEditTemplate(editableTemplateName(dashboard.template));
     setEditCompanyId(String(dashboard.companyId ?? ''));
     setEditOrganizationIds(
       dashboard.organizationIds && dashboard.organizationIds.length > 0
@@ -337,7 +355,7 @@ function DashboardRow({
         <td className={tableCell}>{organizationName}</td>
         <td className={tableCell}>
           <span className={badgeDefault}>
-            {dashboard.template ?? 'Summary'}
+            {editableTemplateName(dashboard.template)}
           </span>
         </td>
         <td className={tableCell}>

@@ -20,10 +20,9 @@ import OverSpeedDashboard from 'app/dashboards/OverSpeedDashboard';
 import VehicleKpiDashboard from 'app/dashboards/VehicleKpiDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
-import BigthUnitStatusDashboard from 'app/dashboards/BigthUnitStatusDashboard';
-import AlchemUnitStatusDashboard from 'app/dashboards/AlchemUnitStatusDashboard';
+import UnitStatusDashboard from 'app/dashboards/UnitStatusDashboard';
 import LoadingState from 'app/dashboards/LoadingState';
-import { resolveTemplate as resolveTemplateName } from 'app/dashboards/dashboardDataUtils';
+import { isLegacyBigthUnitStatusTemplate, resolveTemplate as resolveTemplateName } from 'app/dashboards/dashboardDataUtils';
 import { normalizeDrivingThresholds, type DrivingThresholds } from 'app/dashboards/drivingThresholds';
 import { getDashboardLang } from '../i18n';
 import { pageContent } from 'app/ui/design-tokens';
@@ -79,6 +78,7 @@ type DashboardViewProps = ComponentProps<typeof SummaryDashboard> & {
 
 type DashboardByTemplateProps = DashboardViewProps & {
   template: string | null;
+  companyName?: string | null;
   drivingThresholds?: DrivingThresholds;
   isAdmin?: boolean;
   dashboardRowId?: number;
@@ -90,6 +90,7 @@ type DashboardByTemplateProps = DashboardViewProps & {
 
 function DashboardByTemplate({
   template,
+  companyName,
   drivingThresholds,
   isAdmin,
   dashboardRowId,
@@ -125,12 +126,15 @@ function DashboardByTemplate({
       return <DynamicTripDashboard {...props} isAdmin={isAdmin} />;
     case 'LocationDataV1':
       return <LocationDataV1Dashboard {...props} isAdmin={isAdmin} />;
-    case 'BIGTHUnitStatus':
-      return <BigthUnitStatusDashboard {...props} isAdmin={isAdmin} />;
-    case 'ALCHEMUnitStatus':
-      return <AlchemUnitStatusDashboard {...props} isAdmin={isAdmin} />;
-    case 'VINYTHAIUnitStatus':
-      return <AlchemUnitStatusDashboard {...props} isAdmin={isAdmin} unitStatusProfile="vinythai" />;
+    case 'UnitStatus':
+      return (
+        <UnitStatusDashboard
+          {...props}
+          isAdmin={isAdmin}
+          companyName={companyName}
+          legacyBigthSource={isLegacyBigthUnitStatusTemplate(template ?? '')}
+        />
+      );
     case 'Summary':
     default:
       return <SummaryDashboard {...props} isAdmin={isAdmin} />;
@@ -187,9 +191,11 @@ async function DashboardContent({
   const allowedRemarks = (dashboard as { remarks?: string[] | null }).remarks ?? null;
   const dashboardAlertRules = (dashboard as { alertRules?: unknown }).alertRules as import('app/dashboards/dashboardDataUtils').AlertRule[] | null ?? null;
 
+  let companyName: string | null = null;
   let companyAlertRules: import('app/dashboards/dashboardDataUtils').AlertRule[] | null = null;
   if (dashboard.companyId) {
     const companyResult = await getCompanyById(dashboard.companyId);
+    companyName = companyResult[0]?.name ?? null;
     companyAlertRules = (companyResult[0] as { alertRules?: unknown })?.alertRules as import('app/dashboards/dashboardDataUtils').AlertRule[] | null ?? null;
   }
 
@@ -222,6 +228,7 @@ async function DashboardContent({
   return (
     <DashboardByTemplate
       template={dashboard.template ?? null}
+      companyName={companyName}
       lang={lang as 'en' | 'th'}
       dashboardId={id}
       dashboardName={dashboard.name ?? 'Company dashboard'}

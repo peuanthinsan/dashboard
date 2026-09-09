@@ -101,7 +101,7 @@ requires grepping the others.
   `['Fleet', 'User']` (falls back to a `User` column). DynamicTrip performs **no
   fleet scoping at all** (its sheets have no Fleet column) — a deliberate no-op.
 
-### 0.5 ALCHEM unit offline status (`AlchemUnitStatusDashboard.tsx`, `unitDeviceStatus.ts`)
+### 0.5 Legacy ALCHEM unit offline status (`AlchemUnitStatusDashboard.tsx`, `unitDeviceStatus.ts`)
 
 - A vehicle's overall status is forced to **Offline** when its API update timestamp
   is more than **30 minutes old**, even when the last reported GPS/device values
@@ -119,6 +119,64 @@ requires grepping the others.
   overall Offline state was caused by an API update overdue by more than 30
   minutes.
 - Missing or invalid update timestamps do not trigger this age-based override.
+
+### 0.6 Shared UnitStatus (`UnitStatusDashboard.tsx`, `unitStatusData.ts`)
+
+- `UnitStatus` is the common selectable template for every company. Saved BIGTH,
+  ALCHEM, VINYTHAI and Vehicle aliases route to it. BIGTH aliases retain their
+  named `Unitstatus` source; canonical and other aliases read the configured GID.
+  Ordinary edits that leave a BIGTH source unchanged retain its legacy metadata
+  even though the picker shows UnitStatus. Changing its sheet target opts into
+  the configured GID. The old ALCHEM behavior in §0.5 is historical and no longer
+  applied by routed dashboards.
+- The checklist follows BIGTH: GPS, Status AI, Device Status, CH1 AI, Reverse BSD,
+  Front, Front BSD, Rear Right, Rear Left, Left BSD, Right BSD, Cabin, Storage,
+  Seat Vibrator and Intercom. Every company sees all fields. **Intercom is always
+  Online**, including GPS-offline and stale units, because it has no source trigger.
+- BIGTH healthy words (`online`, `normal`, `ok`, `active`, `good`, `ready`, `work`)
+  and check marks mean Online; whole-word failure signals and cross marks take
+  precedence. Negated failures alone remain Unknown; `inactive`, `broken`,
+  `no network` and `not ready` cannot match healthy substrings.
+  Raw GPS boolean/0/1 and storage Exist/NonExist are also recognized. Abnormal
+  storage is Offline. Blank, dash, NA and unrecognized values mean Unknown;
+  unavailable telemetry is not counted as an equipment failure. This corrects
+  the legacy classifier's treatment of sheet check marks and placeholder dashes.
+- Explicit status columns take precedence. Raw recording/video-loss lists can
+  identify only literal matching camera names; loss wins. Numeric channels and
+  customer-specific names such as `AI`, `Driver`, and `Reverse 1` are preserved in
+  details but do not imply a particular BIGTH camera. Status AI, seat vibrator
+  and overall device health need explicit source statuses; no unverified trigger
+  threshold or wiring map is invented. `nodays_noaialert` remains unused because
+  its time unit is unverified.
+- Camera setup counts Online **CH1 AI, Front, Rear Right, Rear Left, Cabin** as in
+  BIGTH. Expected count comes from a unique `CH` tab Vehicle No or Code No match
+  in the unit's fleet. Missing/invalid/ambiguous counts are Unknown, not zero. A real 0/0 configuration
+  is complete. Device type is read only from type columns, never a health status.
+  The optional CH tab's failure does not prevent the primary data from displaying.
+- Filters include complete date/time range, search, vehicle, fleet, driver,
+  device type and update age. GPS Online/Offline counts exclude Unknown GPS;
+  Needs attention counts units with at least one explicitly Offline device.
+  The damage matrix counts Offline checklist fields in the filtered units.
+  Installation totals ignore interactive filters and aggregate CH by hard-scoped
+  fleets, or fleets established from company-scoped units. Missing CH still
+  counts a vehicle, contributes no known cameras and is disclosed as unknown.
+- Raw sources with username columns require exact, case-insensitive comma-token
+  membership in the dashboard's company name, independently of fleet scope.
+  A configured fleet scope excludes missing/blank/mismatched Fleet values. When
+  the source has no Fleet column, a unique CH match or exact scoped username
+  token may establish it. Configured processed sheets without username columns
+  retain their existing source trust boundary. Filters complement authenticated
+  route authorization; they do not change Google Sheet permissions.
+- One row per normalized fleet and vehicle number keeps the newest valid update.
+  **Recent** means at most 30 minutes old; **Stale** means older; missing, invalid
+  or future timestamps are **Unknown**. This is supplementary freshness and
+  never overrides reported device health. Nonblank `lastupdatedtime` takes
+  precedence over `Date & time` / `Date & time 2` / `datatime`; a nonblank invalid
+  value stays unknown. Source dates use Bangkok wall-clock digits, and age uses
+  the shared Bangkok-as-UTC convention. Last checked uses Bangkok digits too.
+- Manual and 60-second auto-refresh make fresh direct GViz reads without the
+  alert hook's five-minute cache. Freshness recalculates every 30 seconds. Raw
+  telemetry remains in details, preserving zero values and unmapped channels.
 
 ---
 

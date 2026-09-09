@@ -1,0 +1,10 @@
+objective: Shared UnitStatus for all companies, BIGTH checklist, Intercom always online
+phase: final_review_approval
+active_root: Codex
+model: GPT-6
+effort: UNKNOWN
+base: c8dc2a25aa6507690034b9555e02ba7491e8f50d
+integration_target: e4d709f81bec7784b98d999935952a9975f0b7f6
+review_status: initial_findings_fixed_final_review_blocked_by_auto_approval
+writer_lease: root
+production_permission: not requested

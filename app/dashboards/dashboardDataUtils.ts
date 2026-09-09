@@ -476,37 +476,63 @@ export function applyAlertRules(
   return remark;
 }
 
+const LEGACY_BIGTH_UNIT_STATUS_ALIASES = new Set([
+  'bigthunitstatus',
+  'bigth unit status',
+  'bigth unit status dashboard',
+  'unit status',
+  'unit status dashboard',
+  'nio unit status',
+]);
+
+/** Preserve the named Unitstatus tab used by saved BIGTH dashboards. */
+export function isLegacyBigthUnitStatusTemplate(template: string): boolean {
+  return LEGACY_BIGTH_UNIT_STATUS_ALIASES.has(template.trim().toLowerCase().replace(/\s+/g, ' '));
+}
+
+/**
+ * Legacy BIGTH names also select the named Unitstatus source tab. Retain that
+ * metadata on ordinary edits even though the picker displays UnitStatus. A new
+ * spreadsheet/tab selection opts into the canonical template's configured GID.
+ */
+export function resolveTemplateForSave(
+  selectedTemplate: string,
+  previousTemplate: string | null,
+  sourceChanged = false,
+): string {
+  if (
+    selectedTemplate === 'UnitStatus' &&
+    previousTemplate !== null &&
+    isLegacyBigthUnitStatusTemplate(previousTemplate) &&
+    !sourceChanged
+  ) {
+    return previousTemplate;
+  }
+  return selectedTemplate;
+}
+
 export function resolveTemplate(template: string): string {
   const raw = (template ?? '').trim();
   const normalized = raw.toLowerCase().replace(/\s+/g, ' ');
   if (
+    normalized === 'unitstatus' ||
+    normalized === 'vehicleunitstatus' ||
+    normalized === 'vehicle unit status' ||
+    normalized === 'vehicle unit status dashboard' ||
     normalized === 'alchemunitstatus' ||
     normalized === 'alchem unit status' ||
     normalized === 'alchem unit status dashboard' ||
     normalized === 'unitdevicestatus' ||
     normalized === 'unit device status' ||
     normalized === 'unit device status dashboard' ||
-    normalized === 'alchem unit device status'
-  ) {
-    return 'ALCHEMUnitStatus';
-  }
-  if (
+    normalized === 'alchem unit device status' ||
     normalized === 'vinythaiunitstatus' ||
     normalized === 'vinythai unit status' ||
     normalized === 'vinythai unit status dashboard' ||
-    normalized === 'vinythai unit device status'
+    normalized === 'vinythai unit device status' ||
+    LEGACY_BIGTH_UNIT_STATUS_ALIASES.has(normalized)
   ) {
-    return 'VINYTHAIUnitStatus';
-  }
-  if (
-    normalized === 'bigthunitstatus' ||
-    normalized === 'bigth unit status' ||
-    normalized === 'bigth unit status dashboard' ||
-    normalized === 'unit status' ||
-    normalized === 'unit status dashboard' ||
-    normalized === 'nio unit status'
-  ) {
-    return 'BIGTHUnitStatus';
+    return 'UnitStatus';
   }
   if (template === 'OverSpeed') return 'OverSpeed';
   if (normalized === 'vehicle kpi' || normalized === 'vehiclekpi') return 'VehicleKPI';
