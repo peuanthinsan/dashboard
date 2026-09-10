@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { GoogleSheetRow } from './googleSheetParse';
 import {
   buildInstallRows,
+  buildUnitMonitorRows,
   buildUnitRows,
   getUnitCameraChecks,
   getUnitChecks,
+  getUnitMonitorColumns,
+  getUnitMonitorDamage,
   hasUnitStatusColumns,
   isReportedValue,
   readUnitHealth,
@@ -704,5 +707,313 @@ describe('source schema and absent values', () => {
   it('ignores absent tokens while preserving zero and false', () => {
     for (const value of ['', ' ', '-', '—', 'NA', ' n/a ', 'None', 'NULL']) expect(isReportedValue(value)).toBe(false);
     for (const value of ['0', 'FALSE', '7, 8', 'storageExist', 'Reverse 1']) expect(isReportedValue(value)).toBe(true);
+  });
+});
+
+describe('shared UnitStatus monitor requirements', () => {
+  const bsdRecording = 'AI, Front, Front BSD, Rear Right, Rear Left, Left BSD, Right BSD, Reverse BSD';
+
+  it('uses data-time age for GPS with an inclusive ten-minute Bangkok boundary', () => {
+    const units = buildUnitRows([
+      sourceRow({ vehicleno: 'V1', datatime: '09/09/2026 11:50:00', gps: false }),
+      sourceRow({ vehicleno: 'V2', datatime: '09/09/2026 11:49:59', gps: true }),
+      sourceRow({ vehicleno: 'V3', datatime: '09/09/2026 12:00:01', gps: true }),
+      sourceRow({ vehicleno: 'V4', datatime: 'invalid', gps: true }),
+      sourceRow({ vehicleno: 'V5', datatime: '', gps: true }),
+    ], [], noScope, now);
+    expect(buildUnitMonitorRows(units, now).map((row) => row.gpsStatus))
+      .toEqual(['online', 'offline', 'unknown', 'unknown', 'unknown']);
+  });
+
+  it('recalculates GPS freshness as time passes without rebuilding or refetching units', () => {
+    const units = buildUnitRows([sourceRow({ datatime: '09/09/2026 11:50:00', gps: true })], [], noScope, now);
+    expect(buildUnitMonitorRows(units, now)[0].gpsStatus).toBe('online');
+    expect(buildUnitMonitorRows(units, new Date(now.getTime() + 1_000))[0].gpsStatus).toBe('offline');
+  });
+
+  it('uses reported AI alerts while respecting explicit status columns including blank unknown', () => {
+    const cases: Array<{ row: GoogleSheetRow; status: string }> = [
+      { row: { lastaialert: 'AI Not Working' }, status: 'offline' },
+      { row: { lastaialert: 'Eye Closing-A2' }, status: 'online' },
+      { row: { lastaialert: '' }, status: 'unknown' },
+      { row: { lastaialert: 'AI Not Working', 'Status AI': 'online' }, status: 'online' },
+      { row: { lastaialert: 'Eye Closing-A2', 'Status AI': '' }, status: 'unknown' },
+    ];
+    for (const { row, status } of cases) {
+      const units = buildUnitRows([sourceRow(row)], [], noScope, now);
+      expect(buildUnitMonitorRows(units, now)[0].statusAi).toBe(status);
+    }
+  });
+
+  it('derives device status from storage only when an explicit device status column is absent', () => {
+    const cases: Array<{ row: GoogleSheetRow; status: string }> = [
+      { row: { storagestatus: 'StorageExist' }, status: 'online' },
+      { row: { storagestatus: 'Exist, Exist' }, status: 'online' },
+      { row: { storagestatus: 'Exist, NonExist' }, status: 'offline' },
+      { row: { storagestatus: 'NonExist' }, status: 'offline' },
+      { row: { storagestatus: '' }, status: 'unknown' },
+      { row: { storagestatus: 'NonExist', 'Device Status': 'online' }, status: 'online' },
+      { row: { storagestatus: 'StorageExist', 'Device Status': '' }, status: 'unknown' },
+    ];
+    for (const { row, status } of cases) {
+      const units = buildUnitRows([sourceRow(row)], [], noScope, now);
+      expect(buildUnitMonitorRows(units, now)[0].deviceStatus).toBe(status);
+    }
+  });
+
+  it('counts the complete BIGTH eight-camera and Seat Vibrator profile as nine required positions', () => {
+    const units = buildUnitRows([sourceRow({ username: 'BIGTH', recording: bsdRecording })], [], noScope, now, 'BIGTH');
+    const [row] = buildUnitMonitorRows(units, now);
+    expect(row).toMatchObject({ requiredPositions: 9, activePositions: 9, installation: 'complete' });
+  });
+
+  it('applies the BIGTH default to exact company or username matches without grouping BIGTHMCS', () => {
+    for (const company of ['BIGTH', 'BIGTHMCS']) {
+      const units = buildUnitRows([{ vehicleno: 'V1', recording: bsdRecording }], [], noScope, now, company);
+      expect(buildUnitMonitorRows(units, now)[0].requiredPositions, company).toBe(company === 'BIGTH' ? 9 : null);
+    }
+    for (const username of [' SONGDEEAPI, bIgTh ', 'SONGDEEAPI, BIGTHMCS', 'SONGDEEAPI, MyBIGTH']) {
+      const units = buildUnitRows([sourceRow({ username, recording: bsdRecording })], [], noScope, now);
+      expect(buildUnitMonitorRows(units, now)[0].requiredPositions, username)
+        .toBe(username.includes('bIgTh') ? 9 : null);
+    }
+  });
+
+  it('keeps other customers on actual two-, four-, or five-camera VSS inventories', () => {
+    for (const [mask, count] of [[9, 2], [15, 4], [31, 5]]) {
+      const units = buildUnitRows([sourceRow({
+        usableChs: mask,
+        lastStatusJson: JSON.stringify({ module: { record: mask }, alarm: { videoLost: 0 } }),
+      })], [], noScope, now, 'Acme');
+      expect(buildUnitMonitorRows(units, now)[0]).toMatchObject({ requiredPositions: count, activePositions: count, installation: 'complete' });
+    }
+  });
+
+  it('uses CH requirements for other customers while observed cameras alone leave the requirement unknown', () => {
+    const raw = sourceRow({ recording: '1, 2, 3, 4' });
+    const known = buildUnitRows([raw], [cameraRow({ CH: 4 })], noScope, now, 'Acme');
+    expect(buildUnitMonitorRows(known, now)[0]).toMatchObject({ requiredPositions: 4, activePositions: 4, installation: 'complete' });
+    const unknown = buildUnitRows([raw], [], noScope, now, 'Acme');
+    expect(buildUnitMonitorRows(unknown, now)[0]).toMatchObject({ requiredPositions: null, installation: 'unknown' });
+  });
+
+  it('counts duplicate recording names once while retaining a duplicate warning', () => {
+    const units = buildUnitRows([sourceRow({ username: 'BIGTH', recording: `${bsdRecording}, Front, front, AI` })], [], noScope, now);
+    expect(buildUnitMonitorRows(units, now)[0]).toMatchObject({ requiredPositions: 9, activePositions: 9, duplicateRecording: true });
+  });
+
+  it('defaults only absent Seat Vibrator and Cabin columns online and always forces Intercom online', () => {
+    const rows = buildUnitMonitorRows(buildUnitRows([
+      sourceRow({ vehicleno: 'V1' }),
+      sourceRow({ vehicleno: 'V2', 'Seat Vibrator': '', Cabin: null, Intercom: 'offline' }),
+      sourceRow({ vehicleno: 'V3', 'Seat Vibrator': 'offline', Cabin: 'offline' }),
+    ], [], noScope, now), now);
+    const statuses = rows.map((row) => ['seatVibrator', 'cabin', 'intercom'].map((key) => row.checks.find((check) => check.key === key)?.status));
+    expect(statuses).toEqual([
+      ['online', 'online', 'online'], ['unknown', 'unknown', 'online'], ['offline', 'offline', 'online'],
+    ]);
+  });
+
+  it('uses explicit component values including blank unknown instead of contradictory recording or loss', () => {
+    const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+      recording: 'Front, Rear Right', videoloss: 'Rear Right', Front: '', 'Rear Right': 'online',
+    })], [], noScope, now), now);
+    expect(row.checks.find((check) => check.key === 'front')?.status).toBe('unknown');
+    expect(row.checks.find((check) => check.key === 'rearRight')?.status).toBe('online');
+  });
+
+  it('does not infer a BIGTH profile from shared blank BSD columns and keeps numeric channels independent', () => {
+    const prepared = sourceRow({ recording: 'Front, AI', 'Front BSD': '', 'Left BSD': '', 'Right BSD': '', 'Reverse BSD': '' });
+    const [unconfigured] = buildUnitMonitorRows(buildUnitRows([prepared], [], noScope, now, 'Acme'), now);
+    expect(unconfigured).toMatchObject({ requiredPositions: null, activePositions: 2, installation: 'unknown' });
+    expect(getUnitMonitorDamage(unconfigured)).toEqual([]);
+    const [numeric] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+      usableChs: 9, lastStatusJson: JSON.stringify({ module: { record: 9 }, alarm: { videoLost: 0 } }),
+    })], [], noScope, now), now);
+    const columns = getUnitMonitorColumns([numeric]).map((check) => check.key);
+    expect(columns).toEqual(expect.arrayContaining(['c1', 'c4']));
+    expect(columns.filter((key) => ['ch1Ai', 'front', 'frontBsd', 'rearRight', 'rearLeft', 'leftBsd', 'rightBsd', 'reverseBsd'].includes(key))).toEqual([]);
+    expect(columns).not.toContain('c2');
+  });
+
+  it('uses explicit named equipment requirements and does not count extra default equipment toward them', () => {
+    const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+      'Required Equipment': 'AI; Front; Seat Vibrator', recording: 'AI, Front',
+    })], [], noScope, now, 'Acme'), now);
+    expect(row).toMatchObject({ requiredPositions: 3, activePositions: 3, installation: 'complete' });
+    expect(row.checks.find((check) => check.key === 'cabin')?.status).toBe('online');
+    expect(row.checks.find((check) => check.key === 'intercom')?.status).toBe('online');
+  });
+
+  it('accepts Rear BSD and Reverse 1 aliases for the established BSD equipment profile', () => {
+    for (const alias of ['Rear BSD', 'Reverse 1']) {
+      const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+        username: 'BIGTH', recording: bsdRecording.replace('Reverse BSD', alias),
+      })], [], noScope, now), now);
+      expect(row.checks.find((check) => check.key === 'reverseBsd')?.status, alias).toBe('online');
+      expect(row).toMatchObject({ requiredPositions: 9, activePositions: 9, installation: 'complete' });
+    }
+    const [unconfigured] = buildUnitMonitorRows(buildUnitRows([sourceRow({ recording: 'Reverse 1' })], [], noScope, now, 'Acme'), now);
+    expect(unconfigured.checks.find((check) => check.key === 'reverseBsd')?.present).toBe(false);
+  });
+
+  it('infers geofence only from complete known camera failures and keeps independent AI and storage damage', () => {
+    const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+      username: 'BIGTH', datatime: '09/09/2026 11:59:00', speed: 20,
+      recording: 'NotRecording', videoloss: bsdRecording, storagestatus: 'NonExist', lastaialert: 'AI Not Working',
+    })], [], noScope, now), now);
+    expect(row.geofence).toBe('inferred');
+    expect(getUnitMonitorDamage(row).map((check) => check.key).sort()).toEqual(['statusAi', 'storage']);
+    expect(row.checks.find((check) => check.key === 'front')?.status).toBe('offline');
+    expect(row.checks.find((check) => check.key === 'front')?.displayStatus).toBe('inactive');
+  });
+
+  it('does not infer geofence from missing or unknown required camera positions', () => {
+    const cases: GoogleSheetRow[] = [
+      { 'Required Equipment': 'Front, Rear Right', Front: 'offline', 'Rear Right': '' },
+      { 'Equipment Count': 3, Camera1: 'offline' },
+      { Camera1: 'offline' },
+    ];
+    for (const raw of cases) {
+      const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow(raw)], [], noScope, now), now);
+      expect(row.geofence).toBeNull();
+    }
+  });
+
+  it('distinguishes reported geofence from inferred geofence and respects an explicit outside value', () => {
+    for (const [geofence, expected] of [[true, 'reported'], [false, null], ['inside', 'reported'], ['outside', null]] as const) {
+      const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+        username: 'BIGTH', recording: 'NotRecording', videoloss: bsdRecording, 'In Geofence': geofence,
+      })], [], noScope, now), now);
+      expect(row.geofence).toBe(expected);
+    }
+  });
+
+  it('reports Reverse BSD damage only with online GPS and positive speed', () => {
+    const cases: Array<{ dataTime: string; speed: string | number; damaged: boolean }> = [
+      { dataTime: '09/09/2026 11:59:00', speed: 1, damaged: true },
+      { dataTime: '09/09/2026 11:59:00', speed: 0, damaged: false },
+      { dataTime: '09/09/2026 11:59:00', speed: '', damaged: false },
+      { dataTime: '09/09/2026 11:49:59', speed: 10, damaged: false },
+      { dataTime: '', speed: 10, damaged: false },
+    ];
+    for (const { dataTime, speed, damaged } of cases) {
+      const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+        datatime: dataTime, speed, 'Reverse BSD': 'offline', 'In Geofence': false,
+      })], [], noScope, now), now);
+      expect(getUnitMonitorDamage(row).some((check) => check.key === 'reverseBsd')).toBe(damaged);
+    }
+  });
+
+  it('preserves exact customer tags only on authorized rows and removes the exact system account', () => {
+    const units = buildUnitRows([
+      sourceRow({ vehicleno: 'V1', Fleet: 'North', username: ' SONGDEEAPI, Acme, acme, Acme Logistics, SONGDEEAPI Logistics' }),
+      sourceRow({ vehicleno: 'V2', Fleet: 'North', username: 'Acme Logistics' }),
+      sourceRow({ vehicleno: 'V3', Fleet: 'South', username: 'Acme' }),
+    ], [], new Set(['North']), now, 'Acme');
+    const rows = buildUnitMonitorRows(units, now);
+    expect(rows.map((row) => row.unit.vehicleNo)).toEqual(['V1']);
+    expect(rows[0].customers.map((customer) => customer.toLowerCase()).sort())
+      .toEqual(['acme', 'acme logistics', 'songdeeapi logistics']);
+  });
+
+  it('does not invent VSS camera damage or installation from phantom flattened names', () => {
+    const [installed] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+      usableChs: 1, channelname: 'Front', videoloss: 'Rear Right',
+      lastStatusJson: JSON.stringify({ module: { record: 1 }, alarm: { videoLost: 0 } }),
+    })], [], noScope, now), now);
+    expect(installed).toMatchObject({ requiredPositions: 1, activePositions: 1, installation: 'complete' });
+    expect(installed.checks.find((check) => check.key === 'rearRight')?.present).toBe(false);
+    expect(getUnitMonitorDamage(installed)).toEqual([]);
+    const [empty] = buildUnitMonitorRows(buildUnitRows([sourceRow({ usableChs: 0, recording: 'Front, AI' })], [], noScope, now), now);
+    expect(empty).toMatchObject({ requiredPositions: 0, activePositions: 0, installation: 'complete' });
+    expect(empty.checks.filter((check) => ['front', 'ch1Ai'].includes(check.key) && check.present !== false)).toEqual([]);
+  });
+
+  it('retains required numeric identities even when installed VSS cameras have friendly names', () => {
+    const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+      'Required Equipment': 'Camera1, Camera4', usableChs: 9, channelname: 'Front;;;AI',
+      lastStatusJson: JSON.stringify({ module: { record: 9 }, alarm: { videoLost: 0 } }),
+    })], [], noScope, now), now);
+    expect(row).toMatchObject({ requiredPositions: 2, activePositions: 2, installation: 'complete' });
+    expect(row.checks.filter((check) => ['c1', 'c4'].includes(check.key)).map((check) => [check.key, check.status]))
+      .toEqual([['c1', 'online'], ['c4', 'online']]);
+    expect(row.checks.filter((check) => ['front', 'ch1Ai'].includes(check.key) && check.present !== false)).toEqual([]);
+  });
+
+  it('deduplicates equivalent required-equipment aliases before counting positions', () => {
+    const cases: GoogleSheetRow[] = [
+      { 'Required Equipment': 'AI, CH1 AI', recording: 'AI' },
+      { 'Required Equipment': 'Camera1, C1', recording: '1' },
+    ];
+    for (const raw of cases) {
+      const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow(raw)], [], noScope, now), now);
+      expect(row).toMatchObject({ requiredPositions: 1, activePositions: 1, installation: 'complete' });
+    }
+  });
+
+  it('counts a verified numeric and literal reference to the same failed camera as one damage entry', () => {
+    const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+      'Required Equipment': 'Camera1', usableChs: 1, channelname: 'Front', Front: 'offline', 'In Geofence': false,
+      lastStatusJson: JSON.stringify({ module: { record: 1 }, alarm: { videoLost: 0 } }),
+    })], [], noScope, now), now);
+    expect(getUnitMonitorDamage(row).map((check) => check.key)).toEqual(['c1']);
+    expect(row.checks.find((check) => check.key === 'front')?.present).toBe(false);
+  });
+
+  it('preserves literal Cabin and Seat Vibrator failures instead of replacing them with assumed online defaults', () => {
+    for (const [name, key] of [['Cabin', 'cabin'], ['Seat Vibrator', 'seatVibrator']]) {
+      const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({ videoloss: name })], [], noScope, now), now);
+      expect(row.checks.find((check) => check.key === key)?.status, name).toBe('offline');
+      expect(getUnitMonitorDamage(row).some((check) => check.key === key), name).toBe(true);
+    }
+    const [vss] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+      usableChs: 9, videoloss: 'Seat Vibrator',
+      lastStatusJson: JSON.stringify({ module: { record: 9 }, alarm: { videoLost: 0 } }),
+    })], [], noScope, now), now);
+    expect(vss.checks.find((check) => check.key === 'seatVibrator')?.status).toBe('offline');
+  });
+
+  it('counts physical VSS Cabin cameras and does not infer geofence while Cabin remains online', () => {
+    const cases = [
+      { record: 9, loss: 0, active: 2, installation: 'complete' },
+      { record: 1, loss: 8, active: 1, installation: 'partial' },
+    ];
+    for (const { record, loss, active, installation } of cases) {
+      const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+        usableChs: 9, channelname: 'Cabin;;;Front',
+        lastStatusJson: JSON.stringify({ module: { record }, alarm: { videoLost: loss } }),
+      })], [], noScope, now), now);
+      expect(row).toMatchObject({ requiredPositions: 2, activePositions: active, installation, geofence: null });
+      expect(row.checks.find((check) => check.key === 'cabin')).toMatchObject({ status: 'online', physicalCamera: true });
+      if (loss) expect(getUnitMonitorDamage(row).map((check) => check.key)).toEqual(['front']);
+    }
+  });
+
+  it('counts a numerically required Cabin camera and its fault once without adding an assumed duplicate', () => {
+    const cases: Array<{ source: GoogleSheetRow; active: number; damage: string[] }> = [
+      { source: { Cabin: 'offline' }, active: 0, damage: ['c1'] },
+      { source: { Cabin: 'online' }, active: 1, damage: [] },
+      { source: {}, active: 1, damage: [] },
+    ];
+    for (const { source, active, damage } of cases) {
+      const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+        'Required Equipment': 'Camera1', usableChs: 1, channelname: 'Cabin', 'In Geofence': false,
+        lastStatusJson: JSON.stringify({ module: { record: 1 }, alarm: { videoLost: 0 } }), ...source,
+      })], [], noScope, now), now);
+      expect(row).toMatchObject({ requiredPositions: 1, activePositions: active, installation: active ? 'complete' : 'partial' });
+      expect(getUnitMonitorDamage(row).map((check) => check.key)).toEqual(damage);
+      expect(row.checks.filter((check) => check.key === 'cabin' && check.present !== false)).toEqual([]);
+      expect(row.checks.filter((check) => check.key === 'c1')).toHaveLength(1);
+    }
+  });
+
+  it('retains forced-online Intercom when a numerically required camera happens to use that friendly name', () => {
+    const [row] = buildUnitMonitorRows(buildUnitRows([sourceRow({
+      'Required Equipment': 'Camera1', usableChs: 1, channelname: 'Intercom', Intercom: 'offline', 'In Geofence': false,
+      lastStatusJson: JSON.stringify({ module: { record: 0 }, alarm: { videoLost: 1 } }),
+    })], [], noScope, now), now);
+    expect(row.checks.find((check) => check.key === 'intercom')).toMatchObject({ status: 'online', present: true });
+    expect(getUnitMonitorDamage(row).map((check) => check.key)).toEqual(['c1']);
   });
 });

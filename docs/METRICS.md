@@ -122,97 +122,107 @@ requires grepping the others.
 
 ### 0.6 Shared UnitStatus (`UnitStatusDashboard.tsx`, `unitStatusData.ts`)
 
-- `UnitStatus` is the common selectable template for every company. Saved BIGTH,
-  ALCHEM, VINYTHAI and Vehicle aliases route to it. BIGTH aliases retain their
-  named `Unitstatus` source; canonical and other aliases read the configured GID.
-  Ordinary edits that leave a BIGTH source unchanged retain its legacy metadata
-  even though the picker shows UnitStatus. Changing its sheet target opts into
-  the configured GID. The old ALCHEM behavior in §0.5 is historical and no longer
-  applied by routed dashboards.
-- The checklist follows BIGTH: GPS, Status AI, Device Status, CH1 AI, Reverse BSD,
-  Front, Front BSD, Rear Right, Rear Left, Left BSD, Right BSD, Cabin, Storage,
-  Seat Vibrator and Intercom. Every company sees all fields. **Intercom is always
-  Online**, including GPS-offline and stale units, because it has no source trigger.
-- BIGTH healthy words (`online`, `normal`, `ok`, `active`, `good`, `ready`, `work`)
-  and check marks mean Online; whole-word failure signals and cross marks take
-  precedence. Negated failures alone remain Unknown; `inactive`, `broken`,
-  `no network` and `not ready` cannot match healthy substrings.
-  Raw GPS boolean/0/1 and storage Exist/NonExist are also recognized. Abnormal
-  storage is Offline. Blank, dash, NA and unrecognized values mean Unknown;
-  unavailable telemetry is not counted as an equipment failure. This corrects
-  the legacy classifier's treatment of sheet check marks and placeholder dashes.
-- Explicit BIGTH status columns take precedence over recording/video-loss
-  telemetry. Its positional checks are never inferred from numbered inputs.
-  Status AI, Fatigue AI, MCR, MDVR, IVMS and seat vibrator require explicit source
-  statuses; GPS connectivity does not establish those devices' health, and the
-  conflicting legacy Fatigue AI camera 2/3 mappings are not applied. The same
-  rules apply to every company. `nodays_noaialert` remains unused because its
-  time unit is unverified.
-- The camera summary supports nine positions and uses friendly source names or
-  Camera 1–9 labels. VSS `usableChs` is the authoritative installed-camera mask
-  (bit 0 is camera 1), not a camera count: mask 9 means cameras 1 and 4. Names come
-  from semicolon-separated `channelname`, retaining empty positions. The fields
-  may be source columns or retained in a JSON `raw_payload` column.
-  `lastStatusJson.module.record` and `lastStatusJson.alarm.videoLost` are masks;
-  recording without loss means Online. Loss wins within the installed set, and
-  unused inputs stay blank even when video loss reports them. Missing or invalid
-  health payloads stay Unknown; they never default to Online. A cleared recording
-  bit makes an installed camera Offline because it is not currently recording,
-  including when its loss bit is clear. This is recording health, not a diagnosis
-  of a hardware defect.
-- When VSS inventory is absent, recording lists and explicit camera values
-  identify observed cameras. Numeric 1–9 and the legacy HOWEN names Front,
-  Driver, AI, Rear Right and Rear Left are understood as separate telemetry
-  inputs. Named loss preserves those known cameras; numeric loss alone does not
-  prove installation because recorders report unused inputs. `NotRecording`
-  makes established cameras Offline without inventing an installation.
-  Direct Camera CH1–9 / CH1–9 / C1–9 / Camera 1–9 values override raw health,
-  including an explicit blank remaining Unknown for an established camera.
-  Unreported positions stay blank, and raw recording/loss remain in details.
-  The current ALCHEM Google Sheet does not retain VSS inventory fields, so its
-  blanks indicate no reported camera evidence, not confirmed non-installation.
-- Camera setup counts Online **CH1 AI, Front, Rear Right, Rear Left, Cabin** as in
-  BIGTH. Expected count comes from a unique `CH` tab Vehicle No or Code No match
-  in the unit's fleet. Missing/invalid/ambiguous counts are Unknown, not zero. A real 0/0 configuration
-  is complete. Raw-camera rows count Online observed/installed cameras, using
-  the VSS installed count when available. A CH total never implies contiguous
-  numbered installation. Device type is read only from type columns, never a health status.
-  The optional CH tab's failure does not prevent the primary data from displaying.
-- Details expand directly below the selected vehicle, including its issues,
-  full checklist and raw telemetry. Every camera and accessory status is also
-  visible without expansion. Filters include complete date/time range, search,
-  vehicle, fleet, driver, device type, location, failed check, overall status and
-  update age. GPS Online/Offline counts exclude Unknown GPS.
-- Overall status is Offline for stale updates or explicitly Offline GPS/Device
-  Status; other known device/camera failures mean Warning. Missing GPS or missing
-  camera health remains Unknown. Otherwise the reported checks are Healthy.
-  Device indicators still show their last report, including forced Online
-  Intercom. Needs attention counts Warning/Offline units. The damage matrix
-  counts reported Offline checks, including cameras, without counting absent
-  cameras or duplicating raw telemetry as BIGTH positional checks.
-  Installation totals ignore interactive filters and aggregate CH by hard-scoped
-  fleets, or fleets established from company-scoped units. Missing CH still
-  counts a vehicle, contributes no known cameras and is disclosed as unknown.
-- Raw sources with username columns require exact, case-insensitive comma-token
-  membership in the dashboard's company name or a verified source-account alias,
-  independently of fleet scope. ALCHEM accepts `Alcsongdee`, the account selected
-  by its source tab; this identity alias does not change device rules or relax
-  fleet restrictions. Other companies retain exact company-name matching.
-  A configured fleet scope excludes missing/blank/mismatched Fleet values. When
-  the source has no Fleet column, a unique CH match or exact scoped username
-  token may establish it. Configured processed sheets without username columns
-  retain their existing source trust boundary. Filters complement authenticated
-  route authorization; they do not change Google Sheet permissions.
-- One row per normalized fleet and vehicle number keeps the newest valid update.
-  **Recent** means at most 30 minutes old; **Stale** means older; missing, invalid
-  or future timestamps are **Unknown**. This is supplementary freshness and
-  never overrides reported device health. Nonblank `lastupdatedtime` takes
-  precedence over `Date & time` / `Date & time 2` / `datatime`; a nonblank invalid
-  value stays unknown. Source dates use Bangkok wall-clock digits, and age uses
-  the shared Bangkok-as-UTC convention. Last checked uses Bangkok digits too.
-- Manual and 60-second auto-refresh make fresh direct GViz reads without the
-  alert hook's five-minute cache. Freshness recalculates every 30 seconds. Raw
-  telemetry remains in details, preserving zero values and unmapped channels.
+- `UnitStatus` remains the common template for every company. Saved BIGTH,
+  ALCHEM, VINYTHAI and Vehicle aliases route here. Existing source selection and
+  authenticated company/fleet boundaries are unchanged: legacy BIGTH sources
+  read their named `Unitstatus` tab; other targets use their configured GID.
+- The September 2026 reference is `BSD_Fleet_Monitor.html`, reconciled against
+  the supplied raw GetUnitStatus tab (GID `1566790546`). It is a static example,
+  not an ingestion endpoint. Its nine-position checklist means **AI, Seat
+  Vibrator, Reverse BSD, Front, Front BSD, Rear Right, Rear Left, Left BSD,
+  Right BSD**. Eight are named camera checks; Seat Vibrator is equipment.
+  Cabin, Storage and Intercom are additional checks, not part of this default
+  denominator. A healthy BIGTH checklist is therefore 9/9, rather than the
+  former five-camera count shown against a nine-position expectation.
+- Requirements are per vehicle: explicit `Required Equipment` / `Equipment
+  Positions` / `Installed Equipment` lists, or an `Expected Positions` /
+  `Required Position Count` / `Equipment Count`, precede the uniquely matched
+  CH metadata. VSS inventory is used when no equipment expectation is given.
+  The nine-position default applies only to the exact BIGTH company/account.
+  Shared column headers do not establish a vehicle's equipment. `BIGTHMCS`, `BIG TH` and other substring
+  matches never inherit it. Smaller 2/4/5/etc. fleets use their configuration;
+  the number currently recording does not establish an expected total.
+  Missing or inconsistent requirements remain Unknown. Completion describes
+  the currently working required checks, not proof of physical installation.
+- The reference layout has four compact overview panels: GPS counts, a
+  five-entry damage pager, fleet checklist completion (complete/waiting/unknown)
+  and vehicle/fleet/customer filters. Overview totals use all authorized units
+  and do not change with interactive filters. Equipment appears in a sortable
+  compact matrix with one column per relevant position. A position that does
+  not apply to a vehicle stays blank; an established position without health
+  data shows Unknown. No numeric channel is guessed to be a BSD position.
+  Source-friendly names are used where unambiguous; other inputs use Camera N.
+- **GPS status uses source data time and a ten-minute threshold**, matching the
+  reference: at most ten minutes old is Online; older is Offline. Raw `gps=true`
+  cannot make an old report Online. Missing, invalid or future source timestamps
+  are Unknown, rather than the HTML's browser-time/future-date shortcut. Age
+  uses Bangkok wall-clock digits and is recalculated every 30 seconds.
+  The existing API-update age remains separately visible in raw diagnostics:
+  at most 30 minutes Recent, older Stale, missing/invalid/future Unknown.
+- Explicit status columns, including an explicit blank, take precedence over
+  inferred health. Status AI otherwise uses `lastaialert`: AI Not Working is
+  Offline, another reported alert is Online, no reported alert is Unknown.
+  Device Status otherwise follows current storage, including comma-separated
+  disk statuses; any failed disk is Offline. Check/cross marks and whole-word
+  health/failure values retain the shared parser. Historic storage/AI alert
+  text remains visible with timestamps and does not silently replace current
+  storage state. MCR/MDVR/IVMS/Fatigue AI remain explicit-only.
+- **Intercom is always Online** for all companies. Seat Vibrator and Cabin
+  default to Online only when their source columns are absent, as assumed by
+  the supplied HTML. An explicitly reported Seat Vibrator/Cabin value still
+  wins. These assumptions are disclosed in the UI and do not add positions
+  to a smaller fleet's camera-based configuration.
+- Literal recording/loss names establish the named equipment checks. Rear BSD
+  maps to Reverse BSD; the verified BIGTH Reverse 1 name is mapped only within
+  a BSD profile. Loss wins recording; duplicate recording tokens are counted
+  once and flagged. Unknown numeric tokens such as 2003/2004/2026 stay unmapped.
+  The raw camera layer still supports positions 1–9, VSS `usableChs` bitmask,
+  index-aligned semicolon `channelname`, and `lastStatusJson` record/loss masks,
+  either as columns or in `raw_payload`. Sparse mask 9 means positions 1 and 4,
+  zero means none. Numeric loss on an unused input never proves installation.
+  Missing/malformed health never silently becomes Online. Installed but not
+  recording means Offline recording health, not a hardware-defect diagnosis.
+- Geofence is **reported** only from an explicit boolean/status field. The
+  reference's all-cameras-off shortcut is supported as **inferred** only when
+  the complete expected camera roster is established and every camera reports
+  Offline. Missing/unknown camera positions do not infer a geofence; an explicit
+  outside-geofence value prevents inference. The badge discloses the inference.
+  Camera cells show an inactive dash and camera damage is suppressed for that
+  state; raw status remains available in details. Independent storage/device/AI
+  failures stay visible. Reverse BSD enters the damage list only while GPS is
+  Online and a reported speed is greater than zero, as in the reference.
+- Damage entries come from source-backed failed equipment checks (plus explicit
+  AI/device faults), not the HTML's baked vehicle list. A storage failure is not
+  duplicated as a second Device Status entry. Geofence/reverse-camera handling
+  affects actionable damage; it never rewrites the underlying telemetry.
+- Inline View details remains directly below the selected vehicle, constrained
+  to the table viewport. It prioritizes report age and movement, source-backed
+  issues with suggested diagnostic checks, and equipment configuration gaps.
+  The repeated equipment grid and raw fields move into a collapsed telemetry
+  disclosure, preserving the full legacy diagnostics without filling the main
+  view with unreported values. An explicit copy action copies a diagnostic
+  summary to the clipboard; it does not send a message. Suppressed Reverse BSD
+  alerts explain their movement/GPS condition instead of claiming no failures.
+  Freshness uses at least the latest receipt time, so a fresh response does not
+  appear to come from the future between display-clock ticks. All prior date,
+  vehicle, driver, type, location, failed-check, overall and update-age filters
+  remain available through More filters; new fleet/customer filters intersect.
+  Reset restores all units. Header sorting is stable and uses typed values.
+- Source username membership is exact, case-insensitive and comma-token based,
+  independently of fleet scope. ALCHEM retains its verified Alcsongdee alias.
+  Customer filter labels exclude the system SONGDEEAPI token but never broaden
+  authorization. A configured fleet excludes missing/blank/mismatched Fleet;
+  sources without Fleet may establish it from a unique CH match or exact
+  scoped username. Pre-scoped prepared sheets preserve their trust boundary.
+- One row per normalized fleet/vehicle retains the newest valid API update.
+  Manual and 60-second automatic refresh make uncached direct GViz reads.
+  Optional CH failure does not stop primary rows loading. Zero telemetry and
+  unmapped raw recording/loss remain available in details.
+- The inspected raw tab has no inventory mask, expected count, explicit
+  geofence, Seat Vibrator or Cabin readings. Blank sheet-only positions therefore
+  mean no reported equipment evidence, not proven non-installation. Smaller
+  fleet completion requires configuration; these gaps are not filled with
+  guessed contiguous layouts or broad customer aliases.
 
 ---
 

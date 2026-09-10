@@ -201,7 +201,7 @@ function readCameraChannels(row: GoogleSheetRow) {
     installedCount: mask !== null ? CAMERA_CHANNELS.filter((channel) => (mask & (1 << (channel - 1))) !== 0).length : null };
 }
 
-export type UnitCheck = { key: string; en: string; th: string; status: UnitHealth; present?: boolean };
+export type UnitCheck = { key: string; en: string; th: string; status: UnitHealth; present?: boolean; displayStatus?: 'inactive'; physicalCamera?: boolean };
 type CameraRow = Pick<UnitRow, 'cameraSource' | 'cameraChannels' | 'cameraPresent' | 'cameraLabels' | 'cameraChecklistPresent' | 'cameraAdditionalChecks' | 'statuses'>;
 
 export function getUnitCameraChecks(row: CameraRow): UnitCheck[] {
@@ -296,6 +296,7 @@ export type UnitRow = {
   battery: string;
   idKeyLastDetected: string;
   updateStatus: UnitUpdateStatus;
+  monitorSource?: UnitMonitorSource;
 };
 
 const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1_000;
@@ -445,6 +446,7 @@ export function buildUnitRows(
       battery: readText(row, ['battery']),
       idKeyLastDetected: readText(row, ['idkeylastdetected', 'ID Key Last Detected']),
       updateStatus,
+      monitorSource: readUnitMonitorSource(row, companyName, camera?.expectedCameras ?? null),
     };
 
     const unitKey = `${normalizeLabel(fleet)}:${vehicleKey}`;
@@ -457,4 +459,218 @@ export function buildUnitRows(
   return Array.from(unitsByVehicle.values()).sort((a, b) =>
     a.vehicleNo.localeCompare(b.vehicleNo, 'en', { numeric: true, sensitivity: 'base' }),
   );
+}
+
+// The reference's nine-position installation is an equipment checklist: eight
+// named cameras plus Seat Vibrator. It is not a nine-channel camera roster.
+const MONITOR_EQUIPMENT = [
+  { key: 'ch1Ai', en: 'AI', th: 'AI', aliases: ['CH1 AI', 'AI Camera', 'AI'] },
+  { key: 'seatVibrator', en: 'Seat Vibrator', th: 'เบาะสั่น', aliases: ['Seat Vibrator'] },
+  { key: 'reverseBsd', en: 'Reverse BSD', th: 'BSD ด้านหลัง', aliases: ['Reverse BSD', 'Rear BSD'] },
+  { key: 'front', en: 'Front', th: 'กล้องหน้า', aliases: ['Front', 'Front Camera'] },
+  { key: 'frontBsd', en: 'Front BSD', th: 'BSD ด้านหน้า', aliases: ['Front BSD'] },
+  { key: 'rearRight', en: 'Rear Right', th: 'ด้านหลังขวา', aliases: ['Rear Right', 'RearRight'] },
+  { key: 'rearLeft', en: 'Rear Left', th: 'ด้านหลังซ้าย', aliases: ['Rear Left', 'RearLeft'] },
+  { key: 'leftBsd', en: 'Left BSD', th: 'BSD ด้านซ้าย', aliases: ['Left BSD'] },
+  { key: 'rightBsd', en: 'Right BSD', th: 'BSD ด้านขวา', aliases: ['Right BSD'] },
+] as const;
+const MONITOR_EXTRAS = [
+  { key: 'cabin', en: 'Cabin', th: 'ห้องโดยสาร', aliases: ['Cabin'] },
+  { key: 'storage', en: 'Storage', th: 'พื้นที่จัดเก็บ', aliases: STATUS_ALIASES.storage },
+  { key: 'intercom', en: 'Intercom', th: 'อินเตอร์คอม', aliases: ['Intercom'] },
+  ...DEVICE_FIELDS.filter((field) => ['mcr', 'mdvr', 'ivms', 'fatigueAi'].includes(field.key))
+    .map((field) => ({ ...field, aliases: STATUS_ALIASES[field.key] })),
+];
+const MONITOR_CAMERA_KEYS = new Set<string>(MONITOR_EQUIPMENT.filter((field) => field.key !== 'seatVibrator').map((field) => field.key));
+type UnitMonitorSource = {
+  bsdLayout: boolean;
+  expectedPositions: number | null;
+  requiredKeys: string[] | null;
+  values: Record<string, string>;
+  customers: string[];
+  geofence: boolean | null;
+};
+
+function monitorKey(value: string, bsdLayout: boolean): string | null {
+  const token = normalizeLabel(value);
+  if (bsdLayout && ['reverse 1', 'rear bsd'].includes(token)) return 'reverseBsd';
+  const named = [...MONITOR_EQUIPMENT, ...MONITOR_EXTRAS].find((field) => field.aliases.some((alias) => normalizeLabel(alias) === token));
+  if (named) return named.key;
+  const numeric = /^(?:camera\s*|ch\s*|c)?([1-9])$/.exec(token);
+  return numeric ? `c${numeric[1]}` : null;
+}
+
+function readUnitMonitorSource(row: GoogleSheetRow, company: string | null | undefined, expected: number | null): UnitMonitorSource {
+  const labels = Object.keys(row);
+  const customers = Array.from(new Map(readText(row, USERNAME_ALIASES).split(',').map((name) => name.trim())
+    .filter((name) => name && normalizeLabel(name) !== 'songdeeapi').map((name) => [normalizeLabel(name), name])).values());
+  const bsdLayout = normalizeLabel(company ?? '') === 'bigth'
+    || customers.some((name) => normalizeLabel(name) === 'bigth');
+  const values: Record<string, string> = {};
+  for (const field of [...MONITOR_EQUIPMENT, ...MONITOR_EXTRAS,
+    { key: 'statusAi', aliases: STATUS_ALIASES.statusAi }, { key: 'deviceStatus', aliases: STATUS_ALIASES.deviceStatus }]) {
+    if (hasAliasedColumn(labels, [...field.aliases])) values[field.key] = readText(row, [...field.aliases]);
+  }
+  const requiredText = readText(row, ['Required Equipment', 'Equipment Positions', 'Installed Equipment']);
+  const requiredTokens = requiredText.split(/[,;]/).map((value) => value.trim()).filter(Boolean);
+  const requiredKeys = requiredTokens.length ? Array.from(new Set(requiredTokens.map((value) => monitorKey(value, bsdLayout)).filter((key): key is string => key !== null))) : null;
+  const explicitCount = readText(row, ['Expected Positions', 'Required Position Count', 'Equipment Count']);
+  const parsedCount = /^\d+$/.test(explicitCount.trim()) ? Number(explicitCount) : null;
+  const expectedPositions = requiredKeys !== null
+    // Unknown configuration labels remain in the denominator, not silently complete.
+    ? new Set(requiredTokens.map((token) => monitorKey(token, bsdLayout) ?? normalizeLabel(token))).size
+    : parsedCount !== null && Number.isSafeInteger(parsedCount) ? parsedCount : expected;
+  const geo = normalizeLabel(readText(row, ['In Geofence', 'Geofence Status', 'geofence']));
+  const geofence = ['true', '1', 'yes', 'inside', 'in geofence'].includes(geo) ? true
+    : ['false', '0', 'no', 'outside', 'out of geofence'].includes(geo) ? false : null;
+  return { bsdLayout, expectedPositions, requiredKeys, values, customers, geofence };
+}
+
+export type UnitMonitorRow = {
+  unit: UnitRow;
+  gpsStatus: UnitHealth;
+  overallStatus: UnitOverallStatus;
+  statusAi: UnitHealth;
+  deviceStatus: UnitHealth;
+  checks: UnitCheck[];
+  requiredPositions: number | null;
+  activePositions: number;
+  installation: 'complete' | 'partial' | 'unknown';
+  geofence: 'reported' | 'inferred' | null;
+  duplicateRecording: boolean;
+  customers: string[];
+};
+
+function monitorGpsStatus(dataTime: string, now: Date): UnitHealth {
+  const time = parseDate(dataTime);
+  if (!time || !Number.isFinite(now.getTime())) return 'unknown';
+  const age = now.getTime() + BANGKOK_UTC_OFFSET_MS - time.getTime();
+  if (!Number.isFinite(age) || age < 0) return 'unknown';
+  return age <= 10 * 60_000 ? 'online' : 'offline';
+}
+
+const isMonitorCamera = (key: string) => MONITOR_CAMERA_KEYS.has(key) || /^c[1-9]$/.test(key);
+const isMonitorCameraCheck = (check: UnitCheck) => check.physicalCamera === true || isMonitorCamera(check.key);
+
+function monitorStorageStatus(value: string): UnitHealth {
+  const statuses = value.split(',').map((part) => readUnitHealth(part));
+  return statuses.some((status) => status === 'offline') ? 'offline'
+    : statuses.every((status) => status === 'online') ? 'online' : 'unknown';
+}
+
+/** Source-backed reference view, separate from retained raw/legacy diagnostics. */
+export function buildUnitMonitorRows(units: UnitRow[], now: Date): UnitMonitorRow[] {
+  return units.map((unit) => {
+    const source = unit.monitorSource ?? { bsdLayout: false, expectedPositions: unit.expectedCameras,
+      requiredKeys: null, values: {}, customers: [], geofence: null };
+    const tokens = unit.recording.split(',').map(normalizeLabel).filter((token) => isReportedValue(token));
+    const lossTokens = unit.videoLoss.split(',').map(normalizeLabel).filter((token) => isReportedValue(token));
+    const recording = new Set(tokens.map((token) => monitorKey(token, source.bsdLayout)).filter((key): key is string => key !== null));
+    const loss = new Set(lossTokens.map((token) => monitorKey(token, source.bsdLayout)).filter((key): key is string => key !== null));
+    const stopped = normalizeLabel(unit.recording) === 'notrecording';
+    const rawCameras = getUnitCameraChecks(unit).filter((check) => check.present !== false && /^c[1-9]$/.test(check.key));
+    // A portable literal name can establish equivalence; a numeric position cannot.
+    const rawNames = rawCameras.map((check) => monitorKey(check.en, source.bsdLayout));
+    const rawByKey = new Map<string, UnitCheck>();
+    rawCameras.forEach((check, index) => {
+      const name = rawNames[index];
+      const key = !source.requiredKeys?.includes(check.key) && name && (MONITOR_CAMERA_KEYS.has(name) || name === 'cabin')
+        && rawNames.filter((other) => other === name).length === 1 ? name : check.key;
+      rawByKey.set(key, { ...check, key, physicalCamera: true });
+    });
+    const requiredPositions = source.expectedPositions ?? (unit.cameraInventoryKnown ? unit.expectedCameras : source.bsdLayout ? 9 : null);
+    const requiredKeys = source.requiredKeys ?? (source.bsdLayout && requiredPositions === 9
+      ? MONITOR_EQUIPMENT.map((field) => field.key) : null);
+    const required = new Set(requiredKeys ?? []);
+    const useNamedLists = !unit.cameraInventoryKnown;
+    const knownRecording = useNamedLists && (stopped || Array.from(recording).some((key) => MONITOR_CAMERA_KEYS.has(key)));
+    const checks: UnitCheck[] = MONITOR_EQUIPMENT.map((field) => {
+      const explicit = Object.hasOwn(source.values, field.key);
+      const raw = rawByKey.get(field.key);
+      const numericEquivalent = rawCameras.find((check) => source.requiredKeys?.includes(check.key)
+        && monitorKey(check.en, source.bsdLayout) === field.key);
+      if (!required.has(field.key) && numericEquivalent && (!explicit || readUnitHealth(source.values[field.key]) === numericEquivalent.status)) {
+        return { key: field.key, en: field.en, th: field.th, present: false, status: 'unknown' };
+      }
+      const listedOnline = (useNamedLists || field.key === 'seatVibrator') && recording.has(field.key);
+      const listedOffline = (useNamedLists || field.key === 'seatVibrator') && loss.has(field.key);
+      const forced = field.key === 'seatVibrator' && !explicit && !recording.has(field.key) && !loss.has(field.key);
+      const present = forced || required.has(field.key) || raw !== undefined || listedOnline || listedOffline
+        || (explicit && isReportedValue(source.values[field.key]));
+      const status: UnitHealth = explicit ? readUnitHealth(source.values[field.key]) : forced ? 'online'
+        : raw ? raw.status : listedOffline ? 'offline' : listedOnline ? 'online'
+          : required.has(field.key) && knownRecording ? 'offline' : 'unknown';
+      return { key: field.key, en: field.en, th: field.th, present, status, physicalCamera: raw?.physicalCamera };
+    });
+    for (const raw of Array.from(rawByKey.values())) if (/^c[1-9]$/.test(raw.key)) checks.push(raw);
+    // Explicit numeric configuration can identify a missing camera even without
+    // an installed mask; it does not assign that camera a BSD position.
+    for (const key of Array.from(required)) if (/^c[1-9]$/.test(key) && !checks.some((check) => check.key === key)) {
+      checks.push({ key, en: `Camera ${key.slice(1)}`, th: `กล้อง ${key.slice(1)}`, present: true,
+        status: stopped || loss.has(key) ? 'offline' : recording.has(key) ? 'online' : 'unknown' });
+    }
+    for (const field of MONITOR_EXTRAS) {
+      const explicit = Object.hasOwn(source.values, field.key);
+      const raw = rawByKey.get(field.key);
+      const numericEquivalent = rawCameras.find((check) => source.requiredKeys?.includes(check.key)
+        && monitorKey(check.en, source.bsdLayout) === field.key);
+      // A Cabin label may describe an explicitly numbered VSS camera. Keep its
+      // one physical requirement and fault, rather than adding an assumed twin.
+      if (field.key === 'cabin' && !required.has(field.key) && numericEquivalent
+        && (!explicit || readUnitHealth(source.values[field.key]) === numericEquivalent.status)) continue;
+      const status = field.key === 'intercom' ? 'online'
+        : field.key === 'storage' ? monitorStorageStatus(explicit ? source.values[field.key] : unit.storageRaw)
+          : explicit ? readUnitHealth(source.values[field.key]) : raw ? raw.status
+            : useNamedLists && loss.has(field.key) ? 'offline' : useNamedLists && recording.has(field.key) ? 'online'
+              : field.key === 'cabin' ? 'online' : unit.statuses[field.key as UnitDeviceKey] ?? 'unknown';
+      checks.push({ key: field.key, en: field.en, th: field.th, status, physicalCamera: raw?.physicalCamera,
+        present: ['cabin', 'storage', 'intercom'].includes(field.key) || required.has(field.key)
+          || (explicit && isReportedValue(source.values[field.key])) || status !== 'unknown' });
+    }
+    const installed = checks.filter((check) => check.present !== false && (requiredKeys !== null ? required.has(check.key) : isMonitorCameraCheck(check)));
+    const activePositions = installed.filter((check) => check.status === 'online').length;
+    const installation = requiredPositions === null || installed.length !== requiredPositions || installed.some((check) => check.status === 'unknown')
+      ? 'unknown' : activePositions === requiredPositions ? 'complete' : 'partial';
+    const cameras = installed.filter(isMonitorCameraCheck);
+    const geofence = source.geofence === true ? 'reported'
+      : source.geofence === null && requiredPositions !== null && installed.length === requiredPositions
+        && cameras.length > 0 && cameras.every((check) => check.status === 'offline') ? 'inferred' : null;
+    if (geofence) for (const check of checks) if (isMonitorCameraCheck(check) && check.present !== false) check.displayStatus = 'inactive';
+    const statusAi = Object.hasOwn(source.values, 'statusAi') ? readUnitHealth(source.values.statusAi)
+      : /\bai\s+not\s+working\b/i.test(unit.lastAiAlert) ? 'offline' : isReportedValue(unit.lastAiAlert) ? 'online' : 'unknown';
+    const deviceStatus = Object.hasOwn(source.values, 'deviceStatus') ? readUnitHealth(source.values.deviceStatus)
+      : checks.find((check) => check.key === 'storage')?.status ?? 'unknown';
+    const monitor: UnitMonitorRow = { unit, gpsStatus: monitorGpsStatus(unit.dataTime, now), overallStatus: 'unknown', statusAi, deviceStatus, checks,
+      requiredPositions, activePositions, installation, geofence,
+      duplicateRecording: tokens.length !== new Set(tokens).size, customers: source.customers };
+    monitor.overallStatus = monitor.gpsStatus === 'offline' || deviceStatus === 'offline' ? 'offline'
+      : getUnitMonitorDamage(monitor).length > 0 ? 'warning'
+        : monitor.gpsStatus === 'unknown' || installation !== 'complete' ? 'unknown' : 'healthy';
+    return monitor;
+  });
+}
+
+/** Equipment matrix columns retain reference order and stable raw-position names. */
+export function getUnitMonitorColumns(rows: UnitMonitorRow[]): Array<{ key: string; en: string; th: string }> {
+  const available = new Map(rows.flatMap((row) => row.checks.filter((check) => check.present !== false)).map((check) => [check.key, check]));
+  const ordered = [...MONITOR_EQUIPMENT, ...MONITOR_EXTRAS].filter((field) => available.has(field.key))
+    .map(({ key, en, th }) => ({ key, en, th }));
+  const raw = CAMERA_CHANNELS.filter((channel) => available.has(`c${channel}`))
+    .map((channel) => ({ key: `c${channel}`, en: `Camera ${channel}`, th: `กล้อง ${channel}` }));
+  const extrasIndex = ordered.findIndex((field) => field.key === 'cabin');
+  ordered.splice(extrasIndex < 0 ? ordered.length : extrasIndex, 0, ...raw);
+  return ordered;
+}
+
+/** Geofence affects camera diagnostics; unrelated reported failures stay visible. */
+export function getUnitMonitorDamage(row: UnitMonitorRow): UnitCheck[] {
+  const issues = row.checks.filter((check) => check.present !== false && check.status === 'offline'
+    && (!row.geofence || !isMonitorCameraCheck(check))
+    && (check.key !== 'reverseBsd' || (row.gpsStatus === 'online' && isReportedValue(row.unit.speed) && Number(row.unit.speed) > 0)));
+  if (row.statusAi === 'offline') issues.push({ key: 'statusAi', en: 'Status AI', th: 'สถานะ AI', status: 'offline' });
+  // NonExist storage is already one storage failure, not two damage entries.
+  if (row.deviceStatus === 'offline' && !issues.some((check) => check.key === 'storage')) {
+    issues.push({ key: 'deviceStatus', en: 'Device Status', th: 'สถานะอุปกรณ์', status: 'offline' });
+  }
+  return issues;
 }

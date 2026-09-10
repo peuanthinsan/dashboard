@@ -1,0 +1,22 @@
+task_id: 20260910-unitstatus-reference
+active_root: codex
+root_model: UNKNOWN
+root_effort: UNKNOWN
+phase: reviewed
+base_sha: 0500e3fc29dc4d9bb7fa4950e7628f78d6b60d1f
+patch_sha256: a17b6283534b5a01b7873e38865f2b55de9d58f962815a5f12eafbefe257623d
+delegated_provider: claude
+requested_model: fable
+requested_effort: high
+writer_lease: root_frozen
+allowed_paths:
+  - app/dashboards/UnitStatusDashboard.tsx
+  - app/dashboards/unitStatusData.ts
+  - app/dashboards/unitStatusData.test.ts
+  - docs/METRICS.md
+approval_review: user_approved_after_rejections
+external_review_started: true
+authorization: user_continue_approved_2026_09_10
+review_model: claude-fable-5
+review_verdict: PASS
+review_response_sha256: 137e8beb9ab650791f20c3d39fb55d8dd97a7fda40c281b9bb26378260169100
