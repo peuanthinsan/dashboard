@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 import { NextRequest, NextResponse, type NextFetchEvent } from 'next/server';
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), authenticate: vi.fn() }));
@@ -8,6 +11,16 @@ vi.mock('next-auth', () => ({ default: () => ({ auth: mocks.authenticate }) }));
 import { GET, POST } from '../api/auth/[...nextauth]/route';
 import proxy from '../../proxy';
 
+// Load a separate NextRequest class like a deployment's runtime bundle does,
+// preserving the shared Web Request base and real Next.js URL/cookie behavior.
+const requestModulePath = createRequire(import.meta.url).resolve('next/dist/server/web/spec-extension/request.js');
+const requestModule = { exports: {} as { NextRequest: typeof NextRequest } };
+runInNewContext(readFileSync(requestModulePath, 'utf8'), {
+  module: requestModule, exports: requestModule.exports,
+  require: createRequire(requestModulePath), Request, process,
+});
+const RuntimeNextRequest = requestModule.exports.NextRequest;
+
 beforeEach(() => {
   vi.stubEnv('SONGDEE_WINDOWS_HOSTING', '1');
   vi.clearAllMocks();
@@ -15,6 +28,35 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('auth route and proxy origin adapters', () => {
+  it('authenticates cloud middleware requests from a different NextRequest constructor', async () => {
+    vi.stubEnv('SONGDEE_WINDOWS_HOSTING', undefined);
+    const request = new RuntimeNextRequest('https://preview.vercel.app/dashboard');
+    expect(request).not.toBeInstanceOf(NextRequest);
+    expect(request).toBeInstanceOf(Request);
+    const response = NextResponse.next();
+    mocks.authenticate.mockResolvedValue(response);
+    expect(await proxy(request, {} as NextFetchEvent)).toBe(response);
+    expect(mocks.authenticate.mock.calls[0][0]).toBe(request);
+    expect(response.headers.has('x-middleware-override-headers')).toBe(false);
+  });
+
+  it.each([['GET', GET, mocks.get], ['POST', POST, mocks.post]] as const)(
+    '%s authenticates cloud requests from a different NextRequest constructor', async (method, handler, mock) => {
+      vi.stubEnv('SONGDEE_WINDOWS_HOSTING', undefined);
+      const request = new RuntimeNextRequest('https://preview.vercel.app/api/auth/session', {
+        method,
+        ...(method === 'POST' ? { body: 'dummy' } : {}),
+      });
+      expect(request).not.toBeInstanceOf(NextRequest);
+      expect(request).toBeInstanceOf(Request);
+      const response = new Response('ok');
+      mock.mockReturnValue(response);
+      expect(await handler(request)).toBe(response);
+      expect(mock.mock.calls[0][0]).toBe(request);
+      if (method === 'POST') expect(await request.text()).toBe('dummy');
+    },
+  );
+
   it('passes cloud requests and responses through without adding Windows header overrides', async () => {
     vi.stubEnv('SONGDEE_WINDOWS_HOSTING', undefined);
     const request = new NextRequest('https://preview.vercel.app/dashboard', {
