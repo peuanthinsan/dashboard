@@ -1,17 +1,17 @@
 import NextAuth from 'next-auth';
 import { authConfig } from 'app/auth.config';
-import { NextRequest, NextResponse, type NextFetchEvent, type NextMiddleware } from 'next/server';
+import { NextResponse, type NextRequest, type NextFetchEvent, type NextMiddleware } from 'next/server';
 import { normalizeAuthRequest } from 'app/lib/request-origin';
 
 const authenticate = NextAuth(authConfig).auth as NextMiddleware;
 
 export default async function proxy(request: NextRequest, event: NextFetchEvent) {
   const normalized = normalizeAuthRequest(request);
-  if (!(normalized instanceof NextRequest)) return normalized;
-  const response = await authenticate(normalized, event);
-  if (normalized !== request && response?.headers.get('x-middleware-next') === '1') {
+  if ('response' in normalized) return normalized.response;
+  const response = await authenticate(normalized.request, event);
+  if (normalized.request !== request && response?.headers.get('x-middleware-next') === '1') {
     // Server actions read Next's request headers separately from middleware.
-    const forwarded = NextResponse.next({ request: { headers: normalized.headers } });
+    const forwarded = NextResponse.next({ request: { headers: normalized.request.headers } });
     for (const [name, value] of forwarded.headers) response.headers.set(name, value);
   }
   return response;
