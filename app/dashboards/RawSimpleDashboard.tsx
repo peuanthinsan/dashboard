@@ -37,7 +37,6 @@ import {
 } from './dashboardDataUtils';
 import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
-import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import { heading2 } from 'app/ui/design-tokens';
 import FilterBar from 'app/ui/FilterBar';
@@ -374,65 +373,6 @@ export default function SimpleDashboard({
     saveDashboardScore(dashboardId, overallSafetyScore, filteredAlerts.length);
   }, [dashboardId, loading, overallSafetyScore, filteredAlerts.length]);
 
-  // ── Stats ───────────────────────────────────────────────────────────────
-  const stats = useMemo(() => {
-    const vehicles = new Set<string>();
-    const drivers = new Set<string>();
-    const days = new Set<string>();
-    const remarkTotals = { fatigue: 0, yawning: 0, distraction: 0 };
-
-    filteredAlerts.forEach((row) => {
-      if (row.vehicle) vehicles.add(row.vehicle);
-      if (row.driver && row.driver !== '—') drivers.add(row.driver);
-      if (row.parsedDate) days.add(toDayKey(row.parsedDate));
-      const remark = normalizeLabel(row.remarks);
-      if (remark === 'fatigue') remarkTotals.fatigue += 1;
-      if (remark === 'yawning') remarkTotals.yawning += 1;
-      if (remark === 'distraction') remarkTotals.distraction += 1;
-    });
-
-    return {
-      total: filteredAlerts.length,
-      vehicles: vehicles.size,
-      drivers: drivers.size,
-      dayCount: days.size,
-      remarks: remarkTotals,
-    };
-  }, [filteredAlerts]);
-
-  // ── Trend vs prior period for Total alerts KPI ─────────────────────────
-  const alertsTrend = useMemo(() => {
-    if (!filters.month) return undefined;
-    // Parse selected month into a date range
-    const [yearStr, monthStr] = filters.month.split('-');
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10); // 1-based
-    if (isNaN(year) || isNaN(month)) return undefined;
-
-    // Prior period = previous month
-    const priorFrom = new Date(year, month - 2, 1);
-    const priorTo = new Date(year, month - 1, 0, 23, 59, 59, 999);
-
-    const vehicleSet = filters.vehicleFilters.length > 0 ? new Set(filters.vehicleFilters) : null;
-    const driverSet = filters.driverFilters.length > 0 ? new Set(filters.driverFilters) : null;
-
-    let priorCount = 0;
-    baseAlerts.forEach((row) => {
-      if (!row.parsedDate) return;
-      if (vehicleSet && !vehicleSet.has(row.vehicle)) return;
-      if (driverSet && !driverSet.has(row.driver)) return;
-      if (row.parsedDate >= priorFrom && row.parsedDate <= priorTo) {
-        priorCount += 1;
-      }
-    });
-    if (priorCount === 0) return undefined;
-    const percentChange = Math.round(((stats.total - priorCount) / priorCount) * 100);
-    return {
-      value: percentChange,
-      label: lang === 'th' ? 'เทียบเดือนก่อน' : 'vs prior month',
-    };
-  }, [filters.month, filters.vehicleFilters, filters.driverFilters, baseAlerts, stats.total, lang]);
-
   // ── Active filter count for DashboardShell badge ───────────────────────
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -676,30 +616,6 @@ export default function SimpleDashboard({
               {progress ? ` ${Math.round((progress.done / progress.total) * 100)}%` : ''}
             </p>
           )}
-          {/* KPIs — one row, the only numbers that matter */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
-              label={lang === 'th' ? 'ทั้งหมด' : 'Total'}
-              value={stats.total.toLocaleString()}
-              trend={alertsTrend}
-            />
-            <KpiCard
-              label={lang === 'th' ? 'ง่วงนอน' : 'Fatigue'}
-              value={stats.remarks.fatigue.toLocaleString()}
-              accentColor="#F59E0B"
-            />
-            <KpiCard
-              label={lang === 'th' ? 'หาว' : 'Yawning'}
-              value={stats.remarks.yawning.toLocaleString()}
-              accentColor="#10B981"
-            />
-            <KpiCard
-              label={lang === 'th' ? 'ไม่สนใจ' : 'Distraction'}
-              value={stats.remarks.distraction.toLocaleString()}
-              accentColor="#EF4444"
-            />
-          </div>
-
           {/* Trend */}
           <section className={dashboardSectionClass}>
             <h2 className={heading2}>{lang === 'th' ? 'แนวโน้มรายวัน' : 'Daily trend'}</h2>

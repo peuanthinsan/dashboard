@@ -9,7 +9,6 @@ import { resolveSelectedTrendMonths, toggleTrendMonthFilter } from './detailTren
 import type { SimpleSheetResult } from './simpleSheetFetch';
 import TrendChart from 'app/ui/TrendChart';
 import { DataTable, type Column } from 'app/ui/DataTable';
-import KpiCard from 'app/ui/KpiCard';
 import ExportButton from 'app/ui/ExportButton';
 import FilterBar from 'app/ui/FilterBar';
 import MultiSelect from 'app/ui/MultiSelect';
@@ -59,7 +58,7 @@ export default function SimpleMonthlyDashboard({
     color: TYPE_COLORS[summary.alertTypes.indexOf(type)] ?? `hsl(${summary.alertTypes.indexOf(type) * 137.508 % 360} 65% 42%)`,
   })), [comparison.alertTypes, summary.alertTypes]);
   // Page filters define the scope. These controls only narrow the graph;
-  // table rows, KPIs and CSV continue to use the full page comparison.
+  // table rows and CSV continue to use the full page comparison.
   const activeChartType = chartTypeFilter !== null && comparison.alertTypes.includes(chartTypeFilter)
     ? chartTypeFilter : null;
   const chartMonthOptions = useMemo(() => comparison.months.map((key) => ({
@@ -123,11 +122,6 @@ export default function SimpleMonthlyDashboard({
             <MultiSelect label={lang === 'th' ? 'ประเภทการแจ้งเตือน' : 'alert types'} options={summary.alertTypes} selected={typeFilters} onChange={(types) => { setTypeFilters(types); resetChartFilters(); }} lang={lang} />
             {activeFilterCount > 0 ? <button type="button" className={`${btnSecondary} ml-auto`} onClick={resetFilters}>{lang === 'th' ? 'รีเซ็ต' : 'Reset'}</button> : null}
           </FilterBar>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <KpiCard label={lang === 'th' ? 'การแจ้งเตือนทั้งหมด' : 'Total alerts'} value={numberFormat.format(comparison.total)} subtitle={lang === 'th' ? 'รวมเดือนและประเภทที่เลือก' : 'Across selected months and types'} />
-            <KpiCard label={lang === 'th' ? 'เดือนที่แสดง' : 'Months shown'} value={comparison.months.length} />
-            <KpiCard label={lang === 'th' ? 'ประเภทที่แสดง' : 'Alert types shown'} value={comparison.alertTypes.length} />
-          </div>
           {summary.records.length === 0 ? (
             <p className={dashboardSectionClass} role="status">{lang === 'th' ? 'ยังไม่มีข้อมูลสรุปในชีต' : 'No monthly summary data in this sheet yet.'}</p>
           ) : <>
