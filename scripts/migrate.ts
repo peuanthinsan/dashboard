@@ -132,6 +132,9 @@ async function migrate() {
         AND "organizationIds" IS NULL
     `;
 
+    // Independently deployable additive UnitStatus history migration.
+    await sql.unsafe(readFileSync(resolve(process.cwd(), 'scripts/unit-camera-history.sql'), 'utf-8'));
+
     console.log('Migration completed successfully.');
   } catch (err) {
     console.error('Migration failed:', err);

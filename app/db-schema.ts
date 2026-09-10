@@ -173,3 +173,15 @@ export const drivingWarnings = pgTable(
       .on(table.dashboardId, table.sentAt),
   }),
 );
+
+/** Learned camera inventory; current health always comes from the latest source. */
+export const unitCameraObservations = pgTable('UnitCameraObservation', {
+  sourceKey: varchar('sourceKey', { length: 64 }).notNull(),
+  vehicleKey: text('vehicleKey').notNull(),
+  cameraKey: varchar('cameraKey', { length: 32 }).notNull(),
+  label: text('label').notNull().default(''),
+  firstSeen: timestamp('firstSeen', { withTimezone: true }).notNull(),
+  lastSeen: timestamp('lastSeen', { withTimezone: true }).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.sourceKey, table.vehicleKey, table.cameraKey] }),
+}));

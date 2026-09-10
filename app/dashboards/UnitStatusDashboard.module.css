@@ -1,0 +1,50 @@
+.tableScroll {
+  --scroll-track: #f1f5f9;
+  --scroll-thumb: #94a3b8;
+  --scroll-thumb-hover: #64748b;
+  max-height: min(65dvh, 42rem);
+  overflow: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+}
+
+:global(.dark) .tableScroll {
+  --scroll-track: #18181b;
+  --scroll-thumb: #71717a;
+  --scroll-thumb-hover: #a1a1aa;
+}
+
+/* Wide, visible native tracks are easier to drag with a mouse. */
+.tableScroll::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+.tableScroll::-webkit-scrollbar-track,
+.tableScroll::-webkit-scrollbar-corner {
+  background: var(--scroll-track);
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  border: 3px solid var(--scroll-track);
+  border-radius: 8px;
+  background: var(--scroll-thumb);
+}
+
+.tableScroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .tableScroll {
+    scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  }
+}
+
+@media print {
+  .tableScroll {
+    max-height: none;
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+}

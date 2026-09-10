@@ -19,6 +19,7 @@ import {
   type UnitCheck, type UnitHealth, type UnitMonitorRow, type UnitRow, type UnitUpdateStatus,
 } from './unitStatusData';
 import useUnitStatusSheet from './useUnitStatusSheet';
+import styles from './UnitStatusDashboard.module.css';
 
 type DashboardProps = {
   dashboardId: string;
@@ -59,9 +60,12 @@ const COPY = {
     checklist: 'Device checklist', damage: 'Damage matrix', damageNote: 'Offline checks in the filtered units. Missing data is excluded.',
     installation: 'Fleet installation', installNote: 'Configured units and cameras across the dashboard fleet scope. Filters above do not change these totals.',
     cameraCount: 'Cameras', total: 'Total', installEmpty: 'No installation data reported.',
-    cameraLegend: 'Status indicators: ✓ Online · × Offline · ? Not reported. Camera positions with no reported data stay blank.',
+    cameraLegend: '✓ Online · × Offline · ? Unknown. Blank camera positions are assumed uninstalled until observed or configured.',
+    historyNote: 'Camera installation is remembered across refreshes. Previously recorded cameras missing from a fresh report are Offline.',
+    historyUnavailable: 'Camera history is temporarily unavailable. Previously known cameras are retained when available; blank positions cannot currently confirm installation.',
+    missingRecording: 'Previously recorded, but absent from the latest recording report.',
     unknownCameraUnits: (count: number) => `${count} ${count === 1 ? 'unit' : 'units'} with unknown camera counts`,
-    metadataUnavailable: 'Additional equipment configuration could not be loaded. Available source checks are shown.', metadataLoading: 'Loading additional equipment configuration…',
+    metadataUnavailable: 'Equipment/fleet metadata could not be loaded. Only units whose fleet can be verified are shown.', metadataLoading: 'Loading additional equipment configuration…',
     timeNote: 'Times shown in Bangkok time', intercomNote: 'Intercom is always Online because its data has no status trigger.',
     defaultStatusNote: 'Seat Vibrator and Cabin default to Online when their status is not reported.',
     freshness: 'Updates older than 30 minutes are marked stale. Device statuses use the last report; missing data is Not reported.',
@@ -79,7 +83,7 @@ const COPY = {
     duplicateRecording: 'Duplicate names in recording data. Review the source report.',
     geofence: 'In geofence', inferred: 'Inferred', geofenceReported: 'Geofence status is explicitly reported by the source.',
     geofenceInferred: 'Inferred from the reported equipment pattern; location is not confirmed.',
-    activeRequired: 'Online / required positions', checksLegend: '✓ Online · × Offline · ? Not reported · blank = position not reported for this unit',
+    activeRequired: 'Online / required positions', checksLegend: '✓ Online · × Offline · ? Unknown · blank = assumed uninstalled (never observed or configured)',
     cameraInactive: 'Camera inactive in geofence', rawCameraNote: 'Camera checks below show the last reported values.',
     lastContact: 'Last data report', reportAge: 'Report age', movement: 'Movement at last report', moving: 'Moving', stationary: 'Stationary',
     justNow: 'Less than a minute ago', ageMinutes: (value: number) => `${value} min ago`, ageHours: (value: number) => `${value} hr ago`, ageDays: (value: number) => `${value} days ago`,
@@ -104,6 +108,9 @@ const COPY = {
     copyDiagnostic: 'Copy diagnostic summary', copyingDiagnostic: 'Copying…', diagnosticCopied: 'Diagnostic summary copied.', diagnosticCopyFailed: 'Could not copy. Please try again.',
   },
   th: {
+    historyNote: 'จดจำกล้องที่เคยบันทึกข้ามการรีเฟรช กล้องที่เคยบันทึกแต่หายจากรายงานใหม่จะแสดงออฟไลน์',
+    historyUnavailable: 'ไม่สามารถโหลดประวัติกล้องได้ชั่วคราว จะเก็บกล้องที่ทราบไว้ถ้ามี ช่องว่างยังยืนยันการติดตั้งไม่ได้',
+    missingRecording: 'เคยบันทึกภาพ แต่ไม่อยู่ในรายการบันทึกของรายงานล่าสุด',
     title: 'สถานะอุปกรณ์', units: 'รถทั้งหมด', gpsOnline: 'GPS ออนไลน์', gpsOffline: 'GPS ออฟไลน์', attention: 'ต้องตรวจสอบ',
     attentionNote: 'รถที่มีคำเตือน สถานะออฟไลน์ หรือกล้องขัดข้อง', gpsUnknown: 'ไม่มีข้อมูลสถานะ GPS',
     recent: 'อัปเดตล่าสุด', stale: 'ข้อมูลเก่า', unknown: 'ไม่ทราบเวลาอัปเดต',
@@ -127,9 +134,9 @@ const COPY = {
     checklist: 'รายการตรวจสอบอุปกรณ์', damage: 'สรุปอุปกรณ์ขัดข้อง', damageNote: 'จำนวนรายการออฟไลน์จากรถที่กรองไว้ ไม่นับรายการที่ไม่มีข้อมูล',
     installation: 'การติดตั้งตามกลุ่มรถ', installNote: 'รถและกล้องที่กำหนดไว้ในขอบเขตกลุ่มรถของแดชบอร์ด ตัวกรองด้านบนไม่เปลี่ยนยอดรวมนี้',
     cameraCount: 'กล้อง', total: 'รวม', installEmpty: 'ไม่มีข้อมูลการติดตั้ง',
-    cameraLegend: 'สถานะ: ✓ ออนไลน์ · × ออฟไลน์ · ? ไม่มีข้อมูลรายงาน ตำแหน่งกล้องที่ไม่มีข้อมูลรายงานจะแสดงว่าง',
+    cameraLegend: '✓ ออนไลน์ · × ออฟไลน์ · ? ไม่ทราบ ช่องกล้องว่างหมายถึงคาดว่ายังไม่ติดตั้ง จนกว่าจะเคยบันทึกหรือกำหนดไว้',
     unknownCameraUnits: (count: number) => `${count} คันไม่มีข้อมูลจำนวนกล้อง`,
-    metadataUnavailable: 'ไม่สามารถโหลดข้อมูลการกำหนดอุปกรณ์เพิ่มเติมได้ แสดงรายการตรวจสอบจากข้อมูลต้นทางที่มีอยู่', metadataLoading: 'กำลังโหลดข้อมูลการกำหนดอุปกรณ์เพิ่มเติม…',
+    metadataUnavailable: 'ไม่สามารถโหลดข้อมูลอุปกรณ์และกลุ่มรถได้ แสดงเฉพาะรถที่ยืนยันสิทธิ์กลุ่มรถจากต้นทางได้', metadataLoading: 'กำลังโหลดข้อมูลการกำหนดอุปกรณ์เพิ่มเติม…',
     timeNote: 'แสดงเวลาประเทศไทย', intercomNote: 'Intercom แสดงออนไลน์เสมอ เนื่องจากข้อมูลไม่มีเงื่อนไขแจ้งสถานะ',
     defaultStatusNote: 'Seat Vibrator และ Cabin แสดงออนไลน์เป็นค่าเริ่มต้นเมื่อไม่มีรายงานสถานะ',
     freshness: 'ข้อมูลที่อัปเดตเกิน 30 นาทีจะแสดงว่าข้อมูลเก่า สถานะอุปกรณ์อ้างอิงรายงานล่าสุด รายการที่ขาดจะแสดงว่าไม่มีข้อมูลรายงาน',
@@ -147,7 +154,7 @@ const COPY = {
     duplicateRecording: 'ชื่อซ้ำในข้อมูลการบันทึก กรุณาตรวจสอบรายงานต้นทาง',
     geofence: 'อยู่ใน Geofence', inferred: 'คาดการณ์', geofenceReported: 'ต้นทางรายงานสถานะ Geofence โดยตรง',
     geofenceInferred: 'คาดการณ์จากรูปแบบสถานะอุปกรณ์ที่รายงาน ยังไม่ยืนยันตำแหน่ง',
-    activeRequired: 'ตำแหน่งออนไลน์ / ที่ต้องมี', checksLegend: '✓ ออนไลน์ · × ออฟไลน์ · ? ไม่มีข้อมูลรายงาน · ว่าง = ไม่มีรายงานตำแหน่งนี้สำหรับรถคันนี้',
+    activeRequired: 'ตำแหน่งออนไลน์ / ที่ต้องมี', checksLegend: '✓ ออนไลน์ · × ออฟไลน์ · ? ไม่ทราบ · ว่าง = คาดว่าไม่ติดตั้ง (ไม่เคยบันทึกหรือกำหนดไว้)',
     cameraInactive: 'กล้องไม่ทำงานใน Geofence', rawCameraNote: 'สถานะกล้องด้านล่างแสดงค่าที่รายงานล่าสุด',
     lastContact: 'รายงานข้อมูลล่าสุด', reportAge: 'อายุรายงาน', movement: 'การเคลื่อนที่ในรายงานล่าสุด', moving: 'กำลังเคลื่อนที่', stationary: 'หยุดนิ่ง',
     justNow: 'น้อยกว่า 1 นาทีที่แล้ว', ageMinutes: (value: number) => `${value} นาทีที่แล้ว`, ageHours: (value: number) => `${value} ชั่วโมงที่แล้ว`, ageDays: (value: number) => `${value} วันที่แล้ว`,
@@ -224,7 +231,7 @@ function reportAgeLabel(dataTime: string, now: Date, copy: Copy) {
 
 function issueExplanation(check: UnitCheck, row: UnitRow, copy: Copy) {
   const explicit = row.monitorSource?.values[check.key] ?? '';
-  const evidence = isReportedValue(explicit) ? explicit : check.key === 'storage' ? row.storageRaw
+  const evidence = check.missingFromRecording ? copy.missingRecording : isReportedValue(explicit) ? explicit : check.key === 'storage' ? row.storageRaw
     : check.key === 'statusAi' ? row.lastAiAlert : check.key === 'deviceStatus' ? row.storageRaw : '';
   const camera = /^c[1-9]$/.test(check.key) || ['ch1Ai', 'front', 'reverseBsd', 'frontBsd', 'rearRight', 'rearLeft', 'leftBsd', 'rightBsd', 'cabin'].includes(check.key);
   const suggestion = check.key === 'storage' ? copy.storageCheck : check.key === 'statusAi' || check.key === 'fatigueAi' ? copy.aiCheck : camera ? copy.cameraCheck : copy.deviceCheck;
@@ -424,13 +431,12 @@ export default function UnitStatusDashboard({
   const copy = COPY[lang === 'th' ? 'th' : 'en'];
   const locale = lang === 'th' ? 'th' : 'en';
   const instanceId = useId();
-  const primary = useUnitStatusSheet({ sheetId, ...(legacyBigthSource ? { tabName: 'Unitstatus' } : { gid: sheetGid }) });
-  const channelSheet = useUnitStatusSheet({ sheetId, tabName: 'CH' });
+  const primary = useUnitStatusSheet({ dashboardId, sheetId, ...(legacyBigthSource ? { tabName: 'Unitstatus' } : { gid: sheetGid }) });
+  const channelSheet = { rows: primary.channelRows, loading: primary.loading, error: !primary.metadataAvailable };
   const { columns, rows, loading, error, lastUpdated } = primary;
   const refreshPrimary = primary.refresh;
-  const refreshChannels = channelSheet.refresh;
-  const refreshing = primary.refreshing || channelSheet.refreshing;
-  const refresh = useCallback(() => { refreshPrimary(); refreshChannels(); }, [refreshPrimary, refreshChannels]);
+  const refreshing = primary.refreshing;
+  const refresh = useCallback(() => { refreshPrimary(); }, [refreshPrimary]);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<UnitUpdateStatus | ''>('');
@@ -463,7 +469,7 @@ export default function UnitStatusDashboard({
     return () => window.clearInterval(timer);
   }, [autoRefresh, refresh]);
 
-  const units = useMemo(() => buildUnitRows(rows, channelSheet.rows, scopeSet, observationTime, companyName), [rows, channelSheet.rows, scopeSet, observationTime, companyName]);
+  const units = useMemo(() => buildUnitRows(rows, channelSheet.rows, scopeSet, observationTime, companyName, primary.cameraHistory), [rows, channelSheet.rows, scopeSet, observationTime, companyName, primary.cameraHistory]);
   const monitors = useMemo(() => buildUnitMonitorRows(units, observationTime), [units, observationTime]);
   const monitorColumns = useMemo(() => getUnitMonitorColumns(monitors), [monitors]);
   const options = useMemo(() => ({
@@ -549,11 +555,13 @@ export default function UnitStatusDashboard({
         <button type="button" className={btnSecondary} onClick={refresh} disabled={loading || refreshing}>{refreshing ? copy.refreshing : copy.refresh}</button>
       </>}
     >
-      {loading || error || invalidSource ? (
+      {loading || (error && rows.length === 0) || invalidSource ? (
         <LoadingState lang={lang} message={copy.loading} error={error ?? (invalidSource ? copy.sourceError : undefined)} onRetry={refresh} />
       ) : (
         <div className="flex min-w-0 flex-col gap-3">
           <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{copy.scopeNote}</p>
+          {error && <p role="alert" className="rounded-md bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">{error}</p>}
+          {!primary.historyAvailable && <p role="status" className="rounded-md bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">{copy.historyUnavailable}</p>}
           <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-[1.15fr_1.15fr_1.2fr_1fr]">
             <MonitorPanel title={copy.gpsTitle} tone="green">
               {(['online', 'offline', 'unknown'] as const).map((health) => {
@@ -594,9 +602,9 @@ export default function UnitStatusDashboard({
 
           <section className={monitorCard}>
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-700"><p className="text-[11px] text-zinc-500 dark:text-zinc-400">{copy.sortHint}</p><p className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400" aria-live="polite">{copy.count(sorted.length, monitors.length)}</p></div>
-            <div className="overflow-x-auto [container-type:inline-size]" tabIndex={0} role="region" aria-label={copy.title}>
+            <div className={`${styles.tableScroll} [container-type:inline-size]`} tabIndex={0} role="region" aria-label={copy.title}>
               <table className="w-full border-collapse text-xs" style={{ minWidth: 560 + monitorColumns.length * 82 }}>
-                <thead><tr>{headers.map((header, index) => <th key={header.key} scope="col" aria-sort={sort.key === header.key ? sort.direction === 'asc' ? 'ascending' : 'descending' : 'none'} className={`border-r border-white/10 bg-[#274357] px-2 py-2 text-center text-[10px] font-semibold text-white dark:bg-[#12232f] ${index === 0 ? 'sticky left-0 z-30 min-w-[125px] text-left' : ''}`}><button type="button" className="inline-flex min-h-7 items-center justify-center gap-1 whitespace-nowrap rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" aria-label={`${copy.sortBy}: ${header.label}`} onClick={() => setSort((current) => ({ key: header.key, direction: current.key === header.key && current.direction === 'asc' ? 'desc' : 'asc' }))}>{header.label}<span aria-hidden="true" className="text-[9px] opacity-60">{sort.key === header.key ? sort.direction === 'asc' ? '↑' : '↓' : '↕'}</span></button></th>)}</tr></thead>
+                <thead><tr>{headers.map((header, index) => <th key={header.key} scope="col" aria-sort={sort.key === header.key ? sort.direction === 'asc' ? 'ascending' : 'descending' : 'none'} className={`sticky top-0 border-r border-white/10 bg-[#274357] px-2 py-2 text-center text-[10px] font-semibold text-white dark:bg-[#12232f] ${index === 0 ? 'left-0 z-30 min-w-[125px] text-left' : 'z-20'}`}><button type="button" className="inline-flex min-h-7 items-center justify-center gap-1 whitespace-nowrap rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" aria-label={`${copy.sortBy}: ${header.label}`} onClick={() => setSort((current) => ({ key: header.key, direction: current.key === header.key && current.direction === 'asc' ? 'desc' : 'asc' }))}>{header.label}<span aria-hidden="true" className="text-[9px] opacity-60">{sort.key === header.key ? sort.direction === 'asc' ? '↑' : '↓' : '↕'}</span></button></th>)}</tr></thead>
                 <tbody>{sorted.map((monitor, index) => {
                   const row = monitor.unit;
                   const key = unitKey(row);
@@ -625,7 +633,7 @@ export default function UnitStatusDashboard({
                 })}{sorted.length === 0 && <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-sm text-zinc-500">{monitors.length ? copy.noMatch : copy.empty}</td></tr>}</tbody>
               </table>
             </div>
-            <div className="space-y-1 px-3 py-2 text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400"><p>{copy.checksLegend}</p><p>{copy.intercomNote}</p><p>{copy.defaultStatusNote}</p><p>{copy.activeRequired} · {copy.timeNote}</p>{(channelSheet.error || channelSheet.loading) && <p role="status">{channelSheet.error ? copy.metadataUnavailable : copy.metadataLoading}</p>}</div>
+            <div className="space-y-1 px-3 py-2 text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400"><p>{copy.checksLegend}</p><p>{copy.historyNote}</p><p>{copy.intercomNote}</p><p>{copy.defaultStatusNote}</p><p>{copy.activeRequired} · {copy.timeNote}</p>{(channelSheet.error || channelSheet.loading) && <p role="status">{channelSheet.error ? copy.metadataUnavailable : copy.metadataLoading}</p>}</div>
           </section>
         </div>
       )}

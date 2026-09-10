@@ -8,6 +8,24 @@ export type UnitHealth = 'online' | 'offline' | 'unknown';
 export type UnitOverallStatus = 'healthy' | 'warning' | 'offline' | 'unknown';
 export const CAMERA_CHANNELS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 export type UnitCameraChannel = typeof CAMERA_CHANNELS[number];
+export type UnitCameraObservation = { key: string; label: string; lastSeen: string };
+export type UnitCameraHistory = Record<string, UnitCameraObservation[]>;
+
+/** Keep newer evidence when a refresh must fall back to in-session history. */
+export function mergeUnitCameraHistory(previous: UnitCameraHistory, incoming: UnitCameraHistory): UnitCameraHistory {
+  const merged = { ...previous };
+  for (const [vehicle, observations] of Object.entries(incoming)) {
+    const cameras = new Map((previous[vehicle] ?? []).map((item) => [item.key, item]));
+    for (const observation of observations) {
+      const old = cameras.get(observation.key);
+      if (!old || Date.parse(observation.lastSeen) > Date.parse(old.lastSeen)) {
+        cameras.set(observation.key, { ...observation, label: observation.label || old?.label || '' });
+      }
+    }
+    merged[vehicle] = Array.from(cameras.values());
+  }
+  return merged;
+}
 export const CAMERA_FIELDS = [
   { key: 'ch1Ai', en: 'AI camera', th: 'กล้อง AI' },
   { key: 'front', en: 'Front camera', th: 'กล้องหน้า' },
@@ -130,7 +148,7 @@ function readObject(value: unknown): Record<string, unknown> {
   } catch { return {}; }
 }
 
-function readCameraChannels(row: GoogleSheetRow) {
+function readCameraChannels(row: GoogleSheetRow, history: UnitCameraObservation[] = [], inferMissing = false, bsdLayout = false) {
   const recordingRaw = readText(row, ['recording']);
   const lossRaw = readText(row, ['videoloss', 'Video Loss']);
   const stopped = normalizeLabel(recordingRaw) === 'notrecording';
@@ -146,6 +164,16 @@ function readCameraChannels(row: GoogleSheetRow) {
   const channelNames = String(findValue(row, ['channelname', 'Camera Names']) ?? raw.channelname ?? '').split(';');
   const recording = cameraTokens(recordingRaw, mask !== null ? channelNames : []);
   const loss = cameraTokens(lossRaw, mask !== null ? channelNames : []);
+  // A remembered physical label can resolve a portable alias (Front Camera →
+  // Front) without inventing a customer-specific channel-to-position mapping.
+  if (mask === null) for (const [value, target] of [[recordingRaw, recording], [lossRaw, loss]] as const) {
+    for (const token of value.split(',')) {
+      const key = monitorKey(token, bsdLayout);
+      if (!key) continue;
+      const matches = history.filter((item) => /^c[1-9]$/.test(item.key) && monitorKey(item.label, bsdLayout) === key);
+      if (matches.length === 1) target.add(Number(matches[0].key.slice(1)) as UnitCameraChannel);
+    }
+  }
   const status = readObject(findValue(row, ['lastStatusJson', 'Last Status JSON']) ?? raw.lastStatusJson);
   const modules = status.module && typeof status.module === 'object' ? status.module as Record<string, unknown> : {};
   const alarm = status.alarm && typeof status.alarm === 'object' ? status.alarm as Record<string, unknown> : {};
@@ -159,13 +187,17 @@ function readCameraChannels(row: GoogleSheetRow) {
     const bit = 1 << (channel - 1);
     const aliases = [`Camera CH${channel}`, `CH${channel}`, `C${channel}`, `Camera ${channel}`, `Camera${channel}`];
     const direct = hasAliasedColumn(labels, aliases);
+    const previous = history.find((item) => item.key === `c${channel}`);
+    const reportTime = parseDate(readText(row, ['Date & time', 'Date & time 2', 'datatime', 'Data Time']));
+    const omissionIsNewer = !previous || (reportTime !== null
+      && reportTime.getTime() - BANGKOK_UTC_OFFSET_MS > Date.parse(previous.lastSeen));
     // Sheet-only fallback displays observed cameras; a count does not establish
     // a contiguous channel layout, and a blank shared column is not installation.
     present[channel] = mask !== null ? (mask & bit) !== 0
-      : recording.has(channel) || namedLoss.has(channel) || (direct && isReportedValue(readText(row, aliases)));
+      : history.some((item) => item.key === `c${channel}`) || recording.has(channel) || namedLoss.has(channel) || (direct && isReportedValue(readText(row, aliases)));
     const name = channelNames[channel - 1]?.trim() || (mask === null
       ? [...recordingRaw.split(','), ...lossRaw.split(',')].find((value) => RAW_CAMERA_NAMES[normalizeLabel(value)] === channel)?.trim() ?? '' : '');
-    names[channel] = /^ch\s*\d+$/i.test(name) ? '' : name;
+    names[channel] = /^ch\s*\d+$/i.test(name) ? '' : name || history.find((item) => item.key === `c${channel}`)?.label || '';
     if (!present[channel]) {
       result[channel] = 'unknown';
     } else if (direct) {
@@ -178,11 +210,11 @@ function readCameraChannels(row: GoogleSheetRow) {
       } else {
         result[channel] = (lossMask !== null && (lossMask & bit) !== 0) || loss.has(channel) || stopped
           || (recordMask !== null && (recordMask & bit) === 0) ? 'offline'
-          : malformedHealth || recordMask !== null ? 'unknown' : recording.has(channel) ? 'online' : 'unknown';
+          : malformedHealth || recordMask !== null ? 'unknown' : recording.has(channel) ? 'online' : inferMissing && omissionIsNewer ? 'offline' : 'unknown';
       }
     } else {
       result[channel] = stopped || loss.has(channel) ? 'offline'
-        : recording.has(channel) ? 'online' : 'unknown';
+        : recording.has(channel) ? 'online' : inferMissing && omissionIsNewer ? 'offline' : 'unknown';
     }
     // An explicit positional field can override the same literal camera name,
     // but never a guessed numeric position. Other cameras retain their evidence.
@@ -197,11 +229,14 @@ function readCameraChannels(row: GoogleSheetRow) {
       }
     }
   }
-  return { channels: result, present, names, representedChecklistKeys, inventoryKnown: mask !== null,
+  const observed = CAMERA_CHANNELS.filter((channel) => (mask === null || (mask & (1 << (channel - 1))) !== 0)
+    && (recording.has(channel) || (recordMask !== null && (recordMask & (1 << (channel - 1))) !== 0)))
+    .map((channel) => ({ key: `c${channel}`, label: names[channel] }));
+  return { channels: result, present, names, observed, representedChecklistKeys, inventoryKnown: mask !== null,
     installedCount: mask !== null ? CAMERA_CHANNELS.filter((channel) => (mask & (1 << (channel - 1))) !== 0).length : null };
 }
 
-export type UnitCheck = { key: string; en: string; th: string; status: UnitHealth; present?: boolean; displayStatus?: 'inactive'; physicalCamera?: boolean };
+export type UnitCheck = { key: string; en: string; th: string; status: UnitHealth; present?: boolean; displayStatus?: 'inactive'; physicalCamera?: boolean; missingFromRecording?: boolean };
 type CameraRow = Pick<UnitRow, 'cameraSource' | 'cameraChannels' | 'cameraPresent' | 'cameraLabels' | 'cameraChecklistPresent' | 'cameraAdditionalChecks' | 'statuses'>;
 
 export function getUnitCameraChecks(row: CameraRow): UnitCheck[] {
@@ -228,14 +263,14 @@ function readOverallStatus(row: CameraRow & Pick<UnitRow, 'updateStatus' | 'expe
   return 'healthy';
 }
 
-type CameraMetadata = { key: string; fleet: string; expectedCameras: number | null };
+type CameraMetadata = { key: string; fleet: string; expectedCameras: number | null; sourceIndex: number };
 function readCameraMetadata(rows: GoogleSheetRow[]): CameraMetadata[] {
-  return rows.flatMap((row) => {
+  return rows.flatMap((row, sourceIndex) => {
     const key = normalizeLabel(readText(row, VEHICLE_NO_ALIASES));
     if (!key || VEHICLE_NO_HEADERS.has(key)) return [];
     const raw = readText(row, ['CH']).trim();
     const count = Number(raw);
-    return [{ key, fleet: readText(row, FLEET_ALIASES).trim(),
+    return [{ key, sourceIndex, fleet: readText(row, FLEET_ALIASES).trim(),
       expectedCameras: raw && Number.isInteger(count) && count >= 0 ? count : null }];
   });
 }
@@ -260,6 +295,13 @@ export function buildInstallRows(chRows: GoogleSheetRow[], units: UnitRow[], sco
 }
 
 export type UnitRow = {
+  sourceIndex: number;
+  metadataIndex?: number;
+  cameraHistoryKey: string;
+  cameraObservations: UnitCameraObservation[];
+  cameraHistory?: UnitCameraObservation[];
+  cameraRecordingValid: boolean;
+  explicitCameraKeys: string[];
   vehicleNo: string;
   location: string;
   fleet: string;
@@ -340,6 +382,7 @@ export function buildUnitRows(
   scopeSet: ReadonlySet<string>,
   now: Date,
   companyName?: string | null,
+  cameraHistory?: UnitCameraHistory,
 ): UnitRow[] {
   const normalizedScope = new Set(Array.from(scopeSet).map(normalizeLabel));
   const hasFleetColumn = rows.some((row) => hasAliasedColumn(Object.keys(row), FLEET_ALIASES));
@@ -350,7 +393,8 @@ export function buildUnitRows(
   const nowWallClockMs = now.getTime() + BANGKOK_UTC_OFFSET_MS;
   const unitsByVehicle = new Map<string, UnitRow>();
 
-  for (const row of rows) {
+  for (let sourceIndex = 0; sourceIndex < rows.length; sourceIndex++) {
+    const row = rows[sourceIndex];
     const usernames = readText(row, USERNAME_ALIASES).split(',').map(normalizeLabel);
     const vehicleNo = readText(row, VEHICLE_NO_ALIASES).trim();
     const vehicleKey = normalizeLabel(vehicleNo);
@@ -389,8 +433,40 @@ export function buildUnitRows(
       ? (isUnitApiUpdateStale(updatedAt, now) ? 'stale' : 'recent')
       : 'unknown';
 
+    const monitorSource = readUnitMonitorSource(row, companyName, camera?.expectedCameras ?? null);
+    const rawPayload = readObject(findValue(row, ['raw_payload', 'Raw Payload']));
+    const deviceId = readText(row, ['deviceid', 'Device ID', 'Device No', 'deviceno', 'imei']) || String(rawPayload.devIdno ?? '');
+    // CH metadata may fail or change independently of the vehicle report. Only
+    // source-reported fleet belongs in identity; the server also namespaces by
+    // the dashboard's authorized fleet IDs when the source has no fleet field.
+    const sourceFleet = normalizeLabel(primaryFleet) || usernames.find((name) => normalizedScope.has(name)) || '';
+    const cameraHistoryKey = JSON.stringify([sourceFleet, vehicleKey, normalizeLabel(deviceId)]);
+    const history = cameraHistory?.[cameraHistoryKey] ?? [];
+    // Explicit equipment removal overrides learned inventory. Counts alone do
+    // not establish a contiguous channel layout.
+    const allowedHistory = monitorSource.expectedPositions === 0 ? [] : history.filter((item) =>
+      !monitorSource.requiredKeys || monitorSource.requiredKeys.includes(item.key)
+      || monitorSource.requiredKeys.includes(monitorKey(item.label, monitorSource.bsdLayout) ?? ''));
+    const recordingRaw = readText(row, ['recording']);
+    const recordingTokens = recordingRaw.split(',').map(normalizeLabel).filter(Boolean);
+    const rawStatus = readObject(findValue(row, ['lastStatusJson', 'Last Status JSON']) ?? rawPayload.lastStatusJson);
+    const rawModule = rawStatus.module && typeof rawStatus.module === 'object' ? rawStatus.module as Record<string, unknown> : {};
+    const cameraRecordingValid = parseCameraMask(rawModule.record) !== null || normalizeLabel(recordingRaw) === 'notrecording'
+      || (recordingTokens.length > 0 && recordingTokens.every((token) => isReportedValue(token)
+        && (monitorKey(token, monitorSource.bsdLayout) !== null || Object.hasOwn(RAW_CAMERA_NAMES, token))));
+    const freshRecording = monitorGpsStatus(dataTime, now) === 'online' && cameraRecordingValid;
     const statuses = readDeviceStatuses(row);
-    const cameraTelemetry = readCameraChannels(row);
+    const cameraTelemetry = readCameraChannels(row, allowedHistory, cameraHistory !== undefined && freshRecording, monitorSource.bsdLayout);
+    const observedAt = parseDate(dataTime);
+    const validObservedAt = observedAt && observedAt.getTime() <= nowWallClockMs
+      ? new Date(observedAt.getTime() - BANGKOK_UTC_OFFSET_MS).toISOString() : null;
+    const mappedNames = new Set(cameraTelemetry.observed.map((item) => monitorKey(item.label, monitorSource.bsdLayout)));
+    const namedObserved = cameraRecordingValid && !cameraTelemetry.inventoryKnown ? recordingTokens.flatMap((token) => {
+      const key = monitorKey(token, monitorSource.bsdLayout);
+      return key && MONITOR_CAMERA_KEYS.has(key) && !mappedNames.has(key) ? [{ key, label: token }] : [];
+    }) : [];
+    const cameraObservations = validObservedAt ? [...(cameraRecordingValid ? cameraTelemetry.observed : []), ...namedObserved]
+      .map((item) => ({ ...item, lastSeen: validObservedAt })) : [];
     const cameraChannels = cameraTelemetry.channels;
     const cameraSource = cameraTelemetry.inventoryKnown || Object.values(cameraTelemetry.present).some(Boolean)
       ? 'channels' : CAMERA_FIELDS.some((field) => isReportedValue(readText(row, STATUS_ALIASES[field.key]))) ? 'checklist' : 'channels';
@@ -410,6 +486,14 @@ export function buildUnitRows(
     const expectedCameras = cameraSource === 'channels'
       ? cameraTelemetry.installedCount ?? camera?.expectedCameras ?? null : camera?.expectedCameras ?? null;
     const unit: UnitRow = {
+      sourceIndex,
+      metadataIndex: camera?.sourceIndex,
+      cameraHistoryKey,
+      cameraObservations,
+      cameraHistory: cameraHistory === undefined ? undefined : allowedHistory,
+      cameraRecordingValid,
+      explicitCameraKeys: CAMERA_CHANNELS.filter((channel) => hasAliasedColumn(Object.keys(row),
+        [`Camera CH${channel}`, `CH${channel}`, `C${channel}`, `Camera ${channel}`, `Camera${channel}`])).map((channel) => `c${channel}`),
       vehicleNo,
       location: readText(row, ['location']),
       fleet,
@@ -446,7 +530,7 @@ export function buildUnitRows(
       battery: readText(row, ['battery']),
       idKeyLastDetected: readText(row, ['idkeylastdetected', 'ID Key Last Detected']),
       updateStatus,
-      monitorSource: readUnitMonitorSource(row, companyName, camera?.expectedCameras ?? null),
+      monitorSource,
     };
 
     const unitKey = `${normalizeLabel(fleet)}:${vehicleKey}`;
@@ -584,6 +668,7 @@ export function buildUnitMonitorRows(units: UnitRow[], now: Date): UnitMonitorRo
     const required = new Set(requiredKeys ?? []);
     const useNamedLists = !unit.cameraInventoryKnown;
     const knownRecording = useNamedLists && (stopped || Array.from(recording).some((key) => MONITOR_CAMERA_KEYS.has(key)));
+    const rememberedNames = new Set(!unit.cameraInventoryKnown ? unit.cameraHistory?.map((item) => item.key) ?? [] : []);
     const checks: UnitCheck[] = MONITOR_EQUIPMENT.map((field) => {
       const explicit = Object.hasOwn(source.values, field.key);
       const raw = rawByKey.get(field.key);
@@ -595,7 +680,7 @@ export function buildUnitMonitorRows(units: UnitRow[], now: Date): UnitMonitorRo
       const listedOnline = (useNamedLists || field.key === 'seatVibrator') && recording.has(field.key);
       const listedOffline = (useNamedLists || field.key === 'seatVibrator') && loss.has(field.key);
       const forced = field.key === 'seatVibrator' && !explicit && !recording.has(field.key) && !loss.has(field.key);
-      const present = forced || required.has(field.key) || raw !== undefined || listedOnline || listedOffline
+      const present = forced || required.has(field.key) || raw !== undefined || listedOnline || listedOffline || rememberedNames.has(field.key)
         || (explicit && isReportedValue(source.values[field.key]));
       const status: UnitHealth = explicit ? readUnitHealth(source.values[field.key]) : forced ? 'online'
         : raw ? raw.status : listedOffline ? 'offline' : listedOnline ? 'online'
@@ -627,13 +712,46 @@ export function buildUnitMonitorRows(units: UnitRow[], now: Date): UnitMonitorRo
         present: ['cabin', 'storage', 'intercom'].includes(field.key) || required.has(field.key)
           || (explicit && isReportedValue(source.values[field.key])) || status !== 'unknown' });
     }
+    // Historical presence and current recording health are separate facts.
+    // Preserve explicit component values/masks; infer omission only from a
+    // complete fresh list, never merely from elapsed time or a missing report.
+    if (unit.cameraHistory !== undefined) {
+      const freshReport = monitorGpsStatus(unit.dataTime, now) === 'online';
+      const fresh = freshReport && unit.cameraRecordingValid;
+      for (const check of checks) {
+        if (check.present === false || !isMonitorCameraCheck(check)) continue;
+        const equivalent = rawCameras.find((raw) => raw.key === check.key
+          || (rawNames.filter((name) => name === check.key).length === 1 && monitorKey(raw.en, source.bsdLayout) === check.key));
+        const explicit = Object.hasOwn(source.values, check.key) || unit.explicitCameraKeys.includes(equivalent?.key ?? check.key);
+        if (explicit) continue;
+        // A fresh, explicit loss is useful even if the Recording cell is blank.
+        // It does not establish installation of unused numeric inputs.
+        if (freshReport && ((!unit.cameraInventoryKnown && (loss.has(check.key) || loss.has(equivalent?.key ?? check.key)))
+          || (unit.cameraInventoryKnown && check.status === 'offline' && !unit.cameraRecordingValid))) {
+          check.status = 'offline';
+          continue;
+        }
+        const observed = unit.cameraObservations.some((item) => item.key === check.key || item.key === equivalent?.key);
+        const previous = unit.cameraHistory.filter((item) => item.key === check.key || item.key === equivalent?.key)
+          .sort((a, b) => Date.parse(b.lastSeen) - Date.parse(a.lastSeen))[0];
+        const reportTime = parseDate(unit.dataTime);
+        const omissionIsNewer = !previous || (reportTime !== null
+          && reportTime.getTime() - BANGKOK_UTC_OFFSET_MS > Date.parse(previous.lastSeen));
+        if (!fresh) check.status = 'unknown';
+        else if (!unit.cameraInventoryKnown && (previous || source.requiredKeys?.includes(check.key))
+          && !observed && !loss.has(check.key) && !loss.has(equivalent?.key ?? check.key)) {
+          check.status = omissionIsNewer ? 'offline' : 'unknown';
+          check.missingFromRecording = omissionIsNewer;
+        }
+      }
+    }
     const installed = checks.filter((check) => check.present !== false && (requiredKeys !== null ? required.has(check.key) : isMonitorCameraCheck(check)));
     const activePositions = installed.filter((check) => check.status === 'online').length;
     const installation = requiredPositions === null || installed.length !== requiredPositions || installed.some((check) => check.status === 'unknown')
       ? 'unknown' : activePositions === requiredPositions ? 'complete' : 'partial';
     const cameras = installed.filter(isMonitorCameraCheck);
     const geofence = source.geofence === true ? 'reported'
-      : source.geofence === null && requiredPositions !== null && installed.length === requiredPositions
+      : source.geofence === null && !cameras.some((check) => check.missingFromRecording) && requiredPositions !== null && installed.length === requiredPositions
         && cameras.length > 0 && cameras.every((check) => check.status === 'offline') ? 'inferred' : null;
     if (geofence) for (const check of checks) if (isMonitorCameraCheck(check) && check.present !== false) check.displayStatus = 'inactive';
     const statusAi = Object.hasOwn(source.values, 'statusAi') ? readUnitHealth(source.values.statusAi)

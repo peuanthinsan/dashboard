@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseGoogleSheetTable, type GoogleSheetColumn, type GoogleSheetRow } from './googleSheetParse';
+import { mergeUnitCameraHistory, type UnitCameraHistory } from './unitStatusData';
 
-type Options = { sheetId: string; gid?: string; tabName?: string; enabled?: boolean };
-type Snapshot = { columns: GoogleSheetColumn[]; rows: GoogleSheetRow[]; lastUpdated: Date | null };
+type Options = { sheetId: string; gid?: string; tabName?: string; enabled?: boolean; dashboardId?: string };
+type Snapshot = { columns: GoogleSheetColumn[]; rows: GoogleSheetRow[]; lastUpdated: Date | null;
+  channelRows: GoogleSheetRow[]; cameraHistory: UnitCameraHistory; historyAvailable: boolean; metadataAvailable: boolean };
+const emptySnapshot = (): Snapshot => ({ columns: [], rows: [], lastUpdated: null, channelRows: [], cameraHistory: {}, historyAvailable: true, metadataAvailable: true });
 
 /** Small live status sheets: fresh reads on every refresh, with no alert-data cache. */
-export default function useUnitStatusSheet({ sheetId, gid, tabName, enabled = true }: Options) {
-  const [snapshot, setSnapshot] = useState<Snapshot>({ columns: [], rows: [], lastUpdated: null });
+export default function useUnitStatusSheet({ sheetId, gid, tabName, enabled = true, dashboardId }: Options) {
+  const [snapshot, setSnapshot] = useState<Snapshot>(emptySnapshot);
   const [loading, setLoading] = useState(enabled);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +27,16 @@ export default function useUnitStatusSheet({ sheetId, gid, tabName, enabled = tr
     setError(null);
     const timeout = window.setTimeout(() => controller.abort(), 30_000);
     try {
+      if (dashboardId) {
+        const response = await fetch(`/api/unit-status/${encodeURIComponent(dashboardId)}`, { signal: controller.signal, cache: 'no-store' });
+        const payload = await response.json() as Omit<Snapshot, 'lastUpdated'> & { error?: string };
+        if (!response.ok) throw new Error(payload.error || 'Unable to load unit status data.');
+        if (request.current !== controller || controller.signal.aborted) return;
+        hasSnapshot.current = true;
+        setSnapshot((previous) => ({ ...payload, lastUpdated: new Date(),
+          cameraHistory: mergeUnitCameraHistory(previous.cameraHistory, payload.cameraHistory) }));
+        return;
+      }
       const params = new URLSearchParams({ tqx: 'out:json', headers: '1' });
       if (tabName) params.set('sheet', tabName);
       else params.set('gid', gid ?? '0');
@@ -39,7 +52,7 @@ export default function useUnitStatusSheet({ sheetId, gid, tabName, enabled = tr
       const parsed = parseGoogleSheetTable(envelope);
       if (request.current !== controller || controller.signal.aborted) return;
       hasSnapshot.current = true;
-      setSnapshot({ ...parsed, lastUpdated: new Date() });
+      setSnapshot({ ...emptySnapshot(), ...parsed, lastUpdated: new Date() });
     } catch (err) {
       if (request.current !== controller) return;
       setError(controller.signal.aborted ? 'Loading timed out. Please retry.'
@@ -51,11 +64,11 @@ export default function useUnitStatusSheet({ sheetId, gid, tabName, enabled = tr
         setRefreshing(false);
       }
     }
-  }, [enabled, gid, sheetId, tabName]);
+  }, [enabled, gid, sheetId, tabName, dashboardId]);
 
   useEffect(() => {
     hasSnapshot.current = false;
-    setSnapshot({ columns: [], rows: [], lastUpdated: null });
+    setSnapshot(emptySnapshot());
     if (!enabled) { setLoading(false); setRefreshing(false); setError(null); }
     void refresh();
     return () => {

@@ -152,6 +152,39 @@ requires grepping the others.
   not apply to a vehicle stays blank; an established position without health
   data shows Unknown. No numeric channel is guessed to be a BSD position.
   Source-friendly names are used where unambiguous; other inputs use Camera N.
+  The matrix has visible vertical and horizontal mouse-draggable scrollbars,
+  a bounded viewport, sticky column headings and a sticky vehicle column.
+  Print expands the complete table instead of clipping it to that viewport.
+- Camera installation is remembered in PostgreSQL from positive recording
+  observations, across refreshes and viewers. Namespaced by company, configured
+  sheet/tab and authorized fleet IDs, then source-reported fleet, vehicle and
+  device ID (where available). Optional CH-derived fleet labels do not change
+  vehicle identity during a metadata outage. Different configured fleet scopes
+  learn independently. A never-observed, unconfigured position is blank
+  (**assumed uninstalled**, not proof that hardware is absent).
+  `1,2,3` followed by a newer fresh `2,3` makes camera 1 Offline; recovery makes
+  it Online again. An older/equal timestamp cannot prove a subsequent omission.
+  Missing, invalid, future or stale recording reports keep learned positions
+  visible as Unknown. Fresh explicit video loss remains Offline even when the
+  recording list is blank; authoritative VSS health masks retain precedence.
+  Explicit component values and installed masks/lists still
+  take precedence; explicit zero/removal excludes learned positions. Learned
+  counts alone do not establish complete installation or inferred geofence.
+  Omission diagnostics explain the history evidence without claiming a hardware
+  fault. History begins with snapshots received on dashboard refresh; there is
+  no automatic upstream backfill or unattended polling. During a store outage,
+  a visible warning identifies the persistence gap and this browser retains its
+  known roster; observations that could not be saved are not shared with other
+  viewers until seen again in a successfully stored report.
+- The authenticated `/api/unit-status/[dashboardId]` endpoint resolves the
+  configured source and exact company/all-fleet authorization before fetching,
+  filtering or storing data. Clients cannot submit camera observations. Atomic
+  per-camera upserts retain earliest/latest observations despite concurrent or
+  repeated reads. The additive `scripts/unit-camera-history.sql` migration must
+  precede deployment; the generic migration command includes it for new setups.
+  A CH outage returns only rows whose fleet can still be verified from the source,
+  with a metadata warning. Failed primary refreshes retain the previous table
+  alongside a visible error. Legacy named tabs do not require an unused GID.
 - **GPS status uses source data time and a ten-minute threshold**, matching the
   reference: at most ten minutes old is Online; older is Offline. Raw `gps=true`
   cannot make an old report Online. Missing, invalid or future source timestamps
