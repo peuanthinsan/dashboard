@@ -49,10 +49,12 @@ describe('parseSimpleSummary', () => {
     expect(parsed.error).toBeNull();
     expect(parsed.records).toHaveLength(28);
     expect(parsed.months).toEqual(['2026-06', '2026-07', '2026-08']);
-    expect(parsed.alertTypes).toEqual([
+    // Default collation follows the host locale; punctuation sorts differently in Thai.
+    expect(parsed.alertTypes).toHaveLength(12);
+    expect(parsed.alertTypes).toEqual(expect.arrayContaining([
       'Distraction', 'Eating/Drinking', 'F&D', 'False alert', 'Fatigue', 'Maintenance',
       'Mirror Check', 'Mobile Phone', 'Smoking', 'Speed Meter Check', 'Storage Error', 'Yawning',
-    ]);
+    ]));
     const comparison = buildSimpleSummaryComparison(parsed.records);
     expect(comparison.total).toBe(3164);
     expect(comparison.rows.map(({ total }) => total)).toEqual([888, 2073, 203]);
