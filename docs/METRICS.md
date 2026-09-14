@@ -200,10 +200,13 @@ requires grepping the others.
   health/failure values retain the shared parser. Historic storage/AI alert
   text remains visible with timestamps and does not silently replace current
   storage state. MCR/MDVR/IVMS/Fatigue AI remain explicit-only.
-- **Intercom is always Online** for all companies. Seat Vibrator and Cabin
+- **Offline vehicles show `-` in the equipment matrix**, including Status AI,
+  Device Status and Intercom, whenever the dashboard GPS status is Offline.
+  Last-reported values and diagnostic calculations remain available unchanged.
+  Intercom's underlying status remains Online for all companies. Seat Vibrator and Cabin
   default to Online only when their source columns are absent, as assumed by
   the supplied HTML. An explicitly reported Seat Vibrator/Cabin value still
-  wins. These assumptions are disclosed in the UI and do not add positions
+  wins. These assumptions are disclosed in expanded details and do not add positions
   to a smaller fleet's camera-based configuration.
 - Literal recording/loss names establish the named equipment checks. Rear BSD
   maps to Reverse BSD; the verified BIGTH Reverse 1 name is mapped only within

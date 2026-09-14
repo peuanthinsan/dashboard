@@ -40,7 +40,7 @@ const COPY = {
     title: 'Unit status', units: 'Units', gpsOnline: 'GPS online', gpsOffline: 'GPS offline', attention: 'Needs attention',
     attentionNote: 'Units with warnings, an offline status or failed camera checks', gpsUnknown: 'GPS status not reported',
     recent: 'Recent updates', stale: 'Stale updates', unknown: 'Unknown update time',
-    recentBadge: 'Recent', staleBadge: 'Stale', unknownBadge: 'Unknown', online: 'Online', offline: 'Offline',
+    recentBadge: 'Recent', staleBadge: 'Stale', unknownBadge: 'Unknown', online: 'Online', offline: 'Offline', vehicleOffline: 'Vehicle offline',
     autoRefresh: 'Auto-refresh', refresh: 'Refresh', refreshing: 'Refreshing…',
     search: 'Search units', placeholder: 'Vehicle number or location', updateStatus: 'Update status',
     all: 'All updates', reset: 'Reset', vehicle: 'Vehicle', update: 'Update', network: 'Network',
@@ -66,7 +66,7 @@ const COPY = {
     missingRecording: 'Previously recorded, but absent from the latest recording report.',
     unknownCameraUnits: (count: number) => `${count} ${count === 1 ? 'unit' : 'units'} with unknown camera counts`,
     metadataUnavailable: 'Equipment/fleet metadata could not be loaded. Only units whose fleet can be verified are shown.', metadataLoading: 'Loading additional equipment configuration…',
-    timeNote: 'Times shown in Bangkok time', intercomNote: 'Intercom is always Online because its data has no status trigger.',
+    timeNote: 'Times shown in Bangkok time', intercomNote: 'Intercom defaults to Online because its data has no status trigger. Equipment columns show - when the vehicle is offline.',
     defaultStatusNote: 'Seat Vibrator and Cabin default to Online when their status is not reported.',
     freshness: 'Updates older than 30 minutes are marked stale. Device statuses use the last report; missing data is Not reported.',
     empty: 'No units are available in this sheet for the dashboard scope.', noMatch: 'No units match the current filters.',
@@ -137,7 +137,8 @@ const COPY = {
     cameraLegend: '✓ ออนไลน์ · × ออฟไลน์ · ? ไม่ทราบ ช่องกล้องว่างหมายถึงคาดว่ายังไม่ติดตั้ง จนกว่าจะเคยบันทึกหรือกำหนดไว้',
     unknownCameraUnits: (count: number) => `${count} คันไม่มีข้อมูลจำนวนกล้อง`,
     metadataUnavailable: 'ไม่สามารถโหลดข้อมูลอุปกรณ์และกลุ่มรถได้ แสดงเฉพาะรถที่ยืนยันสิทธิ์กลุ่มรถจากต้นทางได้', metadataLoading: 'กำลังโหลดข้อมูลการกำหนดอุปกรณ์เพิ่มเติม…',
-    timeNote: 'แสดงเวลาประเทศไทย', intercomNote: 'Intercom แสดงออนไลน์เสมอ เนื่องจากข้อมูลไม่มีเงื่อนไขแจ้งสถานะ',
+    timeNote: 'แสดงเวลาประเทศไทย', intercomNote: 'Intercom มีค่าเริ่มต้นเป็นออนไลน์ เนื่องจากข้อมูลไม่มีเงื่อนไขแจ้งสถานะ คอลัมน์อุปกรณ์จะแสดง - เมื่อรถออฟไลน์',
+    vehicleOffline: 'รถออฟไลน์',
     defaultStatusNote: 'Seat Vibrator และ Cabin แสดงออนไลน์เป็นค่าเริ่มต้นเมื่อไม่มีรายงานสถานะ',
     freshness: 'ข้อมูลที่อัปเดตเกิน 30 นาทีจะแสดงว่าข้อมูลเก่า สถานะอุปกรณ์อ้างอิงรายงานล่าสุด รายการที่ขาดจะแสดงว่าไม่มีข้อมูลรายงาน',
     empty: 'ไม่พบรถในชีตนี้ตามขอบเขตของแดชบอร์ด', noMatch: 'ไม่พบรถที่ตรงกับตัวกรอง',
@@ -383,7 +384,12 @@ function StatusMark({ status, label, copy }: { status: UnitHealth; label: string
   const words = { online: copy.online, offline: copy.offline, unknown: copy.notReported };
   const symbols = { online: '✓', offline: '×', unknown: '?' };
   const colors = { online: 'text-green-700 dark:text-green-400', offline: 'text-red-700 dark:text-red-400', unknown: 'text-zinc-400 dark:text-zinc-500' };
-  return <span className={`inline-flex min-h-6 items-center justify-center text-base font-bold ${colors[status]}`} title={`${label}: ${words[status]}`}><span aria-hidden="true">{symbols[status]}</span><span className="sr-only">{label}: {words[status]}</span></span>;
+  return <span className={`relative inline-flex min-h-6 items-center justify-center text-base font-bold ${colors[status]}`} title={`${label}: ${words[status]}`}><span aria-hidden="true">{symbols[status]}</span><span className="sr-only">{label}: {words[status]}</span></span>;
+}
+
+function OfflineMark({ label, copy }: { label: string; copy: Copy }) {
+  const description = `${label}: ${copy.vehicleOffline}`;
+  return <span className="relative inline-flex min-h-6 items-center justify-center text-base text-zinc-400 dark:text-zinc-500" title={description}><span aria-hidden="true">-</span><span className="sr-only">{description}</span></span>;
 }
 
 function GeofenceBadge({ value, copy }: { value: UnitMonitorRow['geofence']; copy: Copy }) {
@@ -562,6 +568,7 @@ export default function UnitStatusDashboard({
           <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{copy.scopeNote}</p>
           {error && <p role="alert" className="rounded-md bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">{error}</p>}
           {!primary.historyAvailable && <p role="status" className="rounded-md bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">{copy.historyUnavailable}</p>}
+          {(channelSheet.error || channelSheet.loading) && <p role="status" className="rounded-md bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">{channelSheet.error ? copy.metadataUnavailable : copy.metadataLoading}</p>}
           <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-[1.15fr_1.15fr_1.2fr_1fr]">
             <MonitorPanel title={copy.gpsTitle} tone="green">
               {(['online', 'offline', 'unknown'] as const).map((health) => {
@@ -607,6 +614,7 @@ export default function UnitStatusDashboard({
                 <thead><tr>{headers.map((header, index) => <th key={header.key} scope="col" aria-sort={sort.key === header.key ? sort.direction === 'asc' ? 'ascending' : 'descending' : 'none'} className={`sticky top-0 border-r border-white/10 bg-[#274357] px-2 py-2 text-center text-[10px] font-semibold text-white dark:bg-[#12232f] ${index === 0 ? 'left-0 z-30 min-w-[125px] text-left' : 'z-20'}`}><button type="button" className="inline-flex min-h-7 items-center justify-center gap-1 whitespace-nowrap rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" aria-label={`${copy.sortBy}: ${header.label}`} onClick={() => setSort((current) => ({ key: header.key, direction: current.key === header.key && current.direction === 'asc' ? 'desc' : 'asc' }))}>{header.label}<span aria-hidden="true" className="text-[9px] opacity-60">{sort.key === header.key ? sort.direction === 'asc' ? '↑' : '↓' : '↕'}</span></button></th>)}</tr></thead>
                 <tbody>{sorted.map((monitor, index) => {
                   const row = monitor.unit;
+                  const vehicleOffline = monitor.gpsStatus === 'offline';
                   const key = unitKey(row);
                   const isExpanded = expanded === key;
                   const detailsId = `unit-status-details-${instanceId}-${encodeURIComponent(key)}`;
@@ -617,13 +625,13 @@ export default function UnitStatusDashboard({
                       <th scope="row" className={`${matrixCell} sticky left-0 z-10 ${background} !text-left`}><span className="font-bold text-zinc-900 dark:text-zinc-100">{row.vehicleNo}</span>{monitor.duplicateRecording && <span className="ml-1 text-amber-700 dark:text-amber-400" title={copy.duplicateRecording}><span aria-hidden="true">⚠</span><span className="sr-only">{copy.duplicateRecording}</span></span>}<span className="ml-1 text-[9px] font-normal text-zinc-500 dark:text-zinc-400">{row.fleet}</span><button type="button" className="flex min-h-7 items-center gap-1 rounded text-[10px] font-medium text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-blue-300" aria-expanded={isExpanded} aria-controls={isExpanded ? detailsId : undefined} aria-label={`${isExpanded ? copy.hide : copy.show}: ${row.vehicleNo}${row.fleet ? ` · ${row.fleet}` : ''}`} onClick={() => setExpanded(isExpanded ? null : key)}>{isExpanded ? copy.hide : copy.show}<span aria-hidden="true">{isExpanded ? '▴' : '▾'}</span></button></th>
                       <td className={`${matrixCell} whitespace-nowrap !text-left tabular-nums`}><span className="block">{reportedTime(row.dataTime || row.updatedRaw, copy)}</span><span className="mt-0.5 block"><UpdateBadge status={row.updateStatus} copy={copy} /></span></td>
                       <td className={matrixCell}><span className={`text-[11px] font-semibold ${monitor.gpsStatus === 'online' ? 'text-green-700 dark:text-green-400' : monitor.gpsStatus === 'offline' ? 'text-red-700 dark:text-red-400' : 'text-zinc-400'}`}>{monitor.gpsStatus === 'unknown' ? copy.unknownBadge : copy[monitor.gpsStatus]}</span></td>
-                      <td className={`${matrixCell} bg-[#dcecd4] dark:bg-[#1f3325]`}><StatusMark status={monitor.statusAi} label={copy.aiStatus} copy={copy} /></td>
-                      <td className={`${matrixCell} bg-[#dcecd4] dark:bg-[#1f3325]`}><StatusMark status={monitor.deviceStatus} label={copy.device} copy={copy} />{monitor.geofence && <span className="block"><GeofenceBadge value={monitor.geofence} copy={copy} /></span>}</td>
+                      <td className={`${matrixCell} bg-[#dcecd4] dark:bg-[#1f3325]`}>{vehicleOffline ? <OfflineMark label={copy.aiStatus} copy={copy} /> : <StatusMark status={monitor.statusAi} label={copy.aiStatus} copy={copy} />}</td>
+                      <td className={`${matrixCell} bg-[#dcecd4] dark:bg-[#1f3325]`}>{vehicleOffline ? <OfflineMark label={copy.device} copy={copy} /> : <><StatusMark status={monitor.deviceStatus} label={copy.device} copy={copy} />{monitor.geofence && <span className="block"><GeofenceBadge value={monitor.geofence} copy={copy} /></span>}</>}</td>
                       {monitorColumns.map((column) => {
                         const check = checkMap.get(column.key);
                         const inactiveLabel = `${column[locale]}: ${copy.cameraInactive}. ${monitor.geofence === 'inferred' ? copy.geofenceInferred : copy.geofenceReported}`;
-                        return <td key={column.key} className={matrixCell}>{check && check.present !== false && (check.displayStatus === 'inactive'
-                          ? <span className="text-zinc-400 dark:text-zinc-500" title={inactiveLabel}><span aria-hidden="true">—</span><span className="sr-only">{inactiveLabel}</span></span>
+                        return <td key={column.key} className={matrixCell}>{vehicleOffline ? <OfflineMark label={column[locale]} copy={copy} /> : check && check.present !== false && (check.displayStatus === 'inactive'
+                          ? <span className="relative text-zinc-400 dark:text-zinc-500" title={inactiveLabel}><span aria-hidden="true">—</span><span className="sr-only">{inactiveLabel}</span></span>
                           : <StatusMark status={check.status} label={column[locale]} copy={copy} />)}</td>;
                       })}
                       <td className={matrixCell}><CompletionBadge monitor={monitor} copy={copy} /></td>
@@ -633,7 +641,6 @@ export default function UnitStatusDashboard({
                 })}{sorted.length === 0 && <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-sm text-zinc-500">{monitors.length ? copy.noMatch : copy.empty}</td></tr>}</tbody>
               </table>
             </div>
-            <div className="space-y-1 px-3 py-2 text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400"><p>{copy.checksLegend}</p><p>{copy.historyNote}</p><p>{copy.intercomNote}</p><p>{copy.defaultStatusNote}</p><p>{copy.activeRequired} · {copy.timeNote}</p>{(channelSheet.error || channelSheet.loading) && <p role="status">{channelSheet.error ? copy.metadataUnavailable : copy.metadataLoading}</p>}</div>
           </section>
         </div>
       )}
