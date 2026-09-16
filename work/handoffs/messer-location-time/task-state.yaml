@@ -1,0 +1,16 @@
+task: messer-location-time
+phase: verified_local_awaiting_release_approval
+root_provider: Codex
+root_model: UNKNOWN
+root_effort: UNKNOWN
+delegated_provider: Claude
+requested_model: fable
+requested_effort: high
+base_sha: 4cf5758101bfc01581f35a88ef84249e72dc30b5
+writer_lease: Codex root
+production_approval: absent
+source_patch_sha256: 84b8c8fbaddc94e8d20fa0b943b2deb93dcaf3d2dfb31f125cff8a60fe797f32
+claude_planning: unavailable_not_logged_in
+claude_review: unavailable_not_logged_in
+codex_independent_review: no_actionable_findings
+verification: focused_tests_13_pass_UTC_and_Bangkok_targeted_lint_live_sheet_pass

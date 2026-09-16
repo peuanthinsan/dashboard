@@ -2,7 +2,7 @@ import { detectSheetDateColumn } from './googleSheetFetch';
 import { gvizColumnLetter } from './googleSheetGvizUrl';
 import { parseGoogleSheetGvizText, type GoogleSheetColumn } from './googleSheetParse';
 import { LOCATION_FIELD_ALIASES } from './locationDataV1';
-import { normalizeLabel } from './dashboardDataUtils';
+import { normalizeLabel, parseDate } from './dashboardDataUtils';
 import {
   LOCATION_FLEET_FIELDS, LOCATION_MAX_RECORDS, LOCATION_PAGE_SIZE,
   type LocationVehicleCatalog, type LocationVehiclePage,
@@ -13,6 +13,7 @@ type CatalogSource = {
   catalog: LocationVehicleCatalog;
   vehicleColumn: string;
   orderColumn: string | null;
+  textTimeField: string | null;
   values: Map<string, Array<string | number>>;
   fleetColumn: string | null;
   fleetValues: Map<string, string[]>;
@@ -63,6 +64,7 @@ async function loadCatalog(sheetId: string, gid: string): Promise<CatalogSource>
   const trackIndex = columnIndex(columns, LOCATION_FIELD_ALIASES.trackTime!);
   const updatedIndex = columnIndex(columns, LOCATION_FIELD_ALIASES.updatedTime!);
   const orderIndex = [trackIndex, updatedIndex].find((index) => index >= 0 && ['date', 'datetime'].includes(columns[index]!.type));
+  const textTimeIndex = [trackIndex, updatedIndex].find((index) => index >= 0 && columns[index]!.type === 'string');
   const vehicleColumn = gvizColumnLetter(vehicleIndex);
   const group = [vehicleColumn, ...(fleetIndex >= 0 ? [gvizColumnLetter(fleetIndex)] : [])].join(',');
   // An aggregation returns one entry per vehicle/fleet, not all telemetry rows.
@@ -93,6 +95,7 @@ async function loadCatalog(sheetId: string, gid: string): Promise<CatalogSource>
   }
   return {
     vehicleColumn, orderColumn: orderIndex == null ? null : gvizColumnLetter(orderIndex), values,
+    textTimeField: textTimeIndex == null ? null : columns[textTimeIndex]!.fieldKey,
     fleetColumn: fleetIndex >= 0 ? gvizColumnLetter(fleetIndex) : null, fleetValues,
     catalog: {
       hasFleetColumn: fleetIndex >= 0, hasUnidentifiedVehicles,
@@ -133,13 +136,36 @@ export async function fetchLocationVehiclePage(
   }
   const values = source.values.get(vehicle);
   if (!values?.length) throw new Error('The selected vehicle is no longer in this sheet. Refresh the vehicle list.');
-  if (!source.orderColumn) throw new Error('Track Time or Updated Time must be a date/time column to load recent vehicle history.');
+  if (!source.orderColumn && !source.textTimeField) throw new Error('A Track Time or Updated Time date/time column is required to load recent vehicle history.');
   const limit = Math.min(LOCATION_PAGE_SIZE, LOCATION_MAX_RECORDS - offset);
   const where = values.map((value) => `${source.vehicleColumn} = ${locationVehicleLiteral(value)}`).join(' or ');
   const fleetValues = scopes.flatMap((scope) => source.fleetValues.get(normalizeLabel(scope)) ?? []);
   const fleetWhere = source.fleetColumn && scopes.length
     ? ` and (${fleetValues.map((value) => `${source.fleetColumn} = ${locationVehicleLiteral(value)}`).join(' or ')})`
     : '';
+  if (!source.orderColumn) {
+    // Text timestamps (including ISO dates with one-digit hours) cannot safely
+    // be ordered by GViz. Sort the COMPLETE selected vehicle history, never an
+    // arbitrary capped subset that might omit its newest records.
+    const parsed = await fetchQuery(sheetId, gid,
+      `select * where (${where})${fleetWhere} limit ${LOCATION_MAX_RECORDS + 1}`, signal);
+    if (parsed.rows.length > LOCATION_MAX_RECORDS) {
+      throw new Error('This vehicle has more than 25,000 records with text timestamps. Convert Track Time or Updated Time to a Google Sheets date/time column to load recent history.');
+    }
+    const sorted = parsed.rows.map((row) => {
+      const raw = row[source.textTimeField!];
+      const timestamp = raw == null || String(raw).trim() === '' ? null : parseDate(raw);
+      if (raw != null && String(raw).trim() !== '' && !timestamp) {
+        throw new Error('The vehicle history contains an unreadable timestamp. Check the Track Time or Updated Time values in the Google Sheet.');
+      }
+      return { row, time: timestamp?.getTime() ?? -Infinity };
+    }).sort((a, b) => b.time - a.time);
+    return {
+      columns: parsed.columns, rows: sorted.slice(offset, offset + limit).map(({ row }) => row), vehicle, offset,
+      hasMore: offset + limit < sorted.length,
+      lastUpdated: Date.now(),
+    };
+  }
   const parsed = await fetchQuery(sheetId, gid,
     `select * where (${where})${fleetWhere} order by ${source.orderColumn} desc limit ${limit + 1} offset ${offset}`, signal);
   return {
