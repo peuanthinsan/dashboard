@@ -27,6 +27,7 @@ export const siteCopy = {
       signingIn: 'Signing in, please wait',
       invalidDetails: 'Invalid login details.',
       invalidCredentials: 'Invalid email or password.',
+      unavailable: 'Sign-in is temporarily unavailable. Please try again shortly.',
     },
     register: {
       brandTitle: 'SongdeeGPS',
@@ -136,6 +137,7 @@ export const siteCopy = {
       signingIn: 'กำลังเข้าสู่ระบบ โปรดรอ',
       invalidDetails: 'ข้อมูลเข้าสู่ระบบไม่ถูกต้อง',
       invalidCredentials: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+      unavailable: 'ระบบเข้าสู่ระบบไม่พร้อมใช้งานชั่วคราว กรุณาลองอีกครั้งในอีกสักครู่',
     },
     register: {
       brandTitle: 'SongdeeGPS',

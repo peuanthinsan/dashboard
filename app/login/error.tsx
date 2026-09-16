@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { recoverLoginAfterError } from './login-navigation';
 
 import { readDashboardLangFromCookie } from 'app/dashboard/lang-client';
 import { getSiteCopy } from 'app/site-i18n-copy';
@@ -9,7 +9,6 @@ import { btnPrimary, btnSecondary, heading2, textSecondary } from 'app/ui/design
 
 export default function LoginError({
   error,
-  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -27,6 +26,20 @@ export default function LoginError({
 
   useEffect(() => {
     console.error('Login error:', error);
+    const controller = new AbortController();
+    // The action response can fail after its session cookie was already set.
+    // Verify the session before recovering with a fresh dashboard document.
+    void recoverLoginAfterError(async () => {
+      const response = await fetch('/api/auth/session', {
+        cache: 'no-store', credentials: 'same-origin', signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      const session = await response.json();
+      return controller.signal.aborted ? null : session;
+    }, (path) => {
+      if (!controller.signal.aborted) window.location.replace(path);
+    });
+    return () => controller.abort();
   }, [error]);
 
   return (
@@ -39,12 +52,12 @@ export default function LoginError({
         <h2 className={heading2}>{copy.loginRouteError.title}</h2>
         <p className={`mt-2 ${textSecondary}`}>{copy.loginRouteError.description}</p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <button type="button" onClick={reset} className={btnPrimary}>
+          <button type="button" onClick={() => window.location.replace('/login')} className={btnPrimary}>
             {copy.loginRouteError.tryAgain}
           </button>
-          <Link href="/login" className={btnSecondary}>
+          <a href="/login" className={btnSecondary}>
             {copy.loginRouteError.backToSignIn}
-          </Link>
+          </a>
         </div>
       </div>
     </main>

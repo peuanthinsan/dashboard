@@ -1,21 +1,12 @@
 import type { Metadata } from 'next';
-import { AuthError } from 'next-auth';
-import { headers } from 'next/headers';
 import Link from 'next/link';
 
-import { signIn } from 'app/auth';
-import {
-  checkRateLimit,
-  getClientIdentifier,
-  recordFailedAttempt,
-  RATE_LIMIT_MAX_LOGIN,
-} from 'app/lib/rate-limit';
+import { login } from 'app/login/actions';
 import { LoginForm } from 'app/login/login-form';
 import SongdeeLogo from 'app/ui/SongdeeLogo';
 import ThemeToggle from 'app/theme/ThemeToggle';
 import LanguageToggle from 'app/dashboard/LanguageToggle';
 import { getDashboardLang } from 'app/dashboard/i18n';
-import { buildLoginSchema } from 'app/lib/site-auth-schemas';
 import { getSiteCopy } from 'app/site-i18n-copy';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,52 +20,9 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type LoginState = {
-  error: string | null;
-};
-
 export default async function LoginPage() {
   const lang = await getDashboardLang();
   const copy = getSiteCopy(lang);
-
-  async function login(_prevState: LoginState, formData: FormData): Promise<LoginState> {
-    'use server';
-
-    const pageLang = await getDashboardLang();
-    const pageCopy = getSiteCopy(pageLang);
-    const loginSchema = buildLoginSchema(pageCopy.validation);
-
-    const email = formData.get('email');
-    const password = formData.get('password');
-    const parsed = loginSchema.safeParse({ email, password });
-
-    if (!parsed.success) {
-      const firstError = parsed.error.issues[0]?.message;
-      return { error: firstError ?? pageCopy.login.invalidDetails };
-    }
-
-    const clientId = await getClientIdentifier(headers);
-    const rateLimitResult = checkRateLimit(`login:${clientId}`, RATE_LIMIT_MAX_LOGIN);
-    if (!rateLimitResult.ok) {
-      return { error: pageCopy.rateLimitExceeded };
-    }
-
-    try {
-      await signIn('credentials', {
-        redirectTo: '/dashboard',
-        email: parsed.data.email,
-        password: parsed.data.password,
-      });
-    } catch (error) {
-      if (error instanceof AuthError) {
-        recordFailedAttempt(`login:${clientId}`);
-        return { error: pageCopy.login.invalidCredentials };
-      }
-      throw error;
-    }
-
-    return { error: null };
-  }
 
   return (
     <div className="flex min-h-[100dvh] min-h-screen">
