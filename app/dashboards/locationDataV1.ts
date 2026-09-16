@@ -280,8 +280,8 @@ export function normalizeLocationRows(rows: GoogleSheetRow[]): LocationRecord[] 
   });
 
   return records.sort((a, b) => {
-    const aTime = a.trackTime?.getTime();
-    const bTime = b.trackTime?.getTime();
+    const aTime = (a.trackTime ?? a.updatedTime)?.getTime();
+    const bTime = (b.trackTime ?? b.updatedTime)?.getTime();
     if (aTime == null && bTime != null) return 1;
     if (aTime != null && bTime == null) return -1;
     if (aTime != null && bTime != null && aTime !== bTime) return bTime - aTime;

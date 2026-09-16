@@ -10,6 +10,17 @@ import {
 } from './locationDataV1';
 
 describe('normalizeLocationRows', () => {
+  it('sorts complete sheet-order history by Track Time or Updated Time without lexical hour ordering', () => {
+    const records = normalizeLocationRows([
+      { 'Vehicle No': 'A', 'Track Time': '2026-09-12  9:59:52' },
+      { 'Vehicle No': 'A', 'Updated Time': '2026-09-13  10:00:00' },
+      { 'Vehicle No': 'A', 'Track Time': '2026-09-12  23:00:00' },
+      { 'Vehicle No': 'A' },
+      { 'Vehicle No': 'A', 'Updated Time': '2026-09-13  10:00:00' },
+    ]);
+    expect(records.map((record) => record.sourceIndex)).toEqual([1, 4, 2, 0, 3]);
+  });
+
   it('normalizes canonical and aliased sheet fields, keeps the source, and sorts newest first', () => {
     const canonicalRow: GoogleSheetRow = {
       'Vehicle No': ' 00-0055 ',
@@ -100,10 +111,10 @@ describe('normalizeLocationRows', () => {
     });
   });
 
-  it('uses source order as a stable tie-breaker and leaves undated rows last', () => {
+  it('uses source order as a stable tie-breaker and leaves rows without either timestamp last', () => {
     const records = normalizeLocationRows([
       { 'Vehicle No': 'FIRST', 'Track Time': '15/03/2026 10:00:00' },
-      { 'Vehicle No': 'UNDATED', 'Updated Time': '15/03/2026 12:00:00' },
+      { 'Vehicle No': 'UNDATED' },
       { 'Vehicle No': 'SECOND', 'Track Time': '15/03/2026 10:00:00' },
     ]);
 

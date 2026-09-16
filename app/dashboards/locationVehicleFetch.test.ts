@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchLocationVehicleCatalog, fetchLocationVehiclePage, locationVehicleLiteral } from './locationVehicleFetch';
+import { fetchLocationVehicleCatalog, fetchLocationVehicleHistoryPage, fetchLocationVehiclePage, locationVehicleLiteral } from './locationVehicleFetch';
 import { scopedLocationVehicles, LOCATION_MAX_RECORDS, LOCATION_PAGE_SIZE } from './locationVehicleData';
 
 const headers = [{ label: 'Vehicle No', type: 'string' }, { label: 'Track Time', type: 'datetime' }, { label: 'Fleet', type: 'string' }];
@@ -16,6 +16,94 @@ function responses(...bodies: string[]) {
   return urls;
 }
 afterEach(() => vi.unstubAllGlobals());
+
+describe('complete selected-vehicle history pages', () => {
+  it.each(['string', 'datetime'])('keeps %s timestamps in sheet order with one bounded lookahead row', async (timeType) => {
+    const pageHeaders = headers.map((column) => column.label === 'Track Time' ? { ...column, type: timeType } : column);
+    const times = timeType === 'string'
+      ? ['2026-09-12  9:59:52', '01/10/2026 00:00:00', null]
+      : ['Date(2026,8,12,9,59,52)', 'Date(2026,9,1,0,0,0)', null];
+    const rows = Array.from({ length: LOCATION_PAGE_SIZE + 1 }, (_, index) => ['TRUCK-A', times[index % times.length], 'Fleet A']);
+    const urls = responses(payload(pageHeaders), payload(groupHeaders, [['TRUCK-A', 'Fleet A', 30_000], ['TRUCK-B', 'Fleet A', 30_000]]),
+      payload(pageHeaders, rows));
+    const page = await fetchLocationVehicleHistoryPage(`location-history-${timeType}`, '0', 'TRUCK-A', 0, undefined, ['fleet a']);
+    expect(urls[2]!.searchParams.get('tq')).toBe("select * where (A = 'TRUCK-A') and (C = 'Fleet A') limit 2001 offset 0");
+    expect(page.rows).toHaveLength(LOCATION_PAGE_SIZE);
+    expect(page.rows.slice(0, times.length).map((row) => row['Track Time'])).toEqual(times);
+    expect(page.rows.every((row) => row['Vehicle No'] === 'TRUCK-A')).toBe(true);
+    expect(page).toMatchObject({ vehicle: 'TRUCK-A', offset: 0, hasMore: true });
+  });
+
+  it('continues beyond 25,000 records and returns the final page without truncation', async () => {
+    const rows = Array.from({ length: LOCATION_PAGE_SIZE + 1 }, () => ['TRUCK-A', 'Date(2026,8,12,9,59,52)', 'Fleet A']);
+    const finalRows = [['TRUCK-A', 'Date(2026,8,13,9,59,52)', 'Fleet A'], ['TRUCK-A', null, 'Fleet A']];
+    const urls = responses(payload(headers), payload(groupHeaders, [['TRUCK-A', 'Fleet A', 28_002]]),
+      payload(headers, rows), payload(headers, finalRows));
+    const continuation = await fetchLocationVehicleHistoryPage('location-history-over-25000', '0', 'TRUCK-A', 26_000);
+    expect(continuation.rows).toHaveLength(LOCATION_PAGE_SIZE);
+    expect(continuation).toMatchObject({ offset: 26_000, hasMore: true });
+    const final = await fetchLocationVehicleHistoryPage('location-history-over-25000', '0', 'TRUCK-A', 28_000);
+    expect(final.rows).toHaveLength(2);
+    expect(final).toMatchObject({ offset: 28_000, hasMore: false });
+    expect(urls.slice(2).map((url) => url.searchParams.get('tq'))).toEqual([
+      "select * where (A = 'TRUCK-A') limit 2001 offset 26000",
+      "select * where (A = 'TRUCK-A') limit 2001 offset 28000",
+    ]);
+    await expect(fetchLocationVehiclePage('location-history-over-25000', '0', 'TRUCK-A', 26_000)).rejects.toThrow('valid history offset');
+  });
+
+  it('preserves exact numeric vehicle and raw fleet equality', async () => {
+    const numericHeaders = headers.map((column) => column.label === 'Vehicle No' ? { ...column, type: 'number' } : column);
+    const urls = responses(payload(numericHeaders), payload(groupHeaders, [[55, 'Fleet A ', 2], [55, 'Fleet B', 2], [555, 'Fleet A ', 2]]),
+      payload(numericHeaders, [[55, 'Date(2026,8,12,9,59,52)', 'Fleet A ']]));
+    const page = await fetchLocationVehicleHistoryPage('location-history-numeric', '0', '55', 0, undefined, ['fleet a']);
+    expect(urls[2]!.searchParams.get('tq')).toBe("select * where (A = 55) and (C = 'Fleet A ') limit 2001 offset 0");
+    expect(page.rows).toHaveLength(1);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('keeps raw timestamp values and Updated Time fallback available for complete-history normalization', async () => {
+    const timeHeaders = [...headers.map((column) => ({ ...column, type: 'string' })), { label: 'Updated Time', type: 'string' }];
+    responses(payload(timeHeaders), payload(groupHeaders, [['A', 'Fleet A', 2]]), payload(timeHeaders, [
+      ['A', 'not a timestamp', 'Fleet A', '2026-09-12  9:59:52'],
+      ['A', null, 'Fleet A', '2026-09-13  9:59:52'],
+    ]));
+    const page = await fetchLocationVehicleHistoryPage('location-history-time-fallback', '0', 'A');
+    expect(page.rows.map((row) => [row['Track Time'], row['Updated Time']])).toEqual([
+      ['not a timestamp', '2026-09-12  9:59:52'], [null, '2026-09-13  9:59:52'],
+    ]);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('rejects unsafe, fractional, negative, and missing selections before fetching any rows', async () => {
+    const urls = responses();
+    for (const offset of [Number.MAX_SAFE_INTEGER + 1, Infinity, NaN, -1, 0.5]) {
+      await expect(fetchLocationVehicleHistoryPage('location-history-invalid', '0', 'A', offset)).rejects.toThrow('valid history offset');
+    }
+    await expect(fetchLocationVehicleHistoryPage('location-history-invalid', '0', '')).rejects.toThrow('valid history offset');
+    expect(urls).toHaveLength(0);
+  });
+
+  it('rejects unknown and unauthorized vehicles without requesting their telemetry', async () => {
+    const urls = responses(payload(headers), payload(groupHeaders, [['KNOWN', 'Fleet A', 1], ['OTHER', 'Fleet B', 1]]));
+    await expect(fetchLocationVehicleHistoryPage('location-history-unknown', '0', 'UNKNOWN')).rejects.toThrow('not available');
+    await expect(fetchLocationVehicleHistoryPage('location-history-unknown', '0', 'KNOWN', 0, undefined, ['Fleet B'])).rejects.toThrow('not available');
+    expect(urls).toHaveLength(2);
+  });
+
+  it('forwards cancellation to the bounded history request', async () => {
+    const bodies = [payload(headers), payload(groupHeaders, [['A', 'Fleet A', 1]])];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, options: RequestInit) => {
+      if (bodies.length) return new Response(bodies.shift()!);
+      expect(options.signal?.aborted).toBe(true);
+      options.signal!.throwIfAborted();
+      throw new Error('Expected an aborted signal');
+    }));
+    const controller = new AbortController();
+    controller.abort();
+    await expect(fetchLocationVehicleHistoryPage('location-history-abort', '0', 'A', 0, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});
 
 describe('vehicle-scoped sheet loading', () => {
   it('sorts the complete scoped text history before paging, including one-digit hours and month boundaries', async () => {

@@ -124,31 +124,57 @@ export async function fetchLocationVehicleCatalog(sheetId: string, gid: string, 
   return (await catalogSource(sheetId, gid, refresh)).catalog;
 }
 
-export async function fetchLocationVehiclePage(
-  sheetId: string, gid: string, vehicle: string, offset = 0, signal?: AbortSignal, scopes: string[] = [],
-): Promise<LocationVehiclePage> {
-  if (!vehicle.trim() || !Number.isInteger(offset) || offset < 0 || offset >= LOCATION_MAX_RECORDS) {
-    throw new Error('A vehicle and a valid history offset are required.');
-  }
+async function selectedVehicleQuery(sheetId: string, gid: string, vehicle: string, scopes: string[]) {
   const source = await catalogSource(sheetId, gid);
   if (!scopedLocationVehicles(source.catalog, scopes).includes(vehicle)) {
     throw new Error('The selected vehicle is not available in this dashboard scope.');
   }
   const values = source.values.get(vehicle);
   if (!values?.length) throw new Error('The selected vehicle is no longer in this sheet. Refresh the vehicle list.');
-  if (!source.orderColumn && !source.textTimeField) throw new Error('A Track Time or Updated Time date/time column is required to load recent vehicle history.');
-  const limit = Math.min(LOCATION_PAGE_SIZE, LOCATION_MAX_RECORDS - offset);
   const where = values.map((value) => `${source.vehicleColumn} = ${locationVehicleLiteral(value)}`).join(' or ');
   const fleetValues = scopes.flatMap((scope) => source.fleetValues.get(normalizeLabel(scope)) ?? []);
   const fleetWhere = source.fleetColumn && scopes.length
     ? ` and (${fleetValues.map((value) => `${source.fleetColumn} = ${locationVehicleLiteral(value)}`).join(' or ')})`
     : '';
+  return { source, predicate: `(${where})${fleetWhere}` };
+}
+
+/**
+ * Retrieve every selected-vehicle row in bounded, sheet-order pages. The client
+ * normalizes and sorts the complete history so text and native timestamps share
+ * one chronology without imposing a total-record limit.
+ */
+export async function fetchLocationVehicleHistoryPage(
+  sheetId: string, gid: string, vehicle: string, offset = 0, signal?: AbortSignal, scopes: string[] = [],
+): Promise<LocationVehiclePage> {
+  if (!vehicle.trim() || !Number.isSafeInteger(offset) || offset < 0) {
+    throw new Error('A vehicle and a valid history offset are required.');
+  }
+  const { predicate } = await selectedVehicleQuery(sheetId, gid, vehicle, scopes);
+  const parsed = await fetchQuery(sheetId, gid,
+    `select * where ${predicate} limit ${LOCATION_PAGE_SIZE + 1} offset ${offset}`, signal);
+  return {
+    columns: parsed.columns, rows: parsed.rows.slice(0, LOCATION_PAGE_SIZE), vehicle, offset,
+    hasMore: parsed.rows.length > LOCATION_PAGE_SIZE,
+    lastUpdated: Date.now(),
+  };
+}
+
+export async function fetchLocationVehiclePage(
+  sheetId: string, gid: string, vehicle: string, offset = 0, signal?: AbortSignal, scopes: string[] = [],
+): Promise<LocationVehiclePage> {
+  if (!vehicle.trim() || !Number.isInteger(offset) || offset < 0 || offset >= LOCATION_MAX_RECORDS) {
+    throw new Error('A vehicle and a valid history offset are required.');
+  }
+  const { source, predicate } = await selectedVehicleQuery(sheetId, gid, vehicle, scopes);
+  if (!source.orderColumn && !source.textTimeField) throw new Error('A Track Time or Updated Time date/time column is required to load recent vehicle history.');
+  const limit = Math.min(LOCATION_PAGE_SIZE, LOCATION_MAX_RECORDS - offset);
   if (!source.orderColumn) {
     // Text timestamps (including ISO dates with one-digit hours) cannot safely
     // be ordered by GViz. Sort the COMPLETE selected vehicle history, never an
     // arbitrary capped subset that might omit its newest records.
     const parsed = await fetchQuery(sheetId, gid,
-      `select * where (${where})${fleetWhere} limit ${LOCATION_MAX_RECORDS + 1}`, signal);
+      `select * where ${predicate} limit ${LOCATION_MAX_RECORDS + 1}`, signal);
     if (parsed.rows.length > LOCATION_MAX_RECORDS) {
       throw new Error('This vehicle has more than 25,000 records with text timestamps. Convert Track Time or Updated Time to a Google Sheets date/time column to load recent history.');
     }
@@ -167,7 +193,7 @@ export async function fetchLocationVehiclePage(
     };
   }
   const parsed = await fetchQuery(sheetId, gid,
-    `select * where (${where})${fleetWhere} order by ${source.orderColumn} desc limit ${limit + 1} offset ${offset}`, signal);
+    `select * where ${predicate} order by ${source.orderColumn} desc limit ${limit + 1} offset ${offset}`, signal);
   return {
     columns: parsed.columns, rows: parsed.rows.slice(0, limit), vehicle, offset,
     hasMore: parsed.rows.length > limit && offset + limit < LOCATION_MAX_RECORDS,

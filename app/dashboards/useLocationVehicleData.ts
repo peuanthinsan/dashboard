@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   scopedLocationVehicles, type LocationVehicleCatalog, type LocationVehiclePage,
 } from './locationVehicleData';
+import { fetchCompleteLocationVehicleHistory } from './locationVehicleHistory';
 
-type Snapshot = LocationVehiclePage & { key: string; nextOffset: number };
-type Status = { key: string; pending: boolean; error: string | null };
+type Snapshot = LocationVehiclePage & { key: string };
+type Status = { key: string; pending: boolean; error: string | null; loadedCount: number };
 const EMPTY_ROWS: LocationVehiclePage['rows'] = [];
 const EMPTY_COLUMNS: LocationVehiclePage['columns'] = [];
 
@@ -30,9 +31,9 @@ export default function useLocationVehicleData({
   const [catalogState, setCatalogState] = useState<{ key: string; data?: LocationVehicleCatalog; error?: string } | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
-  // Only recently visited vehicles are cached. No background fleet prefetch or full-sheet cache.
+  // Cache complete histories only. Never reuse partial data as a full vehicle view.
   const cache = useRef(new Map<string, Snapshot>());
-  const moreController = useRef<AbortController | null>(null);
+  const historyController = useRef<AbortController | null>(null);
   const scopeKey = JSON.stringify(scopes);
 
   useEffect(() => {
@@ -66,53 +67,37 @@ export default function useLocationVehicleData({
   useEffect(() => {
     if (!enabled || !selectedVehicle) return;
     const controller = new AbortController();
+    historyController.current = controller;
     const vehicle = selectedVehicle;
     const cached = cache.current.get(rowKey);
     async function load() {
       if (cached && Date.now() - cached.lastUpdated < 5 * 60_000) {
         setSnapshot(cached);
-        setStatus({ key: rowKey, pending: false, error: null });
+        setStatus({ key: rowKey, pending: false, error: null, loadedCount: cached.rows.length });
         return;
       }
-      setStatus({ key: rowKey, pending: true, error: null });
+      setStatus({ key: rowKey, pending: true, error: null, loadedCount: 0 });
       try {
-        const data = await getJson<LocationVehiclePage>(`${base}?${new URLSearchParams({ mode: 'location-rows', vehicle, scopes: scopeKey })}`, controller.signal);
-        if (!controller.signal.aborted) remember({ ...data, key: rowKey, nextOffset: data.rows.length });
-        if (!controller.signal.aborted) setStatus({ key: rowKey, pending: false, error: null });
+        const data = await fetchCompleteLocationVehicleHistory(base, vehicle, JSON.parse(scopeKey), controller.signal,
+          (loadedCount) => {
+            if (!controller.signal.aborted) setStatus({ key: rowKey, pending: true, error: null, loadedCount });
+          });
+        if (!controller.signal.aborted) remember({ ...data, key: rowKey });
+        if (!controller.signal.aborted) setStatus({ key: rowKey, pending: false, error: null, loadedCount: data.rows.length });
       } catch (error) {
-        if (!controller.signal.aborted) setStatus({ key: rowKey, pending: false, error: (error as Error).message });
+        if (!controller.signal.aborted) setStatus({ key: rowKey, pending: false, error: (error as Error).message, loadedCount: 0 });
       }
     }
     void load();
-    return () => { controller.abort(); moreController.current?.abort(); moreController.current = null; };
+    return () => { controller.abort(); if (historyController.current === controller) historyController.current = null; };
   }, [base, enabled, remember, rowKey, scopeKey, selectedVehicle]);
 
   // Hide the previous vehicle synchronously, before the next request effect runs.
-  const visible = selectedVehicle && snapshot?.key === rowKey ? snapshot : null;
   const currentStatus = status?.key === rowKey ? status : null;
-
-  const loadMore = useCallback(async () => {
-    if (!visible?.hasMore || moreController.current || currentStatus?.pending) return;
-    const controller = new AbortController();
-    moreController.current = controller;
-    setStatus({ key: rowKey, pending: true, error: null });
-    try {
-      const data = await getJson<LocationVehiclePage>(`${base}?${new URLSearchParams({
-        mode: 'location-rows', vehicle: visible.vehicle, offset: String(visible.nextOffset), scopes: scopeKey,
-      })}`, controller.signal);
-      if (!controller.signal.aborted) {
-        remember({ ...data, rows: [...visible.rows, ...data.rows], key: rowKey, nextOffset: data.offset + data.rows.length });
-        setStatus({ key: rowKey, pending: false, error: null });
-      }
-    } catch (error) {
-      if (!controller.signal.aborted) setStatus({ key: rowKey, pending: false, error: (error as Error).message });
-    } finally {
-      if (moreController.current === controller) moreController.current = null;
-    }
-  }, [base, currentStatus?.pending, remember, rowKey, scopeKey, visible]);
+  const visible = selectedVehicle && snapshot?.key === rowKey && !currentStatus?.pending && !currentStatus?.error ? snapshot : null;
 
   const refresh = useCallback(() => {
-    moreController.current?.abort();
+    historyController.current?.abort();
     cache.current.clear();
     setGeneration((value) => value + 1);
   }, []);
@@ -124,6 +109,6 @@ export default function useLocationVehicleData({
     refreshing: Boolean(currentStatus?.pending),
     error: selection.error ?? currentStatus?.error ?? null,
     lastUpdated: visible ? new Date(visible.lastUpdated) : null,
-    hasMore: visible?.hasMore ?? false, loadMore, refresh,
+    loadedCount: currentStatus?.loadedCount ?? 0, refresh,
   };
 }
