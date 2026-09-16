@@ -1,17 +1,16 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import type { SiteCopy } from 'app/site-i18n-copy';
+import type { LoginState } from './actions';
+import { navigateAfterLogin } from './login-navigation';
 import { inputBase, labelBase, btnPrimary, textMuted } from 'app/ui/design-tokens';
-
-type LoginState = {
-  error: string | null;
-};
 
 const initialState: LoginState = {
   error: null,
+  success: false,
 };
 
 type LoginCopy = SiteCopy['login'];
@@ -34,16 +33,17 @@ function FormError({ message, id }: { message: string | null; id: string }) {
   );
 }
 
-function SubmitButton({ copy }: { copy: LoginCopy }) {
+function SubmitButton({ copy, complete }: { copy: LoginCopy; complete: boolean }) {
   const { pending } = useFormStatus();
 
   return (
     <button
-      type={pending ? 'button' : 'submit'}
-      aria-disabled={pending}
+      type="submit"
+      disabled={pending || complete}
+      aria-disabled={pending || complete}
       className={`${btnPrimary} w-full py-2.5`}
     >
-      {pending ? (
+      {pending || complete ? (
         <svg
           className="h-4 w-4 animate-spin text-white"
           xmlns="http://www.w3.org/2000/svg"
@@ -68,7 +68,7 @@ function SubmitButton({ copy }: { copy: LoginCopy }) {
       ) : (
         copy.signIn
       )}
-      {pending ? (
+      {pending || complete ? (
         <span className="sr-only" role="status">
           {copy.signingIn}
         </span>
@@ -129,7 +129,7 @@ function LoginFields({ state, copy }: { state: LoginState; copy: LoginCopy }) {
         </p>
       </div>
       <FormError id={LOGIN_ERROR_ID} message={state.error} />
-      <SubmitButton copy={copy} />
+      <SubmitButton copy={copy} complete={state.success} />
     </>
   );
 }
@@ -142,6 +142,9 @@ export function LoginForm({
   copy: LoginCopy;
 }) {
   const [state, formAction] = useActionState(action, initialState);
+  useEffect(() => {
+    navigateAfterLogin(state, (path) => window.location.replace(path));
+  }, [state]);
 
   return (
     <form action={formAction} className="space-y-4">
