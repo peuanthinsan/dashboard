@@ -9,7 +9,7 @@ import {
 import { DEFAULT_SHEET_ROW_LIMIT } from 'app/dashboards/googleSheetGvizUrl';
 import { getUser, userCanAccessSheet } from 'app/db';
 import { isValidSheetGid, isValidSheetId } from 'app/admin/admin-utils';
-import { fetchLocationVehicleCatalog, fetchLocationVehiclePage } from 'app/dashboards/locationVehicleFetch';
+import { fetchLocationVehicleCatalog, fetchLocationVehicleHistoryPage, fetchLocationVehiclePage } from 'app/dashboards/locationVehicleFetch';
 import { LOCATION_MAX_RECORDS } from 'app/dashboards/locationVehicleData';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -44,6 +44,8 @@ async function authorize(sheetId: string, gid: string) {
  * GET /api/sheets/[sheetId]/[gid]
  *
  * Query params:
+ * - `mode=location-history&vehicle=...&offset=...` — selected-vehicle history in
+ *   bounded sheet-order pages, with no total history cap.
  * - `mode=months` — list calendar months present in the sheet (non-null id rows).
  * - `from=YYYY-MM-DD&to=YYYY-MM-DD` — rows in [from, to) with non-null id (≤25k).
  * - `video=1` (with from/to) — keep videoURL/Videoit in the pruned column set.
@@ -80,7 +82,7 @@ export async function GET(
       return NextResponse.json(await fetchLocationVehicleCatalog(sheetId, gid, url.searchParams.get('refresh') === '1'));
     }
 
-    if (mode === 'location-rows') {
+    if (mode === 'location-rows' || mode === 'location-history') {
       const vehicle = url.searchParams.get('vehicle');
       const offset = Number(url.searchParams.get('offset') ?? '0');
       let scopes: unknown;
@@ -88,10 +90,12 @@ export async function GET(
       if (!Array.isArray(scopes) || scopes.length > 500 || scopes.some((value) => typeof value !== 'string' || !value.trim() || value.length > 256)) {
         return NextResponse.json({ error: 'Invalid vehicle scope.' }, { status: 400 });
       }
-      if (!vehicle?.trim() || vehicle.length > 256 || !Number.isInteger(offset) || offset < 0 || offset >= LOCATION_MAX_RECORDS) {
+      if (!vehicle?.trim() || vehicle.length > 256 || !Number.isSafeInteger(offset) || offset < 0 ||
+        (mode === 'location-rows' && offset >= LOCATION_MAX_RECORDS)) {
         return NextResponse.json({ error: 'Select one vehicle and a valid history offset.' }, { status: 400 });
       }
-      return NextResponse.json(await fetchLocationVehiclePage(sheetId, gid, vehicle, offset, request.signal, scopes));
+      const fetchPage = mode === 'location-history' ? fetchLocationVehicleHistoryPage : fetchLocationVehiclePage;
+      return NextResponse.json(await fetchPage(sheetId, gid, vehicle, offset, request.signal, scopes));
     }
 
     if (mode === 'months') {
@@ -138,7 +142,7 @@ export async function GET(
       truncated: parsed.rows.length >= DEFAULT_SHEET_ROW_LIMIT,
     });
   } catch (err) {
-    if (mode === 'location-vehicles' || mode === 'location-rows') {
+    if (mode === 'location-vehicles' || mode === 'location-rows' || mode === 'location-history') {
       return NextResponse.json({ error: err instanceof Error ? err.message : 'Unable to load vehicle data.' }, { status: 502 });
     }
     if (err instanceof SheetDateColumnError) {

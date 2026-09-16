@@ -1,0 +1,14 @@
+task: location-complete-history
+phase: verified_local_ready_for_github
+base_sha: 7aabe34313adb7dfee93df3c8096d04e18be777d
+branch: codex/location-complete-history
+worktree: /private/tmp/songdee-location-complete-history
+root_provider: Codex
+root_model: UNKNOWN
+root_effort: UNKNOWN
+source_writer_lease: root
+backend_worker: completed
+claude_review: explicitly_waived_by_user
+publication_approval: prior_user_push_to_github
+merge_deployment_approval: absent
+verification: targeted_unit_tests_scoped_types_lint_and_browser

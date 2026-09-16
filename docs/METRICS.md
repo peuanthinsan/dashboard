@@ -532,6 +532,23 @@ requires grepping the others.
 
 ---
 
+## Location tracking history
+
+The location dashboard loads all records for exactly one selected vehicle and its
+fleet scope. It fetches bounded pages automatically; 2,000 is a network batch
+size, not a record-count limit. Counts, distance, moving time, speed summaries,
+filter options, and CSV exports use the complete history after loading finishes.
+Partial loads are not shown as complete metrics or cached; a failed batch exposes
+a retry action. Changing vehicles cancels the prior load and clears its visible
+data. No other vehicle is prefetched.
+
+Filters apply to the complete selected-vehicle history, so the location-records
+card counts matching records. The history table remains paginated for display.
+Chronology uses Track Time, falling back to Updated Time where needed. Existing
+GPS-gap/jump exclusions and Track-Time-based distance/duration calculations are
+unchanged. The redundant vehicle/driver-count subtitle is omitted from the
+location-records card.
+
 ## Open questions
 
 1. **Simple template counts excluded rows** (§1) — Simple never drops blank-remark

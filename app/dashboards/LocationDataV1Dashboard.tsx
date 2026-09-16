@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import DashboardShell, { dashboardSectionClass } from './DashboardShell';
 import LoadingState from './LoadingState';
 import useLocationVehicleData from './useLocationVehicleData';
-import { LOCATION_FLEET_FIELDS, LOCATION_MAX_RECORDS, LOCATION_PAGE_SIZE } from './locationVehicleData';
+import { LOCATION_FLEET_FIELDS } from './locationVehicleData';
 import { findValue, normalizeLabel, scopeFleetSet } from './dashboardDataUtils';
 import {
   buildLocationContinuityGroups,
@@ -195,7 +195,7 @@ export default function LocationDataV1Dashboard({
   const scopes = useMemo(() => Array.from(scopeSet), [scopeSet]);
   const {
     rows, columns: sheetColumns, loading, refreshing, error, lastUpdated, refresh,
-    selectedVehicle, vehicleOptions, hasMore, loadMore,
+    selectedVehicle, vehicleOptions, loadedCount,
   } = useLocationVehicleData({
     sheetId, gid: sheetGid, preferredVehicle: vehicles[0] ?? null, scopes,
     enabled: hydratedStorageKey === storageKey,
@@ -269,7 +269,7 @@ export default function LocationDataV1Dashboard({
   const exportRows = useMemo(() => filteredRecords.map(exportRow), [filteredRecords]);
   const tableRecords = useMemo<LocationTableRecord[]>(() => filteredRecords.map((record) => ({
     ...record,
-    trackTimestamp: record.trackTime?.getTime() ?? Number.NEGATIVE_INFINITY,
+    trackTimestamp: (record.trackTime ?? record.updatedTime)?.getTime() ?? Number.NEGATIVE_INFINITY,
     updatedTimestamp: record.updatedTime?.getTime() ?? Number.NEGATIVE_INFINITY,
   })), [filteredRecords]);
   const routeGroups = useMemo(
@@ -345,7 +345,7 @@ export default function LocationDataV1Dashboard({
         refreshing: 'กำลังรีเฟรช…',
         export: 'ส่งออก CSV',
         history: 'ประวัติตำแหน่ง',
-        historyHint: `แสดงประวัติที่โหลดของรถที่เลือก โหลดเพิ่มครั้งละ ${LOCATION_PAGE_SIZE.toLocaleString()} แถว สูงสุด ${LOCATION_MAX_RECORDS.toLocaleString()} แถว ตัวชี้วัดและการส่งออกใช้เฉพาะประวัติที่โหลด`,
+        historyHint: 'ประวัติทั้งหมดของรถที่เลือก ตัวกรองมีผลต่อแผนที่ ตัวชี้วัด และการส่งออก',
         noData: 'ไม่พบข้อมูลตำแหน่ง',
         noDataDetail: 'ตรวจสอบลิงก์ชีตหรือลองล้างตัวกรอง',
         trackTime: 'เวลาติดตาม',
@@ -377,7 +377,7 @@ export default function LocationDataV1Dashboard({
         refreshing: 'Refreshing…',
         export: 'Export CSV',
         history: 'Location history',
-        historyHint: `Showing loaded history for the selected vehicle. Load ${LOCATION_PAGE_SIZE.toLocaleString()} older records at a time, up to ${LOCATION_MAX_RECORDS.toLocaleString()}. KPIs and exports use loaded history only.`,
+        historyHint: 'Complete history for the selected vehicle. Filters apply to the map, metrics, and export.',
         noData: 'No location records found',
         noDataDetail: 'Check the sheet link or clear the current filters.',
         trackTime: 'Track Time',
@@ -569,7 +569,11 @@ export default function LocationDataV1Dashboard({
         </div>
       </section>
       {loading || (error && rows.length === 0) ? (
-        <LoadingState error={error ?? undefined} onRetry={refresh} lang={lang} />
+        <LoadingState
+          message={lang === 'th' ? 'กำลังโหลดประวัติทั้งหมด…' : 'Loading complete vehicle history…'}
+          detail={lang === 'th' ? `โหลดแล้ว ${loadedCount.toLocaleString()} บันทึก` : `${loadedCount.toLocaleString()} records loaded`}
+          error={error ?? undefined} onRetry={refresh} lang={lang}
+        />
       ) : records.length === 0 ? (
         <section className={dashboardSectionClass}>
           <EmptyState title={copy.noData} description={copy.noDataDetail} variant="dashboard" />
@@ -602,7 +606,6 @@ export default function LocationDataV1Dashboard({
             <KpiCard
               label={copy.records}
               value={summary.recordCount.toLocaleString()}
-              subtitle={`${summary.uniqueVehicleCount.toLocaleString()} ${copy.vehicles} · ${summary.uniqueDriverCount.toLocaleString()} ${copy.drivers}`}
               accentColor="#7c3aed"
             />
           </section>
@@ -674,14 +677,6 @@ export default function LocationDataV1Dashboard({
               />
             ) : (
               <EmptyState title={copy.noData} description={copy.noDataDetail} />
-            )}
-            {(hasMore || error) && (
-              <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200/70 p-4 dark:border-zinc-800/70">
-                {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-                {hasMore && <button type="button" disabled={refreshing} onClick={() => void loadMore()} className={`${btnSecondary} ${btnSmall}`}>
-                  {refreshing ? (lang === 'th' ? 'กำลังโหลด…' : 'Loading…') : (lang === 'th' ? 'โหลดประวัติเก่ากว่า' : 'Load older history')}
-                </button>}
-              </div>
             )}
           </section>
         </>
