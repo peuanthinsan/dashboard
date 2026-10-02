@@ -52,7 +52,7 @@ import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
 import { DrivingSheetLinkFields } from './DrivingSheetLinkFields';
 import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
 import { resolveTemplate, resolveTemplateForSave } from 'app/dashboards/dashboardDataUtils';
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'Location Data v1', 'UnitStatus'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'Location Data v1', 'FuelTopUp', 'UnitStatus'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
 
@@ -480,7 +480,7 @@ function DashboardRow({
               />
             </label>
           </div>
-          {!isLocationDataTemplate(editTemplate) ? (
+          {!isLocationDataTemplate(editTemplate) && resolveTemplate(editTemplate) !== 'FuelTopUp' ? (
             <AlertTypesAndRemarksSelector
               sheetId={dashboard.sheetId ?? undefined}
               sheetGid={dashboard.sheetGid ?? undefined}
@@ -509,7 +509,7 @@ function DashboardRow({
                 ))}
             </select>
           </label>
-          {!isLocationDataTemplate(editTemplate) ? (
+          {!isLocationDataTemplate(editTemplate) && resolveTemplate(editTemplate) !== 'FuelTopUp' ? (
             <AlertRulesEditor initial={dashboard.alertRules} />
           ) : null}
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1803,7 +1803,7 @@ export default function DashboardsClient({
                 className={`${ADMIN_TEXTAREA} resize-none`}
               />
             </div>
-            {!isLocationDataTemplate(createTemplate) ? (
+            {!isLocationDataTemplate(createTemplate) && resolveTemplate(createTemplate) !== 'FuelTopUp' ? (
               <div className="sm:col-span-2">
                 <AlertTypesAndRemarksSelector
                   sheetUrl={createSheetUrl}

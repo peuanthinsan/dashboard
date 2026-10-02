@@ -582,3 +582,50 @@ location-records card.
    templates parse speed with `Number()`, so "1,234" or blank reads as 0 and the
    row is excluded whenever a speed rule matches its remark. Align on
    `parseNumber` (comma-stripping) if any customer sheet formats speeds.
+
+
+## Fuel top-up / increase telemetry (FuelTopUp)
+
+Canonical: songdee-dashboard. Added 2026-10-01. The template reads all columns
+and rows of its configured public Google Sheet without alert remark exclusions
+or the alert query's row/column pruning. Required headers (case/trim insensitive):
+`Vehicle No`, `Date Time`, `Total Fuel`; optional `Speed`, `Ignition`, `Location`.
+The BGT reference sheet has one tab (gid 0), vehicle 700-2187, and 1,452 readings
+on 24 September 2026. Fuel units are unspecified; source units are the default.
+Choosing litres changes labels only and requires the viewer's confirmation.
+
+- **Fuel level** is the individual `Total Fuel` reading. Levels are not summed.
+- **Detected increase** = later fuel minus earlier fuel for consecutive readings
+  of the same vehicle, with both endpoints inside the selected time window.
+  Elapsed time must be strictly positive and at most 10 minutes. The increase
+  must be positive and meet the viewer's minimum (default 5 source units; an
+  exploratory filter, not an approved BGT refuelling rule). Each qualifying
+  transition is counted separately; adjacent rises are not merged into refills.
+- **Detected increase total** is the sum of qualifying positive differences.
+  It is neither confirmed fuel purchased nor consumption; sensor noise and
+  calibration can create repeated increases. No baseline or cost is inferred.
+- **Stationary increase** requires speed exactly zero at both endpoints. Missing
+  speed is unknown. This classification does not confirm refuelling.
+- Blank, negative, non-finite or invalid numeric values remain null (never zero).
+  A missing fuel reading breaks comparisons. Same-vehicle timestamp duplicates
+  with identical normalized fuel/speed/ignition/location are removed; conflicting
+  records remain as null-fuel barriers, retaining raw values in source export.
+  An unreadable timestamp blocks detection for that vehicle because chronology
+  cannot be established; its valid level readings remain visible.
+- Timestamps represent Bangkok wall-clock digits encoded with Date.UTC and read
+  with UTC accessors. DD/MM/YYYY H:mm:ss, GViz Date(...) and ISO calendar-digit
+  strings are accepted with strict calendar validation. Explicit ISO offsets
+  are not accepted; an optional Z uses the repository's wall-clock convention.
+- Vehicle/time filters apply to levels, increase calculations, metrics, tables
+  and exports. With no comparable valid pair, increase metrics display unavailable
+  rather than zero. Missing observations and gaps over ten minutes break lines.
+- When a Fleet/Organization column exists, configured organization names hard
+  scope the rows before filters. Without one, FuelTopUp designates a dedicated
+  telemetry source and includes the complete configured sheet, as stated in its
+  source notes. The viewer route still requires company and every assigned fleet
+  entitlement. Do not configure a multi-customer sheet without a fleet column.
+
+The sheet is refreshed on opening or explicit Refresh. Failed refreshes retain
+the last successful snapshot with a visible stale/error state. The preview at
+`/e2e-fixtures/bgt-fuel` is available only in development with
+`ALLOW_E2E_FIXTURES=true`; it embeds no telemetry and is unavailable in production.

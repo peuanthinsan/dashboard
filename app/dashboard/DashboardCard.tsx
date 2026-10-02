@@ -23,6 +23,7 @@ type DashboardCardProps = {
 };
 
 const templateIcons: Record<string, string> = {
+  FuelTopUp: '⛽',
   Summary: '📊',
   Detail: '📋',
   Simple: '📈',
@@ -37,6 +38,7 @@ const templateIcons: Record<string, string> = {
 };
 
 const templateColors: Record<string, string> = {
+  FuelTopUp: 'bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-950 dark:text-orange-200 dark:ring-orange-800',
   Summary: 'bg-red-50 text-red-700 ring-red-200/50 dark:bg-red-950/60 dark:text-red-300 dark:ring-red-800/30',
   Detail: 'bg-blue-50 text-blue-700 ring-blue-200/50 dark:bg-blue-950/60 dark:text-blue-300 dark:ring-blue-800/30',
   Simple: 'bg-zinc-900 text-white ring-zinc-700/50 dark:bg-zinc-700 dark:text-zinc-100 dark:ring-zinc-600/30',
@@ -51,6 +53,7 @@ const templateColors: Record<string, string> = {
 };
 
 const templateIconBg: Record<string, string> = {
+  FuelTopUp: 'bg-orange-50 ring-orange-200 dark:bg-orange-950 dark:ring-orange-800',
   Summary: 'bg-red-50 ring-red-200/40 dark:bg-red-950/40 dark:ring-red-800/30',
   Detail: 'bg-blue-50 ring-blue-200/40 dark:bg-blue-950/40 dark:ring-blue-800/30',
   Simple: 'bg-zinc-100 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60',
@@ -65,6 +68,7 @@ const templateIconBg: Record<string, string> = {
 };
 
 const templateDescriptions: Record<string, { en: string; th: string }> = {
+  FuelTopUp: { en: 'Fuel levels and detected increases', th: 'ระดับน้ำมันและค่าที่เพิ่มขึ้น' },
   Summary: { en: 'Overview with KPIs and charts', th: 'ภาพรวม KPI และกราฟ' },
   Detail: { en: 'In-depth alert analysis', th: 'วิเคราะห์การแจ้งเตือนเชิงลึก' },
   Simple: { en: 'Simple alerts & monthly summaries', th: 'การแจ้งเตือนแบบง่ายและสรุปรายเดือน' },
@@ -123,7 +127,8 @@ export default function DashboardCard({ id, name, template, sheetUrl, lang }: Da
     };
   }, [id, refreshScore]);
 
-  const displayTemplate = resolveTemplate(template ?? '') === 'UnitStatus' ? 'UnitStatus' : template;
+  const resolvedTemplate = resolveTemplate(template ?? '');
+  const displayTemplate = ['UnitStatus', 'FuelTopUp'].includes(resolvedTemplate) ? resolvedTemplate : template;
   const icon = templateIcons[displayTemplate ?? ''] ?? '📊';
   const badgeColor =
     templateColors[displayTemplate ?? ''] ?? 'bg-zinc-100 text-zinc-600 ring-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700/30';
