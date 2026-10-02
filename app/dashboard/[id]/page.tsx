@@ -16,6 +16,7 @@ import DetailDashboard from 'app/dashboards/DetailDashboard';
 import DrivingDashboard from 'app/dashboards/DrivingDashboard';
 import DynamicTripDashboard from 'app/dashboards/DynamicTripDashboard';
 import LocationDataV1Dashboard from 'app/dashboards/LocationDataV1Dashboard';
+import FuelTopUpDashboard from 'app/dashboards/FuelTopUpDashboard';
 import OverSpeedDashboard from 'app/dashboards/OverSpeedDashboard';
 import VehicleKpiDashboard from 'app/dashboards/VehicleKpiDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
@@ -102,6 +103,8 @@ function DashboardByTemplate({
 }: DashboardByTemplateProps) {
   const name = resolveTemplateName(template ?? 'Summary');
   switch (name) {
+    case 'FuelTopUp':
+      return <FuelTopUpDashboard {...props} isAdmin={isAdmin} />;
     case 'Detail':
       return <DetailDashboard {...props} isAdmin={isAdmin} driverOverrides={driverOverrides} />;
     case 'Simple':

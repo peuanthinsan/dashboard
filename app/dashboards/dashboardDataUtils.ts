@@ -534,6 +534,7 @@ export function resolveTemplate(template: string): string {
   ) {
     return 'UnitStatus';
   }
+  if (['fueltopup', 'fuel top-up', 'fuel top up', 'fuel'].includes(normalized)) return 'FuelTopUp';
   if (template === 'OverSpeed') return 'OverSpeed';
   if (normalized === 'vehicle kpi' || normalized === 'vehiclekpi') return 'VehicleKPI';
   if (template === 'DynamicTrip') return 'DynamicTrip';
