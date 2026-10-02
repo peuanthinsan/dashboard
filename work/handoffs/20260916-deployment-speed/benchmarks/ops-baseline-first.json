@@ -1,0 +1,31 @@
+{
+  "app": "ops",
+  "mode": "baseline-first",
+  "sha": "e888ae640b2b7fb6106f178c45fe20486c85fb66",
+  "node": "v24.19.0",
+  "identity": "gps01",
+  "status": "passed",
+  "error": "",
+  "totalMs": 118936,
+  "phases": [
+    {
+      "label": "install",
+      "cwd": "web",
+      "durationMs": 76183,
+      "exitCode": 0
+    },
+    {
+      "label": "tests",
+      "cwd": "",
+      "durationMs": 2074,
+      "exitCode": 0
+    },
+    {
+      "label": "build",
+      "cwd": "web",
+      "durationMs": 34888,
+      "exitCode": 0
+    }
+  ],
+  "at": "2026-09-16T06:07:06.352Z"
+}

@@ -1,0 +1,1 @@
+vercel inspect "$DEPLOYMENT_URL" --logs --scope="$VERCEL_ORG_ID" --token="$VERCEL_TOKEN"

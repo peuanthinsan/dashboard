@@ -1,0 +1,31 @@
+{
+  "app": "dashboard",
+  "mode": "optimized-warm",
+  "sha": "6cf74ff31fb3895874f4902e3d8055b357e24135",
+  "node": "v24.19.0",
+  "identity": "gps01",
+  "status": "failed",
+  "error": "Build command failed; exit code 3221226505",
+  "totalMs": 632563,
+  "phases": [
+    {
+      "label": "install",
+      "cwd": "",
+      "durationMs": 86108,
+      "exitCode": 0
+    },
+    {
+      "label": "tests",
+      "cwd": "",
+      "durationMs": 21080,
+      "exitCode": 0
+    },
+    {
+      "label": "build",
+      "cwd": "",
+      "durationMs": 524628,
+      "exitCode": 3221226505
+    }
+  ],
+  "at": "2026-09-16T06:38:43.356Z"
+}

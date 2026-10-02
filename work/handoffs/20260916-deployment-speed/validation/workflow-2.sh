@@ -1,0 +1,1 @@
+node --test hosting/*.node-test.cjs hosting/windows/*.node-test.cjs

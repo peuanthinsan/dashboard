@@ -1,0 +1,64 @@
+{
+  "createdAt": "2026-09-16T06:59:19.913Z",
+  "status": "prepared-not-published",
+  "apps": [
+    {
+      "name": "dashboard",
+      "base": "6cf74ff31fb3895874f4902e3d8055b357e24135",
+      "branch": "codex/deployment-speed",
+      "patch": "dashboard.patch",
+      "patchHash": "e8ad707fb8bdb06aa53414c130b8025ff57db884b400cb52ed7cb939bf9619b3",
+      "patchApplyCheck": "passed",
+      "files": {
+        ".github/workflows/ci.yml": "a4b070ff389d33df244f82299972bf610749d86f5972eda6cf11ef816a04ad52",
+        "eslint.config.mjs": "08ae57fec668c63c2bbb7b9219faf990521bef3df0f218cbee77f6c7cbf7c5c7",
+        "hosting/README.md": "0a37671b8ca91de37d53d7e2e6db9454cbd7d92af0638ac50193c98a20717f6f",
+        "hosting/build-cache.cjs": "a292cc92ba7a822aee2c6a5ab6b01f5163ab2e319f6cf8243ddca5170545d022",
+        "hosting/build-cache.node-test.cjs": "47f624259a4f84da05a8e6ab9f1d9d3b70a75f5b23f572e1d62cbb658e5b1b3f",
+        "hosting/build.cjs": "b79fb84fd2459324d22c2b6afae311acad1ecfbb48ad062ee8eade3559ea2931",
+        "hosting/windows/Controller.ps1": "193ff8833af42c72eb00155322217e3d900004b43784a2fa4d34805aef5e685d",
+        "hosting/windows/Install-Optimization.ps1": "c645aa007bef08bc527286c8729bd49d80ace4871abd74db5eec30aa609847a8",
+        "hosting/windows/change-policy.cjs": "2ee09141f06365046cd6eaf2326ede193aac6a1ff11107f7d8bbefeecd077c72",
+        "hosting/windows/change-policy.node-test.cjs": "0d23239330d32a50bc7bdf4f45419e9706e487d87a183ec1a6ba382313efe931",
+        "hosting/windows/install-manifest.json": "b250fb828e757fc8c9081821e916df6c08ea64cefcff5f0123f0a58ef11fcb7d",
+        "hosting/windows/worker.cjs": "a2302f63c8661bda8391ae647d039c798111fa7bdd6200cd47d9fc415642cdce",
+        "next.config.mjs": "eb88c00ad39a1207f6b830ba9f337de85df090bb2b8bf71193f46383190732fc",
+        "package-lock.json": "3f5675a7a65093d1ec6c8bc4672375ac3cedcbfcb543b92105111c05e67b4250",
+        "package.json": "e5e19a7701912ef013bd92f0b6bd50e6fe9549f1286cb610851e3066033f1dad"
+      }
+    },
+    {
+      "name": "svis",
+      "base": "7ce1404739b95748c114349a0e3982e6b31ded65",
+      "branch": "codex/deployment-speed",
+      "patch": "svis.patch",
+      "patchHash": "d3a4c6a1a192cfe5e81094bfa68b85d11b307a18360204c4bc30c82aa4221e3c",
+      "patchApplyCheck": "passed",
+      "files": {
+        ".github/workflows/ci.yml": "364222ed7edaa7f8e0f63b2d0cd25c80d905d9357785ce3a60980d3f2f5235a8",
+        "host/build.cjs": "d9a044367bb95ef54346577087209df5137f12e1e7d4fbee13e5eefc3649ca30",
+        "hosting/README.md": "0a37671b8ca91de37d53d7e2e6db9454cbd7d92af0638ac50193c98a20717f6f",
+        "hosting/build-cache.cjs": "a292cc92ba7a822aee2c6a5ab6b01f5163ab2e319f6cf8243ddca5170545d022",
+        "hosting/build-cache.node-test.cjs": "47f624259a4f84da05a8e6ab9f1d9d3b70a75f5b23f572e1d62cbb658e5b1b3f",
+        "hosting/build.cjs": "b79fb84fd2459324d22c2b6afae311acad1ecfbb48ad062ee8eade3559ea2931",
+        "hosting/runtime/package-lock.json": "357a2e85f3e8c4e3725edb11f55c82c1e3b59de940a39a6f98128b71404e3837",
+        "hosting/runtime/package.json": "0506badd9326539e57ee451e488b9c57169f4ed640ba6523b6cd795eb1735a78",
+        "vercel.json": "9fe58f74ae57cb0406273ea723fa593bc6858d10c8117732fb2fe2a2f41df70a"
+      }
+    },
+    {
+      "name": "ops",
+      "base": "e888ae640b2b7fb6106f178c45fe20486c85fb66",
+      "branch": "codex/deployment-speed",
+      "patch": "ops.patch",
+      "patchHash": "0e64e8b680f41d2510e49d2ab872b2913be4c8fc174a24f5ed82c28ba2b42327",
+      "patchApplyCheck": "passed",
+      "files": {
+        "hosting/README.md": "0a37671b8ca91de37d53d7e2e6db9454cbd7d92af0638ac50193c98a20717f6f",
+        "hosting/build-cache.cjs": "a292cc92ba7a822aee2c6a5ab6b01f5163ab2e319f6cf8243ddca5170545d022",
+        "hosting/build-cache.node-test.cjs": "47f624259a4f84da05a8e6ab9f1d9d3b70a75f5b23f572e1d62cbb658e5b1b3f",
+        "hosting/build.cjs": "b79fb84fd2459324d22c2b6afae311acad1ecfbb48ad062ee8eade3559ea2931"
+      }
+    }
+  ]
+}

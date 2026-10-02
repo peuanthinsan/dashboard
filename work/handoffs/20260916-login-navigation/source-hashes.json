@@ -1,0 +1,42 @@
+[
+  {
+    "path": "app/login/actions.ts",
+    "sha256": "865279c0d210cf6edf513220268f932c00168d607857dc16c84f9cc694f8dd88"
+  },
+  {
+    "path": "app/login/actions.test.ts",
+    "sha256": "0970389e07bb8584c5f018f3d23dc4886e92c4caa325c8b061d317aeb74873ef"
+  },
+  {
+    "path": "app/login/login-form.tsx",
+    "sha256": "718a14ce160662b6103725a223a2091c5721022b218d56aa7ad41711a2e614cc"
+  },
+  {
+    "path": "app/login/login-form.test.ts",
+    "sha256": "fa954685fcd3638161753000ffa19ad96dcdfbb5a53d74bd2b8fc95f040eb78a"
+  },
+  {
+    "path": "app/login/login-form-native.test.ts",
+    "sha256": "c2c60bc2c926d7dee2de56364fe6937a33600fe1494677d6990a06fa8211095a"
+  },
+  {
+    "path": "app/login/login-navigation.ts",
+    "sha256": "fc84aa4230f8f4c60c07c6ea775d43c7ba7730df65b60e67eb3d9cd17b248446"
+  },
+  {
+    "path": "app/login/login-navigation.test.ts",
+    "sha256": "898edb30ab7b7179129c245d7b22d3074db5cb2e415abad7501d26c1cab31f43"
+  },
+  {
+    "path": "app/login/error.tsx",
+    "sha256": "f28285c79af0ba36dcc80fbd27becfa28f70ce6f0d0407517de638ad42fe5f15"
+  },
+  {
+    "path": "app/login/page.tsx",
+    "sha256": "bbbea2c40d55115bfff4db6ef71a8fa749abb61ad4b0f0f465f09a93ae5d0ec4"
+  },
+  {
+    "path": "app/site-i18n-copy.ts",
+    "sha256": "75918c6b485be4be9c4828174aafa96a64be1486d4fb90cffc1adcff1a55636d"
+  }
+]

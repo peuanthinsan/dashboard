@@ -1,0 +1,87 @@
+
+added 46 packages in 1m
+
+[benchmark-phase] {"label":"install","cwd":"web","durationMs":65082,"exitCode":0}
+✔ password hashes verify only the original password (140.1577ms)
+✔ admin token is valid for its version until expiration (1.1378ms)
+✔ admin token rejects tampering and the wrong signing secret (0.3276ms)
+✔ production schema applies atomically and records the version required by health checks (17.0366ms)
+✔ production schema validates job timing, GPS values, and the active binding foreign key (2.827ms)
+✔ database migrations are ordered and checksum-protected (12.5284ms)
+✔ local and production APIs share an explicit compatibility contract (1.8916ms)
+✔ the Vercel web package is self-contained and its shared logic stays in sync (77.3959ms)
+✔ production API rejects oversized JSON before database or adapter work (49.4146ms)
+✔ production API reports malformed JSON without reaching the database (1.347ms)
+✔ production external GPS reconciliation never lets a late failed lookup overwrite a received Howen sample (2.7446ms)
+✔ production reconciles two external GPS sources by time and exposes an authorized job detail route (3.0553ms)
+(node:33312) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gps01/AppData/Local/Temp/songdee-deploy-opt-20260916/benchmarks/ops-optimized-safe-first/web/app/dashboard-api.js?work-period-gps-test=1789541308282 is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gps01\AppData\Local\Temp\songdee-deploy-opt-20260916\benchmarks\ops-optimized-safe-first\web\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ production exposes an authorized anchor-derived work-period GPS contract and a paging client (36.6109ms)
+✔ the work-period GPS client exhausts every server page without losing metadata or job IDs (56.2583ms)
+✔ production driver lookup rejects stale vehicle correlation before calling the adapter (3.7855ms)
+✔ tablet job history is signed and restricted to its current vehicle binding (3.8586ms)
+✔ tablet vehicle changes require both the signed device and fleet-admin password (3.5699ms)
+✔ local and production fleet endpoints require explicit device correlation and align idempotent setup responses (42.9992ms)
+✔ production schema serializes active jobs against binding changes (4.445ms)
+✔ production stores work-period route assignments and inherits them until Finish work (3.8517ms)
+✔ production route inheritance excludes only the previous Finish row at an inclusive period boundary (4.3144ms)
+✔ production binding history uses an exclusive unbound boundary (4.7032ms)
+✔ production password changes compare and replace the current hash atomically (2.4579ms)
+✔ local SQL preserves parameters and executes an awaited query only once (3.7515ms)
+✔ local transaction commits all queries on one connection with requested isolation (1.0484ms)
+✔ local transaction rolls back and releases its connection after a query failure (1.1934ms)
+✔ local adapter refuses remote hosts, executed transaction queries and unsafe isolation (0.8404ms)
+(node:34024) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cloud proxy is unchanged unless Windows flag equals 1 (95.2214ms)
+✔ Windows proxy blocks API2 host and rejects malformed authorities (5.4963ms)
+✔ Windows rate limiting uses only the proxy-appended valid client IP (12.953ms)
+✔ standalone Next output is opt-in and cloud rewrites remain configured (7.4253ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1582.2042
+
+[benchmark-phase] {"label":"tests","cwd":"","durationMs":1794,"exitCode":0}
+▲ Next.js 16.3.1 (Turbopack)
+✓ Running next.config.mjs took 53ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 16.8s
+  Running TypeScript ...
+  Finished TypeScript in 1996ms ...
+  Collecting page data using 5 workers ...
+  Generating static pages using 5 workers (0/11) ...
+  Generating static pages using 5 workers (2/11) 
+  Generating static pages using 5 workers (5/11) 
+  Generating static pages using 5 workers (8/11) 
+✓ Generating static pages using 5 workers (11/11) in 597ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /admin
+├ ƒ /api/[[...segments]]
+├ ○ /icon.svg
+├ ○ /manifest.webmanifest
+├ ○ /_not-found
+├ ○ /print/landscape
+├ ○ /print/portrait
+├ ○ /routes
+├ ○ /settings
+└ ○ /timeline
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+[benchmark-phase] {"label":"build","cwd":"web","durationMs":33112,"exitCode":0}

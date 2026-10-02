@@ -1,0 +1,1 @@
+npm install --global vercel@59.13.1 --no-audit --no-fund

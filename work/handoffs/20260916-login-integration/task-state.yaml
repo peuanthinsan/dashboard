@@ -1,0 +1,44 @@
+task: 20260916-login-integration
+status: deployed-public-site-verified
+active_root: Codex
+root_model: UNKNOWN
+root_effort: UNKNOWN
+base_sha: 4cf5758101bfc01581f35a88ef84249e72dc30b5
+source_writer: root
+delegated_provider: Claude
+delegated_lane: read-only-review
+claude_review: unavailable-not-logged-in
+fallback_review: Codex-PASS
+opposite_provider_review_complete: false
+targeted_tests: 19-passed
+targeted_lint: passed
+browser_checks: 5-passed-with-native-route-scope-limit
+browser_evidence: /private/tmp/songdee-login-browser-20260916/receipt.md
+fixture_server_stopped: true
+source_changed_after_review: false
+publish_approved: true
+deploy_approved: true
+fallback_review_accepted_by_user: true
+release_base_sha: 6cf74ff31fb3895874f4902e3d8055b357e24135
+release_branch: codex/login-navigation-fix
+release_commit: 46d676e00499e44378bc18bae9568d674d3323ae
+pull_request: https://github.com/peuanthinsan/dashboard/pull/259
+pull_request_ci_run: 35082127279
+pull_request_ci_result: success
+merge_sha: ab97c752ae5a8fbb7c92293d4852bcdc1adb36a7
+merged_at: 2026-09-16T09:58:01Z
+public_deployment_target: https://dashboard.songdeegps.com
+public_baseline_build_id: xjW93jBb8r94YA0ZtN1ft
+public_release_build_id: TUEm3xHq-a9wZHhESKkK7
+public_rollout_observed_at: 2026-09-16T10:03:35Z
+public_render_verified_at: 2026-09-16T10:10:41Z
+public_login_http: 200
+public_session_http: 200
+live_evidence: /private/tmp/songdee-login-live-verification/rollout-receipt.md
+main_ci_run: 35082366898
+main_ci_gates: passed
+separate_vercel_deployment_last_status: staging-in-progress
+prior_untracked_paths:
+  - work/handoffs/20260916-deployment-speed/
+  - work/handoffs/20260916-login-navigation/
+  - work/handoffs/20260916-login-recovery/

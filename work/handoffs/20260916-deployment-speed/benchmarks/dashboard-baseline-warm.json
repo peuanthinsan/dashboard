@@ -1,0 +1,31 @@
+{
+  "app": "dashboard",
+  "mode": "baseline-warm",
+  "sha": "6cf74ff31fb3895874f4902e3d8055b357e24135",
+  "node": "v24.19.0",
+  "identity": "gps01",
+  "status": "passed",
+  "error": "",
+  "totalMs": 187916,
+  "phases": [
+    {
+      "label": "install",
+      "cwd": "",
+      "durationMs": 107985,
+      "exitCode": 0
+    },
+    {
+      "label": "tests",
+      "cwd": "",
+      "durationMs": 23665,
+      "exitCode": 0
+    },
+    {
+      "label": "build",
+      "cwd": "",
+      "durationMs": 49853,
+      "exitCode": 0
+    }
+  ],
+  "at": "2026-09-16T06:15:14.356Z"
+}

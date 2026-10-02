@@ -1,0 +1,552 @@
+diff --git a/app/login/error.tsx b/app/login/error.tsx
+index 904eced..0e60900 100644
+--- a/app/login/error.tsx
++++ b/app/login/error.tsx
+@@ -1,7 +1,7 @@
+ 'use client';
+ 
+ import { useEffect, useMemo, useState } from 'react';
+-import Link from 'next/link';
++import { recoverLoginAfterError } from './login-navigation';
+ 
+ import { readDashboardLangFromCookie } from 'app/dashboard/lang-client';
+ import { getSiteCopy } from 'app/site-i18n-copy';
+@@ -9,7 +9,6 @@ import { btnPrimary, btnSecondary, heading2, textSecondary } from 'app/ui/design
+ 
+ export default function LoginError({
+   error,
+-  reset,
+ }: {
+   error: Error & { digest?: string };
+   reset: () => void;
+@@ -27,6 +26,20 @@ export default function LoginError({
+ 
+   useEffect(() => {
+     console.error('Login error:', error);
++    const controller = new AbortController();
++    // The action response can fail after its session cookie was already set.
++    // Verify the session before recovering with a fresh dashboard document.
++    void recoverLoginAfterError(async () => {
++      const response = await fetch('/api/auth/session', {
++        cache: 'no-store', credentials: 'same-origin', signal: controller.signal,
++      });
++      if (!response.ok) return null;
++      const session = await response.json();
++      return controller.signal.aborted ? null : session;
++    }, (path) => {
++      if (!controller.signal.aborted) window.location.replace(path);
++    });
++    return () => controller.abort();
+   }, [error]);
+ 
+   return (
+@@ -39,12 +52,12 @@ export default function LoginError({
+         <h2 className={heading2}>{copy.loginRouteError.title}</h2>
+         <p className={`mt-2 ${textSecondary}`}>{copy.loginRouteError.description}</p>
+         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+-          <button type="button" onClick={reset} className={btnPrimary}>
++          <button type="button" onClick={() => window.location.replace('/login')} className={btnPrimary}>
+             {copy.loginRouteError.tryAgain}
+           </button>
+-          <Link href="/login" className={btnSecondary}>
++          <a href="/login" className={btnSecondary}>
+             {copy.loginRouteError.backToSignIn}
+-          </Link>
++          </a>
+         </div>
+       </div>
+     </main>
+diff --git a/app/login/login-form.tsx b/app/login/login-form.tsx
+index 0d70ff5..6f425bf 100644
+--- a/app/login/login-form.tsx
++++ b/app/login/login-form.tsx
+@@ -1,17 +1,16 @@
+ 'use client';
+ 
+-import { useActionState } from 'react';
++import { useActionState, useEffect } from 'react';
+ import { useFormStatus } from 'react-dom';
+ 
+ import type { SiteCopy } from 'app/site-i18n-copy';
++import type { LoginState } from './actions';
++import { navigateAfterLogin } from './login-navigation';
+ import { inputBase, labelBase, btnPrimary, textMuted } from 'app/ui/design-tokens';
+ 
+-type LoginState = {
+-  error: string | null;
+-};
+-
+ const initialState: LoginState = {
+   error: null,
++  success: false,
+ };
+ 
+ type LoginCopy = SiteCopy['login'];
+@@ -34,16 +33,17 @@ function FormError({ message, id }: { message: string | null; id: string }) {
+   );
+ }
+ 
+-function SubmitButton({ copy }: { copy: LoginCopy }) {
++function SubmitButton({ copy, complete }: { copy: LoginCopy; complete: boolean }) {
+   const { pending } = useFormStatus();
+ 
+   return (
+     <button
+-      type={pending ? 'button' : 'submit'}
+-      aria-disabled={pending}
++      type="submit"
++      disabled={pending || complete}
++      aria-disabled={pending || complete}
+       className={`${btnPrimary} w-full py-2.5`}
+     >
+-      {pending ? (
++      {pending || complete ? (
+         <svg
+           className="h-4 w-4 animate-spin text-white"
+           xmlns="http://www.w3.org/2000/svg"
+@@ -68,7 +68,7 @@ function SubmitButton({ copy }: { copy: LoginCopy }) {
+       ) : (
+         copy.signIn
+       )}
+-      {pending ? (
++      {pending || complete ? (
+         <span className="sr-only" role="status">
+           {copy.signingIn}
+         </span>
+@@ -129,7 +129,7 @@ function LoginFields({ state, copy }: { state: LoginState; copy: LoginCopy }) {
+         </p>
+       </div>
+       <FormError id={LOGIN_ERROR_ID} message={state.error} />
+-      <SubmitButton copy={copy} />
++      <SubmitButton copy={copy} complete={state.success} />
+     </>
+   );
+ }
+@@ -142,6 +142,9 @@ export function LoginForm({
+   copy: LoginCopy;
+ }) {
+   const [state, formAction] = useActionState(action, initialState);
++  useEffect(() => {
++    navigateAfterLogin(state, (path) => window.location.replace(path));
++  }, [state]);
+ 
+   return (
+     <form action={formAction} className="space-y-4">
+diff --git a/app/login/page.tsx b/app/login/page.tsx
+index dae26d9..5a9dd8a 100644
+--- a/app/login/page.tsx
++++ b/app/login/page.tsx
+@@ -1,21 +1,12 @@
+ import type { Metadata } from 'next';
+-import { AuthError } from 'next-auth';
+-import { headers } from 'next/headers';
+ import Link from 'next/link';
+ 
+-import { signIn } from 'app/auth';
+-import {
+-  checkRateLimit,
+-  getClientIdentifier,
+-  recordFailedAttempt,
+-  RATE_LIMIT_MAX_LOGIN,
+-} from 'app/lib/rate-limit';
++import { login } from 'app/login/actions';
+ import { LoginForm } from 'app/login/login-form';
+ import SongdeeLogo from 'app/ui/SongdeeLogo';
+ import ThemeToggle from 'app/theme/ThemeToggle';
+ import LanguageToggle from 'app/dashboard/LanguageToggle';
+ import { getDashboardLang } from 'app/dashboard/i18n';
+-import { buildLoginSchema } from 'app/lib/site-auth-schemas';
+ import { getSiteCopy } from 'app/site-i18n-copy';
+ 
+ export async function generateMetadata(): Promise<Metadata> {
+@@ -29,53 +20,10 @@ export async function generateMetadata(): Promise<Metadata> {
+   };
+ }
+ 
+-type LoginState = {
+-  error: string | null;
+-};
+-
+ export default async function LoginPage() {
+   const lang = await getDashboardLang();
+   const copy = getSiteCopy(lang);
+ 
+-  async function login(_prevState: LoginState, formData: FormData): Promise<LoginState> {
+-    'use server';
+-
+-    const pageLang = await getDashboardLang();
+-    const pageCopy = getSiteCopy(pageLang);
+-    const loginSchema = buildLoginSchema(pageCopy.validation);
+-
+-    const email = formData.get('email');
+-    const password = formData.get('password');
+-    const parsed = loginSchema.safeParse({ email, password });
+-
+-    if (!parsed.success) {
+-      const firstError = parsed.error.issues[0]?.message;
+-      return { error: firstError ?? pageCopy.login.invalidDetails };
+-    }
+-
+-    const clientId = await getClientIdentifier(headers);
+-    const rateLimitResult = checkRateLimit(`login:${clientId}`, RATE_LIMIT_MAX_LOGIN);
+-    if (!rateLimitResult.ok) {
+-      return { error: pageCopy.rateLimitExceeded };
+-    }
+-
+-    try {
+-      await signIn('credentials', {
+-        redirectTo: '/dashboard',
+-        email: parsed.data.email,
+-        password: parsed.data.password,
+-      });
+-    } catch (error) {
+-      if (error instanceof AuthError) {
+-        recordFailedAttempt(`login:${clientId}`);
+-        return { error: pageCopy.login.invalidCredentials };
+-      }
+-      throw error;
+-    }
+-
+-    return { error: null };
+-  }
+-
+   return (
+     <div className="flex min-h-[100dvh] min-h-screen">
+       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 p-12 lg:flex">
+diff --git a/app/site-i18n-copy.ts b/app/site-i18n-copy.ts
+index 52f9f1b..6021004 100644
+--- a/app/site-i18n-copy.ts
++++ b/app/site-i18n-copy.ts
+@@ -27,6 +27,7 @@ export const siteCopy = {
+       signingIn: 'Signing in, please wait',
+       invalidDetails: 'Invalid login details.',
+       invalidCredentials: 'Invalid email or password.',
++      unavailable: 'Sign-in is temporarily unavailable. Please try again shortly.',
+     },
+     register: {
+       brandTitle: 'SongdeeGPS',
+@@ -136,6 +137,7 @@ export const siteCopy = {
+       signingIn: 'กำลังเข้าสู่ระบบ โปรดรอ',
+       invalidDetails: 'ข้อมูลเข้าสู่ระบบไม่ถูกต้อง',
+       invalidCredentials: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
++      unavailable: 'ระบบเข้าสู่ระบบไม่พร้อมใช้งานชั่วคราว กรุณาลองอีกครั้งในอีกสักครู่',
+     },
+     register: {
+       brandTitle: 'SongdeeGPS',
+diff --git a/app/login/actions.ts b/app/login/actions.ts
+new file mode 100644
+index 0000000..67a7e56
+--- /dev/null
++++ b/app/login/actions.ts
+@@ -0,0 +1,60 @@
++'use server';
++
++import { AuthError } from 'next-auth';
++import { headers } from 'next/headers';
++import { redirect } from 'next/navigation';
++import { signIn } from 'app/auth';
++import { getDashboardLang } from 'app/dashboard/i18n';
++import { buildLoginSchema } from 'app/lib/site-auth-schemas';
++import {
++  checkRateLimit,
++  getClientIdentifier,
++  recordFailedAttempt,
++  RATE_LIMIT_MAX_LOGIN,
++} from 'app/lib/rate-limit';
++import { getSiteCopy } from 'app/site-i18n-copy';
++
++export type LoginState = {
++  error: string | null;
++  success: boolean;
++};
++
++export async function login(_prevState: LoginState, formData: FormData): Promise<LoginState> {
++  const copy = getSiteCopy(await getDashboardLang());
++  const parsed = buildLoginSchema(copy.validation).safeParse({
++    email: formData.get('email'),
++    password: formData.get('password'),
++  });
++  if (!parsed.success) {
++    return { error: parsed.error.issues[0]?.message ?? copy.login.invalidDetails, success: false };
++  }
++
++  const clientId = await getClientIdentifier(headers);
++  if (!checkRateLimit(`login:${clientId}`, RATE_LIMIT_MAX_LOGIN).ok) {
++    return { error: copy.rateLimitExceeded, success: false };
++  }
++
++  try {
++    // Set the session cookie, then let the form perform a full document navigation.
++    // This avoids reusing a pre-login client router tree after authentication.
++    await signIn('credentials', {
++      redirect: false,
++      redirectTo: '/dashboard',
++      email: parsed.data.email,
++      password: parsed.data.password,
++    });
++  } catch (error) {
++    if (error instanceof AuthError) {
++      if (error.type === 'CredentialsSignin') {
++        recordFailedAttempt(`login:${clientId}`);
++        return { error: copy.login.invalidCredentials, success: false };
++      }
++      return { error: copy.login.unavailable, success: false };
++    }
++    throw error;
++  }
++
++  // Native form posts need an HTTP redirect when JavaScript has not hydrated.
++  if (!(await headers()).has('next-action')) redirect('/dashboard');
++  return { error: null, success: true };
++}
+diff --git a/app/login/actions.test.ts b/app/login/actions.test.ts
+new file mode 100644
+index 0000000..87dee6f
+--- /dev/null
++++ b/app/login/actions.test.ts
+@@ -0,0 +1,90 @@
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { AuthError, CredentialsSignin } from 'next-auth';
++import { getSiteCopy } from 'app/site-i18n-copy';
++
++const mocks = vi.hoisted(() => ({
++  signIn: vi.fn(), checkRateLimit: vi.fn(), recordFailedAttempt: vi.fn(), headers: vi.fn(), redirect: vi.fn(),
++}));
++vi.mock('app/auth', () => ({ signIn: mocks.signIn }));
++vi.mock('next/headers', () => ({ headers: mocks.headers }));
++vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
++vi.mock('next-auth', async () => {
++  const { AuthError, CredentialsSignin } = await import('@auth/core/errors');
++  return { AuthError, CredentialsSignin };
++});
++vi.mock('app/dashboard/i18n', () => ({ getDashboardLang: async () => 'en' }));
++vi.mock('app/lib/rate-limit', () => ({
++  checkRateLimit: mocks.checkRateLimit,
++  recordFailedAttempt: mocks.recordFailedAttempt,
++  getClientIdentifier: async () => 'diagnostic-client',
++  RATE_LIMIT_MAX_LOGIN: 5,
++}));
++
++import { login } from './actions';
++const initial = { error: null, success: false };
++const copy = getSiteCopy('en');
++function credentials(email = 'test@example.invalid') {
++  const data = new FormData();
++  data.set('email', email);
++  data.set('password', 'test-password-only');
++  return data;
++}
++beforeEach(() => {
++  vi.resetAllMocks();
++  mocks.checkRateLimit.mockReturnValue({ ok: true });
++  mocks.headers.mockResolvedValue(new Headers({ 'Next-Action': 'diagnostic-action-id' }));
++  mocks.redirect.mockImplementation(() => { throw new Error('NEXT_REDIRECT'); });
++  mocks.signIn.mockResolvedValue('https://dashboard.songdeegps.com/dashboard');
++});
++describe('login server action', () => {
++  it('confirms a successful session without a framework redirect', async () => {
++    expect(await login(initial, credentials())).toEqual({ error: null, success: true });
++    expect(mocks.signIn).toHaveBeenCalledExactlyOnceWith('credentials', {
++      email: 'test@example.invalid', password: 'test-password-only',
++      redirect: false, redirectTo: '/dashboard',
++    });
++    expect(mocks.recordFailedAttempt).not.toHaveBeenCalled();
++  });
++  it('preserves the server redirect for native form submission before hydration', async () => {
++    mocks.headers.mockResolvedValue(new Headers());
++    await expect(login(initial, credentials())).rejects.toThrow('NEXT_REDIRECT');
++    expect(mocks.signIn).toHaveBeenCalledOnce();
++    expect(mocks.redirect).toHaveBeenCalledExactlyOnceWith('/dashboard');
++    expect(mocks.redirect.mock.invocationCallOrder[0]).toBeGreaterThan(mocks.signIn.mock.invocationCallOrder[0]);
++  });
++  it('does not report success before authentication completes', async () => {
++    let finish!: (value: string) => void;
++    mocks.signIn.mockReturnValue(new Promise<string>(resolve => { finish = resolve; }));
++    let completed = false;
++    const pending = login(initial, credentials()).then(result => { completed = true; return result; });
++    await vi.waitFor(() => expect(mocks.signIn).toHaveBeenCalledOnce());
++    expect(completed).toBe(false);
++    finish('/dashboard');
++    expect(await pending).toEqual({ error: null, success: true });
++  });
++  it('counts wrong credentials and keeps their existing message', async () => {
++    mocks.signIn.mockRejectedValue(new CredentialsSignin());
++    expect(await login(initial, credentials())).toEqual({ error: copy.login.invalidCredentials, success: false });
++    expect(mocks.recordFailedAttempt).toHaveBeenCalledExactlyOnceWith('login:diagnostic-client');
++  });
++  it('does not label service errors as bad credentials or consume password retries', async () => {
++    mocks.signIn.mockRejectedValue(new AuthError('upstream unavailable'));
++    expect(await login(initial, credentials())).toEqual({ error: copy.login.unavailable, success: false });
++    expect(mocks.recordFailedAttempt).not.toHaveBeenCalled();
++  });
++  it('enforces rate limiting before authentication', async () => {
++    mocks.checkRateLimit.mockReturnValue({ ok: false });
++    expect(await login(initial, credentials())).toEqual({ error: copy.rateLimitExceeded, success: false });
++    expect(mocks.signIn).not.toHaveBeenCalled();
++  });
++  it('rejects malformed input before authentication', async () => {
++    expect((await login(initial, credentials('invalid'))).success).toBe(false);
++    expect(mocks.signIn).not.toHaveBeenCalled();
++  });
++  it('preserves unexpected errors for server logging and form transport handling', async () => {
++    const error = new Error('unexpected');
++    mocks.signIn.mockRejectedValue(error);
++    await expect(login(initial, credentials())).rejects.toBe(error);
++    expect(mocks.recordFailedAttempt).not.toHaveBeenCalled();
++  });
++});
+diff --git a/app/login/login-navigation.ts b/app/login/login-navigation.ts
+new file mode 100644
+index 0000000..542b6f7
+--- /dev/null
++++ b/app/login/login-navigation.ts
+@@ -0,0 +1,21 @@
++import type { LoginState } from './actions';
++
++export function navigateAfterLogin(state: LoginState, navigate: (path: string) => void): void {
++  if (state.success && state.error === null) navigate('/dashboard');
++}
++
++export async function recoverLoginAfterError(
++  loadSession: () => Promise<{ user?: unknown } | null>,
++  navigate: (path: string) => void,
++): Promise<boolean> {
++  try {
++    const session = await loadSession();
++    if (session?.user) {
++      navigate('/dashboard');
++      return true;
++    }
++  } catch {
++    // Keep the retry UI when session verification is unavailable.
++  }
++  return false;
++}
+diff --git a/app/login/login-navigation.test.ts b/app/login/login-navigation.test.ts
+new file mode 100644
+index 0000000..9511088
+--- /dev/null
++++ b/app/login/login-navigation.test.ts
+@@ -0,0 +1,39 @@
++import { describe, expect, it, vi } from 'vitest';
++import { navigateAfterLogin, recoverLoginAfterError } from './login-navigation';
++
++describe('login document navigation', () => {
++  it('navigates only after confirmed success to the fixed dashboard path', () => {
++    const navigate = vi.fn();
++    navigateAfterLogin({ error: null, success: false }, navigate);
++    expect(navigate).not.toHaveBeenCalled();
++    navigateAfterLogin({ error: null, success: true }, navigate);
++    expect(navigate).toHaveBeenCalledExactlyOnceWith('/dashboard');
++  });
++  it('does not navigate when the state contains a login error', () => {
++    const navigate = vi.fn();
++    navigateAfterLogin({ error: 'Invalid credentials', success: false }, navigate);
++    navigateAfterLogin({ error: 'Error', success: true }, navigate);
++    expect(navigate).not.toHaveBeenCalled();
++  });
++  it('recovers a lost action response only after the server confirms an existing session', async () => {
++    let finish!: (session: { user: unknown }) => void;
++    const loadSession = vi.fn(() => new Promise<{ user: unknown }>(resolve => { finish = resolve; }));
++    const navigate = vi.fn();
++    const pending = recoverLoginAfterError(loadSession, navigate);
++    expect(navigate).not.toHaveBeenCalled();
++    finish({ user: { id: 'diagnostic-user' } });
++    expect(await pending).toBe(true);
++    expect(loadSession).toHaveBeenCalledOnce();
++    expect(navigate).toHaveBeenCalledExactlyOnceWith('/dashboard');
++  });
++  it.each([null, {}, { user: null }])('keeps the retry UI without an authenticated session: %j', async session => {
++    const navigate = vi.fn();
++    expect(await recoverLoginAfterError(async () => session, navigate)).toBe(false);
++    expect(navigate).not.toHaveBeenCalled();
++  });
++  it('keeps the retry UI when the session request fails', async () => {
++    const navigate = vi.fn();
++    expect(await recoverLoginAfterError(vi.fn().mockRejectedValue(new Error('offline')), navigate)).toBe(false);
++    expect(navigate).not.toHaveBeenCalled();
++  });
++});
+diff --git a/app/login/login-form.test.ts b/app/login/login-form.test.ts
+new file mode 100644
+index 0000000..4476e01
+--- /dev/null
++++ b/app/login/login-form.test.ts
+@@ -0,0 +1,36 @@
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { createElement } from 'react';
++import { renderToStaticMarkup } from 'react-dom/server';
++import { getSiteCopy } from 'app/site-i18n-copy';
++
++const state = vi.hoisted(() => ({ success: false, pending: false }));
++vi.mock('react', async importOriginal => ({
++  ...await importOriginal<typeof import('react')>(),
++  useActionState: () => [{ error: null, success: state.success }, vi.fn()],
++}));
++vi.mock('react-dom', async importOriginal => ({
++  ...await importOriginal<typeof import('react-dom')>(),
++  useFormStatus: () => ({ pending: state.pending }),
++}));
++import { LoginForm } from './login-form';
++const copy = getSiteCopy('en').login;
++function buttonMarkup() {
++  const markup = renderToStaticMarkup(createElement(LoginForm, {
++    copy, action: async () => ({ error: null, success: true }),
++  }));
++  return markup.match(/<button\b[^>]*>/)?.[0] ?? '';
++}
++beforeEach(() => { state.success = false; state.pending = false; });
++describe('login submission lock', () => {
++  it('disables the actual submit button while signing in', () => {
++    state.pending = true;
++    expect(buttonMarkup()).toContain('disabled=""');
++  });
++  it('keeps the button disabled after success until the document changes', () => {
++    state.success = true;
++    expect(buttonMarkup()).toContain('disabled=""');
++  });
++  it('allows an initial or failed sign-in to be submitted', () => {
++    expect(buttonMarkup()).not.toContain('disabled=""');
++  });
++});
+diff --git a/app/login/login-form-native.test.ts b/app/login/login-form-native.test.ts
+new file mode 100644
+index 0000000..8f4b545
+--- /dev/null
++++ b/app/login/login-form-native.test.ts
+@@ -0,0 +1,35 @@
++import { describe, expect, it, vi } from 'vitest';
++import { createElement } from 'react';
++import { renderToStaticMarkup } from 'react-dom/server';
++import { getSiteCopy } from 'app/site-i18n-copy';
++import { LoginForm } from './login-form';
++import type { LoginState } from './actions';
++
++describe('native login form', () => {
++  it('preserves the encoded server action before hydration without mocking React hooks', () => {
++    const action = Object.assign(
++      vi.fn<(state: LoginState, data: FormData) => Promise<LoginState>>(
++        async () => ({ error: null, success: true }),
++      ),
++      { $$FORM_ACTION: () => ({
++        name: '$ACTION_ID_native-login',
++        action: '/login',
++        method: 'POST',
++        encType: 'multipart/form-data',
++        data: new FormData(),
++      }) },
++    );
++    // RSC server references retain their form metadata when React binds initial state.
++    Object.defineProperty(action, 'bind', {
++      value: (...[, state]: [unknown, LoginState]) => Object.assign(
++        (data: FormData) => action(state, data),
++        { $$FORM_ACTION: action.$$FORM_ACTION },
++      ),
++    });
++    const html = renderToStaticMarkup(createElement(LoginForm, { action, copy: getSiteCopy('en').login }));
++    expect(html).toContain('action="/login"');
++    expect(html).toContain('method="POST"');
++    expect(html).toContain('name="$ACTION_ID_native-login"');
++    expect(action).not.toHaveBeenCalled();
++  });
++});

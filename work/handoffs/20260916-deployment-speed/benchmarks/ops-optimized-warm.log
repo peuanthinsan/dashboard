@@ -1,0 +1,55 @@
+
+added 46 packages in 1m
+
+[benchmark-phase] {"label":"install","cwd":"web","durationMs":69599,"exitCode":0}
+✔ password hashes verify only the original password (178.3063ms)
+✔ admin token is valid for its version until expiration (5.3406ms)
+✔ admin token rejects tampering and the wrong signing secret (0.4343ms)
+✔ production schema applies atomically and records the version required by health checks (31.6359ms)
+✔ production schema validates job timing, GPS values, and the active binding foreign key (6.456ms)
+✔ database migrations are ordered and checksum-protected (21.3533ms)
+✔ local and production APIs share an explicit compatibility contract (1.4889ms)
+✔ the Vercel web package is self-contained and its shared logic stays in sync (51.2352ms)
+✔ production API rejects oversized JSON before database or adapter work (43.4678ms)
+✔ production API reports malformed JSON without reaching the database (2.3179ms)
+✔ production external GPS reconciliation never lets a late failed lookup overwrite a received Howen sample (2.2523ms)
+✔ production reconciles two external GPS sources by time and exposes an authorized job detail route (2.6187ms)
+(node:31104) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gps01/AppData/Local/Temp/songdee-deploy-opt-20260916/benchmarks/ops-optimized-warm/web/app/dashboard-api.js?work-period-gps-test=1789540848946 is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gps01\AppData\Local\Temp\songdee-deploy-opt-20260916\benchmarks\ops-optimized-warm\web\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ production exposes an authorized anchor-derived work-period GPS contract and a paging client (33.5414ms)
+✔ the work-period GPS client exhausts every server page without losing metadata or job IDs (68.3935ms)
+✔ production driver lookup rejects stale vehicle correlation before calling the adapter (2.8349ms)
+✔ tablet job history is signed and restricted to its current vehicle binding (2.5596ms)
+✔ tablet vehicle changes require both the signed device and fleet-admin password (2.1143ms)
+✔ local and production fleet endpoints require explicit device correlation and align idempotent setup responses (38.0894ms)
+✔ production schema serializes active jobs against binding changes (4.9247ms)
+✔ production stores work-period route assignments and inherits them until Finish work (3.8714ms)
+✔ production route inheritance excludes only the previous Finish row at an inclusive period boundary (8.9583ms)
+✔ production binding history uses an exclusive unbound boundary (2.3268ms)
+✔ production password changes compare and replace the current hash atomically (2.2908ms)
+✔ local SQL preserves parameters and executes an awaited query only once (4.3859ms)
+✔ local transaction commits all queries on one connection with requested isolation (0.93ms)
+✔ local transaction rolls back and releases its connection after a query failure (1.1419ms)
+✔ local adapter refuses remote hosts, executed transaction queries and unsafe isolation (0.8022ms)
+(node:40736) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cloud proxy is unchanged unless Windows flag equals 1 (63.7867ms)
+✔ Windows proxy blocks API2 host and rejects malformed authorities (3.4599ms)
+✔ Windows rate limiting uses only the proxy-appended valid client IP (9.2698ms)
+✔ standalone Next output is opt-in and cloud rewrites remain configured (7.3365ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1777.138
+
+[benchmark-phase] {"label":"tests","cwd":"","durationMs":1948,"exitCode":0}
+▲ Next.js 16.3.1 (Turbopack)
+✓ Running next.config.mjs took 121ms
+
+  Creating an optimized production build ...

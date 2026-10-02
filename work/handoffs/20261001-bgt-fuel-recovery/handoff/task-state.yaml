@@ -1,0 +1,17 @@
+phase: complete-local-preview
+active_root: Codex
+root_model: UNKNOWN
+root_effort: UNKNOWN
+base_sha: ab97c752ae5a8fbb7c92293d4852bcdc1adb36a7
+branch: codex/bgt-fuel-dashboard
+worktree: /private/tmp/songdee-bgt-fuel-20261001
+writer_lease: root
+release_approved: false
+preview_url: http://127.0.0.1:3107/e2e-fixtures/bgt-fuel
+preview_running: true
+browser_verification: passed-21-checkpoints-no-browser-errors
+live_sheet_smoke: passed-1452-readings-13-increases
+mobile_verification: passed-390px-all-markers-visible
+claude_review: explicitly-skipped-by-user
+pending_local_work: none
+production_deployed: false

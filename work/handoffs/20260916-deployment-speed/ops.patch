@@ -1,0 +1,312 @@
+diff --git a/hosting/README.md b/hosting/README.md
+index 0f48267..db16920 100644
+--- a/hosting/README.md
++++ b/hosting/README.md
+@@ -3,7 +3,7 @@
+ Build with Node 24 and npm from a clean checkout on Windows or macOS:
+ 
+ ```sh
+-node hosting/build.cjs PUBLIC_BUILD_SETTINGS_JSON OUTPUT_DIRECTORY
++node hosting/build.cjs PUBLIC_BUILD_SETTINGS_JSON OUTPUT_DIRECTORY [ABSOLUTE_CACHE_DIRECTORY]
+ ```
+ 
+ The output directory must not exist and must be outside the checkout. The build settings must be a JSON object containing only `NEXT_PUBLIC_` keys and string, finite number, or boolean values. Use `{}` if none are required. These values are public and can be embedded in browser assets; never supply production secrets.
+@@ -19,3 +19,11 @@ SVIS packaging runs its host, proxy-header and PostgreSQL-adapter tests. OPS pac
+ Run the isolated helper checks with `node --test hosting/helpers.node-test.cjs`. These validate the settings guard, subprocess environments, package layout, npm discovery and launcher without installing dependencies or starting applications.
+ 
+ Deployment is not enabled by adding these files. The Windows controller, service configuration, initial baseline revision, and rollback checks must be installed and validated separately.
++
++## Deployment performance
++
++The optional cache directory is a persistent, build-account-owned directory outside the checkout and release. It stores npm downloads and, on non-Windows hosts for Next.js applications, compiler cache entries isolated by application, operating system, architecture, Node version, lockfile, Next configuration and public build settings. Do not point it at runtime configuration or production application directories. The Windows worker serializes builds; do not share this directory with another concurrent worker.
++
++Every revision still runs npm ci, the existing regression tests, and the complete production build. Windows compiles fresh: cross-checkout Turbopack cache restoration triggered runaway workers during validation and is disabled. On other platforms only .next/cache is reused; compiled releases and node_modules are not restored. Keep this cache outside build-retention directories. The helper emits per-phase timings and writes OUTPUT_DIRECTORY.timings.json without configuration values or credentials.
++
++SVIS can use hosting/runtime/package-lock.json for Windows server dependencies, excluding Expo/mobile dependencies from the server package. Its host bundle verifies every external package against this runtime manifest. Native Vercel/mobile builds retain the original application dependencies.
+diff --git a/hosting/build-cache.cjs b/hosting/build-cache.cjs
+new file mode 100644
+index 0000000..c3666bd
+--- /dev/null
++++ b/hosting/build-cache.cjs
+@@ -0,0 +1,95 @@
++'use strict';
++const fs = require('node:fs');
++const path = require('node:path');
++const crypto = require('node:crypto');
++
++function within(root, target) {
++  const relative = path.relative(root, target);
++  return relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative));
++}
++function assertNoLinks(target) {
++  let probe = path.resolve(target);
++  while (true) {
++    try { if (fs.lstatSync(probe).isSymbolicLink()) throw new Error('Build cache paths must not contain links'); }
++    catch (error) { if (error.code !== 'ENOENT') throw error; }
++    const parent = path.dirname(probe);
++    if (parent === probe) break;
++    probe = parent;
++  }
++}
++function assertPlainTree(directory) {
++  assertNoLinks(directory);
++  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
++    const filename = path.join(directory, entry.name);
++    if (entry.isSymbolicLink()) throw new Error('Build cache must not contain links');
++    if (entry.isDirectory()) assertPlainTree(filename);
++    else if (!entry.isFile()) throw new Error('Build cache must contain only ordinary files');
++  }
++}
++// Restore only secret-free build caches. npm ci, tests and compilation still run.
++function createBuildCache(directory, { root, destination, app, publicSettings, warn = console.warn }) {
++  if (!directory) return null;
++  if (!path.isAbsolute(directory)) throw new Error('Build cache directory must be absolute');
++  const base = path.resolve(directory);
++  for (const other of [root, destination]) {
++    if (within(base, other) || within(other, base)) throw new Error('Build cache must be separate from source and release');
++  }
++  assertNoLinks(base);
++  const fingerprint = crypto.createHash('sha256');
++  fingerprint.update(JSON.stringify({ schema: 1, app, platform: process.platform, arch: process.arch, node: process.version,
++    settings: Object.entries(publicSettings).sort(([a], [b]) => a.localeCompare(b)) }));
++  const applicationRoot = app === 'ops' ? path.join(root, 'web') : root;
++  for (const name of ['package.json', 'package-lock.json', 'next.config.js', 'next.config.mjs', 'next.config.ts']) {
++    const filename = path.join(applicationRoot, name);
++    if (fs.existsSync(filename)) fingerprint.update(name).update(fs.readFileSync(filename));
++  }
++  const key = fingerprint.digest('hex');
++  const saved = path.join(base, 'next', key);
++  const local = path.join(applicationRoot, '.next', 'cache');
++  const warning = error => warn('[build-cache] Cache unavailable: ' + error.message);
++  function removeOwned(target, owner) {
++    if (target === owner || !within(owner, target)) throw new Error('Cache cleanup escapes its directory');
++    assertNoLinks(target);
++    fs.rmSync(target, { recursive: true, force: true });
++  }
++  return {
++    key,
++    npmDirectory: path.join(base, 'npm'),
++    initialize() {
++      assertNoLinks(path.join(base, 'npm'));
++      fs.mkdirSync(path.join(base, 'npm'), { recursive: true });
++    },
++    restore() {
++      if (!fs.existsSync(saved)) return false;
++      try {
++        assertPlainTree(saved);
++        assertNoLinks(local);
++        fs.cpSync(saved, local, { recursive: true });
++        return true;
++      } catch (error) {
++        warning(error);
++        removeOwned(local, root);
++        return false;
++      }
++    },
++    save() {
++      if (!fs.existsSync(local)) return;
++      const staging = path.join(base, 'next', key + '-' + crypto.randomUUID() + '.tmp');
++      try {
++        assertPlainTree(local);
++        assertNoLinks(staging);
++        fs.cpSync(local, staging, { recursive: true });
++        removeOwned(saved, base);
++        fs.renameSync(staging, saved);
++        const parent = path.dirname(saved);
++        const entries = fs.readdirSync(parent, { withFileTypes: true })
++          .filter(entry => entry.isDirectory() && /^[0-9a-f]{64}$/.test(entry.name))
++          .map(entry => ({ name: entry.name, modified: fs.statSync(path.join(parent, entry.name)).mtimeMs }))
++          .sort((a, b) => a.name === key ? -1 : b.name === key ? 1 : b.modified - a.modified);
++        for (const entry of entries.slice(3)) removeOwned(path.join(parent, entry.name), base);
++      } catch (error) { warning(error); }
++      finally { if (fs.existsSync(staging)) removeOwned(staging, base); }
++    },
++  };
++}
++module.exports = { createBuildCache };
+diff --git a/hosting/build-cache.node-test.cjs b/hosting/build-cache.node-test.cjs
+new file mode 100644
+index 0000000..272b576
+--- /dev/null
++++ b/hosting/build-cache.node-test.cjs
+@@ -0,0 +1,71 @@
++'use strict';
++const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
++const {createBuildCache}=require('./build-cache.cjs');
++const {build}=require('./build.cjs');
++function fixture(t) {
++  const base=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'songdee-cache-test-')));
++  t.after(()=>fs.rmSync(base,{recursive:true,force:true}));
++  const root=path.join(base,'source'),destination=path.join(base,'release'),cache=path.join(base,'cache');
++  fs.mkdirSync(root);fs.writeFileSync(path.join(root,'package-lock.json'),'{"lockfileVersion":3}');
++  const options={root,destination,app:'dashboard',publicSettings:{}};
++  return {base,root,destination,cache,options};
++}
++test('cache hits across clean checkouts, without restoring application output',t=>{
++  const f=fixture(t),first=createBuildCache(f.cache,f.options);
++  first.initialize();assert.equal(first.restore(),false);
++  fs.mkdirSync(path.join(f.root,'.next/cache'),{recursive:true});
++  fs.writeFileSync(path.join(f.root,'.next/cache/data'),'compiler data');
++  fs.writeFileSync(path.join(f.root,'.next/server.js'),'must not be cached');first.save();
++  const second=path.join(f.base,'second');fs.mkdirSync(second);
++  fs.copyFileSync(path.join(f.root,'package-lock.json'),path.join(second,'package-lock.json'));
++  const cache=createBuildCache(f.cache,{...f.options,root:second});
++  assert.equal(cache.key,first.key);assert.equal(cache.restore(),true);
++  assert.equal(fs.readFileSync(path.join(second,'.next/cache/data'),'utf8'),'compiler data');
++  assert.equal(fs.existsSync(path.join(second,'.next/server.js')),false);
++});
++test('lockfile, public settings, app and Next configuration changes isolate cache entries',t=>{
++  const f=fixture(t),first=createBuildCache(f.cache,f.options).key;
++  assert.notEqual(createBuildCache(f.cache,{...f.options,publicSettings:{NEXT_PUBLIC_ORIGIN:'new'}}).key,first);
++  assert.notEqual(createBuildCache(f.cache,{...f.options,app:'svis'}).key,first);
++  fs.writeFileSync(path.join(f.root,'next.config.mjs'),'export default {}');
++  assert.notEqual(createBuildCache(f.cache,f.options).key,first);
++  fs.unlinkSync(path.join(f.root,'next.config.mjs'));
++  fs.writeFileSync(path.join(f.root,'package-lock.json'),'{"lockfileVersion":3,"changed":true}');
++  assert.notEqual(createBuildCache(f.cache,f.options).key,first);
++});
++test('cache overlap and filesystem links cannot redirect writes',t=>{
++  const f=fixture(t);
++  for(const target of [f.root,f.base,f.destination,path.join(f.root,'cache'),path.join(f.destination,'cache')]) {
++    assert.throws(()=>createBuildCache(target,f.options),/separate/);
++  }
++  fs.mkdirSync(f.cache);const alias=path.join(f.base,'alias');
++  fs.symlinkSync(f.cache,alias,process.platform==='win32'?'junction':'dir');
++  assert.throws(()=>createBuildCache(alias,f.options),/links/);
++});
++test('linked cache entry is ignored without reading or altering its target',t=>{
++  const f=fixture(t),warnings=[],cache=createBuildCache(f.cache,{...f.options,warn:message=>warnings.push(message)});
++  const saved=path.join(f.cache,'next',cache.key);fs.mkdirSync(saved,{recursive:true});
++  const outside=path.join(f.base,'outside');fs.mkdirSync(outside);fs.writeFileSync(path.join(outside,'private'),'not a build cache');
++  fs.symlinkSync(outside,path.join(saved,'redirect'),process.platform==='win32'?'junction':'dir');
++  assert.equal(cache.restore(),false);assert.equal(warnings.length,1);
++  assert.equal(fs.existsSync(path.join(f.root,'.next/cache/redirect/private')),false);
++  assert.equal(fs.readFileSync(path.join(outside,'private'),'utf8'),'not a build cache');
++});
++test('cached builds install locked dependencies and still stop on failed tests',t=>{
++  const f=fixture(t);
++  fs.mkdirSync(path.join(f.root,'hosting'));fs.writeFileSync(path.join(f.root,'hosting/app.json'),'{"app":"dashboard"}');
++  const config=path.join(f.base,'public.json');fs.writeFileSync(config,'{}');
++  const node=path.join(f.base,'runtime/node');fs.mkdirSync(path.dirname(node));fs.writeFileSync(node,'');
++  fs.mkdirSync(path.join(f.base,'runtime/node_modules/npm/bin'),{recursive:true});
++  fs.writeFileSync(path.join(f.base,'runtime/node_modules/npm/bin/npm-cli.js'),'');
++  const calls=[];
++  assert.throws(()=>build(config,f.destination,{root:f.root,execPath:node,cacheDirectory:f.cache,
++    environment:{NPM_CONFIG_CACHE:'untrusted',AUTH_SECRET:'must not leak'},
++    spawnSync:(command,args,options)=>{calls.push({args,env:options.env});return {status:args.some(arg=>arg.includes('vitest'))?1:0};}
++  }),/Build command failed/);
++  assert.equal(calls.length,2);assert.equal(calls[0].args[1],'ci');
++  assert.equal(calls[0].env.NPM_CONFIG_CACHE,path.join(f.cache,'npm'));
++  assert.equal(calls[0].env.NPM_CONFIG_PREFER_OFFLINE,'true');
++  assert.equal(JSON.stringify(calls).includes('must not leak'),false);
++  assert.equal(fs.existsSync(f.destination),false);
++});
+diff --git a/hosting/build.cjs b/hosting/build.cjs
+index 44b8702..694e31f 100644
+--- a/hosting/build.cjs
++++ b/hosting/build.cjs
+@@ -3,6 +3,8 @@ const fs = require('node:fs');
+ const os = require('node:os');
+ const path = require('node:path');
+ const { spawnSync } = require('node:child_process');
++const { performance } = require('node:perf_hooks');
++const { createBuildCache } = require('./build-cache.cjs');
+ 
+ function publicBuildSettings(filename) {
+   const settings = JSON.parse(fs.readFileSync(filename, 'utf8').replace(/^\uFEFF/, ''));
+@@ -94,53 +96,82 @@ function build(configFile, output, options = {}) {
+   assertNoEnvFiles(root);
+   assertNoEnvFiles(path.join(root, 'web'));
+   const npm = findNpmCli(executable, inherited);
++  const cache = createBuildCache(options.cacheDirectory, { root, destination, app, publicSettings });
++  // Restoring Turbopack caches into a new Windows checkout caused runaway
++  // build workers in repeat-build validation. Keep npm caching, compile fresh.
++  const compilerCache = process.platform === 'win32' ? null : cache;
+   // All validation above precedes subprocesses and filesystem writes.
+   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'songdee-build-'));
+   const env = buildEnvironment(inherited, publicSettings, scratch);
++  const timings = [];
++  const started = performance.now();
++  function timed(phase, operation) {
++    const start = performance.now();
++    let status = 'failed';
++    try { const result = operation(); status = 'passed'; return result; }
++    finally {
++      const entry = { phase, status, durationMs: Math.round(performance.now() - start) };
++      timings.push(entry);
++      console.log('[build-timing] ' + JSON.stringify(entry));
++    }
++  }
+   function node(args, cwd = root, variables = env) {
+     const result = run(executable, args, { cwd, env: variables, stdio: 'inherit', windowsHide: true });
+     if (result.error || result.status !== 0) throw new Error('Build command failed; exit code ' + result.status);
+   }
+   function install(cwd) {
+-    node([npm, 'ci', '--include=dev', '--no-audit', '--no-fund'], cwd, { ...env, NODE_ENV: 'development' });
++    timed('install', () => node([npm, 'ci', '--include=dev', '--no-audit', '--no-fund'], cwd, { ...env, NODE_ENV: 'development' }));
+   }
+   function copy(from, to) { fs.cpSync(from, to, { recursive: true, errorOnExist: true }); }
+   try {
++    if (cache) {
++      cache.initialize();
++      env.NPM_CONFIG_CACHE = cache.npmDirectory;
++      env.NPM_CONFIG_PREFER_OFFLINE = 'true';
++    }
+     if (app === 'dashboard') {
+       install(root);
+-      node([path.join(root, 'node_modules/vitest/vitest.mjs'), 'run']);
+-      node([path.join(root, 'node_modules/next/dist/bin/next'), 'build']);
++      timed('tests', () => node([path.join(root, 'node_modules/vitest/vitest.mjs'), 'run']));
++      if (compilerCache) timed('cache-restore', () => console.log('[build-cache] ' + (compilerCache.restore() ? 'hit' : 'miss')));
++      timed('build', () => node([path.join(root, 'node_modules/next/dist/bin/next'), 'build']));
++      if (compilerCache) timed('cache-save', () => compilerCache.save());
+       copy(path.join(root, '.next/standalone'), destination);
+       if (fs.existsSync(path.join(root, 'public'))) copy(path.join(root, 'public'), path.join(destination, 'public'));
+       copy(path.join(root, '.next/static'), path.join(destination, '.next/static'));
+     } else if (app === 'ops') {
+       const web = path.join(root, 'web');
+       install(web);
+-      node(['--experimental-vm-modules', '--test', 'tests/windows-hosting.test.mjs',
+-        'tests/admin-auth.test.ts', 'tests/database-schema.test.ts', 'tests/production-api-boundary.test.ts']);
+-      node([path.join(web, 'node_modules/next/dist/bin/next'), 'build'], web);
++      timed('tests', () => node(['--experimental-vm-modules', '--test', 'tests/windows-hosting.test.mjs',
++        'tests/admin-auth.test.ts', 'tests/database-schema.test.ts', 'tests/production-api-boundary.test.ts']));
++      if (compilerCache) timed('cache-restore', () => console.log('[build-cache] ' + (compilerCache.restore() ? 'hit' : 'miss')));
++      timed('build', () => node([path.join(web, 'node_modules/next/dist/bin/next'), 'build'], web));
++      if (compilerCache) timed('cache-save', () => compilerCache.save());
+       copy(path.join(web, '.next/standalone'), destination);
+       if (fs.existsSync(path.join(web, 'public'))) copy(path.join(web, 'public'), path.join(destination, 'web/public'));
+       copy(path.join(web, '.next/static'), path.join(destination, 'web/.next/static'));
+     } else {
+-      install(root);
++      const serverRoot = fs.existsSync(path.join(root, 'hosting/runtime/package-lock.json')) ? path.join(root, 'hosting/runtime') : root;
++      install(serverRoot);
+       install(path.join(root, 'web'));
+-      node(['--test', 'host/host-policy.test.cjs', 'host/proxy-headers.test.cjs', 'host/pg-neon.test.cjs']);
+-      node([npm, 'run', 'build'], path.join(root, 'web'));
+-      node(['host/build.cjs']);
++      timed('tests', () => node(['--test', 'host/host-policy.test.cjs', 'host/proxy-headers.test.cjs', 'host/pg-neon.test.cjs']));
++      timed('build-web', () => node([npm, 'run', 'build'], path.join(root, 'web')));
++      timed('build-host', () => node(['host/build.cjs']));
+       fs.mkdirSync(destination, { recursive: true });
+       for (const dir of ['dist', 'public']) copy(path.join(root, dir), path.join(destination, dir));
+       // Use the repository lockfile for reproducible runtime dependency installation.
+-      for (const name of ['package.json', 'package-lock.json']) copy(path.join(root, name), path.join(destination, name));
+-      node([npm, 'ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], destination);
++      for (const name of ['package.json', 'package-lock.json']) copy(path.join(serverRoot, name), path.join(destination, name));
++      timed('install-runtime', () => node([npm, 'ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], destination));
+     }
+     fs.mkdirSync(path.join(destination, 'hosting'), { recursive: true });
+     for (const name of ['launch.cjs', 'app.json']) copy(path.join(root, 'hosting', name), path.join(destination, 'hosting', name));
+     console.log('Release packaged for ' + app);
+   } finally {
+     fs.rmSync(scratch, { recursive: true, force: true });
++    const report = { app, totalMs: Math.round(performance.now() - started), phases: timings };
++    try { fs.writeFileSync(destination + '.timings.json', JSON.stringify(report, null, 2)); }
++    catch (error) { console.warn('[build-timing] Could not write report: ' + error.message); }
+   }
+ }
+ 
+ module.exports = { build, buildEnvironment, findNpmCli, publicBuildSettings };
+-if (require.main === module) build(...process.argv.slice(2));
++if (require.main === module) build(process.argv[2], process.argv[3], { cacheDirectory: process.argv[4] });

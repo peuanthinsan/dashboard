@@ -1,0 +1,127 @@
+npm warn deprecated stream-to-promise@2.2.0: Deprecated. Use node:stream/promises and node:stream/consumers instead.
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+npm warn deprecated tar@7.5.7: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 696 packages in 2m
+npm warn allow-scripts 7 packages have install scripts not yet covered by allowScripts:
+npm warn allow-scripts   esbuild@0.18.20 (postinstall: node install.js)
+npm warn allow-scripts   esbuild@0.27.0 (postinstall: node install.js)
+npm warn allow-scripts   esbuild@0.27.0 (postinstall: node install.js)
+npm warn allow-scripts   esbuild@0.25.12 (postinstall: node install.js)
+npm warn allow-scripts   esbuild@0.27.4 (postinstall: node install.js)
+npm warn allow-scripts   unrs-resolver@1.11.1 (postinstall: napi-postinstall unrs-resolver 1.11.1 check)
+npm warn allow-scripts   esbuild@0.27.0 (postinstall: node install.js)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+npm notice
+npm notice New major version of npm available! 11.17.0 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice
+
+[benchmark-phase] {"label":"install","cwd":"","durationMs":105158,"exitCode":0}
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90mC:/Users/gps01/AppData/Local/Temp/songdee-deploy-opt-20260916/benchmarks/dashboard-baseline-first[39m
+
+ [32m✓[39m app/dashboards/locationDataV1.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m app/dashboards/dashboardDataUtils.test.ts [2m([22m[2m56 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m app/dashboards/violationBuilders.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m app/dashboards/unitStatusData.test.ts [2m([22m[2m89 tests[22m[2m)[22m[32m 176[2mms[22m[39m
+ [32m✓[39m app/dashboards/locationVehicleFetch.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 313[2mms[22m[39m
+ [32m✓[39m app/dashboards/simpleSummaryData.test.ts [2m([22m[2m52 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m app/dashboards/unitCameraHistory.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 107[2mms[22m[39m
+ [32m✓[39m app/dashboards/simpleSheetFetch.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 66[2mms[22m[39m
+ [32m✓[39m app/dashboards/unitDeviceStatus.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m app/dashboards/googleSheetFetch.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m app/dashboards/detailTrendData.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m app/dashboards/driverDayBucketing.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m app/lib/auth-request-adapters.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m app/dashboards/dateTimeRange.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m app/api/unit-status/[dashboardId]/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 61[2mms[22m[39m
+ [32m✓[39m app/dashboards/googleSheetGvizUrl.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ [32m✓[39m app/dashboards/drivingWarnings.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m app/dashboards/UnitStatusDashboard.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 149[2mms[22m[39m
+ [32m✓[39m app/dashboards/locationVehicleHistory.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 143[2mms[22m[39m
+ [32m✓[39m app/lib/request-origin.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingScoring.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m app/ui/csvExportSchema.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m app/ui/csvExportPrefsStorage.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingThresholds.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m app/dashboards/vehicleKpiUtils.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m app/ui/TrendChart.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m app/ui/exportCsvFormat.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingWarningMessage.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m app/dashboards/violationKey.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m app/lib/lineMessagingApi.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m app/dashboards/LocationTelemetryTimeline.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingTripTable.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m app/ui/MultiSelect.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m app/ui/exportVehicleKpiXlsx.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingSubPages.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m app/dashboards/googleSheetParse.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingDurationFormat.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m app/ui/csvEscape.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m app/dashboards/sheetFieldProbe.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingLocationDisplay.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m app/unit-camera-history.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m41 passed[39m[22m[90m (41)[39m
+[2m      Tests [22m [1m[32m546 passed[39m[22m[90m (546)[39m
+[2m   Start at [22m 06:00:33
+[2m   Duration [22m 20.39s[2m (transform 4.68s, setup 0ms, import 16.26s, tests 1.59s, environment 6ms)[22m
+
+
+[benchmark-phase] {"label":"tests","cwd":"","durationMs":23920,"exitCode":0}
+▲ Next.js 16.2.12 (Turbopack)
+
+  Creating an optimized production build ...
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ Compiled successfully in 17.3s
+  Running TypeScript ...
+  Finished TypeScript in 15.6s ...
+  Collecting page data using 5 workers ...
+  Generating static pages using 5 workers (0/7) ...
+  Generating static pages using 5 workers (1/7) 
+  Generating static pages using 5 workers (3/7) 
+  Generating static pages using 5 workers (5/7) 
+✓ Generating static pages using 5 workers (7/7) in 593ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /admin
+├ ƒ /admin/companies
+├ ƒ /admin/dashboards
+├ ƒ /admin/line-channels
+├ ƒ /admin/organizations
+├ ƒ /admin/quick-setup
+├ ƒ /admin/users
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/sheets/[sheetId]/[gid]
+├ ƒ /api/sheets/[sheetId]/[gid]/fields
+├ ƒ /api/unit-status/[dashboardId]
+├ ƒ /dashboard
+├ ƒ /dashboard/change-password
+├ ƒ /dashboard/[id]
+├ ƒ /e2e-fixtures/csv-export
+├ ƒ /e2e-fixtures/location-data-v1
+├ ƒ /login
+├ ƒ /_not-found
+├ ○ /opengraph-image
+├ ƒ /register
+└ ○ /robots.txt
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+[benchmark-phase] {"label":"build","cwd":"","durationMs":48127,"exitCode":0}

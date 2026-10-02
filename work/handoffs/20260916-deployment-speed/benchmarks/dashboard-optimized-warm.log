@@ -1,0 +1,1784 @@
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+
+added 443 packages in 1m
+npm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:
+npm warn allow-scripts   esbuild@0.18.20 (postinstall: node install.js)
+npm warn allow-scripts   esbuild@0.25.12 (postinstall: node install.js)
+npm warn allow-scripts   esbuild@0.27.4 (postinstall: node install.js)
+npm warn allow-scripts   unrs-resolver@1.11.1 (postinstall: napi-postinstall unrs-resolver 1.11.1 check)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+
+[benchmark-phase] {"label":"install","cwd":"","durationMs":86108,"exitCode":0}
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90mC:/Users/gps01/AppData/Local/Temp/songdee-deploy-opt-20260916/benchmarks/dashboard-optimized-warm[39m
+
+ [32m✓[39m app/dashboards/locationDataV1.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m app/dashboards/dashboardDataUtils.test.ts [2m([22m[2m56 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m app/dashboards/violationBuilders.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m app/dashboards/unitStatusData.test.ts [2m([22m[2m89 tests[22m[2m)[22m[32m 196[2mms[22m[39m
+ [32m✓[39m app/dashboards/locationVehicleFetch.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 332[2mms[22m[39m
+ [32m✓[39m app/dashboards/simpleSummaryData.test.ts [2m([22m[2m52 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m app/dashboards/unitCameraHistory.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m app/dashboards/simpleSheetFetch.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 69[2mms[22m[39m
+ [32m✓[39m app/dashboards/unitDeviceStatus.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m app/dashboards/googleSheetFetch.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m app/dashboards/detailTrendData.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m app/dashboards/driverDayBucketing.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m app/lib/auth-request-adapters.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m app/dashboards/dateTimeRange.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m app/api/unit-status/[dashboardId]/route.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 75[2mms[22m[39m
+ [32m✓[39m app/dashboards/googleSheetGvizUrl.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ [32m✓[39m app/dashboards/drivingWarnings.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m app/lib/request-origin.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m app/dashboards/UnitStatusDashboard.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 227[2mms[22m[39m
+ [32m✓[39m app/dashboards/locationVehicleHistory.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 152[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingScoring.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m app/ui/csvExportSchema.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m app/ui/TrendChart.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m app/ui/csvExportPrefsStorage.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingThresholds.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m app/dashboards/vehicleKpiUtils.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m app/ui/exportCsvFormat.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m app/dashboards/violationKey.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingWarningMessage.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m app/lib/lineMessagingApi.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m app/dashboards/LocationTelemetryTimeline.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingTripTable.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m app/dashboards/googleSheetParse.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m app/ui/MultiSelect.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingSubPages.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m app/ui/exportVehicleKpiXlsx.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingLocationDisplay.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m app/ui/csvEscape.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m app/dashboards/drivingDurationFormat.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m app/dashboards/sheetFieldProbe.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m app/unit-camera-history.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m41 passed[39m[22m[90m (41)[39m
+[2m      Tests [22m [1m[32m546 passed[39m[22m[90m (546)[39m
+[2m   Start at [22m 06:29:39
+[2m   Duration [22m 18.28s[2m (transform 3.97s, setup 0ms, import 14.85s, tests 1.66s, environment 6ms)[22m
+
+
+[benchmark-phase] {"label":"tests","cwd":"","durationMs":21080,"exitCode":0}
+▲ Next.js 16.2.12 (Turbopack)
+- Experiments (use with caution):
+  ✓ turbopackFileSystemCacheForBuild
+
+  Creating an optimized production build ...
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+<--- Last few GCs --->
+
+[58336:0000014E2DA91000]    12217 ms: Scavenge 41.5 (59.2) -> 25.8 (59.2) MB, pooled: 0 MB, 1.05 / 0.00 ms  (average mu = 0.993, current mu = 0.993) allocation failure; 
+[58336:0000014E2DA91000]    12312 ms: Mark-Compact 27.5 (59.5) -> 25.5 (59.5) MB, pooled: 0 MB, 24.73 / 0.02 ms  (+ 0.0 ms in 1 steps since start of marking, biggest step 0.0 ms, walltime since start of marking 43 ms) (average mu = 0.997, current mu = 0.9
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA2F5BC6 
+ 4: 00007FF7DB32F280 
+ 5: 00007FF7DB14AF29 
+ 6: 00007FF7DA1EB926 
+ 7: 00007FF7DA1C921F 
+ 8: 00007FF7DA8FA073 
+ 9: 00007FF7DA8FC14A 
+10: 00007FF7DA37CE71 
+11: 00007FF7DA37AF6F 
+12: 0000014E661F75FA 
+
+<--- Last few GCs --->
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA716B5B 
+ 5: 00007FF7DA73F0DA 
+ 6: 00007FF7DA780946 
+ 7: 00007FF7DA77FF96 
+ 8: 00007FF7DA790EF2 
+ 9: 00007FF7DA790A1B 
+10: 00007FF7DC077DED 
+11: 00007FF7DA77C030 
+12: 00007FF7DA7A2766 
+13: 00007FF7DA7BE662 
+14: 00007FF7DA482910 
+15: 00007FF7DA962BEA 
+16: 00007FF7DA962C21 
+17: 00007FF7DA9632F1 
+18: 00007FF7DA8F92FE 
+19: 00007FF7DA8FBB74 
+20: 00007FF7DA8FE571 
+21: 00007FF7DA9871E3 
+22: 00007FF7DBD72A5F 
+23: 00007FF7DBD71C04 
+24: 000001E3CBE0F64D 
+
+<--- Last few GCs --->
+
+[63348:000001D686372000]     3278 ms: Scavenge 13.6 (18.4) -> 11.4 (19.6) MB, pooled: 0 MB, 1.46 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[63348:000001D686372000]     3860 ms: Scavenge 15.5 (20.1) -> 13.6 (29.6) MB, pooled: 0 MB, 4.34 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[63348:000001D686372000]     4181 ms: Scavenge 20.8 (29.6) -> 14.7 (31.4) MB, pooled: 0 MB, 26.87 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF node::OnFatalError+1343
+ 2: 00007FF7DA97DD27 v8::Function::NewInstance+423
+ 3: 00007FF7DA77E567 X509_STORE_get_lookup_certs+54423
+ 4: 00007FF7DA75DC5E v8::base::AddressSpaceReservation::AddressSpaceReservation+189726
+ 5: 00007FF7DA75331D v8::base::AddressSpaceReservation::AddressSpaceReservation+146397
+ 6: 00007FF7DA752FCC v8::base::AddressSpaceReservation::AddressSpaceReservation+145548
+ 7: 00007FF7DA752C11 v8::base::AddressSpaceReservation::AddressSpaceReservation+144593
+ 8: 00007FF7DA765108 v8::base::AddressSpaceReservation::AddressSpaceReservation+219592
+ 9: 00007FF7DB16F2CF v8::platform::DefaultJobHandle::UpdatePriority+591
+10: 00007FF7DBC9954B node::GetNodeReport+94123
+11: 00007FF7DA9D3136 uv_thread_detach+150
+12: 00007FF7DC0935B3 node::AsyncResource::CallbackScope::CallbackScope+2237123
+13: 00007FF92855E8D7 BaseThreadInitThunk+23
+14: 00007FF929FEC53C RtlUserThreadStart+44
+
+<--- Last few GCs --->
+
+[55144:000001FCFF282000]     3602 ms: Scavenge 13.7 (18.4) -> 11.4 (19.6) MB, pooled: 0 MB, 2.03 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[55144:000001FCFF282000]     4393 ms: Scavenge 15.5 (20.1) -> 13.6 (21.9) MB, pooled: 2 MB, 12.77 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[55144:000001FCFF282000]     4642 ms: Scavenge 16.6 (21.9) -> 14.1 (26.9) MB, pooled: 0 MB, 3.25 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF node::OnFatalError+1343
+ 2: 00007FF7DA97DD27 v8::Function::NewInstance+423
+ 3: 00007FF7DA2F5BC6 v8::SnapshotCreator::GetIsolate+56918
+ 4: 00007FF7DB96DA36 v8::platform::DelayedTaskQueue::Terminate+5825654
+ 5: 00007FF7DB968521 v8::platform::DelayedTaskQueue::Terminate+5803873
+ 6: 00007FF7DB967CE0 v8::platform::DelayedTaskQueue::Terminate+5801760
+ 7: 00007FF7DB966986 v8::platform::DelayedTaskQueue::Terminate+5796806
+
+ 8: 00007FF7DB965B20 v8::platform::DelayedTaskQueue::Terminate+5793120
+
+<--- Last few GCs --->
+
+ 9: 00007FF7DB4D02B1 v8::platform::DelayedTaskQueue::Terminate+986353
+
+
+<--- Last few GCs --->
+[5012:0000020352292000]      204 ms: Scavenge 6.1 (8.3) -> 5.6 (9.3) MB, pooled: 0 MB, 1.02 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+<--- Last few GCs --->
+10: 00007FF7DB4CF967 v8::platform::DelayedTaskQueue::Terminate+983975
+<--- Last few GCs --->
+<--- Last few GCs --->
+[26708:0000020219371000]      200 ms: Scavenge 6.1 (7.3) -> 5.6 (8.3) MB, pooled: 0 MB, 2.24 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+
+
+11: 00007FF7DB38CA47 v8::Extension::auto_enable+360519
+
+
+
+<--- Last few GCs --->
+12: 00007FF7DB383361 v8::Extension::auto_enable+321889
+[55744:0000028861062000]      846 ms: Scavenge 8.4 (11.5) -> 7.2 (11.5) MB, pooled: 0 MB, 1.18 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[60100:000001B1CD632000]      775 ms: Scavenge 8.4 (11.5) -> 7.3 (11.8) MB, pooled: 0 MB, 0.78 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[63472:0000029D2F712000]      241 ms: Scavenge 6.5 (8.5) -> 6.1 (8.5) MB, pooled: 1 MB, 3.91 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+FATAL ERROR: Zone Allocation failed - process out of memory
+FATAL ERROR: Zone Allocation failed - process out of memory
+
+----- Native stack trace -----
+
+13: 00007FF7DB3826F3 v8::Extension::auto_enable+318707
+[55744:0000028861062000]     1535 ms: Scavenge 8.9 (11.5) -> 8.0 (12.3) MB, pooled: 0 MB, 20.06 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[60100:000001B1CD632000]     1433 ms: Scavenge 8.9 (11.8) -> 7.9 (12.3) MB, pooled: 0 MB, 1.53 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+----- Native stack trace -----
+[48720:000001F46FDE2000]     4327 ms: Scavenge (interleaved) 14.1 (18.9) -> 11.9 (19.6) MB, pooled: 0 MB, 5.91 / 0.00 ms  (average mu = 0.972, current mu = 0.981) allocation failure; 
+14: 00007FF7DA8F19DF X509_STORE_set_get_issuer+200623
+[55744:0000028861062000]     1876 ms: Scavenge 9.8 (12.6) -> 8.5 (13.1) MB, pooled: 0 MB, 7.29 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+FATAL ERROR: Zone Allocation failed - process out of memory
+[48720:000001F46FDE2000]     4573 ms: Scavenge (interleaved) 15.2 (20.4) -> 13.3 (21.9) MB, pooled: 0 MB, 2.68 / 0.00 ms  (average mu = 0.972, current mu = 0.981) allocation failure; 
+[60100:000001B1CD632000]     1801 ms: Scavenge 9.8 (12.4) -> 8.6 (13.4) MB, pooled: 0 MB, 8.88 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+
+ 1: 00007FF7DBD550BF 
+----- Native stack trace -----
+15: 00007FF7DA8B6A2D v8::internal::OptimizingCompileInputQueue::Prioritize+1773
+
+
+ 1: 00007FF7DBD550BF 
+
+ 2: 00007FF7DA97DD27 
+
+16: 00007FF7DA8B6725 v8::internal::OptimizingCompileInputQueue::Prioritize+997
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+ 3: 00007FF7DA2F5BC6 
+ 2: 00007FF7DA97DD27 
+ 1: 00007FF7DBD550BF 
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+17: 00007FF7DB16F2CF v8::platform::DefaultJobHandle::UpdatePriority+591
+----- Native stack trace -----
+----- Native stack trace -----
+ 3: 00007FF7DA2F5BC6 
+ 4: 00007FF7DB95D14A 
+ 2: 00007FF7DA97DD27 
+----- Native stack trace -----
+18: 00007FF7DBC9954B node::GetNodeReport+94123
+
+
+ 4: 00007FF7D9EB20C3 
+ 5: 00007FF7DB489C44 
+ 3: 00007FF7DA2F5BC6 
+
+ 1: 00007FF7DBD550BF 
+ 1: 00007FF7DBD550BF 
+ 6: 00007FF7DB4CF8FD 
+19: 00007FF7DA9D3136 uv_thread_detach+150
+ 1: 00007FF7DBD550BF 
+20: 00007FF7DC0935B3 node::AsyncResource::CallbackScope::CallbackScope+2237123
+ 2: 00007FF7DA97DD27 
+ 4: 00007FF7DA1EC027 
+ 2: 00007FF7DA97DD27 
+ 5: 00007FF7DB95C7E8 
+ 6: 00007FF7DB9689F3 
+ 7: 00007FF7DB38CA47 
+ 5: 00007FF7DA2F7792 
+ 7: 00007FF7DB4D05D5 
+21: 00007FF92855E8D7 BaseThreadInitThunk+23
+ 3: 00007FF7DA77E567 
+ 3: 00007FF7DA77E567 
+ 8: 00007FF7DB383361 
+ 2: 00007FF7DA97DD27 
+ 6: 00007FF7DA2F80C6 
+ 3: 00007FF7DA77E567 
+22: 00007FF929FEC53C RtlUserThreadStart+44
+ 4: 00007FF7DA716B5B 
+ 4: 00007FF7DA716B5B 
+ 8: 00007FF7DB4CF992 
+ 9: 00007FF7DB3826F3 
+ 4: 00007FF7DA716B5B 
+ 5: 00007FF7DA6EE58E 
+ 7: 00007FF7DA2F8191 
+ 5: 00007FF7DA6EE58E 
+ 5: 00007FF7DA6EE58E 
+10: 00007FF7DA8F19DF 
+ 8: 00007FF7DB109E93 
+ 9: 00007FF7DB38CA47 
+ 6: 00007FF7DA781002 
+10: 00007FF7DB383361 
+ 6: 00007FF7DA781002 
+11: 00007FF7DA8B6A2D 
+ 9: 00007FF7DB138188 
+ 7: 00007FF7DA77FFB7 
+ 6: 00007FF7DA781002 
+ 7: 00007FF7DA77FFB7 
+11: 00007FF7DB3826F3 
+12: 00007FF7DA8B6725 
+10: 00007FF7DB158FEB 
+ 7: 00007FF7DA77FFB7 
+ 8: 00007FF7DA790EF2 
+ 8: 00007FF7DA790EF2 
+12: 00007FF7DA8F19DF 
+13: 00007FF7DB16F2CF 
+11: 00007FF7DB157264 
+ 9: 00007FF7DA790A1B 
+ 8: 00007FF7DA790EF2 
+ 9: 00007FF7DA790A1B 
+13: 00007FF7DA8B6A2D 
+12: 00007FF7DA1CC9BB 
+14: 00007FF7DA8B6725 
+ 9: 00007FF7DA790A1B 
+10: 00007FF7DC077DED 
+10: 00007FF7DC077DED 
+14: 00007FF7DBC9954B 
+15: 00007FF7DA9D3136 
+13: 00007FF7DA1CB770 
+10: 00007FF7DC077DED 
+14: 00007FF7DA1C956A 
+11: 00007FF7DA77C030 
+15: 00007FF7DB16F2CF 
+16: 00007FF7DC0935B3 
+11: 00007FF7DA77C030 
+11: 00007FF7DA77C030 
+12: 00007FF7DA79688A 
+12: 00007FF7DA79688A 
+13: 00007FF7DA7A2D26 
+17: 00007FF92855E8D7 
+13: 00007FF7DA7A2D26 
+12: 00007FF7DA79688A 
+16: 00007FF7DBC9954B 
+15: 00007FF7DA8F19DF 
+17: 00007FF7DA9D3136 
+16: 00007FF7DA1CB04B 
+18: 00007FF7DC0935B3 
+17: 00007FF7DB16F2CF 
+14: 00007FF7DA373937 
+14: 00007FF7DA373937 
+13: 00007FF7DA7A26E8 
+18: 00007FF929FEC53C RtlUserThreadStart+44
+14: 00007FF7DA7BA0DC 
+15: 000002881FE77A10 
+15: 000001B19FE77A10 
+19: 00007FF92855E8D7 
+18: 00007FF7DBC9954B 
+15: 00007FF7DA7BA075 
+20: 00007FF929FEC53C 
+19: 00007FF7DA9D3136 
+16: 00007FF7DA4973D1 
+20: 00007FF7DC0935B3 
+17: 00007FF7DA59D1AB 
+21: 00007FF92855E8D7 BaseThreadInitThunk+23
+18: 00007FF7DA59B8D4 
+22: 00007FF929FEC53C 
+19: 00007FF7DA52BF09 
+20: 00007FF7DA36FE0E 
+21: 00007FF7DA36FF01 
+22: 00007FF7DA36FF01 
+23: 00007FF7DA36E983 
+24: 000001F42FE775FA 
+
+
+#
+
+# Fatal process out of memory: Worklist::Segment::Create
+<--- Last few GCs --->
+
+[55320:0000020AC8437000]      419 ms: Scavenge 6.5 (8.5) -> 6.1 (10.8) MB, pooled: 0 MB, 1.03 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA2F5BC6 
+ 4: 00007FF7DA87760F 
+ 5: 00007FF7DA876492 
+ 6: 00007FF7DA1F0EC6 
+ 7: 00007FF7DA1F0CA5 
+ 8: 00007FF7DA1F0571 
+ 9: 00007FF7DA1EF4D0 
+10: 00007FF7DA1EDF17 
+11: 00007FF7DA1EC367 
+12: 00007FF7DA1CC555 
+13: 00007FF7DA1C956A 
+14: 00007FF7DA8F19DF 
+15: 00007FF7DA1CB04B 
+16: 00007FF7DB16F2CF 
+17: 00007FF7DBC9954B 
+18: 00007FF7DA9D3136 
+19: 00007FF7DC0935B3 
+20: 00007FF92855E8D7 
+21: 00007FF929FEC53C 
+#
+----- Native stack trace -----
+
+ 1: 00007FF7DBC9E51D 
+ 2: 00007FF7DB0FF966 
+ 3: 00007FF7D9E5073E 
+ 4: 00007FF7DA6F7BDA 
+ 5: 00007FF7DA6EDADF 
+ 6: 00007FF7DA6E7E38 
+ 7: 00007FF7DA6E7C10 
+ 8: 00007FF7DB16F2CF 
+ 9: 00007FF7DBC9954B 
+10: 00007FF7DA9D3136 
+11: 00007FF7DC0935B3 
+12: 00007FF92855E8D7 
+13: 00007FF929FEC53C 
+
+<--- Last few GCs --->
+
+[60404:0000021F193D2000]     1605 ms: Scavenge 9.8 (12.6) -> 8.5 (17.1) MB, pooled: 0 MB, 1.51 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[60404:0000021F193D2000]     3185 ms: Scavenge 12.7 (17.6) -> 9.7 (17.6) MB, pooled: 0 MB, 1.67 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[60404:0000021F193D2000]     3913 ms: Scavenge 13.7 (18.6) -> 11.6 (19.9) MB, pooled: 0 MB, 1.14 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF node::OnFatalError+1343
+ 2: 00007FF7DA97DD27 v8::Function::NewInstance+423
+ 3: 00007FF7DA2F5BC6 v8::SnapshotCreator::GetIsolate+56918
+ 4: 00007FF7DA11D86B SSL_CTX_get_client_CA_list+11339
+ 5: 00007FF7DA11D73D SSL_CTX_get_client_CA_list+11037
+ 6: 00007FF7DA117C54 v8::Isolate::GetNumberOfDataSlots+108596
+ 7: 00007FF7DA11FD0E SSL_CTX_get_client_CA_list+20718
+ 8: 00007FF7DA122A7E SSL_CTX_get_client_CA_list+32350
+ 9: 00007FF7DA1CC982 SSL_CTX_get_client_CA_list+728418
+10: 00007FF7DA1CB770 SSL_CTX_get_client_CA_list+723792
+11: 00007FF7DA1C956A SSL_CTX_get_client_CA_list+715082
+12: 00007FF7DA8F19DF X509_STORE_set_get_issuer+200623
+13: 00007FF7DA1CB04B SSL_CTX_get_client_CA_list+721963
+14: 00007FF7DB16F2CF v8::platform::DefaultJobHandle::UpdatePriority+591
+15: 00007FF7DBC9954B node::GetNodeReport+94123
+16: 00007FF7DA9D3136 uv_thread_detach+150
+17: 00007FF7DC0935B3 node::AsyncResource::CallbackScope::CallbackScope+2237123
+18: 00007FF92855E8D7 BaseThreadInitThunk+23
+19: 00007FF929FEC53C RtlUserThreadStart+44
+
+<--- Last few GCs --->
+
+
+<--- Last few GCs --->
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+
+[56980:000001940E4D2000]      181 ms: Scavenge 6.5 (8.5) -> 6.2 (10.8) MB, pooled: 0 MB, 1.09 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+ 1: 00007FF7DBD550BF 
+
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+[56980:000001940E4D2000]      181 ms: Scavenge 6.5 (8.5) -> 6.2 (10.8) MB, pooled: 0 MB, 1.09 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 2: 00007FF7DA97DD27 
+ 1: 00007FF7DBD550BF 
+ 3: 00007FF7DA77E567 
+ 2: 00007FF7DA97DD27 
+ 4: 00007FF7DA716B5B 
+ 3: 00007FF7DA77E567 
+ 5: 00007FF7DA6EE58E 
+ 4: 00007FF7DA75DC5E 
+ 6: 00007FF7DA781002 
+ 5: 00007FF7DA75331D 
+ 7: 00007FF7DA77FFB7 
+ 6: 00007FF7DA752FCC 
+ 8: 00007FF7DA790EF2 
+ 7: 00007FF7DA752C11 
+ 9: 00007FF7DA790A1B 
+ 8: 00007FF7DA764EF8 
+ 9: 00007FF7DB16EA7D 
+10: 00007FF7DC077DED 
+10: 00007FF7DB16EF22 
+11: 00007FF7DA77C030 
+11: 00007FF7DA755C54 
+12: 00007FF7DA73D37D 
+12: 00007FF7DA79688A 
+13: 00007FF7DA7373F4 
+13: 00007FF7DA7A2D26 
+14: 00007FF7DA78096A 
+14: 00007FF7DA373937 
+15: 00007FF7DA77FF96 
+15: 0000027475577A10 
+16: 00007FF7DA790EF2 
+17: 00007FF7DA790A1B 
+18: 00007FF7DC077DED 
+19: 00007FF7DA77C030 
+20: 00007FF7DA7A2731 
+21: 00007FF7DA7BD8F4 
+22: 00007FF7DA7BD7CC 
+23: 00007FF7DA7A48C9 
+24: 00007FF7DA7A4A32 
+25: 00007FF7DA97DB22 
+26: 00007FF7DBD31298 
+27: 000001944794F64D 
+
+<--- Last few GCs --->
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA716B5B 
+
+
+ 5: 00007FF7DA6EE58E 
+<--- Last few GCs --->
+<--- Last few GCs --->
+ 6: 00007FF7DA781002 
+
+ 7: 00007FF7DA77FFB7 
+[11020:000001A381EE1000]      382 ms: Mark-Compact 4.8 (6.2) -> 4.3 (7.2) MB, pooled: 0 MB, 7.52 / 0.00 ms  (average mu = 0.980, current mu = 0.980) background allocation failure; GC in old space requested
+
+
+
+
+<--- Last few GCs --->
+[52764:0000018E5EEC1000]      382 ms: Scavenge 6.5 (8.5) -> 6.1 (10.8) MB, pooled: 0 MB, 1.26 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+ 8: 00007FF7DA790EF2 
+#
+
+[52764:0000018E5EEC1000]      793 ms: Scavenge 8.4 (11.5) -> 7.3 (11.8) MB, pooled: 0 MB, 0.83 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+ 9: 00007FF7DA790A1B 
+FATAL ERROR: Zone Allocation failed - process out of memory
+# Fatal error in , line 0
+[53732:0000023396121000]      557 ms: Scavenge 6.5 (8.5) -> 6.1 (10.8) MB, pooled: 0 MB, 40.73 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[52764:0000018E5EEC1000]     1203 ms: Scavenge 8.9 (11.8) -> 7.9 (12.5) MB, pooled: 0 MB, 30.71 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+10: 00007FF7DC077DED 
+----- Native stack trace -----
+
+
+# Out of memory: HashMap::Initialize
+11: 00007FF7DA77C030 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+12: 00007FF7DA79688A 
+ 1: 00007FF7DBD550BF 
+FATAL ERROR: Zone Allocation failed - process out of memory
+#
+----- Native stack trace -----
+----- Native stack trace -----
+#
+13: 00007FF7DA7A2D26 
+ 2: 00007FF7DA97DD27 
+
+
+#
+ 3: 00007FF7DA2F5BC6 
+ 1: 00007FF7DBD550BF 
+#FailureMessage Object: 000000C3C95F8FE0
+14: 00007FF7DA373937 
+ 1: 00007FF7DBD550BF 
+15: 000002D227E77A10 
+ 4: 00007FF7D9EB1ED6 
+ 2: 00007FF7DA97DD27 
+ 2: 00007FF7DA97DD27 
+----- Native stack trace -----
+ 5: 00007FF7DB58A697 
+ 3: 00007FF7DA2F5BC6 
+ 3: 00007FF7DA2F5BC6 
+
+ 6: 00007FF7DB589D78 
+ 4: 00007FF7DA437505 
+ 4: 00007FF7DA3BC033 
+ 7: 00007FF7DB58198F 
+ 5: 00007FF7DA4387BB 
+ 1: 00007FF7DBC9E51D 
+ 5: 00007FF7DA3B7CB7 
+ 2: 00007FF7DB0FFEFF 
+ 8: 00007FF7DB58146F 
+ 6: 00007FF7DA43798E 
+ 6: 00007FF7DA3C0B0C 
+ 3: 00007FF7DA97BDC6 
+ 9: 00007FF7DB57D4CE 
+ 7: 00007FF7DA43E1F2 
+ 7: 00007FF7DA3A2D5B 
+10: 00007FF7DB57CFB9 
+ 8: 00007FF7DA43AC13 
+ 4: 00007FF7DA97B4B2 
+ 8: 00007FF7DA386180 
+ 5: 00007FF7DA97B2E0 
+11: 00007FF7DB5877A9 
+ 9: 00007FF7DA3858A2 
+ 6: 00007FF7DA40149F 
+12: 00007FF7DB586472 
+ 9: 00007FF7DA438808 
+10: 00007FF7DA43798E 
+ 7: 00007FF7DA4220C6 
+13: 00007FF7DB5817F7 
+11: 00007FF7DA43D354 
+10: 00007FF7DA384199 
+ 8: 00007FF7DA4387BB 
+12: 00007FF7DA44876F 
+ 9: 00007FF7DA43798E 
+11: 00007FF7DA38442C 
+14: 00007FF7DB580981 
+15: 00007FF7DB57D4CE 
+12: 00007FF7DA38430B 
+13: 00007FF7DA431F3B 
+10: 00007FF7DA437649 
+14: 00007FF7DA42797A 
+13: 00007FF7DA35B202 
+11: 00007FF7DA43FE10 
+16: 00007FF7DB57CFB9 
+17: 00007FF7DB57CA74 
+14: 00000233CE0775FA 
+15: 00007FF7DA4386B0 
+18: 00007FF7DB57C001 
+12: 00007FF7DA4370B6 
+16: 00007FF7DA4379D4 
+13: 00007FF7DA4387BB 
+19: 00007FF7DB57BD5F 
+17: 00007FF7DA437649 
+20: 00007FF7DB38A9B6 
+18: 00007FF7DA43FE10 
+14: 00007FF7DA43798E 
+21: 00007FF7DB383226 
+19: 00007FF7DA4370B6 
+15: 00007FF7DA437649 
+22: 00007FF7DB3826A0 
+16: 00007FF7DA43FE10 
+23: 00007FF7DA8F19DF 
+20: 00007FF7DA4387BB 
+21: 00007FF7DA43798E 
+17: 00007FF7DA4370B6 
+24: 00007FF7DA8B6A2D 
+22: 00007FF7DA449862 
+18: 00007FF7DA4387BB 
+25: 00007FF7DA8B6725 
+23: 00007FF7DA429335 
+19: 00007FF7DA43798E 
+26: 00007FF7DB16F2CF 
+24: 00007FF7DA431F3B 
+20: 00007FF7DA449862 
+27: 00007FF7DBC9954B 
+25: 00007FF7DA43143A 
+21: 00007FF7DA429335 
+28: 00007FF7DA9D3136 
+22: 00007FF7DA431F3B 
+29: 00007FF7DC0935B3 
+26: 00007FF7DA424B37 
+27: 00007FF7DA423D04 
+23: 00007FF7DA43143A 
+30: 00007FF92855E8D7 BaseThreadInitThunk+23
+28: 00007FF7DA422FF2 
+24: 00007FF7DA424B37 
+31: 00007FF929FEC53C RtlUserThreadStart+44
+29: 00007FF7DA422C9A 
+25: 00007FF7DA423D04 
+30: 00007FF7DA41E2C9 
+26: 00007FF7DA422FF2 
+31: 00007FF7DA8FB76F 
+27: 00007FF7DA422C9A 
+32: 00007FF7DA8FE571 
+28: 00007FF7DA41E2C9 
+33: 00007FF7DA9871E3 
+29: 00007FF7DA8FB76F 
+34: 00007FF7DBD72A5F 
+30: 00007FF7DA8FE571 
+35: 00007FF7DBD70FB3 
+31: 00007FF7DA9871E3 
+36: 0000018E1FDCF64D 
+32: 00007FF7DBD72A5F 
+33: 00007FF7DBD70FB3 
+34: 00000274CE40F64D 
+
+<--- Last few GCs --->
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+
+<--- Last few GCs --->
+[57248:000001D30C331000]     3980 ms: Scavenge 15.5 (20.4) -> 13.6 (30.1) MB, pooled: 0 MB, 2.00 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+ 1: 00007FF7DBD550BF 
+
+[57248:000001D30C331000]     4622 ms: Scavenge 20.8 (30.1) -> 14.7 (31.1) MB, pooled: 0 MB, 158.01 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[28904:0000029BF6C64000]     3334 ms: Scavenge (interleaved) 12.5 (17.4) -> 9.5 (17.9) MB, pooled: 0 MB, 1.20 / 0.00 ms  (average mu = 0.948, current mu = 0.948) allocation failure; 
+ 2: 00007FF7DA97DD27 
+
+[28904:0000029BF6C64000]     3833 ms: Scavenge (interleaved) 13.5 (18.1) -> 11.3 (19.1) MB, pooled: 0 MB, 1.49 / 0.00 ms  (average mu = 0.948, current mu = 0.948) allocation failure; 
+ 3: 00007FF7DA77E567 
+
+ 4: 00007FF7DA716B5B 
+ 5: 00007FF7DA73F0DA 
+ 6: 00007FF7DA780946 
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+ 7: 00007FF7DA77FF96 
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+ 8: 00007FF7DA790EF2 
+----- Native stack trace -----
+
+ 9: 00007FF7DA790A1B 
+
+ 1: 00007FF7DBD550BF 
+10: 00007FF7DC077DED 
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+11: 00007FF7DA77C030 
+ 3: 00007FF7DA77E567 
+12: 00007FF7DA7FFE19 
+ 2: 00007FF7DA97DD27 
+ 4: 00007FF7DA75DC5E 
+13: 00007FF7DA373262 
+ 3: 00007FF7DA2F5BC6 
+ 5: 00007FF7DA75331D 
+14: 000001EC7BFB75FA 
+ 4: 00007FF7D9EB231A 
+ 6: 00007FF7DA752FCC 
+ 5: 00007FF7DB97E684 
+ 7: 00007FF7DA752C11 
+ 6: 00007FF7DB97808C 
+ 8: 00007FF7DA765108 
+ 7: 00007FF7DB978D35 
+ 9: 00007FF7DB16F2CF 
+ 8: 00007FF7DB9782A3 
+10: 00007FF7DBC9954B 
+ 9: 00007FF7DB6EC410 
+11: 00007FF7DA9D3136 
+10: 00007FF7DB6EC2BE 
+12: 00007FF7DC0935B3 
+11: 00007FF7DB38C126 
+12: 00007FF7DB38323B 
+13: 00007FF92855E8D7 
+13: 00007FF7DB3826A0 
+14: 00007FF929FEC53C 
+14: 00007FF7DA8F19DF 
+
+15: 00007FF7DA8B6A2D 
+<--- Last few GCs --->
+16: 00007FF7DA8B6725 
+
+17: 00007FF7DB16F2CF 
+[28904:0000029BF6C64000]     3334 ms: Scavenge (interleaved) 12.5 (17.4) -> 9.5 (17.9) MB, pooled: 0 MB, 1.20 / 0.00 ms  (average mu = 0.948, current mu = 0.948) allocation failure; 
+18: 00007FF7DBC9954B 
+[28904:0000029BF6C64000]     3833 ms: Scavenge (interleaved) 13.5 (18.1) -> 11.3 (19.1) MB, pooled: 0 MB, 1.49 / 0.00 ms  (average mu = 0.948, current mu = 0.948) allocation failure; 
+19: 00007FF7DA9D3136 
+
+20: 00007FF7DC0935B3 
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+21: 00007FF92855E8D7 
+----- Native stack trace -----
+22: 00007FF929FEC53C 
+
+
+<--- Last few GCs --->
+
+[47904:000001A495261000]     1478 ms: Scavenge 6.5 (8.5) -> 6.1 (10.8) MB, pooled: 0 MB, 1.43 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[47904:000001A495261000]     1876 ms: Scavenge 8.4 (11.5) -> 7.3 (11.5) MB, pooled: 0 MB, 0.79 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+[57080:000001BC1FDF1000]     2236 ms: Scavenge 9.9 (12.6) -> 8.6 (17.1) MB, pooled: 0 MB, 1.52 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[57080:000001BC1FDF1000]     3635 ms: Scavenge 12.7 (17.4) -> 9.8 (18.4) MB, pooled: 0 MB, 36.88 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[57080:000001BC1FDF1000]     5208 ms: Scavenge 13.7 (18.4) -> 11.5 (19.4) MB, pooled: 0 MB, 3.02 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: NewSpace::EnsureCurrentCapacity Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA73EDE3 
+ 5: 00007FF7DA78096A 
+ 6: 00007FF7DA77FF96 
+ 7: 00007FF7DA790EF2 
+ 8: 00007FF7DA790A1B 
+ 9: 00007FF7DC077DED 
+10: 00007FF7DA77C030 
+11: 00007FF7DA7FFE19 
+12: 00007FF7DA373262 
+13: 000001BC57D375FA 
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA2F5BC6 
+ 4: 00007FF7DA964D46 
+ 5: 00007FF7DA408C2C 
+ 1: 00007FF7DBD550BF 
+ 6: 00007FF7DA419EE9 
+ 7: 00007FF7DA416198 
+ 8: 00007FF7DA408EF6 
+ 9: 00007FF7DA4084CD 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+10: 00007FF7DA4146AB 
+ 4: 00007FF7DA716B5B 
+11: 00007FF7DA408C42 
+12: 00007FF7DA416995 
+ 5: 00007FF7DA6EE58E 
+13: 00007FF7DA408ED5 
+ 6: 00007FF7DA781002 
+14: 00007FF7DA4084CD 
+ 7: 00007FF7DA77FFB7 
+15: 00007FF7DA407C8B 
+16: 00007FF7DA40718C 
+ 8: 00007FF7DA790EF2 
+ 9: 00007FF7DA790A1B 
+17: 00007FF7DA40C7DA 
+10: 00007FF7DC077DED 
+18: 00007FF7DA40B2E9 
+11: 00007FF7DA77C030 
+19: 00007FF7DA40F7BB 
+12: 00007FF7DA79688A 
+20: 00007FF7DA40EC83 
+13: 00007FF7DA7A2D26 
+21: 00007FF7DA40F317 
+14: 00007FF7DA373937 
+22: 00007FF7DA40ECFD 
+15: 0000017A1FE77A10 
+23: 00007FF7DA40D6DA 
+24: 00007FF7DA419981 
+25: 00007FF7DA408F61 
+26: 00007FF7DA4084CD 
+27: 00007FF7DA406BFB 
+28: 00007FF7DA405F36 
+29: 00007FF7DA430A98 
+30: 00007FF7DA424AB0 
+31: 00007FF7DA43CC33 
+32: 00007FF7DA4387BB 
+33: 00007FF7DA43798E 
+34: 00007FF7DA449862 
+35: 00007FF7DA429335 
+36: 00007FF7DA431F3B 
+37: 00007FF7DA43143A 
+38: 00007FF7DA424B37 
+39: 00007FF7DA423D04 
+40: 00007FF7DA422FF2 
+41: 00007FF7DA422C9A 
+42: 00007FF7DA41E2C9 
+43: 00007FF7DA8FB76F 
+44: 00007FF7DA8FE571 
+45: 00007FF7DA9871E3 
+46: 00007FF7DBD72A5F 
+47: 00007FF7DBD70FB3 
+48: 000001A4CD10F64D 
+
+<--- Last few GCs --->
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA716B5B 
+ 5: 00007FF7DA6EE58E 
+ 6: 00007FF7DA781002 
+ 7: 00007FF7DA77FFB7 
+ 8: 00007FF7DA790EF2 
+ 9: 00007FF7DA790A1B 
+10: 00007FF7DC077DED 
+11: 00007FF7DA77C030 
+12: 00007FF7DA79688A 
+13: 00007FF7DA7A2D26 
+14: 00007FF7DA373937 
+15: 00000174CB737A10 
+
+<--- Last few GCs --->
+
+[51924:0000019BE2F51000]     1797 ms: Scavenge 9.9 (12.6) -> 8.6 (13.4) MB, pooled: 0 MB, 8.26 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[51924:0000019BE2F51000]     2358 ms: Scavenge 10.5 (13.4) -> 9.3 (15.9) MB, pooled: 0 MB, 1.34 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[51924:0000019BE2F51000]     3152 ms: Scavenge 13.4 (16.4) -> 10.5 (18.9) MB, pooled: 0 MB, 6.07 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: NewSpace::EnsureCurrentCapacity Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA73EDE3 
+ 5: 00007FF7DA78096A 
+ 6: 00007FF7DA77FF96 
+ 7: 00007FF7DA790EF2 
+ 8: 00007FF7DA790A1B 
+ 9: 00007FF7DC077DED 
+10: 00007FF7DA77C030 
+11: 00007FF7DA7C459B 
+12: 00007FF7DA7C42CE 
+13: 00007FF7DA7BED6C 
+14: 00007FF7DA580F31 
+15: 00007FF7DA548997 
+16: 00007FF7DA548FE2 
+17: 00007FF7DA900B86 
+18: 00007FF7DA7AAE4B 
+19: 00007FF7DA8FE75B 
+20: 00007FF7DA9871E3 
+21: 00007FF7DBD72A5F 
+22: 00007FF7DBD70FB3 
+23: 0000019B9FDCF64D 
+
+<--- Last few GCs --->
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA716B5B 
+ 5: 00007FF7DA6EE58E 
+ 6: 00007FF7DA781002 
+ 7: 00007FF7DA77FFB7 
+ 8: 00007FF7DA790EF2 
+ 9: 00007FF7DA790A1B 
+10: 00007FF7DC077DED 
+11: 00007FF7DA77C030 
+12: 00007FF7DA79688A 
+13: 00007FF7DA7A2D26 
+14: 00007FF7DA373937 
+15: 000001DE1FE77A10 
+
+<--- Last few GCs --->
+
+[54212:000001EA8AD96000]      452 ms: Scavenge (interleaved) 7.0 (8.8) -> 6.4 (9.8) MB, pooled: 0 MB, 0.77 / 0.00 ms  (average mu = 0.855, current mu = 0.878) allocation failure; 
+[54212:000001EA8AD96000]      811 ms: Scavenge (interleaved) 8.4 (10.3) -> 7.4 (11.5) MB, pooled: 0 MB, 3.95 / 0.00 ms  (average mu = 0.855, current mu = 0.878) allocation failure; 
+
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+[54212:000001EA8AD96000]      452 ms: Scavenge (interleaved) 7.0 (8.8) -> 6.4 (9.8) MB, pooled: 0 MB, 0.77 / 0.00 ms  (average mu = 0.855, current mu = 0.878) allocation failure; 
+[54212:000001EA8AD96000]      811 ms: Scavenge (interleaved) 8.4 (10.3) -> 7.4 (11.5) MB, pooled: 0 MB, 3.95 / 0.00 ms  (average mu = 0.855, current mu = 0.878) allocation failure; 
+
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA75DC5E 
+ 5: 00007FF7DA75331D 
+ 6: 00007FF7DA752FCC 
+ 7: 00007FF7DA752C11 
+ 8: 00007FF7DA765108 
+ 9: 00007FF7DB16F2CF 
+10: 00007FF7DBC9954B 
+11: 00007FF7DA9D3136 
+12: 00007FF7DC0935B3 
+13: 00007FF92855E8D7 
+14: 00007FF929FEC53C 
+
+<--- Last few GCs --->
+
+[53852:000001EC3B141000]      394 ms: Scavenge 6.4 (8.5) -> 6.1 (10.8) MB, pooled: 0 MB, 3.52 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[53852:000001EC3B141000]      933 ms: Scavenge 8.4 (11.5) -> 7.3 (11.8) MB, pooled: 0 MB, 1.06 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[53852:000001EC3B141000]     1255 ms: Scavenge 8.8 (11.8) -> 7.9 (12.3) MB, pooled: 0 MB, 3.65 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA2F5BC6 
+ 4: 00007FF7DA43F544 
+ 5: 00007FF7DA4387E9 
+ 6: 00007FF7DA43798E 
+ 7: 00007FF7DA43D354 
+ 8: 00007FF7DA43B7DE 
+ 9: 00007FF7DA4387BB 
+10: 00007FF7DA43798E 
+11: 00007FF7DA43E1F2 
+12: 00007FF7DA43AC13 
+13: 00007FF7DA438808 
+14: 00007FF7DA43798E 
+15: 00007FF7DA43D354 
+16: 00007FF7DA43DBDA 
+17: 00007FF7DA4387BB 
+18: 00007FF7DA43798E 
+19: 00007FF7DA431D72 
+20: 00007FF7DA427905 
+21: 00007FF7DA4386B0 
+22: 00007FF7DA4379D4 
+23: 00007FF7DA43E1F2 
+24: 00007FF7DA43AC13 
+25: 00007FF7DA438808 
+26: 00007FF7DA43798E 
+27: 00007FF7DA43D354 
+28: 00007FF7DA44876F 
+29: 00007FF7DA431F3B 
+30: 00007FF7DA42797A 
+31: 00007FF7DA4386B0 
+32: 00007FF7DA4379D4 
+33: 00007FF7DA437649 
+34: 00007FF7DA43FE10 
+35: 00007FF7DA4370B6 
+36: 00007FF7DA4387BB 
+37: 00007FF7DA43798E 
+38: 00007FF7DA449862 
+39: 00007FF7DA429335 
+40: 00007FF7DA431F3B 
+41: 00007FF7DA43143A 
+42: 00007FF7DA424B37 
+43: 00007FF7DA423D04 
+44: 00007FF7DA422FF2 
+45: 00007FF7DA422C9A 
+46: 00007FF7DA41E2C9 
+47: 00007FF7DA8FB76F 
+48: 00007FF7DA8FE571 
+49: 00007FF7DA9871E3 
+50: 00007FF7DBD72A5F 
+51: 00007FF7DBD70FB3 
+52: 000001EC72FCF64D 
+
+<--- Last few GCs --->
+
+[58616:0000018A439A2000]      523 ms: Scavenge 6.5 (8.5) -> 6.1 (8.8) MB, pooled: 0 MB, 5.72 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA716B5B 
+ 5: 00007FF7DA6EE58E 
+ 6: 00007FF7DA781002 
+ 7: 00007FF7DA77FFB7 
+ 8: 00007FF7DA790EF2 
+ 9: 00007FF7DA790A1B 
+10: 00007FF7DC077DED 
+11: 00007FF7DA77C030 
+12: 00007FF7DA79688A 
+13: 00007FF7DA7A2D26 
+14: 00007FF7DA373937 
+15: 0000018A7B8F75FA 
+
+<--- Last few GCs --->
+
+[59628:000001416A405000]      636 ms: Scavenge 6.5 (8.5) -> 6.1 (10.8) MB, pooled: 0 MB, 1.24 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[59628:000001416A405000]     1022 ms: Scavenge 8.4 (11.3) -> 7.2 (11.3) MB, pooled: 0 MB, 1.10 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA2F5BC6 
+ 4: 00007FF7DA18DE8F 
+ 5: 00007FF7DA1A19C8 
+ 6: 00007FF7DA142794 
+ 7: 00007FF7DA14085F 
+ 8: 00007FF7DA143722 
+ 9: 00007FF7DA148F0D 
+10: 00007FF7DA149B83 
+11: 00007FF7DA17F4A8 
+12: 00007FF7DA1549EB 
+13: 00007FF7DA1545C2 
+14: 00007FF7DA15658C 
+15: 00007FF7DA155A1E 
+16: 00007FF7DA168FA1 
+17: 00007FF7DA13DDE5 
+18: 00007FF7DA159532 
+19: 00007FF7DA16ABF6 
+20: 00007FF7DA16B9F7 
+21: 00007FF7DA17FDCA 
+22: 00007FF7DA1549EB 
+23: 00007FF7DA1CCA56 
+24: 00007FF7DA1CB770 
+25: 00007FF7DA1C956A 
+26: 00007FF7DA8F19DF 
+27: 00007FF7DA1CB04B 
+28: 00007FF7DB16F2CF 
+29: 00007FF7DBC9954B 
+30: 00007FF7DA9D3136 
+31: 00007FF7DC0935B3 
+32: 00007FF92855E8D7 
+33: 00007FF929FEC53C 
+
+<--- Last few GCs --->
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+
+
+<--- Last few GCs --->
+<--- Last few GCs --->
+[43696:000001E7EDCE1000]     1522 ms: Scavenge 9.9 (13.1) -> 8.6 (17.4) MB, pooled: 0 MB, 1.95 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+
+[43696:000001E7EDCE1000]     2570 ms: Scavenge 12.7 (17.9) -> 9.9 (18.4) MB, pooled: 0 MB, 0.89 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[43668:000002064D161000]     1103 ms: Scavenge 9.9 (12.6) -> 8.6 (17.1) MB, pooled: 0 MB, 1.16 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[58640:0000017B1E892000]     1407 ms: Scavenge 9.8 (13.1) -> 8.6 (18.1) MB, pooled: 0 MB, 2.55 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[43696:000001E7EDCE1000]     3534 ms: Scavenge 13.7 (18.6) -> 11.5 (19.6) MB, pooled: 0 MB, 1.18 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[43668:000002064D161000]     2105 ms: Scavenge 12.7 (17.1) -> 9.8 (17.9) MB, pooled: 0 MB, 1.63 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[58640:0000017B1E892000]     2311 ms: Scavenge 12.7 (18.1) -> 9.7 (18.9) MB, pooled: 0 MB, 0.99 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+[43668:000002064D161000]     3156 ms: Scavenge 13.7 (18.4) -> 11.5 (19.9) MB, pooled: 0 MB, 101.47 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[58640:0000017B1E892000]     3088 ms: Scavenge 13.7 (18.9) -> 11.5 (20.1) MB, pooled: 0 MB, 34.46 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+FATAL ERROR: Zone Allocation failed - process out of memory
+
+
+----- Native stack trace -----
+ 1: 00007FF7DBD550BF 
+FATAL ERROR: Zone Allocation failed - process out of memory
+
+ 2: 00007FF7DA97DD27 
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+----- Native stack trace -----
+ 1: 00007FF7DBD550BF 
+
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+
+ 4: 00007FF7DA716B5B 
+ 1: 00007FF7DBD550BF 
+ 1: 00007FF7DBD550BF 
+ 3: 00007FF7DA2F5BC6 
+ 5: 00007FF7DA6EE58E 
+ 2: 00007FF7DA97DD27 
+ 4: 00007FF7DA441266 
+ 2: 00007FF7DA97DD27 
+ 6: 00007FF7DA781002 
+ 3: 00007FF7DA2F5BC6 
+ 5: 00007FF7DA43FAC6 
+ 3: 00007FF7DA2F5BC6 
+ 6: 00007FF7DA4370B6 
+ 4: 00007FF7DA441266 
+ 7: 00007FF7DA77FFB7 
+ 8: 00007FF7DA790EF2 
+ 5: 00007FF7DA43FAC6 
+ 7: 00007FF7DA4387BB 
+ 8: 00007FF7DA43798E 
+ 9: 00007FF7DA790A1B 
+ 6: 00007FF7DA4370B6 
+ 4: 00007FF7DA44211B 
+ 5: 00007FF7DA43268E 
+10: 00007FF7DC077DED 
+ 7: 00007FF7DA4387BB 
+ 6: 00007FF7DA427905 
+ 8: 00007FF7DA43798E 
+11: 00007FF7DA77C030 
+ 9: 00007FF7DA437649 
+10: 00007FF7DA436A21 
+ 7: 00007FF7DA4386B0 
+12: 00007FF7DA79688A 
+ 8: 00007FF7DA4379D4 
+13: 00007FF7DA7A2D26 
+ 9: 00007FF7DA437649 
+11: 00007FF7DA4387BB 
+10: 00007FF7DA436A21 
+12: 00007FF7DA43798E 
+ 9: 00007FF7DA43E1F2 
+14: 00007FF7DA373937 
+11: 00007FF7DA4387BB 
+10: 00007FF7DA43AC13 
+15: 000001CE9FE77A10 
+13: 00007FF7DA437649 
+12: 00007FF7DA43798E 
+14: 00007FF7DA436A21 
+11: 00007FF7DA438808 
+13: 00007FF7DA437649 
+15: 00007FF7DA4387BB 
+12: 00007FF7DA43798E 
+14: 00007FF7DA436A21 
+16: 00007FF7DA43798E 
+13: 00007FF7DA449862 
+15: 00007FF7DA4387BB 
+17: 00007FF7DA449862 
+16: 00007FF7DA43798E 
+14: 00007FF7DA429335 
+18: 00007FF7DA429335 
+17: 00007FF7DA449862 
+19: 00007FF7DA431F3B 
+15: 00007FF7DA431F3B 
+18: 00007FF7DA429335 
+16: 00007FF7DA43143A 
+20: 00007FF7DA43143A 
+19: 00007FF7DA431F3B 
+17: 00007FF7DA424B37 
+20: 00007FF7DA43143A 
+18: 00007FF7DA423D04 
+21: 00007FF7DA424B37 
+22: 00007FF7DA423D04 
+21: 00007FF7DA424B37 
+19: 00007FF7DA422FF2 
+23: 00007FF7DA422FF2 
+22: 00007FF7DA423D04 
+20: 00007FF7DA422C9A 
+24: 00007FF7DA422C9A 
+23: 00007FF7DA422FF2 
+25: 00007FF7DA41E2C9 
+24: 00007FF7DA422C9A 
+21: 00007FF7DA41E2C9 
+22: 00007FF7DA8FB76F 
+26: 00007FF7DA8FB76F 
+23: 00007FF7DA8FE571 
+27: 00007FF7DA8FE571 
+25: 00007FF7DA41E2C9 
+26: 00007FF7DA8FB76F 
+24: 00007FF7DA9871E3 
+28: 00007FF7DA9871E3 
+25: 00007FF7DBD72A5F 
+29: 00007FF7DBD72A5F 
+27: 00007FF7DA8FE571 
+28: 00007FF7DA9871E3 
+26: 00007FF7DBD70FB3 
+30: 00007FF7DBD70FB3 
+29: 00007FF7DBD72A5F 
+27: 0000017B5670F64D 
+30: 00007FF7DBD70FB3 
+31: 000002061FDCF64D 
+31: 000001E7A7DCF64D 
+
+<--- Last few GCs --->
+
+
+<--- Last few GCs --->
+
+[62272:00000216FD2E2000]     3012 ms: Scavenge 13.7 (18.4) -> 11.5 (19.6) MB, pooled: 0 MB, 1.09 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[62272:00000216FD2E2000]     3430 ms: Scavenge 15.5 (20.1) -> 13.6 (29.6) MB, pooled: 0 MB, 2.03 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[62272:00000216FD2E2000]     3966 ms: Scavenge 20.8 (29.9) -> 14.7 (30.9) MB, pooled: 0 MB, 90.31 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA2F5BC6 
+ 4: 00007FF7D9EB231A 
+ 5: 00007FF7D9EB2273 
+ 6: 00007FF7DB69FEFC 
+ 7: 00007FF7DB69F472 
+ 8: 00007FF7DB69EAAD 
+ 9: 00007FF7DB69E584 
+10: 00007FF7DB69D9DF 
+11: 00007FF7DB69D65E 
+12: 00007FF7DB38BFE6 
+13: 00007FF7DB383198 
+14: 00007FF7DB3826A0 
+15: 00007FF7DA8F19DF 
+16: 00007FF7DA8B6A2D 
+17: 00007FF7DA8B6725 
+18: 00007FF7DB16F2CF 
+19: 00007FF7DBC9954B 
+20: 00007FF7DA9D3136 
+21: 00007FF7DC0935B3 
+22: 00007FF92855E8D7 
+23: 00007FF929FEC53C 
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA716B5B 
+ 5: 00007FF7DA6EE58E 
+ 6: 00007FF7DA781002 
+ 7: 00007FF7DA77FFB7 
+ 8: 00007FF7DA790EF2 
+ 9: 00007FF7DA790A1B 
+10: 00007FF7DC077DED 
+11: 00007FF7DA77C030 
+12: 00007FF7DA79688A 
+13: 00007FF7DA7A2D26 
+14: 00007FF7DA373937 
+15: 000001129FE77A10 
+
+<--- Last few GCs --->
+[57448:000001A07CAD1000]     1068 ms: Scavenge 6.1 (7.5) -> 5.6 (8.5) MB, pooled: 0 MB, 0.99 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF node::OnFatalError+1343
+ 2: 00007FF7DA97DD27 v8::Function::NewInstance+423
+ 3: 00007FF7DA2F5BC6 v8::SnapshotCreator::GetIsolate+56918
+ 4: 00007FF7D9EB20C3 X509_get0_tbs_sigalg+9219
+ 5: 00007FF7DB6EC4B1 v8::platform::DelayedTaskQueue::Terminate+3198705
+ 6: 00007FF7DB6EC2BE v8::platform::DelayedTaskQueue::Terminate+3198206
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 7: 00007FF7DB38C126 v8::Extension::auto_enable+358182
+ 4: 00007FF7DA716B5B 
+ 8: 00007FF7DB38323B v8::Extension::auto_enable+321595
+ 9: 00007FF7DB3826A0 v8::Extension::auto_enable+318624
+ 5: 00007FF7DA6EE58E 
+10: 00007FF7DA8F19DF X509_STORE_set_get_issuer+200623
+ 6: 00007FF7DA781002 
+11: 00007FF7DA8B6A2D v8::internal::OptimizingCompileInputQueue::Prioritize+1773
+ 7: 00007FF7DA77FFB7 
+12: 00007FF7DA8B6725 v8::internal::OptimizingCompileInputQueue::Prioritize+997
+ 8: 00007FF7DA790EF2 
+13: 00007FF7DB16F2CF v8::platform::DefaultJobHandle::UpdatePriority+591
+ 9: 00007FF7DA790A1B 
+14: 00007FF7DBC9954B node::GetNodeReport+94123
+10: 00007FF7DC077DED 
+15: 00007FF7DA9D3136 uv_thread_detach+150
+11: 00007FF7DA77C030 
+16: 00007FF7DC0935B3 node::AsyncResource::CallbackScope::CallbackScope+2237123
+12: 00007FF7DA79688A 
+17: 00007FF92855E8D7 BaseThreadInitThunk+23
+13: 00007FF7DA7A2D26 
+18: 00007FF929FEC53C RtlUserThreadStart+44
+14: 00007FF7DA373937 
+15: 00000286D47B7A10 
+
+<--- Last few GCs --->
+
+[59136:0000023A52753000]      342 ms: Scavenge 6.5 (8.5) -> 6.1 (8.8) MB, pooled: 1 MB, 5.36 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[59136:0000023A52753000]      623 ms: Scavenge 7.1 (9.0) -> 6.5 (10.0) MB, pooled: 0 MB, 0.69 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA716B5B 
+ 5: 00007FF7DA6EE58E 
+ 6: 00007FF7DA781002 
+ 7: 00007FF7DA77FFB7 
+ 8: 00007FF7DA790EF2 
+ 9: 00007FF7DA790A1B 
+10: 00007FF7DC077DED 
+11: 00007FF7DA77C030 
+12: 00007FF7DA79688A 
+13: 00007FF7DA7A26E8 
+14: 00007FF7DA7BD8F4 
+15: 00007FF7DA7BD7CC 
+16: 00007FF7DA7A48C9 
+17: 00007FF7DA7A4A32 
+18: 00007FF7DA97DB22 
+19: 00007FF7DBD31298 
+20: 0000023A1FDCF64D 
+
+<--- Last few GCs --->
+
+[49444:000001BE2FE71000]     2315 ms: Scavenge 12.7 (17.4) -> 9.7 (18.4) MB, pooled: 0 MB, 1.40 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[49444:000001BE2FE71000]     3337 ms: Scavenge 13.6 (18.4) -> 11.4 (19.1) MB, pooled: 0 MB, 1.97 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[49444:000001BE2FE71000]     4394 ms: Scavenge 15.5 (20.1) -> 13.6 (29.1) MB, pooled: 0 MB, 2.38 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: Zone Allocation failed - process out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA2F5BC6 
+ 4: 00007FF7DB87EE1B 
+ 5: 00007FF7DB87C0A7 
+ 6: 00007FF7DB87BC15 
+ 7: 00007FF7DB87CDC9 
+ 8: 00007FF7DB87B62A 
+ 9: 00007FF7DB3ACC72 
+10: 00007FF7DB385E50 
+11: 00007FF7DB382CF7 
+12: 00007FF7DB3825CD 
+13: 00007FF7DA8F19DF 
+14: 00007FF7DA8B6A2D 
+15: 00007FF7DA8B6725 
+16: 00007FF7DB16F2CF 
+17: 00007FF7DBC9954B 
+18: 00007FF7DA9D3136 
+19: 00007FF7DC0935B3 
+20: 00007FF92855E8D7 
+21: 00007FF929FEC53C 
+
+<--- Last few GCs --->
+
+[56848:0000019613862000]     1926 ms: Scavenge 9.8 (12.4) -> 8.6 (17.4) MB, pooled: 0 MB, 0.95 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[56848:0000019613862000]     3056 ms: Scavenge 12.7 (17.6) -> 9.8 (17.9) MB, pooled: 0 MB, 0.92 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+[56848:0000019613862000]     3906 ms: Scavenge 13.6 (18.4) -> 11.5 (19.6) MB, pooled: 0 MB, 1.56 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+[60952:00000242AC511000]     1795 ms: Scavenge 9.9 (12.4) -> 8.6 (16.9) MB, pooled: 0 MB, 81.00 / 0.00 ms  (average mu = 0.724, current mu = 0.705) allocation failure; 
+[60952:00000242AC511000]     2777 ms: Scavenge 12.7 (17.4) -> 9.8 (17.9) MB, pooled: 0 MB, 1.12 / 0.00 ms  (average mu = 0.724, current mu = 0.705) allocation failure; 
+[60952:00000242AC511000]     3750 ms: Scavenge 13.8 (18.4) -> 11.6 (19.9) MB, pooled: 0 MB, 5.24 / 0.00 ms  (average mu = 0.724, current mu = 0.705) allocation failure; 
+
+FATAL ERROR: AlignedAlloc Allocation failed - process out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA2F8B1E 
+ 4: 00007FF7DA4737BB 
+ 5: 00007FF7DA4717AC 
+ 6: 00007FF7DA7B9267 
+ 7: 00007FF7DA9742D1 
+ 8: 00007FF7DA974F7B 
+ 9: 00007FF7DA42355E 
+10: 00007FF7DA422C9A 
+11: 00007FF7DA41E2C9 
+12: 00007FF7DA8FB76F 
+13: 00007FF7DA8FE571 
+14: 00007FF7DA9871E3 
+15: 00007FF7DBD72A5F 
+16: 00007FF7DBD70FB3 
+17: 00000242E4DCF64D 
+ 1: 00007FF7DBD550BF node::OnFatalError+1343
+ 2: 00007FF7DA97DD27 v8::Function::NewInstance+423
+ 3: 00007FF7DA77E567 X509_STORE_get_lookup_certs+54423
+ 4: 00007FF7DA75DC5E v8::base::AddressSpaceReservation::AddressSpaceReservation+189726
+ 5: 00007FF7DA75331D v8::base::AddressSpaceReservation::AddressSpaceReservation+146397
+ 6: 00007FF7DA752FCC v8::base::AddressSpaceReservation::AddressSpaceReservation+145548
+ 7: 00007FF7DA752C11 v8::base::AddressSpaceReservation::AddressSpaceReservation+144593
+ 8: 00007FF7DA765108 v8::base::AddressSpaceReservation::AddressSpaceReservation+219592
+ 9: 00007FF7DB16F2CF v8::platform::DefaultJobHandle::UpdatePriority+591
+10: 00007FF7DBC9954B node::GetNodeReport+94123
+11: 00007FF7DA9D3136 uv_thread_detach+150
+12: 00007FF7DC0935B3 node::AsyncResource::CallbackScope::CallbackScope+2237123
+13: 00007FF92855E8D7 BaseThreadInitThunk+23
+14: 00007FF929FEC53C RtlUserThreadStart+44
+
+<--- Last few GCs --->
+
+[47888:000001B4F9276000]      778 ms: Scavenge 6.5 (8.5) -> 6.1 (10.8) MB, pooled: 0 MB, 1.03 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+[47888:000001B4F9276000]      778 ms: Scavenge 6.5 (8.5) -> 6.1 (10.8) MB, pooled: 0 MB, 1.03 / 0.00 ms  (average mu = 1.000, current mu = 1.000) allocation failure; 
+
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA75DC5E 
+ 5: 00007FF7DA75331D 
+ 6: 00007FF7DA752FCC 
+ 7: 00007FF7DA752C11 
+ 8: 00007FF7DA765108 
+ 9: 00007FF7DB16F2CF 
+10: 00007FF7DBC9954B 
+11: 00007FF7DA9D3136 
+12: 00007FF7DC0935B3 
+13: 00007FF92855E8D7 
+14: 00007FF929FEC53C 
+
+<--- Last few GCs --->
+
+[51656:00000265CC251000]     1447 ms: Scavenge (interleaved) 8.7 (11.0) -> 7.7 (11.8) MB, pooled: 0 MB, 1.78 / 0.00 ms  (average mu = 0.479, current mu = 0.479) allocation failure; 
+[51656:00000265CC251000]     1742 ms: Scavenge (interleaved) 9.6 (12.1) -> 8.3 (16.6) MB, pooled: 0 MB, 1.38 / 0.00 ms  (average mu = 0.479, current mu = 0.479) allocation failure; 
+
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+
+<--- Last few GCs --->
+
+
+<--- Last few GCs --->
+[51656:00000265CC251000]     1447 ms: Scavenge (interleaved) 8.7 (11.0) -> 7.7 (11.8) MB, pooled: 0 MB, 1.78 / 0.00 ms  (average mu = 0.479, current mu = 0.479) allocation failure; 
+
+[51656:00000265CC251000]     1742 ms: Scavenge (interleaved) 9.6 (12.1) -> 8.3 (16.6) MB, pooled: 0 MB, 1.38 / 0.00 ms  (average mu = 0.479, current mu = 0.479) allocation failure; 
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+
+----- Native stack trace -----
+FATAL ERROR: MarkCompactCollector: young object promotion failed Allocation failed - JavaScript heap out of memory
+
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF 
+ 2: 00007FF7DA97DD27 
+ 3: 00007FF7DA77E567 
+ 4: 00007FF7DA75DC5E 
+ 5: 00007FF7DA75331D 
+ 6: 00007FF7DA752FCC 
+ 7: 00007FF7DA752C11 
+ 8: 00007FF7DA765108 
+ 9: 00007FF7DB16F2CF 
+10: 00007FF7DBC9954B 
+11: 00007FF7DA9D3136 
+12: 00007FF7DC0935B3 
+13: 00007FF92855E8D7 
+14: 00007FF929FEC53C 
+
+<--- Last few GCs --->
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7DBD550BF node::OnFatalError+1343
+ 1: 00007FF7DBD550BF node::OnFatalError+1343
+ 2: 00007FF7DA97DD27 v8::Function::NewInstance+423
+ 3: 00007FF7DA77E567 X509_STORE_get_lookup_certs+54423
+ 4: 00007FF7DA716B5B v8::CodeEvent::GetPreviousCodeStartAddress+76331
+ 5: 00007FF7DA6EE58E X509_LOOKUP_meth_get_get_by_subject+28894
+ 6: 00007FF7DA781002 X509_STORE_get_lookup_certs+65330
+ 7: 00007FF7DA77FFB7 X509_STORE_get_lookup_certs+61159
+ 8: 00007FF7DA790EF2 v8::internal::StrongRootAllocatorBase::deallocate_impl+15858
+ 9: 00007FF7DA790A1B v8::internal::StrongRootAllocatorBase::deallocate_impl+14619
+10: 00007FF7DC077DED node::AsyncResource::CallbackScope::CallbackScope+2124541
+11: 00007FF7DA77C030 X509_STORE_get_lookup_certs+44896
+12: 00007FF7DA79688A X509_STORE_set_cleanup+5098
+13: 00007FF7DA7A2D26 uv_timer_set_repeat+20694
+14: 00007FF7DA373937 v8::CodeEvent::GetFunctionName+131959
+15: 00000208B7E77A10 
+ 2: 00007FF7DA97DD27 v8::Function::NewInstance+423
+ 3: 00007FF7DA77E567 X509_STORE_get_lookup_certs+54423
+ 4: 00007FF7DA716B5B v8::CodeEvent::GetPreviousCodeStartAddress+76331
+ 5: 00007FF7DA6EE58E X509_LOOKUP_meth_get_get_by_subject+28894
+ 6: 00007FF7DA781002 X509_STORE_get_lookup_certs+65330
+ 7: 00007FF7DA77FFB7 X509_STORE_get_lookup_certs+61159
+ 8: 00007FF7DA790EF2 v8::internal::StrongRootAllocatorBase::deallocate_impl+15858
+ 9: 00007FF7DA790A1B v8::internal::StrongRootAllocatorBase::deallocate_impl+14619
+10: 00007FF7DC077DED node::AsyncResource::CallbackScope::CallbackScope+2124541
+11: 00007FF7DA77C030 X509_STORE_get_lookup_certs+44896
+12: 00007FF7DA79688A X509_STORE_set_cleanup+5098
+13: 00007FF7DA7A2D26 uv_timer_set_repeat+20694
+14: 00007FF7DA373937 v8::CodeEvent::GetFunctionName+131959
+15: 000001F46FFF7A10 
+memory allocation of 918912 bytes failed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+[benchmark-phase] {"label":"build","cwd":"","durationMs":524628,"exitCode":3221226505}

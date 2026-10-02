@@ -1,0 +1,1 @@
+vercel pull --yes --environment=production --scope="TEST_VALUE" --token=TEST_VALUE

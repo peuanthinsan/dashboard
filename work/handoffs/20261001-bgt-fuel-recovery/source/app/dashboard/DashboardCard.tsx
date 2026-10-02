@@ -1,0 +1,233 @@
+'use client';
+
+import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { textSecondary } from 'app/ui/design-tokens';
+import {
+  DASHBOARD_SCORES_EVENT,
+  DASHBOARD_SCORES_STORAGE_KEY,
+  getDashboardScore,
+  type CachedScore,
+} from 'app/dashboards/scoreCache';
+import { gradeFromScore } from 'app/dashboards/drivingScoring';
+import { resolveTemplate } from 'app/dashboards/dashboardDataUtils';
+import ScoreBlock from 'app/ui/ScoreBlock';
+
+type DashboardCardProps = {
+  id: string | null;
+  name: string;
+  template: string | null;
+  sheetUrl: string;
+  lang: 'en' | 'th';
+};
+
+const templateIcons: Record<string, string> = {
+  FuelTopUp: '⛽',
+  Summary: '📊',
+  Detail: '📋',
+  Simple: '📈',
+  Driving: '🚗',
+  OverSpeed: '⚡',
+  VehicleKPI: '🧭',
+  DynamicTrip: '🛣️',
+  'Location Data v1': '📍',
+  LocationDataV1: '📍',
+  Video: '🎥',
+  UnitStatus: '📡',
+};
+
+const templateColors: Record<string, string> = {
+  FuelTopUp: 'bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-950 dark:text-orange-200 dark:ring-orange-800',
+  Summary: 'bg-red-50 text-red-700 ring-red-200/50 dark:bg-red-950/60 dark:text-red-300 dark:ring-red-800/30',
+  Detail: 'bg-blue-50 text-blue-700 ring-blue-200/50 dark:bg-blue-950/60 dark:text-blue-300 dark:ring-blue-800/30',
+  Simple: 'bg-zinc-900 text-white ring-zinc-700/50 dark:bg-zinc-700 dark:text-zinc-100 dark:ring-zinc-600/30',
+  Driving: 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30',
+  OverSpeed: 'bg-orange-50 text-orange-700 ring-orange-200/50 dark:bg-orange-950/60 dark:text-orange-300 dark:ring-orange-800/30',
+  VehicleKPI: 'bg-cyan-50 text-cyan-700 ring-cyan-200/50 dark:bg-cyan-950/60 dark:text-cyan-300 dark:ring-cyan-800/30',
+  DynamicTrip: 'bg-violet-50 text-violet-700 ring-violet-200/50 dark:bg-violet-950/60 dark:text-violet-300 dark:ring-violet-800/30',
+  'Location Data v1': 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30',
+  LocationDataV1: 'bg-emerald-50 text-emerald-700 ring-emerald-200/50 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800/30',
+  Video: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200/50 dark:bg-fuchsia-950/60 dark:text-fuchsia-300 dark:ring-fuchsia-800/30',
+  UnitStatus: 'bg-amber-50 text-amber-700 ring-amber-200/50 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/30',
+};
+
+const templateIconBg: Record<string, string> = {
+  FuelTopUp: 'bg-orange-50 ring-orange-200 dark:bg-orange-950 dark:ring-orange-800',
+  Summary: 'bg-red-50 ring-red-200/40 dark:bg-red-950/40 dark:ring-red-800/30',
+  Detail: 'bg-blue-50 ring-blue-200/40 dark:bg-blue-950/40 dark:ring-blue-800/30',
+  Simple: 'bg-zinc-100 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60',
+  Driving: 'bg-emerald-50 ring-emerald-200/40 dark:bg-emerald-950/40 dark:ring-emerald-800/30',
+  OverSpeed: 'bg-orange-50 ring-orange-200/40 dark:bg-orange-950/40 dark:ring-orange-800/30',
+  VehicleKPI: 'bg-cyan-50 ring-cyan-200/40 dark:bg-cyan-950/40 dark:ring-cyan-800/30',
+  DynamicTrip: 'bg-violet-50 ring-violet-200/40 dark:bg-violet-950/40 dark:ring-violet-800/30',
+  'Location Data v1': 'bg-emerald-50 ring-emerald-200/40 dark:bg-emerald-950/40 dark:ring-emerald-800/30',
+  LocationDataV1: 'bg-emerald-50 ring-emerald-200/40 dark:bg-emerald-950/40 dark:ring-emerald-800/30',
+  Video: 'bg-fuchsia-50 ring-fuchsia-200/40 dark:bg-fuchsia-950/40 dark:ring-fuchsia-800/30',
+  UnitStatus: 'bg-amber-50 ring-amber-200/40 dark:bg-amber-950/40 dark:ring-amber-800/30',
+};
+
+const templateDescriptions: Record<string, { en: string; th: string }> = {
+  FuelTopUp: { en: 'Fuel levels and detected increases', th: 'ระดับน้ำมันและค่าที่เพิ่มขึ้น' },
+  Summary: { en: 'Overview with KPIs and charts', th: 'ภาพรวม KPI และกราฟ' },
+  Detail: { en: 'In-depth alert analysis', th: 'วิเคราะห์การแจ้งเตือนเชิงลึก' },
+  Simple: { en: 'Simple alerts & monthly summaries', th: 'การแจ้งเตือนแบบง่ายและสรุปรายเดือน' },
+  Driving: { en: 'Driving hours & safety', th: 'ชั่วโมงขับขี่และความปลอดภัย' },
+  OverSpeed: { en: 'Speed policy and event review', th: 'ตรวจสอบความเร็วและเหตุการณ์' },
+  VehicleKPI: { en: 'Vehicle performance indicators', th: 'ตัวชี้วัดประสิทธิภาพรถ' },
+  DynamicTrip: { en: 'Trip activity and movement', th: 'กิจกรรมและการเดินทาง' },
+  'Location Data v1': { en: 'Live route and location history', th: 'เส้นทางและประวัติตำแหน่ง' },
+  LocationDataV1: { en: 'Live route and location history', th: 'เส้นทางและประวัติตำแหน่ง' },
+  Video: { en: 'Video evidence review', th: 'ตรวจสอบหลักฐานวิดีโอ' },
+  UnitStatus: { en: 'Unit device status', th: 'สถานะอุปกรณ์ยานพาหนะ' },
+};
+
+export default function DashboardCard({ id, name, template, sheetUrl, lang }: DashboardCardProps) {
+  const [copied, setCopied] = useState(false);
+  const [cachedScore, setCachedScore] = useState<CachedScore | null>(null);
+  const pathname = usePathname();
+
+  const refreshScore = useCallback(() => {
+    if (!id) {
+      setCachedScore(null);
+      return;
+    }
+    setCachedScore(getDashboardScore(id));
+  }, [id]);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => refreshScore());
+    return () => cancelAnimationFrame(id);
+  }, [refreshScore, pathname]);
+
+  useEffect(() => {
+    const onScoresUpdated = (e: Event) => {
+      if (!(e instanceof CustomEvent)) return;
+      const updatedId = (e.detail as { dashboardId?: string } | undefined)?.dashboardId;
+      if (!updatedId || updatedId === id) refreshScore();
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) refreshScore();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshScore();
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DASHBOARD_SCORES_STORAGE_KEY) refreshScore();
+    };
+    window.addEventListener(DASHBOARD_SCORES_EVENT, onScoresUpdated);
+    window.addEventListener('pageshow', onPageShow);
+    window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener(DASHBOARD_SCORES_EVENT, onScoresUpdated);
+      window.removeEventListener('pageshow', onPageShow);
+      window.removeEventListener('storage', onStorage);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [id, refreshScore]);
+
+  const resolvedTemplate = resolveTemplate(template ?? '');
+  const displayTemplate = ['UnitStatus', 'FuelTopUp'].includes(resolvedTemplate) ? resolvedTemplate : template;
+  const icon = templateIcons[displayTemplate ?? ''] ?? '📊';
+  const badgeColor =
+    templateColors[displayTemplate ?? ''] ?? 'bg-zinc-100 text-zinc-600 ring-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700/30';
+  const iconBg =
+    templateIconBg[displayTemplate ?? ''] ?? 'bg-zinc-50 ring-zinc-200/60 dark:bg-zinc-800 dark:ring-zinc-700/60';
+  const desc = templateDescriptions[displayTemplate ?? ''] ?? { en: 'Dashboard', th: 'แดชบอร์ด' };
+
+  function handleCopyLink(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(sheetUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <article
+      className="group relative flex flex-col gap-4 overflow-hidden rounded-xl border border-zinc-200/60 bg-white/80 p-5 shadow-card backdrop-blur-sm transition-all duration-200 hover:border-red-300/60 hover:shadow-card-hover hover:translate-y-[-2px] dark:border-zinc-800/60 dark:bg-zinc-900/80 dark:hover:border-red-800/60 animate-slide-up"
+    >
+      <Link
+        href={`/dashboard/${id}`}
+        className="absolute inset-0 z-10 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500"
+      >
+        <span className="sr-only">
+          {lang === 'th' ? `เปิดแดชบอร์ด ${name}` : `Open ${name} dashboard`}
+        </span>
+      </Link>
+      {/* Red accent top trim */}
+      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/30 to-transparent transition-all duration-300 group-hover:via-red-500/60" />
+
+      {/* Hover glow */}
+      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-red-500/0 transition-all duration-300 group-hover:bg-red-500/5 dark:group-hover:bg-red-500/10" aria-hidden="true" />
+
+      <div className="relative flex items-start justify-between gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg text-lg ring-1 ${iconBg}`}>
+          {icon}
+        </div>
+        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeColor}`}>
+          {displayTemplate ?? 'Summary'}
+        </span>
+      </div>
+      <div className="relative flex-1">
+        <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{name}</h3>
+        <p className={`mt-1 ${textSecondary}`}>{lang === 'th' ? desc.th : desc.en}</p>
+        {cachedScore && (
+          <div className="mt-4">
+            <ScoreBlock
+              score={cachedScore.score}
+              label={
+                template === 'Driving'
+                  ? `${lang === 'th' ? 'คะแนน' : 'score'} · ${lang === 'th' ? 'เกรด' : 'Grade'} ${gradeFromScore(cachedScore.score)}`
+                  : (lang === 'th' ? 'คะแนน' : 'score')
+              }
+              tooltip={template === 'Driving'
+                ? (lang === 'th'
+                  ? 'คะแนนความปลอดภัยการขับขี่ (0–100): ยิ่งสูงยิ่งมีการฝ่าฝืนน้อย'
+                  : 'Driving safety score (0–100): Higher = fewer driving violations.')
+                : (lang === 'th'
+                  ? 'คะแนนความปลอดภัย (0–100): ยิ่งสูงยิ่งมีการแจ้งเตือนน้อย'
+                  : 'Safety score (0–100): Higher = fewer alerts.')}
+              detail={
+                template === 'Driving'
+                  ? `${cachedScore.alertCount} ${lang === 'th' ? 'การฝ่าฝืน' : 'violations'}`
+                  : `${cachedScore.alertCount} ${lang === 'th' ? 'แจ้งเตือน' : 'alerts'}`
+              }
+            />
+          </div>
+        )}
+      </div>
+      <div className="relative flex items-center justify-between border-t border-zinc-100/80 pt-3 dark:border-zinc-800/60">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <div className={`h-1.5 w-1.5 rounded-full ${sheetUrl ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span className="whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
+              {sheetUrl
+                ? (lang === 'th' ? 'ตั้งค่าแหล่งข้อมูลแล้ว' : 'Source configured')
+                : (lang === 'th' ? 'ต้องตั้งค่าแหล่งข้อมูล' : 'Source needed')}
+            </span>
+          </div>
+          {/* Copy sheet link button */}
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="relative z-20 inline-flex items-center justify-center rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            title={copied ? (lang === 'th' ? 'คัดลอกแล้ว' : 'Copied!') : (lang === 'th' ? 'คัดลอกลิงก์' : 'Copy link')}
+            aria-label={copied ? (lang === 'th' ? 'คัดลอกลิงก์ชีตแล้ว' : 'Sheet link copied') : (lang === 'th' ? 'คัดลอกลิงก์ชีต' : 'Copy sheet link')}
+          >
+            {copied ? (
+              <svg className="h-3.5 w-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+            )}
+          </button>
+        </div>
+        <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-red-600 transition-all duration-200 group-hover:translate-x-0.5 dark:text-red-400">
+          {lang === 'th' ? 'เปิดแดชบอร์ด →' : 'Open dashboard →'}
+        </span>
+      </div>
+    </article>
+  );
+}

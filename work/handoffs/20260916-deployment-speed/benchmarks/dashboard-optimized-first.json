@@ -1,0 +1,31 @@
+{
+  "app": "dashboard",
+  "mode": "optimized-first",
+  "sha": "6cf74ff31fb3895874f4902e3d8055b357e24135",
+  "node": "v24.19.0",
+  "identity": "gps01",
+  "status": "passed",
+  "error": "",
+  "totalMs": 173176,
+  "phases": [
+    {
+      "label": "install",
+      "cwd": "",
+      "durationMs": 94151,
+      "exitCode": 0
+    },
+    {
+      "label": "tests",
+      "cwd": "",
+      "durationMs": 21824,
+      "exitCode": 0
+    },
+    {
+      "label": "build",
+      "cwd": "",
+      "durationMs": 50056,
+      "exitCode": 0
+    }
+  ],
+  "at": "2026-09-16T06:24:04.017Z"
+}

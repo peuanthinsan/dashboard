@@ -1,0 +1,61 @@
+[build-timing] {"phase":"install","status":"passed","durationMs":0}
+[build-timing] {"phase":"tests","status":"failed","durationMs":0}
+✔ cache hits across clean checkouts, without restoring application output (61.2218ms)
+✔ lockfile, public settings, app and Next configuration changes isolate cache entries (22.6056ms)
+✔ cache overlap and filesystem links cannot redirect writes (10.1967ms)
+✔ linked cache entry is ignored without reading or altering its target (19.9648ms)
+✔ cached builds install locked dependencies and still stop on failed tests (39.6485ms)
+[build-timing] {"phase":"install","status":"passed","durationMs":0}
+[build-timing] {"phase":"tests","status":"passed","durationMs":0}
+[build-timing] {"phase":"build","status":"passed","durationMs":0}
+Release packaged for dashboard
+[build-timing] {"phase":"install","status":"passed","durationMs":0}
+[build-timing] {"phase":"tests","status":"passed","durationMs":0}
+[build-timing] {"phase":"build","status":"passed","durationMs":0}
+Release packaged for ops
+[build-timing] {"phase":"install","status":"passed","durationMs":0}
+[build-timing] {"phase":"install","status":"passed","durationMs":0}
+[build-timing] {"phase":"tests","status":"passed","durationMs":0}
+[build-timing] {"phase":"build-web","status":"passed","durationMs":0}
+[build-timing] {"phase":"build-host","status":"passed","durationMs":0}
+[build-timing] {"phase":"install-runtime","status":"passed","durationMs":0}
+Release packaged for svis
+[build-timing] {"phase":"install","status":"passed","durationMs":0}
+[build-timing] {"phase":"tests","status":"failed","durationMs":0}
+[build-timing] {"phase":"install","status":"passed","durationMs":0}
+[build-timing] {"phase":"install","status":"passed","durationMs":0}
+[build-timing] {"phase":"tests","status":"failed","durationMs":0}
+✔ invalid public settings fail before subprocesses or writes: null (27.87ms)
+✔ invalid public settings fail before subprocesses or writes: [] (20.0015ms)
+✔ invalid public settings fail before subprocesses or writes: "text" (22.0491ms)
+✔ invalid public settings fail before subprocesses or writes: 4 (23.1275ms)
+✔ invalid public settings fail before subprocesses or writes: {"DATABASE_URL":"dummy"} (25.1614ms)
+✔ invalid public settings fail before subprocesses or writes: {"NODE_OPTIONS":"--inspect"} (25.8226ms)
+✔ invalid public settings fail before subprocesses or writes: {"NEXT_PUBLIC_X":null} (19.4293ms)
+✔ invalid public settings fail before subprocesses or writes: {"NEXT_PUBLIC_X":{}} (20.5516ms)
+✔ invalid public settings fail before subprocesses or writes: {"NEXT_PUBLIC_X":[]} (24.2282ms)
+✔ invalid public settings fail before subprocesses or writes: {"NEXT_PUBLIC_X":1e999} (24.6525ms)
+✔ invalid public settings fail before subprocesses or writes: {"NEXT_PUBLIC_X":"a\u0000b"} (28.2206ms)
+✔ active environment file fails before subprocesses or writes: .env (34.3234ms)
+✔ active environment file fails before subprocesses or writes: .env.production.local (24.8517ms)
+✔ active environment file fails before subprocesses or writes: web/.env (20.5324ms)
+✔ active environment file fails before subprocesses or writes: web/.env.production (22.863ms)
+✔ output inside source through a symlink is rejected before writes (32.1833ms)
+✔ public settings, sanitized subprocesses and packaged paths for dashboard (158.7907ms)
+✔ public settings, sanitized subprocesses and packaged paths for ops (101.2064ms)
+✔ public settings, sanitized subprocesses and packaged paths for svis (96.8379ms)
+✔ npm discovery supports Windows and Unix Node layouts (29.3091ms)
+✔ launcher loads dashboard on loopback with the controller candidate port (23.8534ms)
+✔ launcher loads ops on loopback with the controller candidate port (25.1592ms)
+✔ launcher loads svis on loopback with the controller candidate port (21.216ms)
+✔ launcher rejects invalid candidate ports and runtime settings before mutation/load (24.6606ms)
+✔ a failed ops regression check prevents building or packaging (29.2542ms)
+✔ a failed svis regression check prevents building or packaging (22.5569ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1239.3097

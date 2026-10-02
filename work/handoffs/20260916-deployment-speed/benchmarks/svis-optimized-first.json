@@ -1,0 +1,49 @@
+{
+  "app": "svis",
+  "mode": "optimized-first",
+  "sha": "7ce1404739b95748c114349a0e3982e6b31ded65",
+  "node": "v24.19.0",
+  "identity": "gps01",
+  "status": "passed",
+  "error": "",
+  "totalMs": 36696,
+  "phases": [
+    {
+      "label": "install",
+      "cwd": "hosting\\runtime",
+      "durationMs": 13213,
+      "exitCode": 0
+    },
+    {
+      "label": "install",
+      "cwd": "web",
+      "durationMs": 6750,
+      "exitCode": 0
+    },
+    {
+      "label": "tests",
+      "cwd": "",
+      "durationMs": 526,
+      "exitCode": 0
+    },
+    {
+      "label": "build",
+      "cwd": "web",
+      "durationMs": 3954,
+      "exitCode": 0
+    },
+    {
+      "label": "host-build",
+      "cwd": "",
+      "durationMs": 597,
+      "exitCode": 0
+    },
+    {
+      "label": "install",
+      "cwd": "..\\svis-optimized-first-release",
+      "durationMs": 11499,
+      "exitCode": 0
+    }
+  ],
+  "at": "2026-09-16T06:24:42.166Z"
+}

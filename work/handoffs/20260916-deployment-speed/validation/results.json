@@ -1,0 +1,182 @@
+[
+  {
+    "name": "repo-helpers",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 15394
+  },
+  {
+    "name": "svis-helpers",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 1505
+  },
+  {
+    "name": "ops-panel-helpers",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 1483
+  },
+  {
+    "name": "dashboard-lint",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 88056
+  },
+  {
+    "name": "workflow-shell-1",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 1692
+  },
+  {
+    "name": "workflow-shell-2",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 335
+  },
+  {
+    "name": "workflow-shell-3",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 333
+  },
+  {
+    "name": "workflow-shell-4",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 316
+  },
+  {
+    "name": "workflow-shell-5",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 321
+  },
+  {
+    "name": "workflow-shell-6",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 343
+  },
+  {
+    "name": "workflow-shell-7",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 293
+  },
+  {
+    "name": "workflow-shell-8",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 291
+  },
+  {
+    "name": "workflow-shell-9",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 301
+  },
+  {
+    "name": "workflow-shell-10",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 359
+  },
+  {
+    "name": "workflow-shell-11",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 304
+  },
+  {
+    "name": "workflow-shell-12",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 263
+  },
+  {
+    "name": "workflow-shell-13",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 317
+  },
+  {
+    "name": "workflow-shell-14",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 304
+  },
+  {
+    "name": "workflow-shell-15",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 304
+  },
+  {
+    "name": "workflow-shell-16",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 312
+  },
+  {
+    "name": "workflow-shell-17",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 316
+  },
+  {
+    "name": "workflow-shell-18",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 258
+  },
+  {
+    "name": "workflow-shell-19",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 323
+  },
+  {
+    "name": "workflow-shell-20",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 292
+  },
+  {
+    "name": "workflow-shell-21",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 342
+  },
+  {
+    "name": "workflow-shell-22",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 322
+  },
+  {
+    "name": "svis-root-bundle",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 910
+  },
+  {
+    "name": "svis-typecheck",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 10150
+  },
+  {
+    "name": "svis-unit-tests",
+    "status": "passed",
+    "exitCode": 0,
+    "durationMs": 25521
+  },
+  {
+    "name": "svis-minimal-runtime-smoke",
+    "status": "passed",
+    "durationMs": 14666,
+    "detail": "HTML and compiled JS served; minimal runtime imports resolved; dummy DB not queried"
+  }
+]

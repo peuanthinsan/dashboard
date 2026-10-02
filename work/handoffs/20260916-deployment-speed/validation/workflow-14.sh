@@ -1,0 +1,1 @@
+vercel promote "TEST_VALUE" --yes --scope="TEST_VALUE" --token=TEST_VALUE

@@ -1,0 +1,78 @@
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated fstream@1.0.12: This package is no longer supported.
+
+added 190 packages in 13s
+npm warn allow-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn allow-scripts   esbuild@0.27.0 (postinstall: node install.js)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+
+[benchmark-phase] {"label":"install","cwd":"hosting\\runtime","durationMs":13213,"exitCode":0}
+
+added 42 packages in 6s
+
+[benchmark-phase] {"label":"install","cwd":"web","durationMs":6750,"exitCode":0}
+✔ api2 is blocked independently of hostname case, port, and trailing dot (1.5513ms)
+✔ the SVIS domain and direct IP access stay available (0.3211ms)
+✔ Neon URLs retain the cloud HTTP client and skip local transactions (5.5603ms)
+✔ the TCP adapter allows loopback including IPv6 and refuses other database hosts (2.1184ms)
+✔ tagged queries are parameterized and execute once when awaited repeatedly (2.1948ms)
+✔ request transactions use savepoints for SQL batches and notify only after commit (2.4972ms)
+✔ unsuccessful responses roll back and discard queued notifications (2.0969ms)
+✔ query errors and silently aborted commits fail the request and release the client (4.0451ms)
+✔ a notification failure after commit does not fail an already saved response (1.8607ms)
+✔ direct ngrok traffic ignores spoofed Vercel and earlier forwarded headers (1.2082ms)
+✔ only the trusted Vercel forwarding key can carry the original client IP (0.302ms)
+✔ normalization removes the origin credential before calling API handlers (0.1996ms)
+✔ direct LAN and internet callers cannot spoof their address with forwarding headers (0.1452ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 348.1278
+
+[benchmark-phase] {"label":"tests","cwd":"","durationMs":526,"exitCode":0}
+
+> svis-dashboard@1.0.0 build
+> tsc --noEmit && vite build
+
+[36mvite v8.2.0 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 110 modules transformed.
+rendering chunks...
+computing gzip size...
+../public/dashboard/index.html                    0.49 kB │ gzip:   0.30 kB
+../public/dashboard/assets/index-w8gL89_t.css    55.64 kB │ gzip:   9.72 kB
+../public/dashboard/assets/browser-D7N-6WML.js   66.46 kB │ gzip:  18.68 kB
+../public/dashboard/assets/index-J7EJIjtR.js    433.37 kB │ gzip: 121.33 kB
+
+[32m✓ built in 789ms[39m
+
+[benchmark-phase] {"label":"build","cwd":"web","durationMs":3954,"exitCode":0}
+▲ [WARNING] Cannot find base config file "expo/tsconfig.base" [tsconfig.json]
+
+    tsconfig.json:2:13:
+      2 │   "extends": "expo/tsconfig.base",
+        ╵              ~~~~~~~~~~~~~~~~~~~~
+
+Built SVIS Node server with 37 API routes
+
+[benchmark-phase] {"label":"host-build","cwd":"","durationMs":597,"exitCode":0}
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated fstream@1.0.12: This package is no longer supported.
+
+added 188 packages in 11s
+
+[benchmark-phase] {"label":"install","cwd":"..\\svis-optimized-first-release","durationMs":11499,"exitCode":0}

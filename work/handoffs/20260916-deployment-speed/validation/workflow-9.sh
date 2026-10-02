@@ -1,0 +1,1 @@
+vercel build --prod --scope="TEST_VALUE" --token=TEST_VALUE

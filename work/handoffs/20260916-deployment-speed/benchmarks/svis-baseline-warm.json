@@ -1,0 +1,49 @@
+{
+  "app": "svis",
+  "mode": "baseline-warm",
+  "sha": "7ce1404739b95748c114349a0e3982e6b31ded65",
+  "node": "v24.19.0",
+  "identity": "gps01",
+  "status": "passed",
+  "error": "",
+  "totalMs": 207471,
+  "phases": [
+    {
+      "label": "install",
+      "cwd": "",
+      "durationMs": 101409,
+      "exitCode": 0
+    },
+    {
+      "label": "install",
+      "cwd": "web",
+      "durationMs": 10559,
+      "exitCode": 0
+    },
+    {
+      "label": "tests",
+      "cwd": "",
+      "durationMs": 683,
+      "exitCode": 0
+    },
+    {
+      "label": "build",
+      "cwd": "web",
+      "durationMs": 4491,
+      "exitCode": 0
+    },
+    {
+      "label": "host-build",
+      "cwd": "",
+      "durationMs": 702,
+      "exitCode": 0
+    },
+    {
+      "label": "install",
+      "cwd": "..\\svis-baseline-warm-release",
+      "durationMs": 89527,
+      "exitCode": 0
+    }
+  ],
+  "at": "2026-09-16T06:18:43.523Z"
+}
