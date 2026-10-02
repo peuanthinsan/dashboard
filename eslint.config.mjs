@@ -17,6 +17,7 @@ const eslintConfig = defineConfig([
     '**/.vercel/**',
     'next-env.d.ts',
     '**/node_modules/**',
+    'work/handoffs/**',
   ]),
 ]);
 
