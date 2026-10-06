@@ -99,7 +99,7 @@ export async function GET(
     }
 
     if (mode === 'months') {
-      const months = await listSheetMonths(sheetId, gid);
+      const months = await listSheetMonths(sheetId, gid, new Date(), { fallbackToTrackTime: url.searchParams.get('trackFallback') === '1' });
       return NextResponse.json({ months, lastUpdated: Date.now() });
     }
 
@@ -123,6 +123,8 @@ export async function GET(
       }
       const parsed = await fetchSheetDateRange(sheetId, gid, from, to, DEFAULT_SHEET_ROW_LIMIT, {
         includeVideo,
+        fallbackToTrackTime: url.searchParams.get('trackFallback') === '1',
+        preserveSourceFields: url.searchParams.get('sourceFields') === '1',
       });
       return NextResponse.json({
         columns: parsed.columns,

@@ -18,6 +18,11 @@ import {
 } from './dashboardDataUtils';
 
 describe('dashboardDataUtils', () => {
+  it('resolves dedicated vinythaisummary template aliases', () => {
+    for (const template of ['vinythaisummary', 'VinythaiSummary', ' Vinythai Summary ']) expect(resolveTemplate(template)).toBe('vinythaisummary');
+    expect(resolveTemplateForSave('Vinythai Summary', null)).toBe('vinythaisummary');
+    expect(resolveTemplate('Summary')).toBe('Summary');
+  });
   describe('normalizeLabel', () => {
     it('trims and lowercases', () => {
       expect(normalizeLabel('  Driver Name  ')).toBe('driver name');

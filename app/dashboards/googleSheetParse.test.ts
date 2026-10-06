@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { assignUniqueFieldKeys, parseGoogleSheetTable } from './googleSheetParse';
+import { assignUniqueFieldKeys, parseGoogleSheetTable, parseGoogleSheetGvizText } from './googleSheetParse';
+
+describe('Vinythai complete GViz responses', () => {
+  it('rejects HTTP-200 error or missing-table bodies instead of returning empty totals', () => {
+    for (const json of [{ status: 'error', errors: [{ reason: 'invalid_query' }] }, { status: 'ok' }, { table: { cols: [] } }]) {
+      expect(() => parseGoogleSheetGvizText(`google.visualization.Query.setResponse(${JSON.stringify(json)});`)).toThrow('unsuccessful or incomplete');
+    }
+    expect(parseGoogleSheetGvizText('google.visualization.Query.setResponse({"status":"ok","table":{"cols":[],"rows":[]}});').rows).toEqual([]);
+  });
+});
 
 describe('assignUniqueFieldKeys', () => {
   it('leaves unique labels unchanged', () => {
