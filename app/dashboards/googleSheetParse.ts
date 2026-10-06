@@ -60,6 +60,11 @@ export function parseGoogleSheetGvizText(payload: string): {
   if (!match) {
     throw new Error('Unable to read the Google Sheet response.');
   }
-  const json = JSON.parse(match[1]) as { table?: { cols?: ColJson[]; rows?: RowJson[] } };
+  const json = JSON.parse(match[1]) as { status?: string; table?: { cols?: ColJson[]; rows?: RowJson[] } };
+  // GViz can report a query/permission failure with HTTP 200. Such a response
+  // must never become an empty successful chunk in a monthly total.
+  if (json.status === 'error' || !json.table || !Array.isArray(json.table.cols) || !Array.isArray(json.table.rows)) {
+    throw new Error('Google Sheet returned an unsuccessful or incomplete query response.');
+  }
   return parseGoogleSheetTable(json);
 }

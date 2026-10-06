@@ -1,3 +1,5 @@
+import type { GoogleSheetColumn } from './googleSheetParse';
+
 /**
  * Google Visualization API JSON endpoint for a spreadsheet tab.
  * @see https://developers.google.com/chart/interactive/docs/querylanguage
@@ -175,7 +177,11 @@ export function buildDatedRowsWhere(
   startIso: string,
   endExclusiveIso: string,
   idColId = 'A',
+  fallbackDateColId?: string,
 ): string {
+  if (fallbackDateColId) {
+    return `${idColId} is not null and ((${dateColId} >= ${gvizDateLiteral(startIso)} and ${dateColId} < ${gvizDateLiteral(endExclusiveIso)}) or (${dateColId} is null and ${fallbackDateColId} >= ${gvizDateLiteral(startIso)} and ${fallbackDateColId} < ${gvizDateLiteral(endExclusiveIso)}))`;
+  }
   return (
     `${idColId} is not null` +
     ` and ${dateColId} >= ${gvizDateLiteral(startIso)}` +
@@ -192,12 +198,31 @@ export function buildNonNullIdWhere(idColId = 'A'): string {
  * GViz query that lists calendar months present in a timestamp column.
  * GViz `month()` is 0-based (Jan=0); callers must add 1 when building YYYY-MM keys.
  */
-export function buildMonthListQuery(dateColId: string, idColId = 'A'): string {
+export function buildMonthListQuery(dateColId: string, idColId = 'A', extraWhere?: string): string {
   return (
     `select year(${dateColId}), month(${dateColId}), count(${idColId})` +
     ` where ${idColId} is not null` +
+    (extraWhere ? ` and ${extraWhere}` : '') +
     ` group by year(${dateColId}), month(${dateColId})`
   );
+}
+
+/** Opt-in alert-time priority and typed Track Time fallback for Vinythai. */
+export function resolveSheetDateColumns(columns: GoogleSheetColumn[], fallbackToTrackTime = false) {
+  const typed = (index: number) => index >= 0 && ['datetime', 'date'].includes(columns[index]!.type);
+  let primary = columns.findIndex((column) => ['datetime', 'date'].includes(column.type));
+  if (fallbackToTrackTime) {
+    for (const label of ['alert date time', 'track time', 'date']) {
+      const index = columns.findIndex((column) => column.label.trim().toLowerCase() === label);
+      if (typed(index)) { primary = index; break; }
+    }
+  }
+  const track = columns.findIndex((column) => column.label.trim().toLowerCase() === 'track time');
+  return {
+    orderColId: primary >= 0 ? gvizColumnLetter(primary) : 'A',
+    hasDateColumn: primary >= 0,
+    fallbackDateColId: fallbackToTrackTime && typed(track) && track !== primary ? gvizColumnLetter(track) : undefined,
+  };
 }
 
 function parseIsoDate(iso: string): number | null {

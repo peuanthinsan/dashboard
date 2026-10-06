@@ -500,6 +500,7 @@ export function resolveTemplateForSave(
   previousTemplate: string | null,
   sourceChanged = false,
 ): string {
+  if (resolveTemplate(selectedTemplate) === 'vinythaisummary') return 'vinythaisummary';
   if (
     selectedTemplate === 'UnitStatus' &&
     previousTemplate !== null &&
@@ -514,6 +515,7 @@ export function resolveTemplateForSave(
 export function resolveTemplate(template: string): string {
   const raw = (template ?? '').trim();
   const normalized = raw.toLowerCase().replace(/\s+/g, ' ');
+  if (normalized === 'vinythaisummary' || normalized === 'vinythai summary') return 'vinythaisummary';
   if (
     normalized === 'unitstatus' ||
     normalized === 'vehicleunitstatus' ||

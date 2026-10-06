@@ -8,7 +8,23 @@ import {
   gvizDateLiteral,
   monthKeyToDateRange,
   splitDateRangeIntoChunks,
+  resolveSheetDateColumns,
 } from './googleSheetGvizUrl';
+
+describe('Track Time fallback', () => {
+  it('uses disjoint primary and null-primary fallback date ranges', () => {
+    expect(buildDatedRowsWhere('E', '2026-07-01', '2026-07-04', 'A', 'L')).toBe("A is not null and ((E >= date '2026-07-01' and E < date '2026-07-04') or (E is null and L >= date '2026-07-01' and L < date '2026-07-04'))");
+    expect(buildDatedRowsWhere('E', '2026-07-01', '2026-07-04')).toBe("A is not null and E >= date '2026-07-01' and E < date '2026-07-04'");
+    expect(buildMonthListQuery('L', 'A', 'E is null and L is not null')).toContain('where A is not null and E is null and L is not null group by');
+  });
+  it('prioritizes alert timestamps only in opt-in mode and requires a typed fallback', () => {
+    const columns = ['id', 'updated_at', 'Alert Date Time', 'Track Time'].map((label, i) => ({ label, fieldKey: label, type: i ? 'datetime' : 'string' }));
+    expect(resolveSheetDateColumns(columns)).toMatchObject({ orderColId: 'B', fallbackDateColId: undefined });
+    expect(resolveSheetDateColumns(columns, true)).toMatchObject({ orderColId: 'C', fallbackDateColId: 'D' });
+    columns[3]!.type = 'string';
+    expect(resolveSheetDateColumns(columns, true).fallbackDateColId).toBeUndefined();
+  });
+});
 
 describe('gvizColumnLetter', () => {
   it('maps zero-based indices to spreadsheet column references', () => {

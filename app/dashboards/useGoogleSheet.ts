@@ -9,9 +9,9 @@ import {
 import {
   buildDatedRowsWhere,
   buildGvizJsonUrl,
-  gvizColumnLetter,
   monthKeyToDateRange,
   splitDateRangeIntoChunks,
+  resolveSheetDateColumns,
 } from './googleSheetGvizUrl';
 import { buildAlertColumnSelect } from './googleSheetFetch';
 
@@ -51,6 +51,11 @@ type UseGoogleSheetOptions = {
    * video evidence — leave this off elsewhere so chunks stay smaller.
    */
   includeVideo?: boolean;
+  /** Fail clearly instead of replacing monthly totals with the recent-row cap. */
+  requireMonthScope?: boolean;
+  /** Include primary-null alerts using a typed Track Time, in catalog and chunks. */
+  fallbackToTrackTime?: boolean;
+  preserveSourceFields?: boolean;
 };
 
 type SheetResponse = {
@@ -76,7 +81,7 @@ type CachedSheet = {
   availableMonths?: SheetMonthOption[];
 };
 
-type SheetMeta = { orderColId: string; select: string; hasDateColumn: boolean };
+type SheetMeta = { orderColId: string; fallbackDateColId?: string; select: string; hasDateColumn: boolean };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CATALOG_TTL_MS = 10 * 60 * 1000;
@@ -190,8 +195,10 @@ async function getSheetMeta(
   gid: string,
   signal: AbortSignal,
   includeVideo: boolean,
+  fallbackToTrackTime: boolean,
+  preserveSourceFields: boolean,
 ): Promise<SheetMeta> {
-  const key = `${sheetKey(sheetId, gid)}:video=${includeVideo}`;
+  const key = `${sheetKey(sheetId, gid)}:video=${includeVideo}:trackFallback=${fallbackToTrackTime}:sourceFields=${preserveSourceFields}`;
   const hit = metaCache.get(key);
   if (hit && Date.now() - hit.fetchedAt <= CATALOG_TTL_MS) return hit.meta;
 
@@ -201,11 +208,9 @@ async function getSheetMeta(
   );
   if (!res.ok) throw new Error('Unable to read the sheet header.');
   const parsed = parseGoogleSheetGvizText(await res.text());
-  const dateIdx = parsed.columns.findIndex((c) => c.type === 'datetime' || c.type === 'date');
   const meta: SheetMeta = {
-    orderColId: dateIdx >= 0 ? gvizColumnLetter(dateIdx) : 'A',
-    select: buildAlertColumnSelect(parsed.columns, { includeVideo }),
-    hasDateColumn: dateIdx >= 0,
+    ...resolveSheetDateColumns(parsed.columns, fallbackToTrackTime),
+    select: buildAlertColumnSelect(parsed.columns, { includeVideo, preserveSourceFields }),
   };
   metaCache.set(key, { meta, fetchedAt: Date.now() });
   return meta;
@@ -218,7 +223,11 @@ export default function useGoogleSheet({
   monthKeys,
   loadMonthCatalog,
   includeVideo = false,
+  requireMonthScope = false,
+  fallbackToTrackTime = false,
+  preserveSourceFields = false,
 }: UseGoogleSheetOptions): SheetResponse {
+  const sourceKey = `${sheetKey(sheetId, gid)}:trackFallback=${fallbackToTrackTime}`;
   const monthScoped = monthKeys !== undefined;
   const wantCatalog = loadMonthCatalog ?? monthScoped;
 
@@ -250,9 +259,9 @@ export default function useGoogleSheet({
   // served from (or clobbered by) a Summary/Simple/OverSpeed cache entry for
   // the same sheet/gid.
   const getCacheKey = useCallback(() => {
-    const scoped = monthScoped && !monthScopeUnsupported.has(sheetKey(sheetId, gid));
-    return `${CACHE_VERSION}:${sheetId}:${gid}:video=${includeVideo}:months=${scoped ? (monthKeySig || 'NONE') : 'recent'}`;
-  }, [gid, includeVideo, monthKeySig, monthScoped, sheetId]);
+    const scoped = monthScoped && (requireMonthScope || !monthScopeUnsupported.has(sourceKey));
+    return `${CACHE_VERSION}:${sourceKey}:sourceFields=${preserveSourceFields}:strict=${requireMonthScope}:video=${includeVideo}:months=${scoped ? (monthKeySig || 'NONE') : 'recent'}`;
+  }, [includeVideo, monthKeySig, monthScoped, requireMonthScope, sourceKey, preserveSourceFields]);
 
   const readCache = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -329,7 +338,7 @@ export default function useGoogleSheet({
 
   const fetchMonthCatalog = useCallback(
     async (signal: AbortSignal): Promise<SheetMonthOption[]> => {
-      const key = sheetKey(sheetId, gid);
+      const key = sourceKey;
       const hit = catalogCache.get(key);
       if (hit && Date.now() - hit.fetchedAt <= CATALOG_TTL_MS) return hit.months;
 
@@ -349,7 +358,7 @@ export default function useGoogleSheet({
         // Ignore storage failures.
       }
 
-      const res = await fetchWithTimeout(buildApiUrl(sheetId, gid, { mode: 'months' }), signal);
+      const res = await fetchWithTimeout(buildApiUrl(sheetId, gid, { mode: 'months', ...(fallbackToTrackTime ? { trackFallback: '1' } : {}) }), signal);
       if (!res.ok) throw new Error('Unable to list sheet months.');
       const data = (await res.json()) as { months?: SheetMonthOption[] };
       const months = Array.isArray(data.months) ? data.months : [];
@@ -361,7 +370,7 @@ export default function useGoogleSheet({
       }
       return months;
     },
-    [gid, sheetId],
+    [gid, sheetId, sourceKey, fallbackToTrackTime],
   );
 
   /** One chunk, straight from Google (fast path — no serverless hop, no payload cap). */
@@ -374,15 +383,16 @@ export default function useGoogleSheet({
     ): Promise<CachedSheet> => {
       const url = buildGvizJsonUrl(sheetId, gid, {
         rowLimit: 50_000,
-        where: buildDatedRowsWhere(meta.orderColId, from, to, 'A'),
+        where: buildDatedRowsWhere(meta.orderColId, from, to, 'A', meta.fallbackDateColId),
         select: meta.select,
       });
       const res = await fetchWithTimeout(url, signal);
       if (!res.ok) throw new Error('Unable to fetch the Google Sheet data.');
       const parsed = parseGoogleSheetGvizText(await res.text());
+      if (requireMonthScope && parsed.rows.length >= 50_000) throw new Error('Too many alerts in one date window to load complete totals.');
       return { columns: parsed.columns, rows: parsed.rows, lastUpdated: Date.now() };
     },
-    [gid, sheetId],
+    [gid, sheetId, requireMonthScope],
   );
 
   /** One chunk via the authenticated proxy (fallback when direct GViz is blocked). */
@@ -396,17 +406,20 @@ export default function useGoogleSheet({
       const query: Record<string, string> = includeVideo
         ? { from, to, video: '1' }
         : { from, to };
+      if (fallbackToTrackTime) query.trackFallback = '1';
+      if (preserveSourceFields) query.sourceFields = '1';
       const res = await fetchWithTimeout(buildApiUrl(sheetId, gid, query), signal);
       if (res.status === 422) throw new MonthScopeUnsupportedError();
       if (!res.ok) throw new Error('Unable to fetch the Google Sheet data.');
       const data = await res.json();
+      if (requireMonthScope && data.truncated) throw new Error('The sheet response is truncated; complete totals are unavailable.');
       return {
         columns: data.columns ?? [],
         rows: data.rows ?? [],
         lastUpdated: data.lastUpdated ?? Date.now(),
       };
     },
-    [gid, sheetId],
+    [gid, sheetId, fallbackToTrackTime, requireMonthScope, preserveSourceFields],
   );
 
   const runChunkJobs = useCallback(
@@ -468,7 +481,7 @@ export default function useGoogleSheet({
       const key = sheetKey(sheetId, gid);
       if (!directBroken.has(key)) {
         try {
-          const meta = await getSheetMeta(sheetId, gid, signal, includeVideo);
+          const meta = await getSheetMeta(sheetId, gid, signal, includeVideo, fallbackToTrackTime, preserveSourceFields);
           if (!meta.hasDateColumn) throw new MonthScopeUnsupportedError();
           return await runChunkJobs(
             buildJobs(DIRECT_CHUNK_DAYS),
@@ -496,7 +509,7 @@ export default function useGoogleSheet({
         onPartial,
       );
     },
-    [fetchDirectChunk, fetchProxyChunk, gid, runChunkJobs, sheetId],
+    [fetchDirectChunk, fetchProxyChunk, gid, runChunkJobs, sheetId, fallbackToTrackTime, preserveSourceFields],
   );
 
   const fetchRecent = useCallback(
@@ -593,8 +606,9 @@ export default function useGoogleSheet({
     setError(null);
 
     try {
-      const key = sheetKey(sheetId, gid);
+      const key = sourceKey;
       let scopeBroken = monthScopeUnsupported.has(key);
+      if (requireMonthScope && (!monthScoped || scopeBroken)) throw new MonthScopeUnsupportedError('Complete monthly data is unavailable for this sheet.');
 
       let months: SheetMonthOption[] = [];
       if (wantCatalog && !scopeBroken) {
@@ -603,6 +617,7 @@ export default function useGoogleSheet({
           if (gen !== fetchGen.current) return;
           setAvailableMonths(months);
           if (monthScoped && months.length === 0) {
+            if (requireMonthScope) throw new MonthScopeUnsupportedError('No reportable months found. Check the sheet timestamp columns.');
             // No listable months (text dates, no date-typed column, or empty
             // sheet) — month scoping cannot work. Permanently fall back to the
             // legacy most-recent window instead of rendering a blank dashboard.
@@ -611,6 +626,7 @@ export default function useGoogleSheet({
           }
         } catch (err) {
           if (signal.aborted || isAbortError(err)) return;
+          if (requireMonthScope) throw err;
           // Catalogue unavailable this load — fall back to the legacy window
           // for now, but don't permanently mark the sheet.
           months = [];
@@ -652,6 +668,7 @@ export default function useGoogleSheet({
           });
         } catch (err) {
           if (!(err instanceof MonthScopeUnsupportedError)) throw err;
+          if (requireMonthScope) throw err;
           // Discovered mid-fetch (no date column / proxy 422): remember and
           // serve the legacy window instead of failing the dashboard.
           monthScopeUnsupported.add(key);
@@ -693,14 +710,14 @@ export default function useGoogleSheet({
     fetchMonths,
     fetchMonthKeys,
     fetchRecent,
-    gid,
     includeVideo,
     monthKeySig,
     monthScoped,
     readCache,
-    sheetId,
     wantCatalog,
     writeCache,
+    requireMonthScope,
+    sourceKey,
   ]);
 
   useEffect(() => {

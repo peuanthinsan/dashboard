@@ -43,6 +43,33 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('Track Time fallback', () => {
+  const headers = [
+    { label: 'id', type: 'string' }, { label: 'Vehicle No', type: 'string' },
+    { label: 'Alert Date Time', type: 'datetime' }, { label: 'Track Time', type: 'datetime' },
+    { label: 'Fleet', type: 'string' }, { label: 'latitude', type: 'number' },
+  ];
+  const catalogHeaders = [{ label: 'year', type: 'number' }, { label: 'month', type: 'number' }, { label: 'count', type: 'number' }];
+  it('merges disjoint catalog counts including a fallback-only month', async () => {
+    const calls = stubFetch([gvizPayload(headers), gvizPayload(catalogHeaders, [[2026, 5, 10], [null, null, 17]]), gvizPayload(catalogHeaders, [[2026, 5, 2], [2026, 6, 17]])]);
+    const months = await listSheetMonths('track-fallback-catalog', '0', new Date('2026-10-06T12:00:00Z'), { fallbackToTrackTime: true });
+    expect(months.map(({ key, count }) => ({ key, count }))).toEqual([{ key: '2026-07', count: 17 }, { key: '2026-06', count: 12 }]);
+    expect(decodeURIComponent(calls[2]!)).toContain('C is null and D is not null');
+  });
+  it('rejects an unsuccessful fallback catalog query instead of merging partial months', async () => {
+    stubFetch([gvizPayload(headers), gvizPayload(catalogHeaders, [[2026, 5, 10]]), 'google.visualization.Query.setResponse({"status":"error","errors":[{"reason":"invalid_query"}]});']);
+    await expect(listSheetMonths('track-fallback-error', '0', new Date('2026-10-06T12:00:00Z'), { fallbackToTrackTime: true })).rejects.toThrow('unsuccessful or incomplete');
+  });
+  it('fetches primary-null Track Time rows and preserves complete records for exact deduplication', async () => {
+    const calls = stubFetch([gvizPayload(headers), gvizPayload(headers, [['1', 'VNT-001', null, '2026-07-05 3:07:01', 'VINITHAI', 12]])]);
+    const result = await fetchSheetDateRange('track-fallback-rows', '0', '2026-07-05', '2026-07-06', 25_000, { fallbackToTrackTime: true, preserveSourceFields: true });
+    expect(result.rows[0]?.['Track Time']).toBe('2026-07-05 3:07:01');
+    expect(decodeURIComponent(calls[1]!)).toContain('select * where A is not null and ((C >=');
+    expect(decodeURIComponent(calls[1]!)).toContain('C is null and D >=');
+    expect(buildAlertColumnSelect(cols('id', 'noise'), { preserveSourceFields: true })).toBe('*');
+  });
+});
+
 describe('buildAlertColumnSelect', () => {
   it('always keeps column A and matches alert labels case-insensitively', () => {
     const select = buildAlertColumnSelect(

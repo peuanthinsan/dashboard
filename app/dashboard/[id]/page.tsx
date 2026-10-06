@@ -21,6 +21,7 @@ import OverSpeedDashboard from 'app/dashboards/OverSpeedDashboard';
 import VehicleKpiDashboard from 'app/dashboards/VehicleKpiDashboard';
 import SimpleDashboard from 'app/dashboards/SimpleDashboard';
 import SummaryDashboard from 'app/dashboards/SummaryDashboard';
+import VinythaiSummaryDashboard from 'app/dashboards/VinythaiSummaryDashboard';
 import UnitStatusDashboard from 'app/dashboards/UnitStatusDashboard';
 import LoadingState from 'app/dashboards/LoadingState';
 import { isLegacyBigthUnitStatusTemplate, resolveTemplate as resolveTemplateName } from 'app/dashboards/dashboardDataUtils';
@@ -103,6 +104,8 @@ function DashboardByTemplate({
 }: DashboardByTemplateProps) {
   const name = resolveTemplateName(template ?? 'Summary');
   switch (name) {
+    case 'vinythaisummary':
+      return <VinythaiSummaryDashboard {...props} />;
     case 'FuelTopUp':
       return <FuelTopUpDashboard {...props} isAdmin={isAdmin} />;
     case 'Detail':

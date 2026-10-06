@@ -9,6 +9,7 @@ import {
   monthKeyToDateRange,
   SHEET_CHUNK_DAYS,
   splitDateRangeIntoChunks,
+  resolveSheetDateColumns,
 } from './googleSheetGvizUrl';
 import {
   type GoogleSheetColumn,
@@ -40,6 +41,7 @@ function gvizBase(sheetId: string, gid: string): string {
 
 type DetectedSheetMeta = {
   orderColId: string;
+  fallbackDateColId?: string;
   /** True when the sheet has a real date/datetime-typed column to scope by. */
   hasDateColumn: boolean;
   columns: GoogleSheetColumn[];
@@ -68,8 +70,9 @@ const DETECT_TTL_MS = 10 * 60 * 1000;
 export async function detectSheetDateColumn(
   sheetId: string,
   gid: string,
+  fallbackToTrackTime = false,
 ): Promise<DetectedSheetMeta> {
-  const key = `${sheetId}:${gid}`;
+  const key = `${sheetId}:${gid}:trackFallback=${fallbackToTrackTime}`;
   const hit = detectCache.get(key);
   if (hit && Date.now() - hit.fetchedAt <= DETECT_TTL_MS) return hit.meta;
 
@@ -82,10 +85,8 @@ export async function detectSheetDateColumn(
     return { orderColId: 'A', hasDateColumn: false, columns: [] };
   }
   const parsed = parseGoogleSheetGvizText(await meta.text());
-  const dateIdx = parsed.columns.findIndex((c) => c.type === 'datetime' || c.type === 'date');
   const result: DetectedSheetMeta = {
-    orderColId: dateIdx >= 0 ? gvizColumnLetter(dateIdx) : 'A',
-    hasDateColumn: dateIdx >= 0,
+    ...resolveSheetDateColumns(parsed.columns, fallbackToTrackTime),
     columns: parsed.columns,
   };
   if (result.columns.length > 0) {
@@ -101,6 +102,9 @@ export type AlertColumnSelectOptions = {
    * leave more headroom under Vercel's ~4.5 MB response limit on dense chunks.
    */
   includeVideo?: boolean;
+  fallbackToTrackTime?: boolean;
+  /** Preserve the complete source record for exact duplicate detection. */
+  preserveSourceFields?: boolean;
 };
 
 /**
@@ -115,6 +119,7 @@ export function buildAlertColumnSelect(
   columns: GoogleSheetColumn[],
   options?: AlertColumnSelectOptions,
 ): string {
+  if (options?.preserveSourceFields) return '*';
   const wanted = new Set(ALERT_SHEET_COLUMN_LABELS.map((l) => l.trim().toLowerCase()));
   if (!options?.includeVideo) {
     wanted.delete('videourl');
@@ -149,24 +154,29 @@ export async function listSheetMonths(
   sheetId: string,
   gid: string,
   now: Date = new Date(),
+  options?: Pick<AlertColumnSelectOptions, 'fallbackToTrackTime'>,
 ): Promise<SheetMonthOption[]> {
-  const { orderColId, hasDateColumn } = await detectSheetDateColumn(sheetId, gid);
+  const { orderColId, fallbackDateColId, hasDateColumn } = await detectSheetDateColumn(sheetId, gid, options?.fallbackToTrackTime);
   if (!hasDateColumn) return [];
 
-  const url = `${gvizBase(sheetId, gid)}&tq=${encodeURIComponent(buildMonthListQuery(orderColId))}`;
-  const res = await fetch(url, { headers: UA, cache: 'no-store' });
-  if (!res.ok) throw new Error('Unable to list sheet months.');
-  const parsed = parseGoogleSheetGvizText(await res.text());
+  const queries = [buildMonthListQuery(orderColId)];
+  if (fallbackDateColId) queries.push(buildMonthListQuery(fallbackDateColId, 'A', `${orderColId} is null and ${fallbackDateColId} is not null`));
+  const responses = await Promise.all(queries.map(async (query) => {
+    const res = await fetch(`${gvizBase(sheetId, gid)}&tq=${encodeURIComponent(query)}`, { headers: UA, cache: 'no-store' });
+    if (!res.ok) throw new Error('Unable to list sheet months.');
+    return parseGoogleSheetGvizText(await res.text());
+  }));
 
   const maxKey = currentMonthKey(now);
   const months: SheetMonthOption[] = [];
-  for (const row of parsed.rows) {
+  for (const row of responses.flatMap((response) => response.rows)) {
     // year()/month()/count() produce labeled cols like "year(Alert Date Time)".
     const values = Object.values(row);
+    if (values[0] == null || values[1] == null) continue;
     const year = Number(values[0]);
     const month0 = Number(values[1]);
     const count = Number(values[2]) || 0;
-    if (!Number.isFinite(year) || !Number.isFinite(month0) || count <= 0) continue;
+    if (!Number.isInteger(year) || year < 1 || !Number.isInteger(month0) || count <= 0) continue;
     const month = month0 + 1;
     if (month < 1 || month > 12) continue;
     const key = `${year}-${String(month).padStart(2, '0')}`;
@@ -176,7 +186,9 @@ export async function listSheetMonths(
       year: 'numeric',
       timeZone: 'UTC',
     });
-    months.push({ key, label, count });
+    const existing = months.find((month) => month.key === key);
+    if (existing) existing.count += count;
+    else months.push({ key, label, count });
   }
   return months.sort((a, b) => b.key.localeCompare(a.key));
 }
@@ -219,7 +231,7 @@ export async function fetchSheetDateRange(
   rowLimit = DEFAULT_SHEET_ROW_LIMIT,
   options?: AlertColumnSelectOptions,
 ): Promise<SheetFetchResult> {
-  const { orderColId, columns, hasDateColumn } = await detectSheetDateColumn(sheetId, gid);
+  const { orderColId, fallbackDateColId, columns, hasDateColumn } = await detectSheetDateColumn(sheetId, gid, options?.fallbackToTrackTime);
   if (!hasDateColumn) {
     if (columns.length === 0) {
       // Header fetch failed — surface as retryable, not as a schema problem.
@@ -230,7 +242,7 @@ export async function fetchSheetDateRange(
   const select = buildAlertColumnSelect(columns, options);
   const url = buildGvizJsonUrl(sheetId, gid, {
     rowLimit,
-    where: buildDatedRowsWhere(orderColId, fromIso, toIso, 'A'),
+    where: buildDatedRowsWhere(orderColId, fromIso, toIso, 'A', fallbackDateColId),
     select,
   });
   const res = await fetch(url, { headers: UA, cache: 'no-store' });

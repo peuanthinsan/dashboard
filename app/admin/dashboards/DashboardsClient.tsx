@@ -52,12 +52,12 @@ import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
 import { DrivingSheetLinkFields } from './DrivingSheetLinkFields';
 import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
 import { resolveTemplate, resolveTemplateForSave } from 'app/dashboards/dashboardDataUtils';
-const DASHBOARD_TEMPLATES = ['Summary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'Location Data v1', 'FuelTopUp', 'UnitStatus'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'vinythaisummary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'Location Data v1', 'FuelTopUp', 'UnitStatus'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
 
 const editableTemplateName = (template: string | null) =>
-  resolveTemplate(template ?? '') === 'UnitStatus' ? 'UnitStatus' : template ?? 'Summary';
+  ['UnitStatus', 'vinythaisummary'].includes(resolveTemplate(template ?? '')) ? resolveTemplate(template ?? '') : template ?? 'Summary';
 
 const isLocationDataTemplate = (template: string) =>
   template === 'Location Data v1' || template === 'LocationDataV1';
