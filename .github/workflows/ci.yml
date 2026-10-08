@@ -24,7 +24,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+          cache-dependency-path: package-lock.json
+      - name: Hosting cache regression tests
+        run: node --test hosting/helpers.node-test.cjs hosting/cache.node-test.cjs
+      - run: npm ci --prefer-offline
       - name: Lint
         run: npm run lint
       - name: Unit tests
@@ -57,6 +60,8 @@ jobs:
         if: steps.branch-tip.outputs.current == 'true'
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
       - name: Install Vercel CLI
         if: steps.branch-tip.outputs.current == 'true'
         run: npm install --global vercel@latest
