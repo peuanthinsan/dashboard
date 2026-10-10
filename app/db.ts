@@ -1,3 +1,4 @@
+import { validateDriverRosterSettings, type DriverRosterSettings } from './dashboards/driverRoster';
 import { validateAfterHoursSettings, type AfterHoursSettings } from './dashboards/afterHoursEntry';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { and, count, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -520,6 +521,7 @@ export async function createDashboard({
   remarks,
   drivingThresholds,
   afterHoursSettings,
+  driverRosterSettings,
   alertRules,
   lineChannelId,
 }: {
@@ -537,6 +539,7 @@ export async function createDashboard({
   alertTypes?: string[] | null;
   remarks?: string[] | null;
   afterHoursSettings?: AfterHoursSettings | null;
+  driverRosterSettings?: DriverRosterSettings | null;
   drivingThresholds?: {
     continuousDrivingMaxHours: number;
     restMinimumHours: number;
@@ -566,6 +569,7 @@ export async function createDashboard({
     remarks: remarks && remarks.length > 0 ? remarks : null,
     drivingThresholds: drivingThresholds ?? null,
     afterHoursSettings: template === 'AfterHoursEntry' ? validateAfterHoursSettings(afterHoursSettings) : null,
+    driverRosterSettings: template === 'Summary' && driverRosterSettings ? validateDriverRosterSettings(driverRosterSettings) : null,
     alertRules: alertRules && alertRules.length > 0 ? alertRules : null,
     lineChannelId: lineChannelId ?? null,
     publicId: randomUUID(),
@@ -589,6 +593,7 @@ export async function updateDashboard({
   remarks,
   drivingThresholds,
   afterHoursSettings,
+  driverRosterSettings,
   alertRules,
   lineChannelId,
 }: {
@@ -607,6 +612,7 @@ export async function updateDashboard({
   alertTypes?: string[] | null;
   remarks?: string[] | null;
   afterHoursSettings?: AfterHoursSettings | null;
+  driverRosterSettings?: DriverRosterSettings | null;
   drivingThresholds?: {
     continuousDrivingMaxHours: number;
     restMinimumHours: number;
@@ -638,6 +644,7 @@ export async function updateDashboard({
       remarks: remarks && remarks.length > 0 ? remarks : null,
       drivingThresholds: drivingThresholds ?? null,
       afterHoursSettings: template === 'AfterHoursEntry' ? validateAfterHoursSettings(afterHoursSettings) : null,
+    driverRosterSettings: template === 'Summary' && driverRosterSettings ? validateDriverRosterSettings(driverRosterSettings) : null,
       alertRules: alertRules && alertRules.length > 0 ? alertRules : null,
       lineChannelId: lineChannelId ?? null,
     })

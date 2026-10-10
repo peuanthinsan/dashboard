@@ -1,3 +1,4 @@
+import { parseDriverRosterForm, type DriverRosterSettings } from 'app/dashboards/driverRoster';
 import { parseAfterHoursSettingsFromFormData, type AfterHoursSettings } from 'app/dashboards/afterHoursEntry';
 export const dynamic = 'force-dynamic';
 
@@ -98,6 +99,9 @@ export default async function AdminDashboardsPage() {
     const remarks = Array.isArray(remarksRaw)
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
+    let driverRosterSettings: DriverRosterSettings | null = null;
+    try { if (template === 'Summary') driverRosterSettings = parseDriverRosterForm(formData); }
+    catch (error) { return { status: 'error', message: error instanceof Error ? error.message : 'Invalid driver roster.' }; }
     let afterHoursSettings: AfterHoursSettings | null = null;
     try { if (template === 'AfterHoursEntry') afterHoursSettings = parseAfterHoursSettingsFromFormData(formData); }
     catch (error) { return { status: 'error', message: error instanceof Error ? error.message : 'Invalid after-hours settings.' }; }
@@ -120,6 +124,7 @@ export default async function AdminDashboardsPage() {
       alertTypes: alertTypes.length > 0 ? alertTypes : null,
       remarks: remarks.length > 0 ? remarks : null,
       afterHoursSettings,
+      driverRosterSettings,
       drivingThresholds: drivingThresholds as unknown as {
         continuousDrivingMaxHours: number;
         restMinimumHours: number;
@@ -202,6 +207,9 @@ export default async function AdminDashboardsPage() {
     const remarks = Array.isArray(remarksRaw)
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
+    let driverRosterSettings: DriverRosterSettings | null = null;
+    try { if (template === 'Summary') driverRosterSettings = parseDriverRosterForm(formData); }
+    catch (error) { return { status: 'error', message: error instanceof Error ? error.message : 'Invalid driver roster.' }; }
     let afterHoursSettings: AfterHoursSettings | null = null;
     try { if (template === 'AfterHoursEntry') afterHoursSettings = parseAfterHoursSettingsFromFormData(formData); }
     catch (error) { return { status: 'error', message: error instanceof Error ? error.message : 'Invalid after-hours settings.' }; }
@@ -225,6 +233,7 @@ export default async function AdminDashboardsPage() {
       alertTypes: alertTypes.length > 0 ? alertTypes : null,
       remarks: remarks.length > 0 ? remarks : null,
       afterHoursSettings,
+      driverRosterSettings,
       drivingThresholds: drivingThresholds as unknown as {
         continuousDrivingMaxHours: number;
         restMinimumHours: number;

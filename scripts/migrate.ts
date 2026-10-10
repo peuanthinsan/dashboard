@@ -137,6 +137,8 @@ async function migrate() {
 
     await sql.unsafe(readFileSync(resolve(process.cwd(), 'scripts/after-hours-entry.sql'), 'utf-8'));
 
+    await sql.unsafe(readFileSync(resolve(process.cwd(), 'scripts/driver-roster.sql'), 'utf-8'));
+
     console.log('Migration completed successfully.');
   } catch (err) {
     console.error('Migration failed:', err);
