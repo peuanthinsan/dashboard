@@ -1,3 +1,4 @@
+import AfterHoursEntryDashboard from 'app/dashboards/AfterHoursEntryDashboard';
 import type { Metadata } from 'next';
 import type { ComponentProps } from 'react';
 import { Suspense } from 'react';
@@ -106,6 +107,8 @@ function DashboardByTemplate({
   switch (name) {
     case 'vinythaisummary':
       return <VinythaiSummaryDashboard {...props} />;
+    case 'AfterHoursEntry':
+      return <AfterHoursEntryDashboard dashboardId={props.dashboardId!} dashboardName={props.dashboardName} dashboardNotes={props.dashboardNotes} lang={props.lang} isAdmin={isAdmin} />;
     case 'FuelTopUp':
       return <FuelTopUpDashboard {...props} isAdmin={isAdmin} />;
     case 'Detail':

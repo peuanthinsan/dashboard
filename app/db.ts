@@ -1,3 +1,4 @@
+import { validateAfterHoursSettings, type AfterHoursSettings } from './dashboards/afterHoursEntry';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { and, count, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import postgres from 'postgres';
@@ -518,6 +519,7 @@ export async function createDashboard({
   alertTypes,
   remarks,
   drivingThresholds,
+  afterHoursSettings,
   alertRules,
   lineChannelId,
 }: {
@@ -534,6 +536,7 @@ export async function createDashboard({
   notes?: string | null;
   alertTypes?: string[] | null;
   remarks?: string[] | null;
+  afterHoursSettings?: AfterHoursSettings | null;
   drivingThresholds?: {
     continuousDrivingMaxHours: number;
     restMinimumHours: number;
@@ -562,6 +565,7 @@ export async function createDashboard({
     alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
     remarks: remarks && remarks.length > 0 ? remarks : null,
     drivingThresholds: drivingThresholds ?? null,
+    afterHoursSettings: template === 'AfterHoursEntry' ? validateAfterHoursSettings(afterHoursSettings) : null,
     alertRules: alertRules && alertRules.length > 0 ? alertRules : null,
     lineChannelId: lineChannelId ?? null,
     publicId: randomUUID(),
@@ -584,6 +588,7 @@ export async function updateDashboard({
   alertTypes,
   remarks,
   drivingThresholds,
+  afterHoursSettings,
   alertRules,
   lineChannelId,
 }: {
@@ -601,6 +606,7 @@ export async function updateDashboard({
   notes?: string | null;
   alertTypes?: string[] | null;
   remarks?: string[] | null;
+  afterHoursSettings?: AfterHoursSettings | null;
   drivingThresholds?: {
     continuousDrivingMaxHours: number;
     restMinimumHours: number;
@@ -631,6 +637,7 @@ export async function updateDashboard({
       alertTypes: alertTypes && alertTypes.length > 0 ? alertTypes : null,
       remarks: remarks && remarks.length > 0 ? remarks : null,
       drivingThresholds: drivingThresholds ?? null,
+      afterHoursSettings: template === 'AfterHoursEntry' ? validateAfterHoursSettings(afterHoursSettings) : null,
       alertRules: alertRules && alertRules.length > 0 ? alertRules : null,
       lineChannelId: lineChannelId ?? null,
     })
@@ -639,6 +646,12 @@ export async function updateDashboard({
 
 export async function deleteDashboard(id: number) {
   return await db.delete(dashboards).where(eq(dashboards.id, id));
+}
+
+export async function updateDashboardAfterHoursSettings(id: number, settings: AfterHoursSettings) {
+  return await db.update(dashboards)
+    .set({ afterHoursSettings: validateAfterHoursSettings(settings) })
+    .where(eq(dashboards.id, id));
 }
 
 export async function updateDashboardDrivingThresholds(

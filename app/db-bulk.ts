@@ -18,6 +18,7 @@ import postgres from 'postgres';
 import { genSalt, hash } from 'bcrypt-ts';
 import { randomUUID } from 'crypto';
 import { revalidatePath } from 'next/cache';
+import { validateAfterHoursSettings, type AfterHoursSettings } from './dashboards/afterHoursEntry';
 import { normalizeDrivingThresholds } from './dashboards/drivingThresholds';
 
 const dbUrl = process.env.POSTGRES_URL || 'postgresql://localhost:5432/placeholder?sslmode=require';
@@ -99,6 +100,7 @@ const dashboards = pgTable(
     notes: text('notes'),
     alertTypes: jsonb('alertTypes').$type<string[]>(),
     remarks: jsonb('remarks').$type<string[]>(),
+    afterHoursSettings: jsonb('afterHoursSettings').$type<import('./dashboards/afterHoursEntry').AfterHoursSettings>(),
     drivingThresholds: jsonb('drivingThresholds').$type<{
       continuousDrivingMaxHours: number;
       restMinimumHours: number;
@@ -294,6 +296,7 @@ export async function bulkCreateDashboards(
     companyId: number;
     organizationId?: number;
     notes?: string;
+    afterHoursSettings?: AfterHoursSettings | null;
     /** When set, restricts MDVR dashboards; null/undefined = use app defaults at runtime. */
     alertTypes?: string[] | null;
     remarks?: string[] | null;
@@ -304,6 +307,8 @@ export async function bulkCreateDashboards(
 
   let created = 0;
   const createdIds: number[] = [];
+  // Validate all new template settings before writing any item.
+  for (const item of items) if (item.template === 'AfterHoursEntry') validateAfterHoursSettings(item.afterHoursSettings);
 
   for (const item of items) {
     try {
@@ -312,6 +317,7 @@ export async function bulkCreateDashboards(
         .insert(dashboards)
         .values({
           ...rest,
+          afterHoursSettings: item.template === 'AfterHoursEntry' ? validateAfterHoursSettings(item.afterHoursSettings) : null,
           organizationId: item.organizationId ?? null,
           organizationIds: item.organizationId != null ? [item.organizationId] : null,
           notes: item.notes ?? null,

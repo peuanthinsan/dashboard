@@ -89,6 +89,7 @@ export const dashboards = pgTable(
     notes: text('notes'),
     alertTypes: jsonb('alertTypes').$type<string[]>(),
     remarks: jsonb('remarks').$type<string[]>(),
+    afterHoursSettings: jsonb('afterHoursSettings').$type<import('./dashboards/afterHoursEntry').AfterHoursSettings>(),
     drivingThresholds: jsonb('drivingThresholds').$type<{
       continuousDrivingMaxHours: number;
       restMinimumHours: number;

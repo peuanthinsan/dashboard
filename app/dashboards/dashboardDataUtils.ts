@@ -515,6 +515,7 @@ export function resolveTemplateForSave(
 export function resolveTemplate(template: string): string {
   const raw = (template ?? '').trim();
   const normalized = raw.toLowerCase().replace(/\s+/g, ' ');
+  if (['afterhoursentry', 'after-hours customer entry'].includes(normalized)) return 'AfterHoursEntry';
   if (normalized === 'vinythaisummary' || normalized === 'vinythai summary') return 'vinythaisummary';
   if (
     normalized === 'unitstatus' ||

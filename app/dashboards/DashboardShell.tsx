@@ -18,6 +18,7 @@ type DashboardShellProps = {
   subtitle: string;
   lang?: DashboardLang;
   lastUpdated?: Date | null;
+  lastUpdatedTimeZone?: string;
   notes?: string | null;
   actions?: ReactNode;
   children: ReactNode;
@@ -37,6 +38,7 @@ export default function DashboardShell({
   subtitle,
   lang = 'en',
   lastUpdated,
+  lastUpdatedTimeZone,
   notes,
   actions,
   children,
@@ -145,7 +147,7 @@ export default function DashboardShell({
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{auditCopy.freshness}</p>
                     <p className="truncate text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                      {lastUpdated ? `${auditCopy.checked} ${formatDateTimeGB(lastUpdated)}` : freshnessLabel}
+                      {lastUpdated ? `${auditCopy.checked} ${formatDateTimeGB(lastUpdated, lastUpdatedTimeZone)}` : freshnessLabel}
                     </p>
                   </div>
                 </div>

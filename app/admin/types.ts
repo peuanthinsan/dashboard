@@ -37,6 +37,7 @@ export type Dashboard = {
   notes: string | null;
   alertTypes?: string[] | null;
   remarks?: string[] | null;
+  afterHoursSettings?: import('app/dashboards/afterHoursEntry').AfterHoursSettings | null;
   drivingThresholds?: {
     continuousDrivingMaxHours: number;
     restMinimumHours: number;
