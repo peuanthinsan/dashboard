@@ -20,6 +20,7 @@ import {
   badgeInfo,
 } from 'app/ui/design-tokens';
 import type { ActionState, Company, Organization } from '../types';
+import { AfterHoursAdminFields } from '../dashboards/AfterHoursAdminFields';
 import AlertRulesEditor from '../AlertRulesEditor';
 
 type QuickSetupState = ActionState & {
@@ -42,7 +43,7 @@ type AlertFilterCopy = {
   mergeHint: string;
 };
 
-const QUICK_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed', 'DynamicTrip'] as const;
+const QUICK_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed', 'DynamicTrip', 'AfterHoursEntry'] as const;
 
 const TEMPLATE_HINTS: Record<(typeof QUICK_TEMPLATES)[number], string> = {
   Summary: 'KPIs & overview',
@@ -51,6 +52,7 @@ const TEMPLATE_HINTS: Record<(typeof QUICK_TEMPLATES)[number], string> = {
   Driving: 'Driver hours & safety',
   OverSpeed: 'Speed violations & trends',
   DynamicTrip: 'Per-trip summary table',
+  AfterHoursEntry: 'Customer-area entries outside shared daily hours',
 };
 
 const STEPS = [
@@ -85,7 +87,7 @@ export default function QuickSetupClient({
   const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
   const [useExistingFleet, setUseExistingFleet] = useState(false);
   const [selectedTemplates, setSelectedTemplates] = useState<Set<string>>(
-    () => new Set(QUICK_TEMPLATES),
+    () => new Set(QUICK_TEMPLATES.filter((t) => t !== 'AfterHoursEntry')),
   );
   const [fleetNamesText, setFleetNamesText] = useState('');
   const [existingFleetSelection, setExistingFleetSelection] = useState<Set<number>>(() => new Set());
@@ -516,7 +518,7 @@ export default function QuickSetupClient({
                 </legend>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <p className={`text-xs ${ADMIN_TEXT_SUBTLE}`}>
-                    All {QUICK_TEMPLATES.length} are selected by default — uncheck what you don&apos;t need.
+                    Select the templates you need. AfterHoursEntry requires its own customer-area schedule.
                   </p>
                   <div className="flex gap-2 text-xs">
                     <button
@@ -564,6 +566,7 @@ export default function QuickSetupClient({
                 </label>
               </fieldset>
 
+              {selectedTemplates.has('AfterHoursEntry') ? <AfterHoursAdminFields /> : null}
               <fieldset className={sectionBoxClass(true)}>
                 <legend className={`px-1 text-sm font-medium text-zinc-800 dark:text-zinc-200`}>
                   Google Sheets

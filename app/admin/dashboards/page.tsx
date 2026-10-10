@@ -1,3 +1,4 @@
+import { parseAfterHoursSettingsFromFormData, type AfterHoursSettings } from 'app/dashboards/afterHoursEntry';
 export const dynamic = 'force-dynamic';
 
 import { revalidatePath } from 'next/cache';
@@ -97,6 +98,9 @@ export default async function AdminDashboardsPage() {
     const remarks = Array.isArray(remarksRaw)
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
+    let afterHoursSettings: AfterHoursSettings | null = null;
+    try { if (template === 'AfterHoursEntry') afterHoursSettings = parseAfterHoursSettingsFromFormData(formData); }
+    catch (error) { return { status: 'error', message: error instanceof Error ? error.message : 'Invalid after-hours settings.' }; }
     const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
     const alertRules = parseAlertRulesFromFormData(formData);
     const lineChannelIdRaw = formData.get('lineChannelId');
@@ -115,6 +119,7 @@ export default async function AdminDashboardsPage() {
       notes,
       alertTypes: alertTypes.length > 0 ? alertTypes : null,
       remarks: remarks.length > 0 ? remarks : null,
+      afterHoursSettings,
       drivingThresholds: drivingThresholds as unknown as {
         continuousDrivingMaxHours: number;
         restMinimumHours: number;
@@ -197,6 +202,9 @@ export default async function AdminDashboardsPage() {
     const remarks = Array.isArray(remarksRaw)
       ? remarksRaw.map((v) => String(v).trim()).filter(Boolean)
       : [];
+    let afterHoursSettings: AfterHoursSettings | null = null;
+    try { if (template === 'AfterHoursEntry') afterHoursSettings = parseAfterHoursSettingsFromFormData(formData); }
+    catch (error) { return { status: 'error', message: error instanceof Error ? error.message : 'Invalid after-hours settings.' }; }
     const drivingThresholds = parseDrivingThresholdsFromFormData(formData);
     const alertRules = parseAlertRulesFromFormData(formData);
     const lineChannelIdRaw = formData.get('lineChannelId');
@@ -216,6 +224,7 @@ export default async function AdminDashboardsPage() {
       notes,
       alertTypes: alertTypes.length > 0 ? alertTypes : null,
       remarks: remarks.length > 0 ? remarks : null,
+      afterHoursSettings,
       drivingThresholds: drivingThresholds as unknown as {
         continuousDrivingMaxHours: number;
         restMinimumHours: number;
@@ -230,6 +239,7 @@ export default async function AdminDashboardsPage() {
         ...dashboardPayload,
       });
       revalidatePath('/admin/dashboards');
+      revalidatePath('/dashboard', 'layout');
       return { status: 'success', message: 'Dashboard updated.' };
     } catch (error) {
       console.error('Failed to update dashboard', error);

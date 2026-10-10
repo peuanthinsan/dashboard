@@ -1,6 +1,6 @@
 // Parsed dates carry Bangkok wall-clock digits as UTC (see parseDate); format in
 // UTC so displayed values match the source and are viewer-independent.
-export const formatDateTimeGB = (date: Date) =>
+export const formatDateTimeGB = (date: Date, timeZone = 'UTC') =>
   date.toLocaleString('en-GB', {
     month: '2-digit',
     day: '2-digit',
@@ -8,7 +8,7 @@ export const formatDateTimeGB = (date: Date) =>
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    timeZone: 'UTC',
+    timeZone,
   });
 
 export const formatDateKeyGB = (value: string) => {

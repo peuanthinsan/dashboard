@@ -48,11 +48,13 @@ import type {
   bulkEditDashboardAlertRule,
   bulkRemoveDashboardAlertRule,
 } from 'app/db-bulk';
+import { AfterHoursAdminFields } from './AfterHoursAdminFields';
+import { DEFAULT_AFTER_HOURS_SETTINGS, validateAfterHoursSettings, type AfterHoursSettings } from 'app/dashboards/afterHoursEntry';
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
 import { DrivingSheetLinkFields } from './DrivingSheetLinkFields';
 import { parseDrivingThresholdsFromFormData } from 'app/dashboards/drivingThresholds';
 import { resolveTemplate, resolveTemplateForSave } from 'app/dashboards/dashboardDataUtils';
-const DASHBOARD_TEMPLATES = ['Summary', 'vinythaisummary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'Location Data v1', 'FuelTopUp', 'UnitStatus'] as const;
+const DASHBOARD_TEMPLATES = ['Summary', 'vinythaisummary', 'Detail', 'Simple', 'Driving', 'OverSpeed', 'VehicleKPI', 'DynamicTrip', 'Location Data v1', 'FuelTopUp', 'UnitStatus', 'AfterHoursEntry'] as const;
 const COMPLETE_SET_TEMPLATES = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed'] as const;
 const PAGE_SIZE = 25;
 
@@ -480,7 +482,7 @@ function DashboardRow({
               />
             </label>
           </div>
-          {!isLocationDataTemplate(editTemplate) && resolveTemplate(editTemplate) !== 'FuelTopUp' ? (
+          {!isLocationDataTemplate(editTemplate) && !['FuelTopUp', 'AfterHoursEntry'].includes(resolveTemplate(editTemplate)) ? (
             <AlertTypesAndRemarksSelector
               sheetId={dashboard.sheetId ?? undefined}
               sheetGid={dashboard.sheetGid ?? undefined}
@@ -489,6 +491,7 @@ function DashboardRow({
               initialRemarks={dashboard.remarks ?? []}
             />
           ) : null}
+          {editTemplate === 'AfterHoursEntry' ? <AfterHoursAdminFields initial={dashboard.afterHoursSettings} /> : null}
           {editTemplate === 'Driving' ? (
             <DrivingThresholdAdminFields initial={dashboard.drivingThresholds} />
           ) : null}
@@ -509,7 +512,7 @@ function DashboardRow({
                 ))}
             </select>
           </label>
-          {!isLocationDataTemplate(editTemplate) && resolveTemplate(editTemplate) !== 'FuelTopUp' ? (
+          {!isLocationDataTemplate(editTemplate) && !['FuelTopUp', 'AfterHoursEntry'].includes(resolveTemplate(editTemplate)) ? (
             <AlertRulesEditor initial={dashboard.alertRules} />
           ) : null}
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -627,6 +630,7 @@ export default function DashboardsClient({
 
   // Bulk create form state
   const [bulkCreateCompleteSet, setBulkCreateCompleteSet] = useState(true);
+  const [bulkAfterHours, setBulkAfterHours] = useState<AfterHoursSettings>(DEFAULT_AFTER_HOURS_SETTINGS);
   const [bulkTemplate, setBulkTemplate] = useState<string>(DASHBOARD_TEMPLATES[0]);
   const [bulkSheetUrl, setBulkSheetUrl] = useState('');
   const [bulkCompanyId, setBulkCompanyId] = useState('');
@@ -795,7 +799,10 @@ export default function DashboardsClient({
     }
 
     startTransition(async () => {
-      const result = await bulkCreateAction(items);
+      let validated: AfterHoursSettings | null = null;
+      try { if (templates.includes('AfterHoursEntry')) validated = validateAfterHoursSettings(bulkAfterHours); }
+      catch (error) { setBulkStatus(error instanceof Error ? error.message : 'Invalid daily schedule.'); return; }
+      const result = await bulkCreateAction(items.map((item) => ({ ...item, afterHoursSettings: item.template === 'AfterHoursEntry' ? validated : null })));
       setBulkStatus(`Created ${result.created} dashboard(s).`);
       setBulkDashboardName('');
       setBulkSheetUrl('');
@@ -1597,6 +1604,7 @@ export default function DashboardsClient({
                   </select>
                 </label>
               </div>
+              {!bulkCreateCompleteSet && bulkTemplate === 'AfterHoursEntry' ? <AfterHoursAdminFields initial={bulkAfterHours} onChange={setBulkAfterHours} /> : null}
               {filteredOrgs.length > 0 && (
                 <div>
                   <p className={`mb-2 ${ADMIN_LABEL}`}>
@@ -1803,7 +1811,7 @@ export default function DashboardsClient({
                 className={`${ADMIN_TEXTAREA} resize-none`}
               />
             </div>
-            {!isLocationDataTemplate(createTemplate) && resolveTemplate(createTemplate) !== 'FuelTopUp' ? (
+            {!isLocationDataTemplate(createTemplate) && !['FuelTopUp', 'AfterHoursEntry'].includes(resolveTemplate(createTemplate)) ? (
               <div className="sm:col-span-2">
                 <AlertTypesAndRemarksSelector
                   sheetUrl={createSheetUrl}
@@ -1812,6 +1820,7 @@ export default function DashboardsClient({
                 />
               </div>
             ) : null}
+            {createTemplate === 'AfterHoursEntry' ? <div className="sm:col-span-2"><AfterHoursAdminFields /></div> : null}
             {createTemplate === 'Driving' ? (
               <div className="sm:col-span-2">
                 <DrivingThresholdAdminFields />

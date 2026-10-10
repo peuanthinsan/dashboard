@@ -1,3 +1,4 @@
+import { parseAfterHoursSettingsFromFormData, type AfterHoursSettings } from 'app/dashboards/afterHoursEntry';
 export const dynamic = 'force-dynamic';
 
 import { revalidatePath } from 'next/cache';
@@ -29,7 +30,7 @@ import type { ActionState } from '../types';
 import { buildRegisterSchema } from 'app/lib/site-auth-schemas';
 import { getSiteCopy } from 'app/site-i18n-copy';
 
-const TEMPLATE_ORDER = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed', 'DynamicTrip'] as const;
+const TEMPLATE_ORDER = ['Summary', 'Simple', 'Detail', 'Driving', 'OverSpeed', 'DynamicTrip', 'AfterHoursEntry'] as const;
 const ALLOWED_TEMPLATES = new Set<string>(TEMPLATE_ORDER);
 
 type QuickSetupState = ActionState & {
@@ -103,6 +104,10 @@ export default async function QuickSetupPage() {
     if (selectedTemplates.length === 0) {
       return { status: 'error', message: 'Select at least one dashboard template.' };
     }
+
+    let afterHoursSettings: AfterHoursSettings | null = null;
+    try { if (selectedTemplateSet.has('AfterHoursEntry')) afterHoursSettings = parseAfterHoursSettingsFromFormData(formData); }
+    catch (error) { return { status: 'error', message: error instanceof Error ? error.message : 'Invalid daily schedule.' }; }
 
     let validatedUser: { email: string; password: string } | null = null;
     if (Boolean(userEmail) !== Boolean(userPassword)) {
@@ -182,7 +187,7 @@ export default async function QuickSetupPage() {
     const useMergedSheetAlerts = alertFilterMode === 'merge';
     let mdvrAlertTypes: string[] | null = null;
     let mdvrRemarks: string[] | null = null;
-    if (useMergedSheetAlerts) {
+    if (useMergedSheetAlerts && selectedTemplates.some((t) => t !== 'AfterHoursEntry' && t !== 'Driving')) {
       const probe = await probeSheetAlertFields(mainSheetId, mainSheetGid);
       const merged = mergeStandardWithProbed(probe);
       mdvrAlertTypes = merged.alertTypes;
@@ -324,6 +329,7 @@ export default async function QuickSetupPage() {
         companyId: number;
         organizationId?: number;
         notes?: string;
+        afterHoursSettings?: AfterHoursSettings | null;
         alertTypes?: string[] | null;
         remarks?: string[] | null;
       }[] = [];
@@ -340,8 +346,9 @@ export default async function QuickSetupPage() {
             companyId,
             organizationId: orgTarget ?? undefined,
             notes: undefined,
-            alertTypes: isDriving ? null : mdvrAlertTypes,
-            remarks: isDriving ? null : mdvrRemarks,
+            afterHoursSettings: t === 'AfterHoursEntry' ? afterHoursSettings : null,
+            alertTypes: (isDriving || t === 'AfterHoursEntry') ? null : mdvrAlertTypes,
+            remarks: (isDriving || t === 'AfterHoursEntry') ? null : mdvrRemarks,
           });
         }
       }
