@@ -243,6 +243,7 @@ async function DashboardContent({
       dashboardName={dashboard.name ?? 'Company dashboard'}
       sheetId={dashboard.sheetId ?? ''}
       sheetGid={dashboard.sheetGid ?? '0'}
+      hasDriverRoster={!!dashboard.driverRosterSettings}
       sheetGidCntDrv={dashboard.sheetGidCntDrv ?? null}
       dashboardNotes={dashboard.notes ?? null}
       organizationName={organizationName}

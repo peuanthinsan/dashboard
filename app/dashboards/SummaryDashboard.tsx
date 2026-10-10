@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useGoogleSheet from './useGoogleSheet';
+import useDriverRoster from './useDriverRoster';
+import { filterDriverRoster, indexDriverRoster, mapRosterDriver } from './driverRoster';
+import { buildSummaryRosterData, computeSummarySafetyScore, getSummaryAlertCategory, matchesSummaryAlert } from './summaryRosterData';
+import SummaryDriverTable from './SummaryDriverTable';
 import { loadStoredFilters, saveStoredFilters } from './filterStorage';
 import {
   dateTimeRangeToMonthKeys,
@@ -20,7 +24,6 @@ import {
   ALLOWED_ALERT_TYPES,
   ALLOWED_REMARK_TARGETS,
   computeDriverSafetyScore,
-  computeSafetyScore,
   findValue,
   hasRemark,
   isExcludedAlertRemark,
@@ -67,6 +70,7 @@ type DashboardProps = {
   allowedRemarks?: string[] | null;
   alertRules?: AlertRule[] | null;
   isAdmin?: boolean;
+  hasDriverRoster?: boolean;
 };
 
 const buildCounts = (rows: Record<string, unknown>[], labels: string[]) => {
@@ -88,164 +92,6 @@ const priorMonthKeyOf = (monthKey: string): string | null => {
   return toMonthKey(new Date(Date.UTC(y, m - 2, 1)));
 };
 
-const ALERT_COUNT_COLUMNS = [
-  { key: 'Distraction', label: 'Distraction' },
-  { key: 'Harsh Acceleration', label: 'Harsh Acceleration' },
-  { key: 'Harsh Brake', label: 'Harsh Brake' },
-  { key: 'Overspeed', label: 'OverSpeed' },
-  { key: 'Yawning', label: 'Yawning' },
-  { key: 'Fatigue', label: 'Fatigue' },
-  { key: 'Mobile Phone', label: 'Mobile Phone' },
-  { key: 'Eating/Drinking', label: 'Eating/Drinking' },
-  { key: 'Smoking', label: 'Smoking' },
-] as const;
-
-type AlertCountRow = {
-  vehicle: string;
-  driver: string;
-  counts: Record<string, number>;
-  total: number;
-};
-
-const ALERT_COUNT_PAGE_SIZE = 15;
-
-const AlertCountTable = ({
-  rows,
-  lang,
-}: {
-  rows: Array<{ vehicle: string; driver: string; remarks: string }>;
-  lang: DashboardLang;
-}) => {
-  const { columns, data, maxCount } = useMemo(() => {
-    const grouped = new Map<string, AlertCountRow>();
-    rows.forEach((row) => {
-      const vehicle = row.vehicle === '—' ? 'Unspecified' : row.vehicle;
-      const driver = row.driver === '—' ? 'Unspecified' : row.driver;
-      const id = `${vehicle}\u0000${driver}`;
-      const existing = grouped.get(id) ?? { vehicle, driver, counts: {}, total: 0 };
-      const column = ALERT_COUNT_COLUMNS.find((item) => normalizeLabel(row.remarks).includes(normalizeLabel(item.key)));
-      if (column) {
-        existing.counts[column.key] = (existing.counts[column.key] ?? 0) + 1;
-        existing.total += 1;
-      }
-      grouped.set(id, existing);
-    });
-
-    const visibleColumns = ALERT_COUNT_COLUMNS.filter((column) =>
-      dataHasCount(grouped, column.key),
-    );
-    const resolvedColumns = visibleColumns.length > 0 ? visibleColumns : ALERT_COUNT_COLUMNS.slice(0, 5);
-    const resolvedData = Array.from(grouped.values())
-      .filter((row) => row.total > 0)
-      .sort((a, b) => b.total - a.total || a.vehicle.localeCompare(b.vehicle));
-    const highest = Math.max(0, ...resolvedData.flatMap((row) => resolvedColumns.map((column) => row.counts[column.key] ?? 0)));
-    return { columns: resolvedColumns, data: resolvedData, maxCount: highest };
-  }, [rows]);
-  const [page, setPage] = useState(0);
-  const totalPages = Math.max(1, Math.ceil(data.length / ALERT_COUNT_PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages - 1);
-  const pagedData = data.slice(
-    currentPage * ALERT_COUNT_PAGE_SIZE,
-    (currentPage + 1) * ALERT_COUNT_PAGE_SIZE,
-  );
-
-  return (
-    <section className={dashboardSectionClass}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className={heading2}>{lang === 'th' ? 'ข้อมูลแยกตามประเภท' : 'Classified Data'}</h2>
-          <p className={`mt-1 ${textSecondary}`}>
-            {lang === 'th' ? 'จำนวนการแจ้งเตือนแยกตามรถและคนขับ' : 'Alert counts by vehicle and driver.'}
-          </p>
-        </div>
-        <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-          {lang === 'th' ? 'จำนวนรายการ' : 'Record count'}
-        </span>
-      </div>
-      <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200/80 dark:border-zinc-800">
-        <table className="min-w-[760px] w-full border-collapse text-xs" aria-label={lang === 'th' ? 'ตารางจำนวนการแจ้งเตือน' : 'Alert counts by vehicle and driver'}>
-          <thead>
-            <tr className="bg-zinc-100/90 dark:bg-zinc-950/70">
-              <th scope="col" className="sticky left-0 z-10 border-b border-r border-zinc-200/80 bg-zinc-100/95 px-3 py-2 text-left font-semibold text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950/95 dark:text-zinc-300">{lang === 'th' ? 'รถ' : 'Vehicle No'}</th>
-              <th scope="col" className="border-b border-r border-zinc-200/80 px-3 py-2 text-left font-semibold text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">{lang === 'th' ? 'คนขับ' : 'Driver Name'}</th>
-              {columns.map((column) => (
-                <th key={column.key} scope="col" className="border-b border-zinc-200/80 px-3 py-2 text-center font-semibold text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">{column.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
-              <tr><td colSpan={columns.length + 2} className="px-3 py-8 text-center text-zinc-400">{lang === 'th' ? 'ไม่พบข้อมูล' : 'No alert counts for the selected filters.'}</td></tr>
-            ) : pagedData.map((row) => (
-              <tr key={`${row.vehicle}-${row.driver}`} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/60">
-                <th scope="row" className="sticky left-0 z-[1] border-r border-zinc-100 bg-white px-3 py-2 text-left font-medium text-zinc-700 dark:border-zinc-800/60 dark:bg-zinc-900 dark:text-zinc-200">{row.vehicle}</th>
-                <td className="border-r border-zinc-100 px-3 py-2 text-zinc-600 dark:border-zinc-800/60 dark:text-zinc-300">{row.driver}</td>
-                {columns.map((column) => {
-                  const count = row.counts[column.key] ?? 0;
-                  const ratio = maxCount > 0 ? count / maxCount : 0;
-                  const heatClass = count === 0
-                    ? ''
-                    : ratio >= 0.75
-                      ? 'bg-amber-500 text-amber-950 dark:bg-amber-600 dark:text-amber-50'
-                      : ratio >= 0.5
-                        ? 'bg-amber-300 text-amber-950 dark:bg-amber-700 dark:text-amber-50'
-                        : 'bg-amber-100 text-amber-950 dark:bg-amber-800 dark:text-amber-50';
-                  return <td key={column.key} className={`px-3 py-2 text-center tabular-nums ${count > 0 ? `font-semibold ${heatClass}` : 'text-zinc-700 dark:text-zinc-200'}`}>{count || ''}</td>;
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {totalPages > 1 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100/80 px-2 pt-3 dark:border-zinc-800/60">
-          <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-            {currentPage * ALERT_COUNT_PAGE_SIZE + 1}–{Math.min((currentPage + 1) * ALERT_COUNT_PAGE_SIZE, data.length)} of {data.length}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={currentPage === 0}
-              onClick={() => setPage((previous) => Math.max(0, previous - 1))}
-              className="rounded-md px-2.5 py-1 text-xs font-medium text-zinc-600 transition-all hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-zinc-800"
-            >
-              {lang === 'th' ? 'ก่อนหน้า' : 'Prev'}
-            </button>
-            {Array.from({ length: Math.min(5, totalPages) }, (_, index) => {
-              const startPage = Math.max(0, Math.min(currentPage - 2, totalPages - 5));
-              const pageNumber = startPage + index;
-              if (pageNumber >= totalPages) return null;
-              return (
-                <button
-                  key={pageNumber}
-                  type="button"
-                  onClick={() => setPage(pageNumber)}
-                  aria-current={pageNumber === currentPage ? 'page' : undefined}
-                  aria-label={`${lang === 'th' ? 'หน้า' : 'Page'} ${pageNumber + 1}`}
-                  className={`h-7 min-w-[28px] rounded-md px-1.5 text-xs font-medium tabular-nums transition-all ${pageNumber === currentPage ? 'bg-red-600 text-white shadow-sm' : 'text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'}`}
-                >
-                  {pageNumber + 1}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              disabled={currentPage >= totalPages - 1}
-              onClick={() => setPage((previous) => Math.min(totalPages - 1, previous + 1))}
-              className="rounded-md px-2.5 py-1 text-xs font-medium text-zinc-600 transition-all hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-zinc-800"
-            >
-              {lang === 'th' ? 'ถัดไป' : 'Next'}
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-};
-
-const dataHasCount = (grouped: Map<string, AlertCountRow>, key: string) =>
-  Array.from(grouped.values()).some((row) => (row.counts[key] ?? 0) > 0);
-
 export default function SummaryDashboard({
   dashboardId,
   dashboardName,
@@ -259,7 +105,11 @@ export default function SummaryDashboard({
   allowedRemarks: allowedRemarksProp,
   alertRules: alertRulesProp,
   isAdmin = false,
+  hasDriverRoster = false,
 }: DashboardProps) {
+  const roster = useDriverRoster(dashboardId, hasDriverRoster);
+  const rosterEntries = roster.entries;
+  const rosterIndex = useMemo(() => indexDriverRoster(rosterEntries), [rosterEntries]);
   const scopeNames = useMemo(
     () => resolveScopeFleetNames(organizationName, organizationNames),
     [organizationName, organizationNames],
@@ -301,6 +151,8 @@ export default function SummaryDashboard({
     gid: sheetGid,
     monthKeys: fetchMonthKeys,
     loadMonthCatalog: true,
+    // Zero-alert roster rows require a complete selected period, never a recent-row fallback.
+    requireMonthScope: hasDriverRoster,
   });
 
   useEffect(() => {
@@ -387,27 +239,27 @@ export default function SummaryDashboard({
       const parsedDate = parseDate(dateValue);
       const monthKey = parsedDate ? toMonthKey(parsedDate) : null;
       const monthLabel = parsedDate ? toMonthLabel(parsedDate) : 'Unknown month';
-      return { sourceRow: row, alertType, driver, fleet, remarks, vehicle, monthKey, monthLabel, dateValue, parsedDate };
+      return mapRosterDriver({ sourceRow: row, alertType, driver, fleet, remarks, vehicle, monthKey, monthLabel, dateValue, parsedDate }, rosterIndex, roster.namePolicy);
     });
     const remarkRows = mappedRows.filter((row) => hasRemark(row.remarks) && !isExcludedAlertRemark(row.remarks));
     // Hard fleet scope: drop rows outside the dashboard's fleet set so options + KPIs stay limited.
     if (scopeSet.size === 0) return remarkRows;
     return remarkRows.filter((row) => scopeSet.has(normalizeLabel(row.fleet)));
-  }, [alertRulesProp, rows, scopeSet]);
+  }, [alertRulesProp, rows, scopeSet, rosterIndex, roster.namePolicy]);
 
   // Filter options
   const fleetOptions = useMemo(() => {
     const unique = new Set<string>();
-    alertRows.forEach((row) => { if (row.fleet && row.fleet !== '—') unique.add(row.fleet); });
+    [...alertRows, ...rosterEntries].forEach((row) => { if (row.fleet && row.fleet !== '—') unique.add(row.fleet); });
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
-  }, [alertRows]);
+  }, [alertRows, rosterEntries]);
   const vehicleOptions = useMemo(
-    () => Array.from(new Set(alertRows.map((row) => row.vehicle).filter((value) => value && value !== '—'))).sort(),
-    [alertRows],
+    () => Array.from(new Set([...alertRows, ...rosterEntries].map((row) => row.vehicle).filter((value) => value && value !== '—'))).sort(),
+    [alertRows, rosterEntries],
   );
   const driverOptions = useMemo(
-    () => Array.from(new Set(alertRows.map((row) => row.driver).filter((value) => value && value !== '—'))).sort(),
-    [alertRows],
+    () => Array.from(new Set([...alertRows, ...rosterEntries].map((row) => row.driver).filter((value) => value && value !== '—'))).sort(),
+    [alertRows, rosterEntries],
   );
   const typeOptions = useMemo(
     () => Array.from(new Set(alertRows.map((row) => row.alertType).filter((value) => value && value !== '—'))).sort(),
@@ -508,11 +360,14 @@ export default function SummaryDashboard({
         const value = field === 'remarks' ? row.remarks : row.alertType;
         if (!value || value === '—') return total;
         const nv = normalizeLabel(value);
-        return field === 'remarks' ? (nv.includes(nt) ? total + 1 : total) : (nv === nt ? total + 1 : total);
+        return field === 'remarks' ? (matchesSummaryAlert(value, targetLabel) ? total + 1 : total) : (nv === nt ? total + 1 : total);
       }, 0);
     },
     [],
   );
+
+  const filteredRoster = useMemo(() => filterDriverRoster(rosterEntries, { fleets: fleetFilters, vehicles: vehicleFilters, drivers: driverFilters }), [rosterEntries, fleetFilters, vehicleFilters, driverFilters]);
+  const rosterModel = useMemo(() => buildSummaryRosterData(currentRows, filteredRoster, hasDriverRoster), [currentRows, filteredRoster, hasDriverRoster]);
 
   // KPI data
   const uniqueVehicles = useMemo(() => new Set(currentRows.map((r) => r.vehicle).filter((v) => v !== '—')).size, [currentRows]);
@@ -527,8 +382,8 @@ export default function SummaryDashboard({
   }, [currentRows]);
 
   const safetyScore = useMemo(
-    () => computeSafetyScore(currentRows.length, Math.max(1, uniqueVehicles), dayCount),
-    [currentRows.length, uniqueVehicles, dayCount],
+    () => computeSummarySafetyScore(currentRows.length, uniqueVehicles, dayCount, hasDriverRoster),
+    [currentRows.length, uniqueVehicles, dayCount, hasDriverRoster],
   );
   const prevDayCount = useMemo(() => {
     const days = new Set<string>();
@@ -536,15 +391,15 @@ export default function SummaryDashboard({
     return Math.max(1, days.size);
   }, [previousRows]);
   const prevSafetyScore = useMemo(
-    () => computeSafetyScore(previousRows.length, Math.max(1, prevUniqueVehicles), prevDayCount),
-    [previousRows.length, prevUniqueVehicles, prevDayCount],
+    () => computeSummarySafetyScore(previousRows.length, prevUniqueVehicles, prevDayCount, hasDriverRoster),
+    [previousRows.length, prevUniqueVehicles, prevDayCount, hasDriverRoster],
   );
 
-  // Cache score for dashboards listing (matches current filter selection, including empty result)
+  // Roster membership alone cannot establish a safety score or driving activity.
   useEffect(() => {
-    if (loading) return;
+    if (safetyScore === null || loading || error || (hasDriverRoster && (roster.loading || roster.error || !isCompleteDateTimeRange(dateTimeRange)))) return;
     saveDashboardScore(dashboardId, safetyScore, currentRows.length);
-  }, [dashboardId, loading, safetyScore, currentRows.length]);
+  }, [dashboardId, loading, error, safetyScore, currentRows.length, hasDriverRoster, roster.loading, roster.error, dateTimeRange]);
 
   // Heatmap dates
   const heatmapDates = useMemo(
@@ -609,7 +464,7 @@ export default function SummaryDashboard({
   // When no allow-list is configured, scaffold the highlight KPIs from the
   // standard remark set so the KPI strip still renders something sensible.
   const highlightLabels = useMemo(
-    () => allowedRemarkTargets ?? [...ALLOWED_REMARK_TARGETS],
+    () => { const labels = allowedRemarkTargets ?? [...ALLOWED_REMARK_TARGETS]; return labels.some((label) => getSummaryAlertCategory(label) === 'Overspeed') ? labels : [...labels, 'OverSpeed']; },
     [allowedRemarkTargets],
   );
 
@@ -621,7 +476,7 @@ export default function SummaryDashboard({
       current: countMatches(label, 'remarks', currentRows),
       previous: countMatches(label, 'remarks', previousRows),
     }));
-    return items.filter((item) => item.current > 0);
+    return items.filter((item) => item.current > 0 || getSummaryAlertCategory(item.label) === 'Overspeed');
   }, [highlightLabels, countMatches, currentRows, previousRows]);
 
   // Monthly comparisons
@@ -734,20 +589,24 @@ export default function SummaryDashboard({
             )}
           </FilterBar>
 
-          {(loading || error) ? (
+          {(loading || error || (hasDriverRoster && (roster.loading || roster.error))) ? (
             <LoadingState
               message={
-                progress
+                roster.loading ? (lang === 'th' ? 'กำลังโหลดรายชื่อคนขับ…' : 'Loading driver roster…') : progress
                   ? (lang === 'th'
                       ? `กำลังโหลดเดือนที่เลือก… ${Math.round((progress.done / progress.total) * 100)}%`
                       : `Loading selected month… ${Math.round((progress.done / progress.total) * 100)}%`)
                   : (lang === 'th' ? 'กำลังโหลดภาพรวม…' : 'Loading summary…')
               }
               detail={lang === 'th' ? 'กำลังสรุป KPI ระดับสูง' : 'Compiling high-level KPI totals.'}
-              error={error ?? undefined}
-              onRetry={refresh}
+              error={error ?? roster.error ?? undefined}
+              onRetry={() => { refresh(); roster.refresh(); }}
               lang={lang}
             />
+          ) : hasDriverRoster && !isCompleteDateTimeRange(dateTimeRange) ? (
+            <section className={dashboardSectionClass} role="status">
+              {lang === 'th' ? 'เลือกช่วงวันที่เพื่อดูจำนวนการแจ้งเตือนของคนขับทุกคน' : 'Select a complete date range to see alert counts for every driver.'}
+            </section>
           ) : (
           <>
           {refreshing && (
@@ -766,7 +625,9 @@ export default function SummaryDashboard({
             />
             <div
               className={`flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-4 ring-1 ring-inset ${
-                safetyScore >= SAFETY_THRESHOLDS.excellent
+                safetyScore === null
+                  ? 'bg-zinc-50 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800'
+                  : safetyScore >= SAFETY_THRESHOLDS.excellent
                   ? 'bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/50 dark:ring-emerald-800/40'
                   : safetyScore >= SAFETY_THRESHOLDS.good
                     ? 'bg-blue-50/80 ring-blue-200/60 dark:bg-blue-950/50 dark:ring-blue-800/40'
@@ -775,7 +636,14 @@ export default function SummaryDashboard({
                       : 'bg-red-50/80 ring-red-200/60 dark:bg-red-950/50 dark:ring-red-800/40'
               }`}
             >
-              <SafetyScore
+              {safetyScore === null ? (
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'คะแนนความปลอดภัย' : 'Safety score'}</span>
+                  <span className="text-3xl font-semibold text-zinc-400">—</span>
+                  <span className="text-sm font-medium">{lang === 'th' ? 'ข้อมูลไม่เพียงพอ' : 'Not enough data'}</span>
+                  <span className="max-w-[220px] text-xs text-zinc-500 dark:text-zinc-400">{lang === 'th' ? 'ไม่พบการแจ้งเตือน ข้อมูลนี้ไม่ยืนยันว่ามีการขับขี่' : 'No recorded alerts. Driving activity is not confirmed.'}</span>
+                </div>
+              ) : <SafetyScore
                 score={safetyScore}
                 size={100}
                 tooltip={lang === 'th'
@@ -784,13 +652,13 @@ export default function SummaryDashboard({
                 detail={lang === 'th'
                   ? `${currentRows.length} แจ้งเตือน ÷ ${uniqueVehicles} คัน ÷ ${dayCount} วัน`
                   : `${currentRows.length} alerts ÷ ${uniqueVehicles} vehicles ÷ ${dayCount} days`}
-              />
-              {activeMonthKey && prevSafetyScore !== safetyScore && (
+              />}
+              {activeMonthKey && safetyScore !== null && prevSafetyScore !== null && prevSafetyScore !== safetyScore && (
                 <TrendIndicator current={safetyScore} previous={prevSafetyScore} suffix={lang === 'th' ? 'เทียบเดือนก่อน' : 'vs prior'} invertColor />
               )}
             </div>
-            <KpiCard label={lang === 'th' ? 'ยานพาหนะ' : 'Vehicles'} value={uniqueVehicles} subtitle={lang === 'th' ? 'ยานพาหนะที่ใช้งาน' : 'Active vehicles'} />
-            <KpiCard label={lang === 'th' ? 'คนขับ' : 'Drivers'} value={uniqueDrivers} subtitle={lang === 'th' ? 'คนขับที่ใช้งาน' : 'Active drivers'} />
+            <KpiCard label={lang === 'th' ? 'ยานพาหนะ' : 'Vehicles'} value={hasDriverRoster ? rosterModel.totalVehicles : uniqueVehicles} subtitle={lang === 'th' ? `${uniqueVehicles} คันมีการแจ้งเตือน` : `${uniqueVehicles} with recorded alerts`} />
+            <KpiCard label={lang === 'th' ? 'คนขับ' : 'Drivers'} value={hasDriverRoster ? rosterModel.totalDrivers : uniqueDrivers} subtitle={hasDriverRoster ? (lang === 'th' ? `${rosterModel.driversWithAlerts} มีแจ้งเตือน · ${rosterModel.driversWithoutAlerts} ไม่พบแจ้งเตือน` : `${rosterModel.driversWithAlerts} with alerts · ${rosterModel.driversWithoutAlerts} no alerts`) : (lang === 'th' ? 'คนขับที่มีการแจ้งเตือน' : 'Drivers with recorded alerts')} />
           </div>
 
           {/* ③ Monthly Trend — full-width, sets the narrative arc */}
@@ -866,7 +734,7 @@ export default function SummaryDashboard({
           </section>
 
           {/* ⑥ Classified alert counts — one row per vehicle/driver pair. */}
-          <AlertCountTable rows={currentRows} lang={lang} />
+          <SummaryDriverTable key={`${dashboardId}:${dateTimeRange.start}:${dateTimeRange.end}:${fleetFilters.join()}:${vehicleFilters.join()}:${driverFilters.join()}:${typeFilters.join()}`} model={rosterModel} lang={lang} rosterEnabled={hasDriverRoster} namePolicy={roster.namePolicy} onRefreshRoster={hasDriverRoster ? roster.refresh : undefined} />
 
           {/* ═══ People & Vehicles ═══ */}
           <div className="flex items-center gap-3">

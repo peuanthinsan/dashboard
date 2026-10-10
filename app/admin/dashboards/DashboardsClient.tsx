@@ -48,6 +48,7 @@ import type {
   bulkEditDashboardAlertRule,
   bulkRemoveDashboardAlertRule,
 } from 'app/db-bulk';
+import { DriverRosterAdminFields } from './DriverRosterAdminFields';
 import { AfterHoursAdminFields } from './AfterHoursAdminFields';
 import { DEFAULT_AFTER_HOURS_SETTINGS, validateAfterHoursSettings, type AfterHoursSettings } from 'app/dashboards/afterHoursEntry';
 import { DrivingThresholdAdminFields } from './DrivingThresholdAdminFields';
@@ -491,6 +492,7 @@ function DashboardRow({
               initialRemarks={dashboard.remarks ?? []}
             />
           ) : null}
+          {editTemplate === 'Summary' ? <DriverRosterAdminFields initial={dashboard.driverRosterSettings} /> : null}
           {editTemplate === 'AfterHoursEntry' ? <AfterHoursAdminFields initial={dashboard.afterHoursSettings} /> : null}
           {editTemplate === 'Driving' ? (
             <DrivingThresholdAdminFields initial={dashboard.drivingThresholds} />
@@ -1820,6 +1822,7 @@ export default function DashboardsClient({
                 />
               </div>
             ) : null}
+            {createTemplate === 'Summary' ? <div className="sm:col-span-2"><DriverRosterAdminFields /></div> : null}
             {createTemplate === 'AfterHoursEntry' ? <div className="sm:col-span-2"><AfterHoursAdminFields /></div> : null}
             {createTemplate === 'Driving' ? (
               <div className="sm:col-span-2">
